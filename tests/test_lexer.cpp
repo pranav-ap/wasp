@@ -2,11 +2,8 @@
 #include "lexer.h" 
 
 
-TEST(LexerTestSuite, BasicTokenTest) {
+TEST(LexerTestSuite, SanityTest) {
     EXPECT_TRUE(true); 
 }
 
-TEST(LexerTestSuite, StringCheck) {
-    std::string test_val = "wasp";
-    EXPECT_EQ(test_val, "wasp");
-}
+
