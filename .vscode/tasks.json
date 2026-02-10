@@ -29,5 +29,15 @@
                 "panel": "new"
             }
         },
+        {
+            "label": "Run Benchmarks",
+            "type": "shell",
+            "command": "cmake --build build --target bench_lexer && ./build/benchmarks/bench_lexer",
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
     ],
 }
