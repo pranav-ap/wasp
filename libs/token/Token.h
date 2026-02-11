@@ -35,6 +35,7 @@
 	X(PLUS_EQUAL,     "+=",       false) \
 	X(MINUS,          "-",        false) \
 	X(MINUS_EQUAL,    "-=",       false) \
+	X(ARROW,          "->",       false) \
 	X(STAR,           "*",        false) \
 	X(STAR_EQUAL,     "*=",       false) \
 	X(DIVISION,       "/",        false) \

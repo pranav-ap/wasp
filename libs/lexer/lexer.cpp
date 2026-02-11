@@ -161,6 +161,10 @@ Token Lexer::consume_minus() {
     if (expect_current_char('=')) {
         return Token(TokenType::MINUS_EQUAL, "-=", LINE_NUM, COL_NUM);
     }
+    else if (expect_current_char('>')) {
+        return Token(TokenType::ARROW, "->", LINE_NUM, COL_NUM);
+    }
+    
     return Token(TokenType::MINUS, "-", LINE_NUM, COL_NUM);
 }
 

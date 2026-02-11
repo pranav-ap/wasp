@@ -39,6 +39,9 @@ let x { str : str } = { "a" : "b", "c" : "d" }
 # dict without type annotations for key and value 
 let x { : } = { "a" : "b", "c" : "d" }
 
+# function 
+let x (str) -> str = string_to_string_function 
+
 x."a"
 
 # Alias 
