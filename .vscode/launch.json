@@ -20,6 +20,29 @@
                     "ignoreFailures": true
                 }
             ]
+        },
+        {
+            "name": "Debug Unit Tests",
+            "type": "cppdbg",
+            "request": "launch",
+            // Point this to the actual test binary path
+            "program": "${workspaceFolder}/build/tests/lexer_tests",
+            "args": [
+                // "--gtest_filter=*Range*" // Optional: only debug tests matching this pattern
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "preLaunchTask": "Build",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
         }
     ]
 }

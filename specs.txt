@@ -4,9 +4,6 @@
 let x int = 34
 const x int = 34
 
-# assign 10 if x is none 
-x ?= 10 
-
 
 # list 
 let x [int] = [ 1, 2, 3 ]
@@ -53,47 +50,6 @@ type WindowStates = "open" | "closed" | "minimized"
 type a_tuple = (str, str)
 
 
-# Option
-
-# declare optional variable x 
-let x int? = 34
-
-# extract value in x
-let y = x? else 0 
-let y = x? else return 0 
-
-# returns none if x is none 
-x?.foo.age
-
-
-fun process_order(id int)
-    let order Order? = db.find(id)
-    
-    assure x is int 
-    assure some order else return none 
-    
-    # from now on order is Order, not Order? 
-
-    print order.total
-
-
-# Exception Handling
-
-
-try
-    perform_action()
-    throw NetworkError() 
-catch NetworkError as e
-    retry()
-catch Error as e where e.severity is .critical
-    shutdown_system()
-catch Exception as e
-    do_something_else(e)
-ensure
-    # runs whether or not an exception was raised
- 	print "Cleanup..."
-
-
 # Conditional Flow
 
 
@@ -109,12 +65,29 @@ x = if a > 3 then call() else 0
 x = if let x int = expr then x + 5 else 0
 
 
+# Option
+
+# declare optional variable x 
+let x int? = 34
+
+# extract value from x 
+let y = some x or 0 
+let y = some x or return 0 
+
+# returns none if x is none 
+x?.foo.age
+
+# assign 10 if x is none 
+x ?= 10 
+
+
 # Matching
 
 
 when expr as e
     is [x, y] where x < 0 then 
         pass
+    # extract value in e and place in y             
     is some y then 
         pass 
     is none then 
@@ -171,14 +144,6 @@ fun str::words() => [str]
     return self.split(" ")
 
 
-@mark.template U, V, W
-fn add(a U, b V) => W 
-    if a > b
-        return a
-
-    return b
-
-
 add(12, 23)
 add(a=12, b=23)
 
@@ -228,6 +193,12 @@ fun Worker::run (a, *b, **c)
 
 w = Worker('sam', 4000)
 
+w = new Worker (
+    .name = 'sam', 
+    .salary = 4000, 
+)
+
+
 delete w 
 
 
@@ -256,4 +227,30 @@ from root / folder / sendmail import { send }
 from project / folder / sendmail import { send } 
 from . / folder / sendmail import { send } 
 from . / sendmail import { send } 
+
+# Exception Handling
+
+try
+    perform_action()
+    throw NetworkError() 
+catch NetworkError as e
+    retry()
+catch Error as e where e.severity is .critical
+    shutdown_system()
+catch Exception as e
+    do_something_else(e)
+ensure
+    # runs whether or not an exception was raised
+ 	print "Cleanup..."
+
+
+# Templates
+
+
+@mark.template U, V, W
+fn add(a U, b V) => W 
+    if a > b
+        return a
+
+    return b
 
