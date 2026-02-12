@@ -17,10 +17,11 @@ namespace Wasp {
         };
 
         [[nodiscard]] std::optional<Token> current() const;
-
         [[nodiscard]] std::optional<Token> lookahead() const;
 
         Token require(TokenType token_type);
+        Token require(const std::vector<TokenType>& token_types);
+        std::optional<Token> optional(TokenType token_type);
 
         bool is_empty_line();
 

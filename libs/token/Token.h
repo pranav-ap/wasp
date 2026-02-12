@@ -8,7 +8,7 @@
 	X(UNKNOWN,        "UNKNOWN",  false) \
 	X(NUMBER_LITERAL, "NUMBER",   false) \
 	X(STRING_LITERAL, "STRING",   false) \
-	X(IDENTIFIER,     "ID",       false) \
+	X(IDENTIFIER,     "IDENTIFIER",       false) \
 	X(OPEN_PARENTHESIS, "(",      false) \
 	X(CLOSE_PARENTHESIS, ")",     false) \
 	X(OPEN_CURLY_BRACE, "{",      false) \
@@ -104,9 +104,10 @@
 	X(TRY,            "try",      true) \
 	X(CATCH,          "catch",    true) \
 	X(ENSURE,         "ensure",   true) \
-	X(SPACE,          " ",        false) \
-	X(TAB,            "\t",       false) \
+	X(SPACE,          "SPACE",    false) \
+	X(TAB,            "TAB",      false) \
 	X(EOL,            "EOL",      false) \
+	X(END_OF_FILE,            "END_OF_FILE",      false) \
 	X(COMMENT,        "#",        false)
 
 namespace Wasp {

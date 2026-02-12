@@ -14,7 +14,7 @@ TEST(ParserTestSuite, ParseNumber) {
 )";
 
     const auto tokens = lexer.run(code);
-    auto module = parser.run(tokens);
+    auto mod = parser.run(tokens);
 
     EXPECT_TRUE(true);
 }
@@ -28,7 +28,7 @@ TEST(ParserTestSuite, ParsePrefixNumber) {
 )";
 
     const auto tokens = lexer.run(code);
-    auto module = parser.run(tokens);
+    auto mod = parser.run(tokens);
 
     EXPECT_TRUE(true);
 }
@@ -42,7 +42,21 @@ TEST(ParserTestSuite, ParseAddition) {
 )";
 
     const auto tokens = lexer.run(code);
-    auto module = parser.run(tokens);
+    auto mod = parser.run(tokens);
+
+    EXPECT_TRUE(true);
+}
+
+TEST(ParserTestSuite, ParseAdditionMultiplication) {
+    Wasp::Lexer lexer;
+    Wasp::Parser parser;
+
+    const std::string code = R"(
+1 + 2 * 3
+)";
+
+    const auto tokens = lexer.run(code);
+    auto mod = parser.run(tokens);
 
     EXPECT_TRUE(true);
 }

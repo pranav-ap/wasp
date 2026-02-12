@@ -5,11 +5,15 @@
 #include <string>
 #include <memory>
 #include <variant>
+#include <vector>
+#include <stack>
 
 
 namespace Wasp {
     struct Expression;
     using Expression_ptr = std::shared_ptr<Expression>;
+    using ExpressionVector = std::vector<Expression_ptr>;
+    using ExpressionStack = std::stack<Expression_ptr>;
 
     struct Identifier {
         std::string name;

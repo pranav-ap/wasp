@@ -18,6 +18,8 @@ namespace Wasp {
             tokens.push_back(token);
         }
 
+        tokens.push_back(Token{TokenType::END_OF_FILE, to_string(TokenType::END_OF_FILE), LINE_NUM, COL_NUM});
+
         return tokens;
     }
 

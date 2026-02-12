@@ -10,6 +10,7 @@
 #include <vector>
 #include <memory>
 #include <map>
+#include <optional>
 
 
 namespace Wasp {
@@ -53,6 +54,8 @@ namespace Wasp {
         Expression_ptr parse_expression();
 
         Expression_ptr parse_expression(int precedence);
+
+        ExpressionVector parse_expressions();
 
         Module run(const std::vector<Token> &tokens);
     };

@@ -25,6 +25,7 @@ overloaded(Ts...) -> overloaded<Ts...>;
 
 using std::move;
 using std::cout;
+using std::optional;
 using std::endl;
 using std::make_pair;
 
@@ -41,8 +42,6 @@ namespace Wasp {
         register_prefix(TokenType::MINUS, Precedence::PREFIX);
         register_prefix(TokenType::NOT, Precedence::PREFIX);
         register_prefix(TokenType::DOT_DOT_DOT, Precedence::PREFIX);
-
-        register_prefix(TokenType::AS, Precedence::POSTFIX);
 
         register_infix_left(TokenType::PLUS, Precedence::TERM);
         register_infix_left(TokenType::MINUS, Precedence::TERM);
@@ -64,33 +63,17 @@ namespace Wasp {
         register_infix_right(TokenType::EQUAL, Precedence::ASSIGNMENT);
     }
 
-    void Parser::register_parselet(TokenType token_type, IPrefixParselet_ptr parselet) {
-        prefix_parselets.insert(make_pair(token_type, parselet));
-    }
-
-    void Parser::register_parselet(TokenType token_type, IInfixParselet_ptr parselet) {
-        infix_parselets.insert(make_pair(token_type, parselet));
-    }
-
-    void Parser::register_prefix(TokenType token_type, Precedence precedence) {
-        prefix_parselets.insert(
-            make_pair(token_type, std::make_shared<PrefixOperatorParselet>(static_cast<int>(precedence))));
-    }
-
-    void Parser::register_infix_left(TokenType token_type, Precedence precedence) {
-        register_parselet(token_type, std::make_shared<InfixOperatorParselet>(static_cast<int>(precedence), false));
-    }
-
-    void Parser::register_infix_right(TokenType token_type, Precedence precedence) {
-        register_parselet(token_type, std::make_shared<InfixOperatorParselet>(static_cast<int>(precedence), true));
-    }
-
     Statement_ptr Parser::parse_statement() {
         token_pipe.ignore_empty_lines();
         token_pipe.expect_no_indents_or_spaces();
 
         const auto token = token_pipe.current();
         RETURN_IF_NULLOPT(token);
+
+        if (token.value().type == TokenType::END_OF_FILE) {
+            token_pipe.advance_pointer();
+            return nullptr;
+        }
 
         switch (token->type) {
             default:
@@ -139,6 +122,25 @@ namespace Wasp {
         return left;
     }
 
+    ExpressionVector Parser::parse_expressions() {
+        ExpressionVector elements;
+
+        while (auto element = parse_expression())
+        {
+            elements.push_back(move(element));
+
+            token_pipe.ignore_spaces();
+
+            if (const auto token = token_pipe.current(); token.has_value() && token->type == TokenType::COMMA) {
+                token_pipe.advance_pointer();
+            }
+
+            break;
+        }
+
+        return elements;
+    }
+
     int Parser::get_next_operator_precedence() {
         if (const auto token = token_pipe.current();
             token.has_value() && infix_parselets.contains(token.value().type)) {
@@ -151,19 +153,19 @@ namespace Wasp {
 
     Module Parser::run(const std::vector<Token> &tokens) {
         token_pipe = TokenPipe(tokens);
-        Module module;
+        Module mod;
 
         const auto tokens_count = token_pipe.get_size();
         auto current_index = token_pipe.get_current_index();
 
         while (current_index < tokens_count) {
             if (auto s = parse_statement()) {
-                module.statements.push_back(std::move(s));
+                mod.statements.push_back(std::move(s));
             }
 
             current_index = token_pipe.get_current_index();
         }
 
-        return module;
+        return mod;
     }
 }

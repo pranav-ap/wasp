@@ -1,5 +1,4 @@
 #include "TokenPipe.h"
-#include <optional>
 #include <iostream>
 
 
@@ -35,6 +34,42 @@ namespace Wasp {
 
         cout << "Error: Expected token of type " << to_string(token_type) << " but got end of file" << endl;
         exit(1);
+    }
+
+    Token TokenPipe::require(const std::vector<TokenType>& token_types) {
+        const auto token = current();
+        
+        if (token) {
+            for (const auto& type : token_types) {
+                if (token->type == type) {
+                    advance_pointer();
+                    return *token;
+                }
+            }
+
+            // Error handling if no match is found
+            std::cout << "Error: Expected one of { ";
+            for (size_t i = 0; i < token_types.size(); ++i) {
+                std::cout << to_string(token_types[i]) << (i < token_types.size() - 1 ? ", " : " ");
+            }
+            std::cout << "} but got " << to_string(token->type) 
+                    << " at line " << token->line << std::endl;
+            exit(1);
+        }
+
+        std::cout << "Error: Expected one of multiple types but got end of file" << std::endl;
+        exit(1);
+    }
+
+    optional<Token> TokenPipe::optional(TokenType token_type) {
+	    auto token = current();
+
+    	if (token.has_value() && token.value().type == token_type){
+	    	advance_pointer();
+		    return token;
+	    }
+
+	    return nullopt;
     }
 
     bool TokenPipe::is_empty_line() {
