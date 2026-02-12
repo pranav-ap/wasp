@@ -1,3 +1,4 @@
+#pragma once
 #include <string>
 #include <memory>
 
@@ -117,7 +118,7 @@ enum class TokenType {
 };
 
 
-constexpr std::string to_string(TokenType t) {
+constexpr std::string to_string(const TokenType t) {
     switch (t) {
 		#define AS_CASE(name, str, is_kw) case TokenType::name: return str;
         	TOKEN_LIST(AS_CASE)
@@ -127,7 +128,7 @@ constexpr std::string to_string(TokenType t) {
 }
 
 
-constexpr bool is_keyword(TokenType t) {
+constexpr bool is_keyword(const TokenType t) {
     switch (t) {
         #define AS_KW_CASE(name, str, is_kw) case TokenType::name: return is_kw;
             TOKEN_LIST(AS_KW_CASE)
@@ -137,7 +138,7 @@ constexpr bool is_keyword(TokenType t) {
 }
 
 
-constexpr bool is_keyword(std::string s) {
+constexpr bool is_keyword(const std::string &s) {
     #define AS_KW_CHECK(name, str, is_kw) \
         if constexpr (is_kw) { if (s == str) return true; }
     
@@ -147,7 +148,7 @@ constexpr bool is_keyword(std::string s) {
     return false;
 }
 
-constexpr TokenType get_keyword_token_type(std::string s) {
+constexpr TokenType get_keyword_token_type(const std::string &s) {
     #define AS_KW_TYPE_CHECK(name, str, is_kw) \
         if constexpr (is_kw) { if (s == str) return TokenType::name; }
     
@@ -161,8 +162,8 @@ struct Token {
     TokenType type;
     std::string value;
 
-    uint32_t line;
-    uint32_t column;
+    int line;
+    int column;
 };
 
 } 

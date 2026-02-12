@@ -1,12 +1,12 @@
 # This is a comment
 
 
-let x int = 34
-const x int = 34
+let x: int = 34
+const x: int = 34
 
 
 # list 
-let x [int] = [ 1, 2, 3 ]
+let x: [int] = [ 1, 2, 3 ]
 
 1..10
 1...10
@@ -28,19 +28,19 @@ a | b # Union: {1, 2, 3, 4, 5, 6}
 a - b # Difference: {1, 2}
 
 # tuple 
-let x (str, str) = ("1", "hello") 
+let x: (str, str) = ("1", "hello")
 
 # set 
-let x { str } = { "a", "c" }
+let x: { str } = { "a", "c" }
 
 # dict 
-let x { str : str } = { "a" : "b", "c" : "d" }
+let x: { str : str } = { "a" : "b", "c" : "d" }
 
 # dict without type annotations for key and value 
-let x { : } = { "a" : "b", "c" : "d" }
+let x: { : } = { "a" : "b", "c" : "d" }
 
 # function 
-let x (str) -> str = string_to_string_function 
+let x: (str) -> str = string_to_string_function
 
 x."a"
 
@@ -73,9 +73,16 @@ x = if let x int = expr then x + 5 else 0
 # declare optional variable x 
 let x int? = 34
 
-# extract value from x 
-let y = some x or 0 
-let y = some x or return 0 
+# extract value from x
+let y = x? else 0
+
+let y = some x else 0
+let y = no x then 0
+
+if some x then x else 0
+
+let y = (some x else 0) + 5
+let y = some x else return 0
 
 # returns none if x is none 
 x?.foo.age

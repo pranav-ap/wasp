@@ -1,9 +1,20 @@
-add_executable(lexer_tests test_lexer.cpp)
-target_link_libraries(lexer_tests GTest::gtest_main LexerLib TokenLib)
+# Define a single test runner
+add_executable(unit_tests
+    test_lexer.cpp
+    test_parser.cpp
+)
+
+# Link all necessary libraries
+target_link_libraries(unit_tests
+    PRIVATE
+        GTest::gtest_main
+        ParserLib
+        LexerLib
+        TokenLib
+)
 
 include(GoogleTest)
-# The DISCOVERY_MODE PRE_TEST is often more robust in container environments like VS Code
-gtest_discover_tests(lexer_tests
+gtest_discover_tests(unit_tests
     DISCOVERY_MODE PRE_TEST
     PROPERTIES LABELS "unit"
 )

@@ -26,7 +26,7 @@
             "type": "cppdbg",
             "request": "launch",
             // Point this to the actual test binary path
-            "program": "${workspaceFolder}/build/tests/lexer_tests",
+            "program": "${workspaceFolder}/build/tests/unit_tests",
             "args": [
                 // "--gtest_filter=*Range*" // Optional: only debug tests matching this pattern
             ],

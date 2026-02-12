@@ -2,8 +2,12 @@
 
 ```bash
 cmake -B build -G Ninja
+
 cmake --build build
+
 ./build/src/wasp
+
+sudo chown -R vscode:vscode /workspaces/wasp
 
 ctest --test-dir build
 
