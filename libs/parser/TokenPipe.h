@@ -21,7 +21,7 @@ namespace Wasp {
 
         Token require(TokenType token_type);
         Token require(const std::vector<TokenType>& token_types);
-        std::optional<Token> optional(TokenType token_type);
+        std::optional<Token> consume_optional(TokenType token_type);
 
         bool is_empty_line();
 
@@ -33,7 +33,7 @@ namespace Wasp {
 
         void expect_no_indents_or_spaces() const;
 
-        void expect_n_indents(int n) const;
+        void expect_n_indents(int n);
 
         // Utils
 

@@ -3,6 +3,7 @@
 #include "Expression.h"
 #include <memory>
 
+
 namespace Wasp {
     class Parser;
 
@@ -62,4 +63,19 @@ namespace Wasp {
 
         [[nodiscard]] int get_precedence() const override;
     };
+
+    class ListParselet : public IPrefixParselet {
+    public:
+        Expression_ptr parse(Parser& parser, const Token& token);
+    };
+
+    class TupleParselet : public IPrefixParselet {
+    public:
+        Expression_ptr parse(Parser& parser, const Token& token);
+    };
+
+    class CurlyBraceParselet : public IPrefixParselet {
+    public:
+        Expression_ptr parse(Parser& parser, const Token& token);
+    }; 
 }

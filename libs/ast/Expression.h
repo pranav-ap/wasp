@@ -6,6 +6,7 @@
 #include <memory>
 #include <variant>
 #include <vector>
+#include <map>
 #include <stack>
 
 
@@ -35,12 +36,42 @@ namespace Wasp {
         Expression_ptr operand;
     };
 
+    struct SequenceLiteral {
+        ExpressionVector expressions;
+        SequenceLiteral(ExpressionVector expressions)
+            : expressions(expressions) {};
+    };
+
+    struct ListLiteral : public SequenceLiteral {
+        ListLiteral(ExpressionVector expressions)
+            : SequenceLiteral(expressions) {};
+    };
+
+    struct TupleLiteral : public SequenceLiteral {
+        TupleLiteral(ExpressionVector expressions)
+            : SequenceLiteral(expressions) {};
+    };
+
+    struct SetLiteral : public SequenceLiteral {
+        SetLiteral(ExpressionVector expressions)
+            : SequenceLiteral(expressions) {};
+    };
+
+    struct MapLiteral {
+        std::map<Expression_ptr, Expression_ptr> pairs;
+
+        MapLiteral(std::map<Expression_ptr, Expression_ptr> pairs)
+            : pairs(pairs) {};
+    };
+
+
     struct Expression {
         std::variant<
             std::monostate,
             int, double, std::string, bool,
             Identifier,
-            Prefix, Infix, Postfix
+            Prefix, Infix, Postfix,
+            ListLiteral, TupleLiteral, SetLiteral, MapLiteral
         > data;
 
         template<typename T>

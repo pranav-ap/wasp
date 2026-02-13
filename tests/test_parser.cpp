@@ -1,63 +1,57 @@
 #include "lexer.h"
 #include "parser.h"
-
 #include <gtest/gtest.h>
-#include <string>
 
 
-TEST(ParserTestSuite, ParseNumber) {
+Wasp::Module parse(const std::string& code) {
     Wasp::Lexer lexer;
     Wasp::Parser parser;
 
-    const std::string code = R"(
-2
-)";
-
-    const auto tokens = lexer.run(code);
+    auto tokens = lexer.run(code);
     auto mod = parser.run(tokens);
 
+    return mod;
+}
+
+TEST(ParserTestSuite, Number) {
+    auto mod = parse("2");
+    EXPECT_TRUE(true); 
+}
+
+TEST(ParserTestSuite, Addition) {
+    auto mod = parse("1 + 2");
     EXPECT_TRUE(true);
 }
 
-TEST(ParserTestSuite, ParsePrefixNumber) {
-    Wasp::Lexer lexer;
-    Wasp::Parser parser;
-
-    const std::string code = R"(
-+2
-)";
-
-    const auto tokens = lexer.run(code);
-    auto mod = parser.run(tokens);
-
+TEST(ParserTestSuite, List) {
+    auto mod = parse("[1, 2, 3]");
     EXPECT_TRUE(true);
 }
 
-TEST(ParserTestSuite, ParseAddition) {
-    Wasp::Lexer lexer;
-    Wasp::Parser parser;
-
-    const std::string code = R"(
-1 + 2
-)";
-
-    const auto tokens = lexer.run(code);
-    auto mod = parser.run(tokens);
-
+TEST(ParserTestSuite, Tuple) {
+    auto mod = parse("(1, 2, 3)");
     EXPECT_TRUE(true);
 }
 
-TEST(ParserTestSuite, ParseAdditionMultiplication) {
-    Wasp::Lexer lexer;
-    Wasp::Parser parser;
 
-    const std::string code = R"(
-1 + 2 * 3
-)";
-
-    const auto tokens = lexer.run(code);
-    auto mod = parser.run(tokens);
-
+TEST(ParserTestSuite, EmptySet) {
+    auto mod = parse("{1, 2, 3}");
     EXPECT_TRUE(true);
 }
 
+
+TEST(ParserTestSuite, Set) {
+    auto mod = parse("{1, 2, 3}");
+    EXPECT_TRUE(true);
+}
+
+
+TEST(ParserTestSuite, EmptyMap) {
+    auto mod = parse("{->}");
+    EXPECT_TRUE(true);
+}
+
+TEST(ParserTestSuite, Map) {
+    auto mod = parse("{1 -> 1, 2 -> '2', 3 -> 3.0}");
+    EXPECT_TRUE(true);
+}

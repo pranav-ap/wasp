@@ -61,7 +61,7 @@ namespace Wasp {
         exit(1);
     }
 
-    optional<Token> TokenPipe::optional(TokenType token_type) {
+    optional<Token> TokenPipe::consume_optional(TokenType token_type) {
 	    auto token = current();
 
     	if (token.has_value() && token.value().type == token_type){
@@ -134,12 +134,14 @@ namespace Wasp {
         }
     }
 
-    void TokenPipe::expect_n_indents(const int n) const {
+    void TokenPipe::expect_n_indents(const int n) {
         for (int i = 0; i < n; i++) {
             if (const auto token = current(); token->type != TokenType::TAB) {
                 cout << "Error: Expected " << n << " indents but got " << i << " at line " << token->line << endl;
                 exit(1);
             }
+
+            advance_pointer();
         }
     }
 

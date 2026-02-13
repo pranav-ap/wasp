@@ -18,6 +18,8 @@ namespace Wasp {
             tokens.push_back(token);
         }
 
+        tokens.push_back(Token{TokenType::EOL, to_string(TokenType::EOL), LINE_NUM, COL_NUM});
+        next();
         tokens.push_back(Token{TokenType::END_OF_FILE, to_string(TokenType::END_OF_FILE), LINE_NUM, COL_NUM});
 
         return tokens;
@@ -46,7 +48,7 @@ namespace Wasp {
             return consume_number_literal();
         }
 
-        if (current_char == '"') {
+        if (current_char == '\'') {
             return consume_string_literal();
         }
 
@@ -111,7 +113,7 @@ namespace Wasp {
         next();
 
         char current_char = get_current_char();
-        while (current_char != '"' && current_char != '\0') {
+        while (current_char != '\'' && current_char != '\0') {
             value += current_char;
             next();
             current_char = get_current_char();

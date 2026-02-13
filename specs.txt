@@ -34,10 +34,10 @@ let x: (str, str) = ("1", "hello")
 let x: { str } = { "a", "c" }
 
 # dict 
-let x: { str : str } = { "a" : "b", "c" : "d" }
+let x: { str -> str } = { "a" -> "b", "c" -> "d" }
 
 # dict without type annotations for key and value 
-let x: { : } = { "a" : "b", "c" : "d" }
+let x: { -> } = { "a" -> "b", "c" -> "d" }
 
 # function 
 let x: (str) -> str = string_to_string_function
@@ -74,21 +74,13 @@ x = if let x int = expr then x + 5 else 0
 let x int? = 34
 
 # extract value from x
-let y = x? else 0
-
-let y = some x else 0
-let y = no x then 0
-
-if some x then x else 0
-
-let y = (some x else 0) + 5
-let y = some x else return 0
-
-# returns none if x is none 
-x?.foo.age
+let y = x ? 0
 
 # assign 10 if x is none 
 x ?= 10 
+
+# returns none if x is none 
+x?.foo.age
 
 
 # Matching
@@ -97,7 +89,6 @@ x ?= 10
 when expr as e
     is [x, y] where x < 0 then 
         pass
-    # extract value in e and place in y             
     is some y then 
         pass 
     is none then 

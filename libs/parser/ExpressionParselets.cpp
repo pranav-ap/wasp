@@ -2,8 +2,17 @@
 #include "Parser.h"
 #include <cmath>
 #include <iostream>
+#include <map>
 
-#define MAKE_EXPRESSION(x) std::make_shared<Expression>(Expression{x})
+
+#define RETURN_IF_NULLOPT(token) if (!token.has_value()) return nullptr;
+#define EXIT_IF_NULLOPT(token) if (!token.has_value()) exit(1);
+#define RETURN_IF_NULLPTR(token) if (!token) return nullptr;
+#define EXIT_IF_NULLPTR(token) if (!token) exit(1);
+#define MAKE_STATEMENT(x) std::make_shared<Statement>(Statement(x))
+#define MAKE_EXPRESSION(x) std::make_shared<Expression>(Expression(x))
+
+using std::map;
 
 namespace Wasp {
     Expression_ptr IdentifierParselet::parse(Parser &parser, const Token &token) {
@@ -42,10 +51,6 @@ namespace Wasp {
         ));
     }
 
-    int PrefixOperatorParselet::get_precedence() const {
-        return precedence;
-    }
-
     Expression_ptr InfixOperatorParselet::parse(Parser &parser, const Expression_ptr left, const Token &token) {
         const auto right = parser.parse_expression(precedence - (is_right_associative ? 1 : 0));
 
@@ -54,6 +59,86 @@ namespace Wasp {
         ));
     }
 
+    Expression_ptr ListParselet::parse(Parser &parser, const Token& token) {
+        parser.token_pipe.advance_pointer();
+        ExpressionVector expressions = parser.parse_expressions();
+        parser.token_pipe.require(TokenType::CLOSE_SQUARE_BRACKET);
+        return MAKE_EXPRESSION(ListLiteral(expressions));
+    }
+
+    Expression_ptr TupleParselet::parse(Parser &parser, const Token& token) {
+        parser.token_pipe.advance_pointer();
+        ExpressionVector expressions = parser.parse_expressions();
+        parser.token_pipe.require(TokenType::CLOSE_PARENTHESIS);
+        return MAKE_EXPRESSION(TupleLiteral(expressions));
+    }
+
+    Expression_ptr CurlyBraceParselet::parse(Parser &parser, const Token& token) {
+        parser.token_pipe.advance_pointer();
+
+        parser.token_pipe.ignore_spaces();
+
+        if (parser.token_pipe.consume_optional(TokenType::ARROW)) {
+            parser.token_pipe.require(TokenType::CLOSE_CURLY_BRACE);
+            return MAKE_EXPRESSION(MapLiteral({}));
+        }
+
+        if (parser.token_pipe.consume_optional(TokenType::CLOSE_CURLY_BRACE)) {
+            return MAKE_EXPRESSION(SetLiteral({}));
+        }
+
+        parser.token_pipe.ignore_spaces();
+
+        auto first_expr = parser.parse_expression();
+        EXIT_IF_NULLPTR(first_expr);
+
+        parser.token_pipe.ignore_spaces();
+
+        // Determine if it's a Map by checking for an ARROW after the first expr
+        if (parser.token_pipe.consume_optional(TokenType::ARROW)) {
+            std::map<Expression_ptr, Expression_ptr> pairs;
+            pairs[first_expr] = parser.parse_expression();
+            parser.token_pipe.ignore_spaces();
+
+            while (parser.token_pipe.consume_optional(TokenType::COMMA)) {
+                parser.token_pipe.ignore_spaces();
+
+                auto key = parser.parse_expression();
+                parser.token_pipe.require(TokenType::ARROW);
+                pairs[key] = parser.parse_expression();
+            }
+
+            parser.token_pipe.ignore_spaces();
+            parser.token_pipe.require(TokenType::CLOSE_CURLY_BRACE);
+            return MAKE_EXPRESSION(MapLiteral(pairs));
+        }
+
+        // Otherwise, it's a Set
+        ExpressionVector elements;
+        elements.push_back(first_expr);
+
+        parser.token_pipe.ignore_spaces();
+
+        while (parser.token_pipe.consume_optional(TokenType::COMMA)) {
+            if (parser.token_pipe.current()->type == TokenType::CLOSE_CURLY_BRACE) 
+                break;
+
+            elements.push_back(parser.parse_expression());
+        }
+
+        parser.token_pipe.ignore_spaces();
+        parser.token_pipe.require(TokenType::CLOSE_CURLY_BRACE);
+        
+        return MAKE_EXPRESSION(SetLiteral(elements));
+    }
+
+    
+    // get_precedence
+
+    int PrefixOperatorParselet::get_precedence() const {
+        return precedence;
+    }
+    
     int InfixOperatorParselet::get_precedence() const {
         return precedence;
     }

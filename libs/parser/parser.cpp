@@ -28,16 +28,21 @@ using std::cout;
 using std::optional;
 using std::endl;
 using std::make_pair;
+using std::make_shared;
 
 namespace Wasp {
     Parser::Parser() {
-        register_parselet(TokenType::IDENTIFIER, std::make_shared<IdentifierParselet>());
-        register_parselet(TokenType::STRING_LITERAL, std::make_shared<LiteralParselet>());
-        register_parselet(TokenType::NUMBER_LITERAL, std::make_shared<LiteralParselet>());
-        register_parselet(TokenType::TRUE_KEYWORD, std::make_shared<LiteralParselet>());
-        register_parselet(TokenType::FALSE_KEYWORD, std::make_shared<LiteralParselet>());
-        register_parselet(TokenType::NONE, std::make_shared<LiteralParselet>());
+        register_parselet(TokenType::IDENTIFIER, make_shared<IdentifierParselet>());
+        register_parselet(TokenType::STRING_LITERAL, make_shared<LiteralParselet>());
+        register_parselet(TokenType::NUMBER_LITERAL, make_shared<LiteralParselet>());
+        register_parselet(TokenType::TRUE_KEYWORD, make_shared<LiteralParselet>());
+        register_parselet(TokenType::FALSE_KEYWORD, make_shared<LiteralParselet>());
+        register_parselet(TokenType::NONE, make_shared<LiteralParselet>());
 
+        register_parselet(TokenType::OPEN_SQUARE_BRACKET, make_shared<ListParselet>());
+        register_parselet(TokenType::OPEN_PARENTHESIS, make_shared<TupleParselet>());
+        register_parselet(TokenType::OPEN_CURLY_BRACE, make_shared<CurlyBraceParselet>());
+               
         register_prefix(TokenType::PLUS, Precedence::PREFIX);
         register_prefix(TokenType::MINUS, Precedence::PREFIX);
         register_prefix(TokenType::NOT, Precedence::PREFIX);
@@ -82,7 +87,7 @@ namespace Wasp {
     }
 
     Statement_ptr Parser::parse_expression_statement() {
-        const auto expression = parse_expression();
+        const auto expression = parse_expression();       
         token_pipe.require(TokenType::EOL);
 
         return MAKE_STATEMENT((ExpressionStatement {
@@ -125,16 +130,19 @@ namespace Wasp {
     ExpressionVector Parser::parse_expressions() {
         ExpressionVector elements;
 
-        while (auto element = parse_expression())
-        {
+        while (auto element = parse_expression()) {
             elements.push_back(move(element));
 
             token_pipe.ignore_spaces();
 
-            if (const auto token = token_pipe.current(); token.has_value() && token->type == TokenType::COMMA) {
+            // If there's a comma, consume it and continue the loop
+            if (const auto token = token_pipe.current(); 
+                token.has_value() && token->type == TokenType::COMMA) {
                 token_pipe.advance_pointer();
+                continue; 
             }
 
+            // No comma? We're done with the list.
             break;
         }
 
