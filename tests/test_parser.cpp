@@ -92,7 +92,12 @@ TEST(ParserTestSuite, AliasDefinition) {
 }
 
 TEST(ParserTestSuite, TernaryExpression) {
-    auto mod = parse("let x = if true then 1 else 2");
+    auto mod = parse("if true then 1 else 2");
+    EXPECT_TRUE(true);
+}
+
+TEST(ParserTestSuite, TernaryLetExpression) {
+    auto mod = parse("if let x = 1 then 1 else 2");
     EXPECT_TRUE(true);
 }
 
@@ -119,12 +124,12 @@ else
 
 TEST(ParserTestSuite, IfElifElseBlock) {
     auto mod = parse(R"(
-if true then
-    1
-elif false then
-    2
+if x == 25 then
+    pass
+elif x == 30 then
+    pass
 else
-    3
+    pass
 )");
 
     EXPECT_TRUE(true);

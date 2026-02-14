@@ -44,11 +44,13 @@ namespace Wasp {
         }
 
         if (token.value().type == TokenType::LET) {
+            token_pipe.advance_pointer();
             Expression_ptr expr = parse_expression();
             return MAKE_EXPRESSION(VariableDefinitionExpression(expr, true));
         }
         
         if (token.value().type == TokenType::CONST_KEYWORD) {
+            token_pipe.advance_pointer();
             Expression_ptr expr = parse_expression();
             return MAKE_EXPRESSION(VariableDefinitionExpression(expr, false));
         }

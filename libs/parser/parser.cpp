@@ -65,7 +65,9 @@ namespace Wasp {
         register_infix_left(TokenType::OR, Precedence::OR);
 
         register_infix_right(TokenType::POWER, Precedence::EXPONENT);
+
         register_infix_right(TokenType::EQUAL, Precedence::ASSIGNMENT);
+        register_parselet(TokenType::EQUAL, make_shared<AssignmentParselet>());
 
         register_parselet(TokenType::COLON, make_shared<TypePatternParselet>());
         register_parselet(TokenType::IF, make_shared<TernaryConditionParselet>());

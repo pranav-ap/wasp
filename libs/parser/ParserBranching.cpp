@@ -37,8 +37,18 @@ Statement_ptr Parser::parse_branching(TokenType token_type, int if_indent_level)
 	
 	auto condition = parse_expression();
 	token_pipe.require_in_line(TokenType::THEN);
-	token_pipe.require_in_line(TokenType::EOL);
 
+	// Ternary 
+
+	if (token_type == TokenType::IF && !token_pipe.consume_optional_in_line(TokenType::EOL).has_value()) {
+		Expression_ptr ternary = parse_ternary_condition(TokenType::IF, condition);
+		token_pipe.require_in_line(TokenType::EOL);
+
+		return MAKE_STATEMENT(ExpressionStatement(move(ternary)));
+	}
+
+	// If Block
+	
 	Block body = parse_conditional_block(if_indent_level + 1);
 
 	int actual_indent_level = token_pipe.lookahead_indents();
