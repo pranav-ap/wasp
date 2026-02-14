@@ -5,6 +5,7 @@ namespace Wasp {
         // Declarative
         DEFINITION = 1,
         ASSIGNMENT,
+	    TERNARY_CONDITION,
         TYPE_PATTERN, // :
 
         // Logical

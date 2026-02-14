@@ -11,7 +11,7 @@
             "cwd": "${workspaceFolder}",
             "environment": [],
             "externalConsole": false,
-            "MIMode": "gdb", // or "lldb" on macOS
+            "MIMode": "gdb",
             "preLaunchTask": "Build", // This runs your task BEFORE debugging
             "setupCommands": [
                 {

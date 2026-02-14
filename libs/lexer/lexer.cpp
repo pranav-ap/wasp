@@ -312,16 +312,8 @@ namespace Wasp {
     }
 
     Token Lexer::consume_space() {
-        char current_char = get_current_char();
-        std::string value;
-
-        while (std::isspace(current_char)) {
-            value += current_char;
-            next();
-            current_char = get_current_char();
-        }
-
-        return Token(TokenType::SPACE, value, LINE_NUM, COL_NUM);
+        next();
+        return Token(TokenType::SPACE, " ", LINE_NUM, COL_NUM);
     }
 
     Token Lexer::consume_tab() {

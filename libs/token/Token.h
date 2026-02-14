@@ -59,6 +59,7 @@
 	X(ELIF,           "elif",     true) \
 	X(ELSE,           "else",     true) \
 	X(THEN,           "then",     true) \
+	X(PASS,           "pass",     true) \
 	X(NO,             "no",       true) \
 	X(NONE,           "none",     true) \
 	X(SOME,           "some",     true) \
@@ -91,12 +92,14 @@
 	X(CLASS,          "class",    true) \
 	X(INTERFACE,      "interface", true) \
 	X(TYPE,           "type",     true) \
+	X(ALIAS,           "alias",     true) \
 	X(EXPORT,         "export",   true) \
 	X(OPERATOR,       "operator", true) \
 	X(INT,            "int",      true) \
 	X(FLOAT,          "float",    true) \
 	X(STR,            "str",      true) \
 	X(BOOL,           "bool",     true) \
+	X(ANY,            "any",     true) \
 	X(ENUM,           "enum",     true) \
 	X(RECORD,         "record",   true) \
 	X(TRUE_KEYWORD,   "true",     true) \

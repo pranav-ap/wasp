@@ -66,7 +66,7 @@ namespace Wasp {
         return MAKE_EXPRESSION(ListLiteral(expressions));
     }
 
-    Expression_ptr TupleParselet::parse(Parser &parser, const Token& token) {
+    Expression_ptr ParenthesisParselet::parse(Parser &parser, const Token& token) {
         parser.token_pipe.advance_pointer();
         ExpressionVector expressions = parser.parse_expressions();
         parser.token_pipe.require(TokenType::CLOSE_PARENTHESIS);
@@ -132,6 +132,40 @@ namespace Wasp {
         return MAKE_EXPRESSION(SetLiteral(elements));
     }
 
+    Expression_ptr TypePatternParselet::parse(Parser& parser, Expression_ptr left, const Token& token) {
+        parser.token_pipe.advance_pointer();
+        
+        TypeAnnotation_ptr type = parser.parse_type();
+        return MAKE_EXPRESSION(TypePattern(left, type));
+    }
+
+    Expression_ptr AssignmentParselet::parse(Parser &parser, Expression_ptr left, const Token &token) {
+        parser.token_pipe.advance_pointer();
+        
+        Expression_ptr right = parser.parse_expression(static_cast<int>(Precedence::ASSIGNMENT) - 1);
+        EXIT_IF_NULLPTR(right);
+
+        if (left->is<TypePattern>()) {
+            const auto& pattern = left->as<TypePattern>();
+            
+            return MAKE_EXPRESSION(TypedAssignment(
+                pattern.expression, 
+                right, 
+                pattern.type_node
+            ));
+        }
+
+        return MAKE_EXPRESSION(UntypedAssignment(left, right));
+    }
+
+    Expression_ptr TernaryConditionParselet::parse(Parser& parser, const Token& token) {
+        parser.token_pipe.advance_pointer();
+
+        Expression_ptr condition = parser.parse_expression();
+        parser.token_pipe.require(TokenType::THEN);
+        auto expression = parser.parse_ternary_condition(TokenType::IF, condition);
+    	return expression;
+    }
     
     // get_precedence
 
@@ -141,5 +175,18 @@ namespace Wasp {
     
     int InfixOperatorParselet::get_precedence() const {
         return precedence;
+    }
+
+    int TypePatternParselet::get_precedence() const {
+        return static_cast<int>(Precedence::TYPE_PATTERN);
+    }
+
+    int AssignmentParselet::get_precedence() const
+    {
+        return static_cast<int>(Precedence::ASSIGNMENT);
+    }
+    
+    int TernaryConditionParselet::get_precedence() const {
+        return static_cast<int>(Precedence::TERNARY_CONDITION);
     }
 }

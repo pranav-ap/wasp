@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Token.h"
+#include "TypeAnnotation.h"
 
 #include <string>
 #include <memory>
@@ -18,52 +19,119 @@ namespace Wasp {
 
     struct Identifier {
         std::string name;
+        Identifier(std::string name) : name(std::move(name)) {}
     };
 
     struct Prefix {
         Token op;
         Expression_ptr operand;
+        Prefix(Token op, Expression_ptr operand) 
+            : op(std::move(op)), operand(std::move(operand)) {}
     };
 
     struct Infix {
         Expression_ptr left;
         Token op;
         Expression_ptr right;
+        Infix(Expression_ptr left, Token op, Expression_ptr right)
+            : left(std::move(left)), op(std::move(op)), right(std::move(right)) {}
     };
 
     struct Postfix {
-        Token op;
         Expression_ptr operand;
+        Token op;
+        Postfix(Expression_ptr operand, Token op) 
+            : operand(std::move(operand)), op(std::move(op)) {}
     };
 
     struct SequenceLiteral {
         ExpressionVector expressions;
         SequenceLiteral(ExpressionVector expressions)
-            : expressions(expressions) {};
+            : expressions(std::move(expressions)) {};
     };
 
     struct ListLiteral : public SequenceLiteral {
         ListLiteral(ExpressionVector expressions)
-            : SequenceLiteral(expressions) {};
+            : SequenceLiteral(std::move(expressions)) {};
     };
 
     struct TupleLiteral : public SequenceLiteral {
         TupleLiteral(ExpressionVector expressions)
-            : SequenceLiteral(expressions) {};
+            : SequenceLiteral(std::move(expressions)) {};
     };
 
     struct SetLiteral : public SequenceLiteral {
         SetLiteral(ExpressionVector expressions)
-            : SequenceLiteral(expressions) {};
+            : SequenceLiteral(std::move(expressions)) {};
     };
 
     struct MapLiteral {
         std::map<Expression_ptr, Expression_ptr> pairs;
 
         MapLiteral(std::map<Expression_ptr, Expression_ptr> pairs)
-            : pairs(pairs) {};
+            : pairs(std::move(pairs)) {};
     };
 
+    struct TypePattern {
+        Expression_ptr expression;
+        TypeAnnotation_ptr type_node;
+
+        TypePattern(Expression_ptr expression, TypeAnnotation_ptr type_node)
+            : expression(std::move(expression)), type_node(std::move(type_node)) {};
+    };
+
+    struct VariableDefinitionExpression {
+        Expression_ptr assignment;
+        bool is_mutable;
+
+        VariableDefinitionExpression(Expression_ptr assignment, bool is_mutable = false)
+            : assignment(assignment), is_mutable(is_mutable) {};
+    };
+
+    struct Assignment
+    {
+        Expression_ptr lhs_expression;
+        Expression_ptr rhs_expression;
+
+        Assignment(Expression_ptr lhs_expression, Expression_ptr rhs_expression)
+            : lhs_expression(lhs_expression), rhs_expression(rhs_expression) {};
+    };
+
+    struct UntypedAssignment : public Assignment
+    {
+        UntypedAssignment(Expression_ptr lhs_expression, Expression_ptr rhs_expression)
+            : Assignment(lhs_expression, rhs_expression) {};
+    };
+
+    struct TypedAssignment : public Assignment
+    {
+        TypeAnnotation_ptr type_node;
+
+        TypedAssignment(Expression_ptr lhs_expression, Expression_ptr rhs_expression, TypeAnnotation_ptr type_node)
+            : Assignment(lhs_expression, rhs_expression), type_node(std::move(type_node)) {};
+    };
+
+    // Branching
+
+    struct TernaryBranch {};
+
+    struct IfTernaryBranch : public TernaryBranch {
+        Expression_ptr test;
+        Expression_ptr true_expression;
+        Expression_ptr alternative; // IfTernaryBranch or ElseTernaryBranch
+
+        IfTernaryBranch(Expression_ptr test, Expression_ptr true_expression, Expression_ptr alternative)
+            : true_expression(true_expression), test(test), alternative(alternative) {};
+    };
+
+    struct ElseTernaryBranch : public TernaryBranch {
+        Expression_ptr expression;
+
+        ElseTernaryBranch(Expression_ptr expression) 
+            : expression(expression) {};
+    };
+
+    // Expression Variant
 
     struct Expression {
         std::variant<
@@ -71,8 +139,21 @@ namespace Wasp {
             int, double, std::string, bool,
             Identifier,
             Prefix, Infix, Postfix,
-            ListLiteral, TupleLiteral, SetLiteral, MapLiteral
+            ListLiteral, TupleLiteral, SetLiteral, MapLiteral,
+            
+            TypePattern,
+            VariableDefinitionExpression,
+	        UntypedAssignment, TypedAssignment,
+            
+	        IfTernaryBranch, ElseTernaryBranch
+
         > data;
+
+        Expression() = default;
+    
+        // Generic constructor for any variant type
+        template<typename T>
+        Expression(T&& val) : data(std::forward<T>(val)) {}
 
         template<typename T>
         [[nodiscard]] bool is() const { return std::holds_alternative<T>(data); }

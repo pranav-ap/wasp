@@ -40,7 +40,7 @@ namespace Wasp {
         register_parselet(TokenType::NONE, make_shared<LiteralParselet>());
 
         register_parselet(TokenType::OPEN_SQUARE_BRACKET, make_shared<ListParselet>());
-        register_parselet(TokenType::OPEN_PARENTHESIS, make_shared<TupleParselet>());
+        register_parselet(TokenType::OPEN_PARENTHESIS, make_shared<ParenthesisParselet>());
         register_parselet(TokenType::OPEN_CURLY_BRACE, make_shared<CurlyBraceParselet>());
                
         register_prefix(TokenType::PLUS, Precedence::PREFIX);
@@ -66,97 +66,9 @@ namespace Wasp {
 
         register_infix_right(TokenType::POWER, Precedence::EXPONENT);
         register_infix_right(TokenType::EQUAL, Precedence::ASSIGNMENT);
-    }
 
-    Statement_ptr Parser::parse_statement() {
-        token_pipe.ignore_empty_lines();
-        token_pipe.expect_no_indents_or_spaces();
-
-        const auto token = token_pipe.current();
-        RETURN_IF_NULLOPT(token);
-
-        if (token.value().type == TokenType::END_OF_FILE) {
-            token_pipe.advance_pointer();
-            return nullptr;
-        }
-
-        switch (token->type) {
-            default:
-                return parse_expression_statement();
-        }
-    }
-
-    Statement_ptr Parser::parse_expression_statement() {
-        const auto expression = parse_expression();       
-        token_pipe.require(TokenType::EOL);
-
-        return MAKE_STATEMENT((ExpressionStatement {
-            expression
-        }));
-    }
-
-    Expression_ptr Parser::parse_expression() {
-        return parse_expression(0);
-    }
-
-    Expression_ptr Parser::parse_expression(const int precedence) {
-        token_pipe.ignore_spaces();
-
-        auto token = token_pipe.current();
-        RETURN_IF_NULLOPT(token);
-
-        if (token.value().type == TokenType::CLOSE_PARENTHESIS) return nullptr;
-
-        const IPrefixParselet_ptr prefix_parselet = prefix_parselets.at(token.value().type);
-        EXIT_IF_NULLPTR(prefix_parselet);
-        Expression_ptr left = prefix_parselet->parse(*this, token.value());
-        EXIT_IF_NULLPTR(left);
-
-        token_pipe.ignore_spaces();
-
-        while (precedence < get_next_operator_precedence()) {
-            token = token_pipe.current();
-            EXIT_IF_NULLOPT(token);
-
-            token_pipe.advance_pointer();
-
-            const IInfixParselet_ptr infix_parselet = infix_parselets.at(token.value().type);
-            left = infix_parselet->parse(*this, left, token.value());
-        }
-
-        return left;
-    }
-
-    ExpressionVector Parser::parse_expressions() {
-        ExpressionVector elements;
-
-        while (auto element = parse_expression()) {
-            elements.push_back(move(element));
-
-            token_pipe.ignore_spaces();
-
-            // If there's a comma, consume it and continue the loop
-            if (const auto token = token_pipe.current(); 
-                token.has_value() && token->type == TokenType::COMMA) {
-                token_pipe.advance_pointer();
-                continue; 
-            }
-
-            // No comma? We're done with the list.
-            break;
-        }
-
-        return elements;
-    }
-
-    int Parser::get_next_operator_precedence() {
-        if (const auto token = token_pipe.current();
-            token.has_value() && infix_parselets.contains(token.value().type)) {
-            const IInfixParselet_ptr infix_parselet = infix_parselets.at(token.value().type);
-            return infix_parselet->get_precedence();
-        }
-
-        return 0;
+        register_parselet(TokenType::COLON, make_shared<TypePatternParselet>());
+        register_parselet(TokenType::IF, make_shared<TernaryConditionParselet>());
     }
 
     Module Parser::run(const std::vector<Token> &tokens) {
@@ -167,7 +79,7 @@ namespace Wasp {
         auto current_index = token_pipe.get_current_index();
 
         while (current_index < tokens_count) {
-            if (auto s = parse_statement()) {
+            if (auto s = parse_statement(0)) {
                 mod.statements.push_back(std::move(s));
             }
 

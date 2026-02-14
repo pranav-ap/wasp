@@ -46,11 +46,11 @@ x."a"
 
 # Alias 
 
-type length = int
-type length = int | str
-type Sizes = 1 | 2 | 3 
-type WindowStates = "open" | "closed" | "minimized"
-type a_tuple = (str, str)
+alias length = int
+alias length = int | str
+alias Sizes = 1 | 2 | 3 
+alias WindowStates = "open" | "closed" | "minimized"
+alias a_tuple = (str, str)
 
 
 # Conditional Flow
@@ -71,10 +71,10 @@ x = if let x int = expr then x + 5 else 0
 # Option
 
 # declare optional variable x 
-let x int? = 34
+let x: int? = 34
 
 # extract value from x
-let y = x ? 0
+let y: = x ? 0
 
 # assign 10 if x is none 
 x ?= 10 
