@@ -59,7 +59,6 @@ namespace Wasp {
         register_infix_left(TokenType::LESSER_THAN_EQUAL, Precedence::COMPARISON);
         register_infix_left(TokenType::GREATER_THAN, Precedence::COMPARISON);
         register_infix_left(TokenType::GREATER_THAN_EQUAL, Precedence::COMPARISON);
-        register_infix_left(TokenType::IN_KEYWORD, Precedence::COMPARISON);
         register_infix_left(TokenType::IS, Precedence::COMPARISON);
         register_infix_left(TokenType::AND, Precedence::AND);
         register_infix_left(TokenType::OR, Precedence::OR);
@@ -73,6 +72,9 @@ namespace Wasp {
         register_parselet(TokenType::IF, make_shared<TernaryConditionParselet>());
         
 	    register_infix_left(TokenType::IN_KEYWORD, Precedence::COMPARISON);
+
+        register_infix_left(TokenType::DOT, Precedence::MEMBER_ACCESS);
+        // register_parselet(TokenType::DOT, make_shared<MemberAccessParselet>());
     }
 
     Module Parser::run(const std::vector<Token> &tokens) {

@@ -87,14 +87,14 @@ std::vector<std::string> Parser::parse_enum_members(std::string stem, int indent
             token_pipe.require_in_line(TokenType::EOL);
             
             // Recurse with extended stem and deeper indentation
-            auto nested_members = parse_enum_members(stem + "::" + nested_name, indent_level + 1);
+            auto nested_members = parse_enum_members(stem + "." + nested_name, indent_level + 1);
             members.insert(members.end(), nested_members.begin(), nested_members.end());
 			continue;
         } 
 
         // Leaf Member
         if (auto token = token_pipe.consume_optional(TokenType::IDENTIFIER)) {
-            members.push_back(stem + "::" + token->value);
+            members.push_back(stem + "." + token->value);
             token_pipe.require_in_line(TokenType::EOL);
 			continue;
         } 

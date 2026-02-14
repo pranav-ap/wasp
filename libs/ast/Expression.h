@@ -131,6 +131,13 @@ namespace Wasp {
             : expression(expression) {};
     };
 
+    struct MemberAccess {
+        std::vector<Expression_ptr> chain;
+
+        MemberAccess(std::vector<Expression_ptr> chain)
+            : chain(chain){};
+    };
+
     // Expression Variant
 
     struct Expression {
@@ -145,8 +152,9 @@ namespace Wasp {
             VariableDefinitionExpression,
 	        UntypedAssignment, TypedAssignment,
             
-	        IfTernaryBranch, ElseTernaryBranch
+	        IfTernaryBranch, ElseTernaryBranch,
 
+            MemberAccess
         > data;
 
         Expression() = default;

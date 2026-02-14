@@ -192,4 +192,16 @@ enum Animal
     EXPECT_TRUE(true);
 }
 
+TEST(ParserTestSuite, MemberAccessSimple) {
+    auto mod = parse(R"(Animal.Dog)");
+
+    EXPECT_TRUE(true);
+}
+
+TEST(ParserTestSuite, MemberAccessNested) {
+    auto mod = parse(R"(Animal.Dog.GermanShepherd)");
+
+    EXPECT_TRUE(true);
+}
+
 
