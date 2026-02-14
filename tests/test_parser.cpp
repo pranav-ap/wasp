@@ -104,3 +104,29 @@ if true then
 
     EXPECT_TRUE(true);
 }
+
+TEST(ParserTestSuite, IfElseBlock) {
+    auto mod = parse(R"(
+if true then
+    1
+else
+    2
+)");
+
+    EXPECT_TRUE(true);
+}
+
+
+TEST(ParserTestSuite, IfElifElseBlock) {
+    auto mod = parse(R"(
+if true then
+    1
+elif false then
+    2
+else
+    3
+)");
+
+    EXPECT_TRUE(true);
+}
+

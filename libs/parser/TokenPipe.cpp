@@ -119,9 +119,6 @@ namespace Wasp {
             if (token->type == TokenType::TAB) {
                 indent_level++;
                 advance_pointer();
-            } else if (token->type == TokenType::SPACE) {
-                cout << "Error: Space detected at line " << token->line << ". Only use tabs for indentation." << endl;
-                exit(1);
             } else {
                 break;
             }

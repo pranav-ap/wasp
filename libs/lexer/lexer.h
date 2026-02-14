@@ -63,10 +63,10 @@ public:
 
 class Lexer {
 public:
-    std::vector<Token> run(std::string_view source_code);
+    std::vector<Token> run(std::string source_code);
 
 private:
-    std::string_view source;
+    std::string source;
 	SourceCodePointer source_code_pointer;
 	TokenPosition token_position;
 

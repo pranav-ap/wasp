@@ -5,8 +5,40 @@
 #define COL_NUM token_position.get_column_num()
 
 namespace Wasp {
-    std::vector<Token> Lexer::run(const std::string_view source_code) {
-        source = source_code;
+    std::string convert_spaces_to_tabs(const std::string& input) {
+        std::string result;
+
+        bool inside_string = false;
+        size_t i = 0;
+
+        while (i < input.size()) {
+            if (input[i] == '\'') {
+                inside_string = !inside_string;
+                result.push_back(input[i]);
+                i++;
+                continue;
+            }
+
+            // If we are not in a string, look for 4 consecutive spaces
+            if (!inside_string && i + 3 < input.size() &&
+                input[i] == ' ' && input[i+1] == ' ' && 
+                input[i+2] == ' ' && input[i+3] == ' ') 
+            {
+                result.push_back('\t');
+                i += 4; // Skip the four spaces
+            } 
+            else {
+                // Otherwise, just copy the character as-is
+                result.push_back(input[i]);
+                i++;
+            }
+        }
+
+        return result;
+    }
+
+    std::vector<Token> Lexer::run(const std::string source_code) {
+        source = convert_spaces_to_tabs(source_code);
         std::vector<Token> tokens;
 
         while (true) {
