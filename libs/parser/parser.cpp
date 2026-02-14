@@ -71,6 +71,8 @@ namespace Wasp {
 
         register_parselet(TokenType::COLON, make_shared<TypePatternParselet>());
         register_parselet(TokenType::IF, make_shared<TernaryConditionParselet>());
+        
+	    register_infix_left(TokenType::IN_KEYWORD, Precedence::COMPARISON);
     }
 
     Module Parser::run(const std::vector<Token> &tokens) {

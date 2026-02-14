@@ -53,4 +53,56 @@ Statement_ptr Parser::parse_alias_definition() {
 
 	return MAKE_STATEMENT(AliasDefinition(name, ref_type));
 }
+
+
+// Enum
+
+Statement_ptr Parser::parse_enum_definition(int indent_level) {
+	token_pipe.advance_pointer();
+
+	Token identifier = token_pipe.require_in_line(TokenType::IDENTIFIER);
+	token_pipe.require_in_line(TokenType::EOL);
+
+	std::vector<std::string> members = parse_enum_members(identifier.value, indent_level + 1);
+	return MAKE_STATEMENT(EnumDefinition(identifier.value, members));
+}
+
+std::vector<std::string> Parser::parse_enum_members(std::string stem, int indent_level) {
+    std::vector<std::string> members;
+
+    while (true) {
+		token_pipe.ignore_empty_lines();
+		
+        // Check indentation at the start of each line
+        if (token_pipe.lookahead_indents() != indent_level) {
+			// End of this enum block
+            break; 
+        }
+
+        token_pipe.expect_n_indents(indent_level);
+
+        // Nested Enum
+        if (token_pipe.consume_optional(TokenType::ENUM)) {
+            auto nested_name = token_pipe.require_in_line(TokenType::IDENTIFIER).value;
+            token_pipe.require_in_line(TokenType::EOL);
+            
+            // Recurse with extended stem and deeper indentation
+            auto nested_members = parse_enum_members(stem + "::" + nested_name, indent_level + 1);
+            members.insert(members.end(), nested_members.begin(), nested_members.end());
+			continue;
+        } 
+
+        // Leaf Member
+        if (auto token = token_pipe.consume_optional(TokenType::IDENTIFIER)) {
+            members.push_back(stem + "::" + token->value);
+            token_pipe.require_in_line(TokenType::EOL);
+			continue;
+        } 
+
+		// No more members found
+		break; 
+    }
+
+    return members;
+}
 }

@@ -45,6 +45,18 @@ struct AliasDefinition : public Definition {
 		: name(name), ref_type(ref_type) {};
 };
 
+struct EnumDefinition : public Definition {
+    std::string name;
+    std::map<std::string, int> members;
+
+    EnumDefinition(std::string name, std::vector<std::string> member_list) 
+        : name(std::move(name)) {
+        int index = 0;
+        for (const auto& member : member_list) {
+            members.emplace(member, index++);
+        }
+    }
+};
 
 // Branching
 
@@ -70,9 +82,45 @@ struct ElseBranch : Branch
 	ElseBranch(Block body) : Branch(body) {};
 };
 
+// Looping
+
+struct Loop
+{
+	Block body;
+};
+
+enum class SimpleLoopStyle: int {
+	WHILE,
+	UNTIL,
+	UNLESS
+};
+
+struct SimpleLoop : public Loop
+{
+	Expression_ptr condition;
+	SimpleLoopStyle style;
+
+	SimpleLoop(Block body, Expression_ptr condition, SimpleLoopStyle style) 
+	: Loop(body), condition(std::move(condition)), style(style) {};
+};
+
+struct ForInLoop : public Loop
+{
+	Expression_ptr lhs;
+	Expression_ptr iterable_expression;
+
+	ForInLoop(Block body, Expression_ptr lhs, Expression_ptr iterable_expression)
+		: Loop(body),
+		lhs(std::move(lhs)),
+		iterable_expression(std::move(iterable_expression)) {};
+};
+
 // Other 
 
 struct Pass {};
+
+
+// Statement Variant
 
 struct Statement
 {
@@ -81,9 +129,12 @@ struct Statement
         ExpressionStatement,
         
 	    VariableDefinition, AliasDefinition,
-        IfBranch, ElseBranch,
-
-		Pass 
+		EnumDefinition,
+        
+		IfBranch, ElseBranch,
+		Pass, 
+		
+		SimpleLoop, ForInLoop
     >;
 
     StatementData data;

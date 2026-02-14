@@ -204,11 +204,26 @@ namespace Wasp {
 
     int TokenPipe::lookahead_indents() const {
         int indent_count = 0;
-        
-        while (const auto token = current()) {
-            if (token->type == TokenType::TAB) {
+        int space_buffer = 0;
+        size_t temp_index = index;
+
+        while (temp_index < tokens.size()) {
+            const Token& token = tokens[temp_index];
+
+            if (token.type == TokenType::TAB) {
                 indent_count++;
-            } else {
+                temp_index++;
+            } 
+            else if (token.type == TokenType::SPACE) {
+                space_buffer++;
+                temp_index++;
+                if (space_buffer == 4) {
+                    indent_count++;
+                    space_buffer = 0;
+                }
+            } 
+            else {
+                // Found a non-indentation token
                 break;
             }
         }

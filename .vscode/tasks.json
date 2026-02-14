@@ -11,8 +11,11 @@
             },
             "problemMatcher": [],
             "presentation": {
-                "reveal": "always",
-                "panel": "new"
+                "reveal": "silent",
+                "panel": "shared",
+                "close": false,
+                "clear": true,
+                "focus": true
             }
         },
         {
@@ -25,8 +28,11 @@
             },
             "problemMatcher": [],
             "presentation": {
-                "reveal": "always",
-                "panel": "new"
+                "reveal": "silent",
+                "panel": "shared",
+                "close": false,
+                "clear": true,
+                "focus": true
             }
         },
         {
@@ -35,8 +41,11 @@
             "command": "cmake --build build --target bench_lexer && ./build/benchmarks/bench_lexer",
             "group": "test",
             "presentation": {
-                "reveal": "always",
-                "panel": "dedicated"
+                "reveal": "silent",
+                "panel": "shared",
+                "close": false,
+                "clear": true,
+                "focus": true
             }
         },
     ],

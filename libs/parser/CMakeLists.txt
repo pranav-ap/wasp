@@ -7,6 +7,7 @@ add_library(
     ParserDefinition.cpp
     ParserTypeAnnotation.cpp
     ParserBranching.cpp
+    ParserLooping.cpp
     TokenPipe.cpp 
     register_parselets.cpp
 )

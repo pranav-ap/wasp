@@ -49,7 +49,7 @@ Statement_ptr Parser::parse_branching(TokenType token_type, int if_indent_level)
 
 	// If Block
 	
-	Block body = parse_conditional_block(if_indent_level + 1);
+	Block body = parse_statements_block(if_indent_level + 1);
 
 	int actual_indent_level = token_pipe.lookahead_indents();
 
@@ -90,40 +90,9 @@ Expression_ptr Parser::parse_ternary_condition(TokenType token_type, Expression_
 	return MAKE_EXPRESSION(IfTernaryBranch(prev_condition, then_arm, else_arm));
 }
 
-Block Parser::parse_conditional_block(int expected_indent_level) {
-	auto s = parse_statement(expected_indent_level);
-	EXIT_IF_NULLPTR(s);
-	
-	Block statements { move(s) };
-	
-	while (true) {
-		int actual_indent_level = token_pipe.lookahead_indents();
-
-		if (actual_indent_level > expected_indent_level) {
-			cout << "Unexpected indent level. Expected " << expected_indent_level << " but got " << actual_indent_level << endl;
-			exit(1);
-		}
-
-		if (actual_indent_level == expected_indent_level) {
-			auto s = parse_statement(expected_indent_level);
-			if (!s) 
-				break;
-
-			statements.push_back(move(s));
-			continue;
-		}
-
-		// could be elif else or 
-		// new statements at same indent level as if block 
-		break;
-	}
-
-	return statements;
-}
-
 Statement_ptr Parser::parse_else_block(int if_indent_level) {
 	token_pipe.require_in_line(TokenType::EOL);
-	Block else_block = parse_conditional_block(if_indent_level + 1);
+	Block else_block = parse_statements_block(if_indent_level + 1);
 
 	return MAKE_STATEMENT(ElseBranch(else_block));
 }

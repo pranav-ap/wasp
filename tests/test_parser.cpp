@@ -135,3 +135,61 @@ else
     EXPECT_TRUE(true);
 }
 
+TEST(ParserTestSuite, WhileSingle) {
+    auto mod = parse(R"(while x < 10 do x = x + 1)");
+
+    EXPECT_TRUE(true);
+}
+
+TEST(ParserTestSuite, WhileBlock) {
+    auto mod = parse(R"(
+while x < 10 do 
+    x = x + 1
+    y = 1
+)");
+
+    EXPECT_TRUE(true);
+}
+
+TEST(ParserTestSuite, ForSingle) {
+    auto mod = parse(R"(for x in [1, 2, 3] do x = x + 1)");
+
+    EXPECT_TRUE(true);
+}
+
+TEST(ParserTestSuite, ForBlock) {
+    auto mod = parse(R"(
+for x in [1, 2, 3] do 
+    x = x + 1
+    y = 1
+)");
+
+    EXPECT_TRUE(true);
+}
+
+
+TEST(ParserTestSuite, EnumSimpleDefinition) {
+    auto mod = parse(R"(
+enum Animal
+	Dog
+    Cat
+)");
+
+    EXPECT_TRUE(true);
+}
+
+
+TEST(ParserTestSuite, EnumNestedDefinition) {
+    auto mod = parse(R"(
+enum Animal
+	Dog
+
+	enum Bird
+		Crow
+		Pigeon
+)");
+
+    EXPECT_TRUE(true);
+}
+
+

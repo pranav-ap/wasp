@@ -47,16 +47,49 @@ namespace Wasp {
 			CASE(TokenType::LET, parse_variable_definition(true));
 			CASE(TokenType::CONST_KEYWORD, parse_variable_definition(false));
             CASE(TokenType::ALIAS, parse_alias_definition());
+            CASE(TokenType::ENUM, parse_enum_definition());
+
+		    CASE(TokenType::PASS, parse_pass_statement());
             
-		    CASE(TokenType::IF, parse_branching(
-                token.value().type, 
-                expected_indent_level)
-            );
-            CASE(TokenType::PASS, parse_pass_statement());
+            CASE(TokenType::IF, parse_branching(token.value().type, expected_indent_level));
+
+            CASE(TokenType::WHILE, parse_simple_loop(SimpleLoopStyle::WHILE, expected_indent_level));
+            CASE(TokenType::UNLESS, parse_simple_loop(SimpleLoopStyle::UNLESS, expected_indent_level));
+            CASE(TokenType::UNTIL, parse_simple_loop(SimpleLoopStyle::UNTIL, expected_indent_level));
+            CASE(TokenType::FOR, parse_for_in_loop(expected_indent_level));
 
             default:
                 return parse_expression_statement();
         }
+    }
+
+    Block Parser::parse_statements_block(int expected_indent_level) {
+        auto s = parse_statement(expected_indent_level);
+        EXIT_IF_NULLPTR(s);
+        
+        Block statements { move(s) };
+        
+        while (true) {
+            int actual_indent_level = token_pipe.lookahead_indents();
+
+            if (actual_indent_level > expected_indent_level) {
+                cout << "Unexpected indent level. Expected " << expected_indent_level << " but got " << actual_indent_level << endl;
+                exit(1);
+            }
+
+            if (actual_indent_level == expected_indent_level) {
+                auto s = parse_statement(expected_indent_level);
+                if (!s) 
+                    break;
+
+                statements.push_back(move(s));
+                continue;
+            }
+
+            break;
+        }
+
+        return statements;
     }
 
     Statement_ptr Parser::parse_expression_statement() {
