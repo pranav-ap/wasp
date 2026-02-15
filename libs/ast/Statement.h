@@ -58,6 +58,22 @@ struct EnumDefinition : public Definition {
     }
 };
 
+struct FunctionDefinition : public Definition {
+    std::string name;
+    std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters;
+    TypeAnnotation_ptr return_type;
+    Block body;
+
+    FunctionDefinition(std::string name, 
+                       std::vector<std::pair<std::string, TypeAnnotation_ptr>> params, 
+                       TypeAnnotation_ptr ret_type, 
+                       Block body)
+        : name(std::move(name)), 
+          parameters(std::move(params)), 
+          return_type(std::move(ret_type)), 
+          body(std::move(body)) {};
+};
+
 // Branching
 
 struct Branch
@@ -142,7 +158,7 @@ struct Statement {
         ExpressionStatement,
         
 	    VariableDefinition, AliasDefinition,
-		EnumDefinition,
+		EnumDefinition, FunctionDefinition, 
         
 		IfBranch, ElseBranch,
 		Pass, 
@@ -152,6 +168,9 @@ struct Statement {
     >;
 
     StatementData data;
+
+	template<typename T>
+    Statement(T&& val) : data(std::forward<T>(val)) {}
 };
 
 }

@@ -74,7 +74,6 @@ namespace Wasp {
 	    register_infix_left(TokenType::IN_KEYWORD, Precedence::COMPARISON);
 
         register_infix_left(TokenType::DOT, Precedence::MEMBER_ACCESS);
-        // register_parselet(TokenType::DOT, make_shared<MemberAccessParselet>());
     }
 
     Module Parser::run(const std::vector<Token> &tokens) {

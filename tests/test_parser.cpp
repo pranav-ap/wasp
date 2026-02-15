@@ -235,6 +235,55 @@ TEST(ParserTestSuite, ReturnStatementExpression) {
     EXPECT_TRUE(true);
 }
 
+TEST(ParserTestSuite, FunctionDefinitionSimple) {
+    auto mod = parse(R"(
+fun add(a: int, b: int) -> int
+    x = a + b
+    return x
+)");
+ 
+    EXPECT_TRUE(mod.statements.size() == 1);
+}
+
+TEST(ParserTestSuite, FunctionDefinitionWithIf) {
+    auto mod = parse(R"(
+fun add(a: int, b: int) -> int
+    if a > b then
+        x = a + b
+    return x
+)");
+ 
+    EXPECT_TRUE(mod.statements.size() == 1);
+}
+ 
+TEST(ParserTestSuite, FunctionDefinitionWithIfElifElse) {
+    auto mod = parse(R"(
+fun add(a: int, b: int) -> int
+    if a > b then
+        x = a + b
+    elif a < b then
+        x = a - b
+    else
+        x = a * b
+    return x
+)");
+ 
+    EXPECT_TRUE(mod.statements.size() == 1);
+}
+ 
+TEST(ParserTestSuite, FunctionDefinitionWithWhile) {
+    auto mod = parse(R"(
+fun add(a: int, b: int) -> int
+    while a < b do
+        a = a + 1
+        
+    return x
+)");
+ 
+    EXPECT_TRUE(mod.statements.size() == 1);
+}
+
+
 // TEST(ParserTestSuite, MemberAccessNestedFunction) {
 //     auto mod = parse(R"(company.get_worker().name)");
 

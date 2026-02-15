@@ -134,7 +134,7 @@ Animal.Bird.Crow
 
 @mark.test
 fun add(a int, b int) -> int
-    if a > b
+    if a > b then 
         return a
 
     # pass a, b with their latest values 

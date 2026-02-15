@@ -231,6 +231,38 @@ namespace Wasp {
         return indent_count;
     }
 
+    bool TokenPipe::peek_type_at_indent(int n, TokenType type) const {
+        int logical_indents = 0;
+        int space_buffer = 0;
+        size_t temp_index = index;
+
+        // 1. Walk past the expected indentation
+        while (temp_index < tokens.size() && logical_indents < n) {
+            const Token& token = tokens[temp_index];
+
+            if (token.type == TokenType::TAB) {
+                logical_indents++;
+            } else if (token.type == TokenType::SPACE) {
+                space_buffer++;
+                if (space_buffer == 4) {
+                    logical_indents++;
+                    space_buffer = 0;
+                }
+            } else {
+                // Found a real token before reaching 'n' indents
+                return false; 
+            }
+            temp_index++;
+        }
+
+        // Check if the next meaningful token matches the type
+        if (logical_indents == n && temp_index < tokens.size()) {
+            return tokens[temp_index].type == type;
+        }
+
+        return false;
+    }
+
     // UTILS
 
     int TokenPipe::get_current_index() const {

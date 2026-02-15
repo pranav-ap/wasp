@@ -63,6 +63,7 @@ namespace Wasp {
             CASE(TokenType::REDO, parse_loop_control_statement(TokenType::REDO));
             CASE(TokenType::RETRY, parse_loop_control_statement(TokenType::RETRY));
 
+            CASE(TokenType::FUN, parse_function_definition(expected_indent_level));
             CASE(TokenType::RETURN_KEYWORD, parse_return_statement());
 
             default:
@@ -71,12 +72,15 @@ namespace Wasp {
     }
 
     Block Parser::parse_statements_block(int expected_indent_level) {
+        token_pipe.ignore_empty_lines();
+
         auto s = parse_statement(expected_indent_level);
         EXIT_IF_NULLPTR(s);
         
         Block statements { move(s) };
         
         while (true) {
+            token_pipe.ignore_empty_lines();
             int actual_indent_level = token_pipe.lookahead_indents();
 
             if (actual_indent_level > expected_indent_level) {

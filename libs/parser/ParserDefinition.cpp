@@ -108,12 +108,42 @@ std::vector<std::string> Parser::parse_enum_members(std::string stem, int indent
 
 // Function
 
-/*
-fun add(a: int, b: int) -> int
-    if a > b
-        return a
+Statement_ptr Parser::parse_function_definition(int indent_level) {
+    token_pipe.advance_pointer();
 
-    return b
-*/
+    auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
+    auto name = name_token.value;
 
+    token_pipe.require_in_line(TokenType::OPEN_PARENTHESIS);
+
+    std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters;
+    if (!token_pipe.consume_optional(TokenType::CLOSE_PARENTHESIS)) {
+        while (true) {
+            auto param_name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
+            auto param_name = param_name_token.value;
+
+            token_pipe.require_in_line(TokenType::COLON);
+
+            auto param_type = parse_type();
+
+            parameters.push_back(make_pair(param_name, param_type));
+
+            if (token_pipe.consume_optional(TokenType::CLOSE_PARENTHESIS)) {
+                break;
+            }
+
+            token_pipe.require_in_line(TokenType::COMMA);
+        }
+    }
+
+    TypeAnnotation_ptr return_type = nullptr;
+    if (token_pipe.consume_optional_in_line(TokenType::ARROW)) {
+        return_type = parse_type();
+    }
+
+    token_pipe.require_in_line(TokenType::EOL);
+
+    Block body = parse_statements_block(indent_level + 1);
+    return MAKE_STATEMENT(FunctionDefinition(name, parameters, return_type, body));
+}
 }

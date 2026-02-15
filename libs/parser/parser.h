@@ -37,6 +37,8 @@ namespace Wasp {
 
         Statement_ptr parse_enum_definition(int indent_level = 0);
         std::vector<std::string> parse_enum_members(std::string stem, int indent_level);
+
+        Statement_ptr parse_function_definition(int indent_level = 0);
         
         // Branching Parsers
 
