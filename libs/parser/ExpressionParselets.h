@@ -104,4 +104,15 @@ namespace Wasp {
         [[nodiscard]] int get_precedence() const override;
     };
 
+    class InfixRangeParselet : public IInfixParselet {
+    public:
+        Expression_ptr parse(Parser &parser, Expression_ptr left, const Token &token) override;
+        [[nodiscard]] int get_precedence() const override;
+    };
+
+    class PrefixRangeParselet : public IPrefixParselet {
+    public:
+        Expression_ptr parse(Parser &parser, const Token &token) override;
+        [[nodiscard]] int get_precedence() const;
+    };
 }

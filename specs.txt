@@ -16,7 +16,8 @@ let x: [int] = [ 1, 2, 3 ]
 1..:2
 
 # Destructuring an array
-first, *middle, last = [1, 2, 3, 4, 5]
+first, middle, last = ...three_things
+first, ...middle, last = [1, 2, 3, 4, 5]
 
 # Sets 
 
@@ -137,8 +138,10 @@ fun add(a int, b int) -> int
     if a > b then 
         return a
 
+    # pass a, b with their original values 
+    subtract(..)
     # pass a, b with their latest values 
-    subtract(...)        
+    subtract(...)   
 
     return b
 

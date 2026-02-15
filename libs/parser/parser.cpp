@@ -48,7 +48,6 @@ namespace Wasp {
         register_prefix(TokenType::PLUS, Precedence::PREFIX);
         register_prefix(TokenType::MINUS, Precedence::PREFIX);
         register_prefix(TokenType::NOT, Precedence::PREFIX);
-        register_prefix(TokenType::DOT_DOT_DOT, Precedence::PREFIX);
 
         register_infix_left(TokenType::PLUS, Precedence::TERM);
         register_infix_left(TokenType::MINUS, Precedence::TERM);
@@ -76,6 +75,14 @@ namespace Wasp {
 	    register_infix_left(TokenType::IN_KEYWORD, Precedence::COMPARISON);
 
         register_infix_left(TokenType::DOT, Precedence::MEMBER_ACCESS);
+
+        auto range_pre = make_shared<PrefixRangeParselet>();
+        register_parselet(TokenType::DOT_DOT, range_pre);
+        register_parselet(TokenType::DOT_DOT_DOT, range_pre);
+
+        auto range_inf = make_shared<InfixRangeParselet>();
+        register_parselet(TokenType::DOT_DOT, range_inf);
+        register_parselet(TokenType::DOT_DOT_DOT, range_inf);
     }
 
     Module Parser::run(const std::vector<Token> &tokens) {

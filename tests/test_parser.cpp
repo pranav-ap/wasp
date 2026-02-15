@@ -324,3 +324,60 @@ TEST(ParserTestSuite, MethodAccessThenMethodAccessWithStringAccess) {
 
     EXPECT_TRUE(true);
 }
+
+TEST(ParserTestSuite, RangeSimpleExclusive) {
+    auto mod = parse("1..10");
+
+    EXPECT_TRUE(true);
+}
+
+TEST(ParserTestSuite, RangeSimpleInclusive) {
+    auto mod = parse("1...10");
+
+    EXPECT_TRUE(true);
+}
+
+TEST(ParserTestSuite, RangeWithStep) {
+    auto mod = parse("1..10:2");
+
+    EXPECT_TRUE(true);
+}
+
+TEST(ParserTestSuite, RangeWithoutEnd) {
+    auto mod = parse("1..");
+
+    EXPECT_TRUE(true);
+}
+
+TEST(ParserTestSuite, RangeWithoutEndWithStep) {
+    auto mod = parse("1..:2");
+
+    EXPECT_TRUE(true);
+}
+
+TEST(ParserTestSuite, RangeWithoutStartOrEndOrStep) {
+    // No assigned meaning yet, but should still parse without error
+    auto mod = parse("...");
+
+    EXPECT_TRUE(true);
+}
+
+TEST(ParserTestSuite, Spread) {
+    auto mod = parse("...a");
+
+    EXPECT_TRUE(true);
+}
+
+TEST(ParserTestSuite, SpreadRHS) {
+    auto mod = parse("x, y, z = ...[1, 2, 3]");
+
+    EXPECT_TRUE(true);
+}
+
+TEST(ParserTestSuite, SpreadLHS) {
+    auto mod = parse("x, ...y, z = ...[1, 2, 3, 4, 5]");
+
+    EXPECT_TRUE(true);
+}
+
+

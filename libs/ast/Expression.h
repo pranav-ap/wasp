@@ -141,6 +141,16 @@ namespace Wasp {
             : callee(std::move(callee)), arguments(std::move(arguments)) {};
     };
 
+    struct RangeLiteral {
+        Expression_ptr start; // nullptr for ..10
+        Expression_ptr end;   // nullptr for 1..
+        Expression_ptr step;  // nullptr for 1..10
+        bool is_inclusive;    // true for ..., false for ..
+
+        RangeLiteral(Expression_ptr start, Expression_ptr end, Expression_ptr step, bool is_inclusive)
+            : start(std::move(start)), end(std::move(end)), step(std::move(step)), is_inclusive(is_inclusive) {}
+    };
+
     // Expression Variant
 
     struct Expression {
@@ -150,6 +160,7 @@ namespace Wasp {
             Identifier,
             Prefix, Infix, Postfix,
             ListLiteral, TupleLiteral, SetLiteral, MapLiteral,
+            RangeLiteral,
             
             TypePattern,
             VariableDefinitionExpression,

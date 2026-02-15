@@ -189,6 +189,49 @@ namespace Wasp {
         return MAKE_EXPRESSION(Call(left, arguments));
     }
 
+    // Handles ..10, ...10, ..:2, etc.
+    Expression_ptr PrefixRangeParselet::parse(Parser &parser, const Token &token) {
+        parser.token_pipe.advance_pointer(); // consume .. or ...
+        bool inclusive = (token.type == TokenType::DOT_DOT_DOT);
+
+        Expression_ptr end = nullptr;
+        Expression_ptr step = nullptr;
+
+        // Peek: is there an end expression before a colon or EOL?
+        auto next = parser.token_pipe.current();
+        if (next && next->type != TokenType::EOL && next->type != TokenType::COLON && next->type != TokenType::CLOSE_PARENTHESIS) {
+            end = parser.parse_expression(static_cast<int>(Precedence::RANGE));
+        }
+
+        // Check for step: ..10:2 or ..:2
+        if (parser.token_pipe.consume_optional_in_line(TokenType::COLON)) {
+            step = parser.parse_expression(static_cast<int>(Precedence::RANGE));
+        }
+
+        return MAKE_EXPRESSION(RangeLiteral(nullptr, end, step, inclusive));
+    }
+
+    // Handles 1..10, 1...10, 1..:2, etc.
+    Expression_ptr InfixRangeParselet::parse(Parser &parser, Expression_ptr left, const Token &token) {
+        bool inclusive = (token.type == TokenType::DOT_DOT_DOT);
+
+        Expression_ptr end = nullptr;
+        Expression_ptr step = nullptr;
+
+        // Peek: is it 1.. (open) or 1..10 (closed)?
+        auto next = parser.token_pipe.current();
+        if (next && next->type != TokenType::EOL && next->type != TokenType::COLON && next->type != TokenType::CLOSE_PARENTHESIS) {
+            end = parser.parse_expression(static_cast<int>(Precedence::RANGE));
+        }
+
+        // Check for optional step: 1..10:2 or 1..:2
+        if (parser.token_pipe.consume_optional_in_line(TokenType::COLON)) {
+            step = parser.parse_expression(static_cast<int>(Precedence::RANGE));
+        }
+
+        return MAKE_EXPRESSION(RangeLiteral(left, end, step, inclusive));
+    }
+
     // get_precedence
 
     int PrefixOperatorParselet::get_precedence() const {
@@ -203,8 +246,7 @@ namespace Wasp {
         return static_cast<int>(Precedence::TYPE_PATTERN);
     }
 
-    int AssignmentParselet::get_precedence() const
-    {
+    int AssignmentParselet::get_precedence() const {
         return static_cast<int>(Precedence::ASSIGNMENT);
     }
     
@@ -214,5 +256,13 @@ namespace Wasp {
 
     int CallParselet::get_precedence() const {
         return static_cast<int>(Precedence::CALL); 
+    }
+
+    int InfixRangeParselet::get_precedence() const {
+        return static_cast<int>(Precedence::RANGE);
+    }
+
+    int PrefixRangeParselet::get_precedence() const {
+        return static_cast<int>(Precedence::RANGE);
     }
 }

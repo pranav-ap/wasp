@@ -13,6 +13,8 @@ namespace Wasp {
         AND,
         EQUALITY, // == !=
         COMPARISON, // < > <= >= in is
+        
+        RANGE,
 
         // Arithmetic
         TERM, // + -
