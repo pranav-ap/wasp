@@ -49,14 +49,21 @@ namespace Wasp {
             CASE(TokenType::ALIAS, parse_alias_definition());
             CASE(TokenType::ENUM, parse_enum_definition());
 
-		    CASE(TokenType::PASS, parse_pass_statement());
-            
             CASE(TokenType::IF, parse_branching(token.value().type, expected_indent_level));
 
-            CASE(TokenType::WHILE, parse_simple_loop(SimpleLoopStyle::WHILE, expected_indent_level));
-            CASE(TokenType::UNLESS, parse_simple_loop(SimpleLoopStyle::UNLESS, expected_indent_level));
-            CASE(TokenType::UNTIL, parse_simple_loop(SimpleLoopStyle::UNTIL, expected_indent_level));
+            CASE(TokenType::WHILE, parse_simple_loop(TokenType::WHILE, expected_indent_level));
+            CASE(TokenType::UNLESS, parse_simple_loop(TokenType::UNLESS, expected_indent_level));
+            CASE(TokenType::UNTIL, parse_simple_loop(TokenType::UNTIL, expected_indent_level));
             CASE(TokenType::FOR, parse_for_in_loop(expected_indent_level));
+
+		    CASE(TokenType::PASS, parse_pass_statement());
+            
+            CASE(TokenType::BREAK, parse_loop_control_statement(TokenType::BREAK));
+            CASE(TokenType::CONTINUE, parse_loop_control_statement(TokenType::CONTINUE));
+            CASE(TokenType::REDO, parse_loop_control_statement(TokenType::REDO));
+            CASE(TokenType::RETRY, parse_loop_control_statement(TokenType::RETRY));
+
+            CASE(TokenType::RETURN_KEYWORD, parse_return_statement());
 
             default:
                 return parse_expression_statement();
@@ -106,5 +113,19 @@ namespace Wasp {
         token_pipe.require_in_line(TokenType::EOL);
 
         return MAKE_STATEMENT((Pass {}));
+    }
+
+    Statement_ptr Parser::parse_return_statement() {
+        token_pipe.advance_pointer();
+
+        if (token_pipe.consume_optional_in_line(TokenType::EOL)) {
+            return MAKE_STATEMENT((Return { }));
+        }
+
+        token_pipe.ignore_spaces_tabs();
+
+        auto expression = parse_expression();
+        token_pipe.require_in_line(TokenType::EOL);
+        return MAKE_STATEMENT((Return { expression }));
     }
 }

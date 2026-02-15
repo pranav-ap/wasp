@@ -110,6 +110,10 @@ while let x = expr do a = x + 4
 
 for x int in [1, 2, 3] do x
 
+# named loops for multi level exits
+while expr do as cats
+ 
+
 
 # Enum
 
@@ -129,7 +133,7 @@ Animal.Bird.Crow
 
 
 @mark.test
-fn add(a int, b int) => int
+fun add(a int, b int) -> int
     if a > b
         return a
 
@@ -141,7 +145,7 @@ fn add(a int, b int) => int
 
 # Add a 'words' method to the built-in str type
 # is accessible only in current file or when imported 
-fun str::words() => [str]
+fun str::words() -> [str]
     return self.split(" ")
 
 
@@ -161,18 +165,18 @@ interface Fortifiable
 
 class Worker is Fortifiable
     share record 
-        total int
+        total: int
 
-    name str 
-    salary float 
+    name: str 
+    salary: float 
 
     personal record 
-        hours_per_week_used int 
-        hours_per_week_total int 
+        hours_per_week_used: int 
+        hours_per_week_total: int 
 
     animals [record]
-        id int 
-        name str 
+        id: int 
+        name: str 
     
 
 fun Worker::default ()

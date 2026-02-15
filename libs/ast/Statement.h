@@ -89,23 +89,15 @@ struct Loop
 	Block body;
 };
 
-enum class SimpleLoopStyle: int {
-	WHILE,
-	UNTIL,
-	UNLESS
-};
-
-struct SimpleLoop : public Loop
-{
+struct SimpleLoop : public Loop {
 	Expression_ptr condition;
-	SimpleLoopStyle style;
+	TokenType style;
 
-	SimpleLoop(Block body, Expression_ptr condition, SimpleLoopStyle style) 
+	SimpleLoop(Block body, Expression_ptr condition, TokenType style) 
 	: Loop(body), condition(std::move(condition)), style(style) {};
 };
 
-struct ForInLoop : public Loop
-{
+struct ForInLoop : public Loop {
 	Expression_ptr lhs;
 	Expression_ptr iterable_expression;
 
@@ -120,10 +112,31 @@ struct ForInLoop : public Loop
 struct Pass {};
 
 
+struct Return {
+	std::optional<Expression_ptr> expression;
+
+	Return() 
+		: expression(std::nullopt) {};
+
+	Return(Expression_ptr expression)
+		: expression(std::make_optional(std::move(expression))) {};
+};
+
+
+// Loop Controls 
+
+struct LoopControl {
+	TokenType type;
+	std::string label;
+
+	LoopControl(TokenType type, std::string label = "") 
+		: type(type), label(label) {}
+};
+
+
 // Statement Variant
 
-struct Statement
-{
+struct Statement {
     using StatementData = std::variant<
         std::monostate,
         ExpressionStatement,
@@ -134,7 +147,8 @@ struct Statement
 		IfBranch, ElseBranch,
 		Pass, 
 		
-		SimpleLoop, ForInLoop
+		SimpleLoop, ForInLoop, 
+		Return, LoopControl
     >;
 
     StatementData data;

@@ -31,7 +31,7 @@ using std::make_pair;
 using std::make_shared;
 
 namespace Wasp {
-Statement_ptr Parser::parse_simple_loop(SimpleLoopStyle loop_style, int loop_indent_level) {
+Statement_ptr Parser::parse_simple_loop(TokenType loop_style, int loop_indent_level) {
 	token_pipe.advance_pointer();
 	
 	auto condition = parse_expression();
@@ -89,5 +89,20 @@ Statement_ptr Parser::parse_for_in_loop(int loop_indent_level) {
     
     Block body = { statement };
     return MAKE_STATEMENT(ForInLoop(body, lhs, iterable_expression));
+}
+
+Statement_ptr Parser::parse_loop_control_statement(TokenType control_type) {
+    token_pipe.advance_pointer();
+
+    auto token = token_pipe.consume_optional_in_line(TokenType::IDENTIFIER);
+
+    if (token.has_value() && token.value().type == TokenType::IDENTIFIER) {
+        std::string label = token.value().value;
+        token_pipe.require_in_line(TokenType::EOL);
+        return MAKE_STATEMENT((LoopControl { control_type, label }));
+    }
+
+    token_pipe.require_in_line(TokenType::EOL);
+    return MAKE_STATEMENT((LoopControl { control_type }));
 }
 }

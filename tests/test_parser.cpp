@@ -151,6 +151,16 @@ while x < 10 do
     EXPECT_TRUE(true);
 }
 
+TEST(ParserTestSuite, Continue) {
+    auto mod = parse(R"(
+while x < 10 do 
+    x = x + 1
+    continue
+)");
+
+    EXPECT_TRUE(true);
+}
+
 TEST(ParserTestSuite, ForSingle) {
     auto mod = parse(R"(for x in [1, 2, 3] do x = x + 1)");
 
@@ -203,5 +213,32 @@ TEST(ParserTestSuite, MemberAccessNested) {
 
     EXPECT_TRUE(true);
 }
+
+TEST(ParserTestSuite, MemberAccessWithString) {
+    auto mod = parse(R"(Animal.'Dog'.GermanShepherd)");
+
+    EXPECT_TRUE(true);
+}
+
+TEST(ParserTestSuite, ReturnStatementEmpty) {
+    auto mod = parse(R"(return)");
+    EXPECT_TRUE(true);
+}
+
+TEST(ParserTestSuite, ReturnStatementSimple) {
+    auto mod = parse(R"(return 5)");
+    EXPECT_TRUE(true);
+}
+
+TEST(ParserTestSuite, ReturnStatementExpression) {
+    auto mod = parse(R"(return 5 + 23)");
+    EXPECT_TRUE(true);
+}
+
+// TEST(ParserTestSuite, MemberAccessNestedFunction) {
+//     auto mod = parse(R"(company.get_worker().name)");
+
+//     EXPECT_TRUE(true);
+// }
 
 

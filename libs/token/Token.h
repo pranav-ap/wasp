@@ -77,6 +77,7 @@
 	X(BREAK,          "break",    true) \
 	X(CONTINUE,       "continue", true) \
 	X(REDO,           "redo",     true) \
+	X(RETRY,           "retry",     true) \
 	X(IN_KEYWORD,     "in",       true) \
 	X(WITH,           "with",     true) \
 	X(WHEN,           "when",     true) \
@@ -91,6 +92,7 @@
 	X(YIELD_KEYWORD,  "yield",    true) \
 	X(CLASS,          "class",    true) \
 	X(INTERFACE,      "interface", true) \
+	X(SHARE,      	  "share",     true) \
 	X(TYPE,           "type",     true) \
 	X(ALIAS,           "alias",     true) \
 	X(EXPORT,         "export",   true) \

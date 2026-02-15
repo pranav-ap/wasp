@@ -32,6 +32,8 @@ namespace Wasp {
         Statement_ptr parse_variable_definition(bool is_mutable);
         Statement_ptr parse_alias_definition();
         Statement_ptr parse_pass_statement();
+        Statement_ptr parse_loop_control_statement(TokenType control_type);
+        Statement_ptr parse_return_statement();
 
         Statement_ptr parse_enum_definition(int indent_level = 0);
         std::vector<std::string> parse_enum_members(std::string stem, int indent_level);
@@ -45,7 +47,7 @@ namespace Wasp {
 
         // Looping Parsers
 
-        Statement_ptr parse_simple_loop(SimpleLoopStyle loop_style, int loop_indent_level);
+        Statement_ptr parse_simple_loop(TokenType loop_style, int loop_indent_level);
         Statement_ptr parse_for_in_loop(int loop_indent_level);
 
         // Pratt Parser

@@ -105,4 +105,15 @@ std::vector<std::string> Parser::parse_enum_members(std::string stem, int indent
 
     return members;
 }
+
+// Function
+
+/*
+fun add(a: int, b: int) -> int
+    if a > b
+        return a
+
+    return b
+*/
+
 }
