@@ -40,8 +40,10 @@ namespace Wasp {
         register_parselet(TokenType::NONE, make_shared<LiteralParselet>());
 
         register_parselet(TokenType::OPEN_SQUARE_BRACKET, make_shared<ListParselet>());
-        register_parselet(TokenType::OPEN_PARENTHESIS, make_shared<ParenthesisParselet>());
         register_parselet(TokenType::OPEN_CURLY_BRACE, make_shared<CurlyBraceParselet>());
+        
+        register_parselet(TokenType::OPEN_PARENTHESIS, make_shared<ParenthesisParselet>());
+        register_parselet(TokenType::OPEN_PARENTHESIS, make_shared<CallParselet>());
                
         register_prefix(TokenType::PLUS, Precedence::PREFIX);
         register_prefix(TokenType::MINUS, Precedence::PREFIX);

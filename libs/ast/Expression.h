@@ -131,11 +131,14 @@ namespace Wasp {
             : expression(expression) {};
     };
 
-    struct MemberAccess {
-        std::vector<Expression_ptr> chain;
+    // Other
 
-        MemberAccess(std::vector<Expression_ptr> chain)
-            : chain(chain){};
+    struct Call {
+        Expression_ptr callee;
+        ExpressionVector arguments;
+
+        Call(Expression_ptr callee, ExpressionVector arguments)
+            : callee(std::move(callee)), arguments(std::move(arguments)) {};
     };
 
     // Expression Variant
@@ -154,7 +157,7 @@ namespace Wasp {
             
 	        IfTernaryBranch, ElseTernaryBranch,
 
-            MemberAccess
+            Call
         > data;
 
         Expression() = default;

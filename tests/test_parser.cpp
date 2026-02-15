@@ -276,18 +276,51 @@ TEST(ParserTestSuite, FunctionDefinitionWithWhile) {
 fun add(a: int, b: int) -> int
     while a < b do
         a = a + 1
-        
+
     return x
 )");
  
     EXPECT_TRUE(mod.statements.size() == 1);
 }
 
+TEST(ParserTestSuite, FunctionCallWithoutArguments) {
+    auto mod = parse("get_worker()");
 
-// TEST(ParserTestSuite, MemberAccessNestedFunction) {
-//     auto mod = parse(R"(company.get_worker().name)");
+    EXPECT_TRUE(true);
+}
 
-//     EXPECT_TRUE(true);
-// }
+TEST(ParserTestSuite, FunctionCallWithOneArgument) {
+    auto mod = parse("get_worker(1)");
 
+    EXPECT_TRUE(true);
+}
 
+TEST(ParserTestSuite, FunctionCallWithMultipleArguments) {
+    auto mod = parse("get_worker(1, 'John', true)");
+
+    EXPECT_TRUE(true);
+}
+
+TEST(ParserTestSuite, MethodAccess) {
+    auto mod = parse("company.get_worker(1, 'John', true)");
+
+    EXPECT_TRUE(true);
+}
+
+TEST(ParserTestSuite, MethodAccessThenMemberAccess) {
+    auto mod = parse("company.get_worker(1, 'John', true).name");
+
+    EXPECT_TRUE(true);
+}
+
+TEST(ParserTestSuite, MethodAccessThenMethodAccess) {
+    auto mod = parse("company.get_worker(1, 'John', true).get_name()");
+
+    EXPECT_TRUE(true);
+}
+
+TEST(ParserTestSuite, MethodAccessThenMethodAccessWithStringAccess) {
+    auto mod = parse("company.get_worker(1, 'John', true).'police'.get_name()");
+
+    EXPECT_TRUE(true);
+}

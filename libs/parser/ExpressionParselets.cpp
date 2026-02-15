@@ -166,7 +166,29 @@ namespace Wasp {
         auto expression = parser.parse_ternary_condition(TokenType::IF, condition);
     	return expression;
     }
+
+    Expression_ptr CallParselet::parse(Parser &parser, const Expression_ptr left, const Token &token) {
+        bool is_valid_callee = left->is<Identifier>();
     
+        if (left->is<Infix>() && left->as<Infix>().op.type == TokenType::DOT) {
+            is_valid_callee = true;
+        }
+
+        if (!is_valid_callee) {
+            std::cerr << "Error: Call requires an identifier or member access (dot) expression" << std::endl;
+            exit(1);
+        }
+
+        ExpressionVector arguments;
+
+        if (!parser.token_pipe.consume_optional_in_line(TokenType::CLOSE_PARENTHESIS)) {
+            arguments = parser.parse_expressions();
+            parser.token_pipe.require(TokenType::CLOSE_PARENTHESIS);
+        }
+
+        return MAKE_EXPRESSION(Call(left, arguments));
+    }
+
     // get_precedence
 
     int PrefixOperatorParselet::get_precedence() const {
@@ -188,5 +210,9 @@ namespace Wasp {
     
     int TernaryConditionParselet::get_precedence() const {
         return static_cast<int>(Precedence::TERNARY_CONDITION);
+    }
+
+    int CallParselet::get_precedence() const {
+        return static_cast<int>(Precedence::CALL); 
     }
 }

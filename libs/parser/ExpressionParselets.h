@@ -97,4 +97,11 @@ namespace Wasp {
         Expression_ptr parse(Parser& parser, const Token& token);
         [[nodiscard]] int get_precedence() const;
     };
+
+    class CallParselet : public IInfixParselet {
+    public:
+        Expression_ptr parse(Parser &parser, const Expression_ptr left, const Token &token);
+        [[nodiscard]] int get_precedence() const override;
+    };
+
 }
