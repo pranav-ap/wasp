@@ -362,22 +362,22 @@ TEST(ParserTestSuite, RangeWithoutStartOrEndOrStep) {
     EXPECT_TRUE(true);
 }
 
-TEST(ParserTestSuite, Spread) {
-    auto mod = parse("...a");
 
-    EXPECT_TRUE(true);
-}
-
-TEST(ParserTestSuite, SpreadRHS) {
-    auto mod = parse("x, y, z = ...[1, 2, 3]");
-
-    EXPECT_TRUE(true);
-}
-
-TEST(ParserTestSuite, SpreadLHS) {
-    auto mod = parse("x, ...y, z = ...[1, 2, 3, 4, 5]");
+TEST(ParserTestSuite, Dot) {
+    auto mod = parse(".");
 
     EXPECT_TRUE(true);
 }
 
 
+TEST(ParserTestSuite, DotDot) {
+    auto mod = parse("..");
+
+    EXPECT_TRUE(true);
+}
+
+TEST(ParserTestSuite, PipeOutput) {
+    auto mod = parse("foo() ~ bar(., 35) ~ boom(...)");
+
+    EXPECT_TRUE(true);
+}

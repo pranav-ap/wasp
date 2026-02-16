@@ -22,6 +22,8 @@ namespace Wasp {
         Identifier(std::string name) : name(std::move(name)) {}
     };
 
+    struct DotLiteral {}; 
+
     struct Prefix {
         Token op;
         Expression_ptr operand;
@@ -42,6 +44,14 @@ namespace Wasp {
         Token op;
         Postfix(Expression_ptr operand, Token op) 
             : operand(std::move(operand)), op(std::move(op)) {}
+    };
+
+    enum class CommaSeparatedType {
+        List,
+        Tuple,
+        Set,
+        FormalArguments,
+        ActualArguments
     };
 
     struct SequenceLiteral {
@@ -88,8 +98,7 @@ namespace Wasp {
             : assignment(assignment), is_mutable(is_mutable) {};
     };
 
-    struct Assignment
-    {
+    struct Assignment {
         Expression_ptr lhs_expression;
         Expression_ptr rhs_expression;
 
@@ -157,7 +166,7 @@ namespace Wasp {
         std::variant<
             std::monostate,
             int, double, std::string, bool,
-            Identifier,
+            Identifier, DotLiteral,
             Prefix, Infix, Postfix,
             ListLiteral, TupleLiteral, SetLiteral, MapLiteral,
             RangeLiteral,

@@ -115,4 +115,9 @@ namespace Wasp {
         Expression_ptr parse(Parser &parser, const Token &token) override;
         [[nodiscard]] int get_precedence() const;
     };
+
+    class PlaceholderDotParselet : public IPrefixParselet {
+    public:
+        Expression_ptr parse(Parser &parser, const Token &token) override;
+    };
 }

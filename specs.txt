@@ -75,7 +75,7 @@ x = if let x int = expr then x + 5 else 0
 let x: int? = 34
 
 # extract value from x
-let y: = x ? 0
+let y = x ? 0
 
 # assign 10 if x is none 
 x ?= 10 
@@ -133,9 +133,9 @@ Animal.Bird.Crow
 # Function
 
 
-@mark.test
+@mark test
 fun add(a int, b int) -> int
-    if a > b then 
+    if a > b then
         return a
 
     # pass a, b with their original values 
@@ -144,6 +144,9 @@ fun add(a int, b int) -> int
     subtract(...)   
 
     return b
+
+
+fun add (a: int, b: int) -> int = a + b 
 
 
 # Add a 'words' method to the built-in str type
@@ -166,6 +169,11 @@ interface Fortifiable
     fun fortify () 
 
 
+@mark 'smoke' 
+fun run (a, *b, **c)
+    pass 
+
+
 class Worker is Fortifiable
     share record 
         total: int
@@ -180,30 +188,23 @@ class Worker is Fortifiable
     animals [record]
         id: int 
         name: str 
-    
 
-fun Worker::default ()
-    @share.total = 0 
+    fun default ()
+        us.total = 0 
 
+    fun initialize (name, workers)
+        me.name = name.capitalize()
+        me.workers = workers 
 
-fun Worker::initialize (name, workers)
-    @name = name.capitalize()
-    @workers = workers 
-
-
-fun Worker::delete ()
-    pass 
-
-
-fun Worker::run (a, *b, **c)
-    pass 
+    fun delete ()
+        pass 
 
 
 w = Worker('sam', 4000)
 
 w = new Worker (
-    .name = 'sam', 
-    .salary = 4000, 
+    name = 'sam', 
+    salary = 4000, 
 )
 
 

@@ -2,9 +2,10 @@
 
 namespace Wasp {
     enum class Precedence : int {
-        // Declarative
-        DEFINITION = 1,
+        COMMA = 1,
+        DEFINITION,
         ASSIGNMENT,
+        PIPE, // ~ 
 	    TERNARY_CONDITION,
         TYPE_PATTERN, // :
 

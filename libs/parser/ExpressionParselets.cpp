@@ -232,6 +232,11 @@ namespace Wasp {
         return MAKE_EXPRESSION(RangeLiteral(left, end, step, inclusive));
     }
 
+    Expression_ptr PlaceholderDotParselet::parse(Parser &parser, const Token &token) {
+        parser.token_pipe.advance_pointer();
+        return MAKE_EXPRESSION(DotLiteral{});
+    }
+
     // get_precedence
 
     int PrefixOperatorParselet::get_precedence() const {

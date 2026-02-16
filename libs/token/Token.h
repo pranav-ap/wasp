@@ -93,6 +93,8 @@
 	X(CLASS,          "class",    true) \
 	X(INTERFACE,      "interface", true) \
 	X(SHARE,      	  "share",     true) \
+	X(ME,      	  "me",     true) \
+	X(US,      	  "us",     true) \
 	X(TYPE,           "type",     true) \
 	X(ALIAS,           "alias",     true) \
 	X(EXPORT,         "export",   true) \

@@ -54,7 +54,7 @@ namespace Wasp {
             Expression_ptr expr = parse_expression();
             return MAKE_EXPRESSION(VariableDefinitionExpression(expr, false));
         }
-        
+
         const IPrefixParselet_ptr prefix_parselet = prefix_parselets.at(token.value().type);
         EXIT_IF_NULLPTR(prefix_parselet);
         Expression_ptr left = prefix_parselet->parse(*this, token.value());
