@@ -39,10 +39,6 @@ namespace Wasp {
         auto token = token_pipe.current_in_line();
         RETURN_IF_NULLOPT(token);
 
-        if (token.value().type == TokenType::CLOSE_PARENTHESIS) {
-            return nullptr;
-        }
-
         if (token.value().type == TokenType::LET) {
             token_pipe.advance_pointer();
             Expression_ptr expr = parse_expression();

@@ -208,6 +208,10 @@ namespace Wasp {
             step = parser.parse_expression(static_cast<int>(Precedence::RANGE));
         }
 
+        if (inclusive && end == nullptr && step == nullptr) {
+            return MAKE_EXPRESSION(DotDotDotLiteral{});
+        }
+
         return MAKE_EXPRESSION(RangeLiteral(nullptr, end, step, inclusive));
     }
 
@@ -237,6 +241,12 @@ namespace Wasp {
         return MAKE_EXPRESSION(DotLiteral{});
     }
 
+    Expression_ptr StarGatherSpreadParselet::parse(Parser &parser, const Token &token) {
+        parser.token_pipe.advance_pointer();
+        auto expr = parser.parse_expression();
+        return MAKE_EXPRESSION(StarGatherSpreadLiteral{expr});
+    }
+    
     // get_precedence
 
     int PrefixOperatorParselet::get_precedence() const {

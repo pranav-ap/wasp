@@ -86,6 +86,8 @@ namespace Wasp {
         register_parselet(TokenType::DOT_DOT_DOT, range_inf);
 
         register_infix_left(TokenType::TILDE, Precedence::PIPE);
+
+        register_parselet(TokenType::STAR, make_shared<StarGatherSpreadParselet>());
     }
 
     Module Parser::run(const std::vector<Token> &tokens) {

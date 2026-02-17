@@ -22,6 +22,7 @@
 	X(COLON,          ":",        false) \
 	X(COLON_COLON,    "::",       false) \
 	X(VERTICAL_BAR,   "|",        false) \
+	X(AMPERSAND,      "&",        false) \
 	X(UNDERSCORE,     "_",        false) \
 	X(DOLLAR,         "$",        false) \
 	X(TILDE,          "~",        false) \
@@ -32,6 +33,7 @@
 	X(QUESTION,       "?",        false) \
 	X(QUESTION_DOT,   "?.",       false) \
 	X(QUESTION_EQUAL, "?=",       false) \
+	X(QUESTION_QUESTION, "??",       false) \
 	X(PLUS,           "+",        false) \
 	X(PLUS_EQUAL,     "+=",       false) \
 	X(MINUS,          "-",        false) \
@@ -92,9 +94,10 @@
 	X(YIELD_KEYWORD,  "yield",    true) \
 	X(CLASS,          "class",    true) \
 	X(INTERFACE,      "interface", true) \
+	X(IMPL,      "impl", true) \
 	X(SHARE,      	  "share",     true) \
-	X(ME,      	  "me",     true) \
-	X(US,      	  "us",     true) \
+	X(ME,      	  	  "me",     true) \
+	X(US,      	      "us",     true) \
 	X(TYPE,           "type",     true) \
 	X(ALIAS,           "alias",     true) \
 	X(EXPORT,         "export",   true) \
@@ -114,7 +117,7 @@
 	X(SPACE,          "SPACE",    false) \
 	X(TAB,            "TAB",      false) \
 	X(EOL,            "EOL",      false) \
-	X(END_OF_FILE,            "END_OF_FILE",      false) \
+	X(END_OF_FILE,    "END_OF_FILE",      false) \
 	X(COMMENT,        "#",        false)
 
 namespace Wasp {

@@ -381,3 +381,30 @@ TEST(ParserTestSuite, PipeOutput) {
 
     EXPECT_TRUE(true);
 }
+
+TEST(ParserTestSuite, Star) {
+    auto mod = parse("*b");
+
+    EXPECT_TRUE(true);
+}
+
+TEST(ParserTestSuite, StarGather) {
+    auto mod = parse("[a, *b, c] = [1, 2, 3, 4, 5]");
+
+    EXPECT_TRUE(true);
+}
+
+TEST(ParserTestSuite, StarSpread) {
+    auto mod = parse("[a, b, c] = *three_nums");
+
+    EXPECT_TRUE(true);
+}
+
+TEST(ParserTestSuite, StarGatherAndSpread) {
+    auto mod = parse("[a, *b, c] = *five_nums");
+
+    EXPECT_TRUE(true);
+}
+
+
+

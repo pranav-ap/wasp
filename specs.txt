@@ -15,9 +15,6 @@ let x: [int] = [ 1, 2, 3 ]
 1...
 1..:2
 
-# Destructuring an array
-first, middle, last = ...three_things
-first, ...middle, last = [1, 2, 3, 4, 5]
 
 # Sets 
 
@@ -132,14 +129,10 @@ Animal.Bird.Crow
 
 # Function
 
-
-@mark test
 fun add(a int, b int) -> int
     if a > b then
         return a
 
-    # pass a, b with their original values 
-    subtract(..)
     # pass a, b with their latest values 
     subtract(...)   
 
@@ -162,17 +155,60 @@ add(a=12, b=23)
 foo() ~ bar(., 35) ~ boom(...)
 
 
-# Class  
+# Annotations
+
+
+@tag 
+@test 
+
+
+@tag ['smoke', 'unit']
+fun run (a, *b, **c)
+    pass 
+
+
+fun @mark ()
+    pass 
+
+
+# Interface   
 
 
 interface Fortifiable 
     fun fortify () 
 
 
-@mark 'smoke' 
-fun run (a, *b, **c)
-    pass 
+ctx 
 
+
+# Record 
+
+record Actor
+    name: str 
+    salary: float 
+
+    personal record 
+        hours_per_week_used: int 
+        hours_per_week_total: int 
+
+
+sam = new Actor with
+        name = 'sam'
+        salary = 2000
+        personal
+            hours_per_week_used = 12
+            hours_per_week_total = 12
+
+sam = new Actor with name = 'sam'
+
+
+jon = sam with 
+        name = 'jon' 
+
+jon = sam with name = 'jon' 
+
+
+# Class 
 
 class Worker is Fortifiable
     share record 
@@ -189,6 +225,8 @@ class Worker is Fortifiable
         id: int 
         name: str 
 
+
+impl Worker 
     fun default ()
         us.total = 0 
 
@@ -200,12 +238,12 @@ class Worker is Fortifiable
         pass 
 
 
-w = Worker('sam', 4000)
+w = new Worker ('sam', 4000)
 
-w = new Worker (
-    name = 'sam', 
-    salary = 4000, 
-)
+
+new_worker = old_worker with
+    name = "Fuller"
+    salary = 5500.0
 
 
 delete w 
@@ -256,7 +294,7 @@ ensure
 # Templates
 
 
-@mark.template U, V, W
+@template U, V, W
 fn add(a U, b V) => W 
     if a > b
         return a

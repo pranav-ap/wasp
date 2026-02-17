@@ -23,6 +23,7 @@ namespace Wasp {
     };
 
     struct DotLiteral {}; 
+    struct DotDotDotLiteral {}; 
 
     struct Prefix {
         Token op;
@@ -44,14 +45,6 @@ namespace Wasp {
         Token op;
         Postfix(Expression_ptr operand, Token op) 
             : operand(std::move(operand)), op(std::move(op)) {}
-    };
-
-    enum class CommaSeparatedType {
-        List,
-        Tuple,
-        Set,
-        FormalArguments,
-        ActualArguments
     };
 
     struct SequenceLiteral {
@@ -160,16 +153,24 @@ namespace Wasp {
             : start(std::move(start)), end(std::move(end)), step(std::move(step)), is_inclusive(is_inclusive) {}
     };
 
+    struct StarGatherSpreadLiteral {
+        Expression_ptr expression;
+
+        StarGatherSpreadLiteral(Expression_ptr expression)
+            : expression(std::move(expression)) {}
+    };
+
     // Expression Variant
 
     struct Expression {
         std::variant<
             std::monostate,
             int, double, std::string, bool,
-            Identifier, DotLiteral,
+            Identifier, DotLiteral, DotDotDotLiteral,
+            
             Prefix, Infix, Postfix,
             ListLiteral, TupleLiteral, SetLiteral, MapLiteral,
-            RangeLiteral,
+            RangeLiteral, StarGatherSpreadLiteral,
             
             TypePattern,
             VariableDefinitionExpression,

@@ -269,9 +269,15 @@ namespace Wasp {
             return Token(TokenType::QUESTION_DOT, "?.", LINE_NUM, COL_NUM
             );
         }
+        
         if (expect_current_char('=')) {
             return Token(TokenType::QUESTION_EQUAL, "?=", LINE_NUM, COL_NUM);
         }
+        
+        if (expect_current_char('?')) {
+            return Token(TokenType::QUESTION_QUESTION, "??", LINE_NUM, COL_NUM);
+        }
+
         return Token(TokenType::QUESTION, "?", LINE_NUM, COL_NUM);
     }
 
@@ -315,6 +321,8 @@ namespace Wasp {
                 return Token(TokenType::UNDERSCORE, "_", LINE_NUM, COL_NUM);
             case '$': next();
                 return Token(TokenType::DOLLAR, "$", LINE_NUM, COL_NUM);
+            case '&': next();
+                return Token(TokenType::AMPERSAND, "&", LINE_NUM, COL_NUM);
             case '~': next();
                 return Token(TokenType::TILDE, "~", LINE_NUM, COL_NUM);
             case '@': next();
