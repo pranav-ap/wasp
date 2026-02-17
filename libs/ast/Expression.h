@@ -23,6 +23,7 @@ namespace Wasp {
     };
 
     struct DotLiteral {}; 
+    struct DotDotLiteral {}; 
     struct DotDotDotLiteral {}; 
 
     struct Prefix {
@@ -166,7 +167,7 @@ namespace Wasp {
         std::variant<
             std::monostate,
             int, double, std::string, bool,
-            Identifier, DotLiteral, DotDotDotLiteral,
+            Identifier, DotLiteral, DotDotLiteral, DotDotDotLiteral,
             
             Prefix, Infix, Postfix,
             ListLiteral, TupleLiteral, SetLiteral, MapLiteral,

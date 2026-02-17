@@ -42,6 +42,11 @@ let x: (str) -> str = string_to_string_function
 
 x."a"
 
+# trimmed by default 
+x = '''
+    comment
+    '''
+
 # Alias 
 
 alias length = int
@@ -162,12 +167,8 @@ foo() ~ bar(., 35) ~ boom(...)
 @test 
 
 
-@tag ['smoke', 'unit']
-fun run (a, *b, **c)
-    pass 
-
-
-fun @mark ()
+@tag('smoke', 'unit')
+fun run (a, b, c)
     pass 
 
 

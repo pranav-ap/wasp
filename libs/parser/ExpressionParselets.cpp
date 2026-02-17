@@ -211,6 +211,10 @@ namespace Wasp {
         if (inclusive && end == nullptr && step == nullptr) {
             return MAKE_EXPRESSION(DotDotDotLiteral{});
         }
+        
+        if (!inclusive && end == nullptr && step == nullptr) {
+            return MAKE_EXPRESSION(DotDotLiteral{});
+        }
 
         return MAKE_EXPRESSION(RangeLiteral(nullptr, end, step, inclusive));
     }
