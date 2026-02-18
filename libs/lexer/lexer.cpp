@@ -274,10 +274,6 @@ namespace Wasp {
             return Token(TokenType::QUESTION_EQUAL, "?=", LINE_NUM, COL_NUM);
         }
         
-        if (expect_current_char('?')) {
-            return Token(TokenType::QUESTION_QUESTION, "??", LINE_NUM, COL_NUM);
-        }
-
         return Token(TokenType::QUESTION, "?", LINE_NUM, COL_NUM);
     }
 

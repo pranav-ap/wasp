@@ -33,7 +33,6 @@
 	X(QUESTION,       "?",        false) \
 	X(QUESTION_DOT,   "?.",       false) \
 	X(QUESTION_EQUAL, "?=",       false) \
-	X(QUESTION_QUESTION, "??",       false) \
 	X(PLUS,           "+",        false) \
 	X(PLUS_EQUAL,     "+=",       false) \
 	X(MINUS,          "-",        false) \
@@ -94,8 +93,9 @@
 	X(YIELD_KEYWORD,  "yield",    true) \
 	X(CLASS,          "class",    true) \
 	X(INTERFACE,      "interface", true) \
-	X(IMPL,      "impl", true) \
-	X(SHARE,      	  "share",     true) \
+	X(IMPL,      	  "impl", true) \
+	X(SHARED,      	  "shared",     true) \
+	X(PRIVATE,       "private",     true) \
 	X(ME,      	  	  "me",     true) \
 	X(US,      	      "us",     true) \
 	X(TYPE,           "type",     true) \

@@ -146,4 +146,20 @@ Statement_ptr Parser::parse_function_definition(int indent_level) {
     Block body = parse_statements_block(indent_level + 1);
     return MAKE_STATEMENT(FunctionDefinition(name, parameters, return_type, body));
 }
+
+Statement_ptr Parser::parse_annotation_definition() {
+    token_pipe.advance_pointer(); 
+
+    auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
+    auto name = name_token.value;
+
+    if (token_pipe.consume_optional_in_line(TokenType::OPEN_PARENTHESIS)) {
+        std::vector<Expression_ptr> args = parse_expressions(); 
+        token_pipe.require_in_line(TokenType::CLOSE_PARENTHESIS);
+        return MAKE_STATEMENT(AnnotationDefinition(name, args));
+    }
+
+    return MAKE_STATEMENT(AnnotationDefinition(name, {}));
+}
+
 }

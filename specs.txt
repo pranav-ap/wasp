@@ -32,13 +32,13 @@ let x: (str, str) = ("1", "hello")
 let x: { str } = { "a", "c" }
 
 # dict 
-let x: { str -> str } = { "a" -> "b", "c" -> "d" }
+let x: { str => str } = { "a" => "b", "c" => "d" }
 
 # dict without type annotations for key and value 
-let x: { -> } = { "a" -> "b", "c" -> "d" }
+let x: { => } = { "a" => "b", "c" => "d" }
 
 # function 
-let x: (str) -> str = string_to_string_function
+let x: (str) => str = string_to_string_function
 
 x."a"
 
@@ -76,11 +76,15 @@ x = if let x int = expr then x + 5 else 0
 # declare optional variable x 
 let x: int? = 34
 
-# extract value from x
-let y = x ? 0
+# extract value from x 
+let y = x ? 
 
 # assign 10 if x is none 
+x = x ? 10 
 x ?= 10 
+
+# return 10 is x is none 
+x = x ? return 10 
 
 # returns none if x is none 
 x?.foo.age
@@ -115,8 +119,8 @@ for x int in [1, 2, 3] do x
 
 # named loops for multi level exits
 while expr do as cats
+    pass
  
-
 
 # Enum
 
@@ -134,7 +138,7 @@ Animal.Bird.Crow
 
 # Function
 
-fun add(a int, b int) -> int
+fun add(a: int, b: int) => int
     if a > b then
         return a
 
@@ -142,15 +146,6 @@ fun add(a int, b int) -> int
     subtract(...)   
 
     return b
-
-
-fun add (a: int, b: int) -> int = a + b 
-
-
-# Add a 'words' method to the built-in str type
-# is accessible only in current file or when imported 
-fun str::words() -> [str]
-    return self.split(" ")
 
 
 add(12, 23)
@@ -162,7 +157,9 @@ foo() ~ bar(., 35) ~ boom(...)
 
 # Annotations
 
+Annotations are wrapper functions 
 
+@wrapper_function 
 @tag 
 @test 
 
@@ -172,53 +169,19 @@ fun run (a, b, c)
     pass 
 
 
-# Interface   
-
-
-interface Fortifiable 
-    fun fortify () 
-
-
-ctx 
-
-
-# Record 
-
-record Actor
-    name: str 
-    salary: float 
-
-    personal record 
-        hours_per_week_used: int 
-        hours_per_week_total: int 
-
-
-sam = new Actor with
-        name = 'sam'
-        salary = 2000
-        personal
-            hours_per_week_used = 12
-            hours_per_week_total = 12
-
-sam = new Actor with name = 'sam'
-
-
-jon = sam with 
-        name = 'jon' 
-
-jon = sam with name = 'jon' 
-
-
 # Class 
 
-class Worker is Fortifiable
-    share record 
+class Worker
+    shared record 
         total: int
+
+    private record 
+        foo: int 
 
     name: str 
     salary: float 
 
-    personal record 
+    time record 
         hours_per_week_used: int 
         hours_per_week_total: int 
 
@@ -239,25 +202,86 @@ impl Worker
         pass 
 
 
-w = new Worker ('sam', 4000)
+impl Worker is Fortifiable
+    fun defend()
+        pass 
 
 
-new_worker = old_worker with
-    name = "Fuller"
-    salary = 5500.0
-
-
-delete w 
+x = new Worker ('sam', 4000)
+delete x 
 
 
 x.foo.age = 1
 x(123).foo(36, gg).age = 1
 
 
+# Trait  
+
+- a trait is a bag of vars & funcs with defaults 
+- trait need to declare all vars & funcs it needs
+- trait can access global variables in the scope where it is defined 
+- resolve to a trait specific func using :: 
+- class mediates conflicts between traits 
+
+
+trait Fortifiable
+    # private vars are not accessible by the class 
+    # and do not cause conflicts  
+    private record 
+        id: int 
+
+    health: int
+
+    # trait cannot have initialize, only default
+    fun default ()        
+        me.health = 100
+    
+    fun run ()
+        pass
+    
+    fun defend ()
+        pass
+
+
+trait Living
+    health: int
+    
+    fun default()
+        me.health = 50
+
+    fun run ()
+        pass
+
+
+class Worker is Fortifiable, Living
+    # Var Conflict detected: 'health' exists in two traits
+    # MUST override in class
+    health: int 
+
+
+impl Worker 
+    fun default()
+        me.health = 75 
+
+
+impl Worker is Fortifiable
+    fun defend()
+        pass 
+
+
+impl Worker 
+    # Fun Conflict detected: 'run' exists in two traits
+    # MUST override in class
+    fun run ()
+        # You decide how to reconcile the logic
+        me::Fortifiable.run()
+        me::Living.run()
+
+
 # Operator Overloading
 
 
-operator left: Castle < right: Castle -> bool
+operator left: Castle < right: Castle => bool
     return left.cost < right.cost
 
 
@@ -275,6 +299,7 @@ from root / folder / sendmail import { send }
 from project / folder / sendmail import { send } 
 from . / folder / sendmail import { send } 
 from . / sendmail import { send } 
+
 
 # Exception Handling
 

@@ -407,4 +407,10 @@ TEST(ParserTestSuite, StarGatherAndSpread) {
 }
 
 
+TEST(ParserTestSuite, AnnotationDefinitionSimple) {
+    auto mod = parse("@tag('smoke', 'unit')");
+
+    EXPECT_TRUE(true);
+}
+
 

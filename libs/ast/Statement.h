@@ -74,6 +74,15 @@ struct FunctionDefinition : public Definition {
           body(std::move(body)) {};
 };
 
+
+struct AnnotationDefinition : public Definition {
+	std::string name;
+	ExpressionVector anno_values;
+
+	AnnotationDefinition(std::string name, ExpressionVector anno_values)
+		: name(std::move(name)), anno_values(std::move(anno_values)) {};
+};
+
 // Branching
 
 struct Branch
@@ -159,7 +168,8 @@ struct Statement {
         
 	    VariableDefinition, AliasDefinition,
 		EnumDefinition, FunctionDefinition, 
-        
+        AnnotationDefinition,
+		
 		IfBranch, ElseBranch,
 		Pass, 
 		
