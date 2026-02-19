@@ -175,8 +175,8 @@ class Worker
     shared record 
         total: int
 
-    private record 
-        foo: int 
+    # makes it private 
+    _foo: int 
 
     name: str 
     salary: float 
@@ -227,9 +227,7 @@ x(123).foo(36, gg).age = 1
 trait Fortifiable
     # private vars are not accessible by the class 
     # and do not cause conflicts  
-    private record 
-        id: int 
-
+    _id: int 
     health: int
 
     # trait cannot have initialize, only default
@@ -269,7 +267,7 @@ impl Worker is Fortifiable
         pass 
 
 
-impl Worker 
+impl Worker  
     # Fun Conflict detected: 'run' exists in two traits
     # MUST override in class
     fun run ()
@@ -295,10 +293,9 @@ from io import { print as pr }
 from io import { print, ask } 
 
 
-from root / folder / sendmail import { send } 
-from project / folder / sendmail import { send } 
-from . / folder / sendmail import { send } 
-from . / sendmail import { send } 
+from 'project/folder/sendmail' import { send } 
+from './folder/sendmail' import { send } 
+from './sendmail' import { send } 
 
 
 # Exception Handling
@@ -326,4 +323,5 @@ fn add(a U, b V) => W
         return a
 
     return b
+
 

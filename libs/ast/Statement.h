@@ -83,6 +83,14 @@ struct AnnotationDefinition : public Definition {
 		: name(std::move(name)), anno_values(std::move(anno_values)) {};
 };
 
+struct ClassDefinition : public Definition {
+	std::string name;
+	std::map<std::string, TypeAnnotation_ptr> members;
+
+	ClassDefinition(std::string name, std::map<std::string, TypeAnnotation_ptr> members)
+		: name(name), members(std::move(members)) {};
+};
+
 // Branching
 
 struct Branch
@@ -168,7 +176,7 @@ struct Statement {
         
 	    VariableDefinition, AliasDefinition,
 		EnumDefinition, FunctionDefinition, 
-        AnnotationDefinition,
+        AnnotationDefinition, ClassDefinition, 
 		
 		IfBranch, ElseBranch,
 		Pass, 

@@ -3,6 +3,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <map>
 #include <variant>
 #include <optional>
 
@@ -31,6 +32,8 @@ struct MapTypeNode;
 struct VariantTypeNode;
 
 struct FunctionTypeNode;
+struct RecordTypeNode;
+
 
 using TypeAnnotation = std::variant<
     std::monostate,
@@ -47,7 +50,8 @@ using TypeAnnotation = std::variant<
     std::shared_ptr<SetTypeNode>, 
     std::shared_ptr<MapTypeNode>,
     std::shared_ptr<VariantTypeNode>,
-    std::shared_ptr<FunctionTypeNode>
+    std::shared_ptr<FunctionTypeNode>,
+    std::shared_ptr<RecordTypeNode>
 >;
 
 using TypeAnnotation_ptr = std::shared_ptr<TypeAnnotation>;
@@ -88,5 +92,10 @@ struct FunctionTypeNode {
         : input_types(std::move(inputs)), return_type(std::move(ret)) {}
 };
 
-}
+struct RecordTypeNode {
+    std::map<std::string, TypeAnnotation_ptr> members;
+    RecordTypeNode(std::map<std::string, TypeAnnotation_ptr> members) 
+        : members(std::move(members)) {}
+};
 
+}

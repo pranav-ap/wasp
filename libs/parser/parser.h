@@ -40,6 +40,10 @@ namespace Wasp {
 
         Statement_ptr parse_function_definition(int indent_level = 0);
 
+        std::map<std::string, TypeAnnotation_ptr> parse_name_type_block(int expected_indent);
+        std::pair<std::string, TypeAnnotation_ptr> parse_name_type_pair(int member_indent);
+        Statement_ptr parse_class_definition(int indent_level = 0);
+
         Statement_ptr parse_annotation_definition();
         
         // Branching Parsers

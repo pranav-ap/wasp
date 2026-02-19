@@ -68,6 +68,8 @@ namespace Wasp {
 
             CASE(TokenType::AT_SIGN, parse_annotation_definition());
 
+            CASE(TokenType::CLASS, parse_class_definition(expected_indent_level));
+
             default:
                 return parse_expression_statement();
         }

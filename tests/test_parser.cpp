@@ -414,3 +414,72 @@ TEST(ParserTestSuite, AnnotationDefinitionSimple) {
 }
 
 
+TEST(ParserTestSuite, ClassDefinitionSimple) {
+    auto mod = parse(R"(
+class Person
+    name: string
+    age: int
+)");
+
+    EXPECT_TRUE(true);
+}
+
+TEST(ParserTestSuite, ClassDefinitionWithPrivateVariable) {
+    auto mod = parse(R"(
+class Person
+    name: string
+    _age: int
+)");
+
+    EXPECT_TRUE(true);
+}
+
+
+TEST(ParserTestSuite, ClassDefinitionWithSimpleRecord) {
+    auto mod = parse(R"(
+class Person
+    name: string
+    address record
+        street: string
+        city: string
+)");
+
+    EXPECT_TRUE(true);
+}
+
+
+TEST(ParserTestSuite, ClassDefinitionWithNestedRecord) {
+    auto mod = parse(R"(
+class Person
+    name: string
+    address record
+        street: string
+        city: string
+
+    job record
+        title: string
+        salary: int
+
+        experience record
+            years: int
+            field: string
+
+)");
+
+    EXPECT_TRUE(true);
+}
+
+
+// TEST(ParserTestSuite, ClassDefinitionWithSimpleRecord) {
+//     auto mod = parse(R"(
+// class Person
+//     name: string
+//     address record
+//         street: string
+//         city: string
+// )");
+
+//     EXPECT_TRUE(true);
+// }
+
+

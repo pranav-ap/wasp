@@ -14,6 +14,10 @@
 #define CASE(token_type, call) case token_type: { return call; }
 #define MAKE_STATEMENT(x) std::make_shared<Statement>(Statement(x))
 #define MAKE_EXPRESSION(x) std::make_shared<Expression>(Expression(x))
+#define MAKE_TYPE(x) std::make_shared<TypeAnnotation>(x)
+#define MAKE_RECURSIVE_TYPE(T, ...) std::make_shared<TypeAnnotation>(std::make_shared<T>(__VA_ARGS__))
+
+
 
 template<class... Ts>
 struct overloaded : Ts... {
@@ -160,6 +164,71 @@ Statement_ptr Parser::parse_annotation_definition() {
     }
 
     return MAKE_STATEMENT(AnnotationDefinition(name, {}));
+}
+
+// Class
+
+std::map<std::string, TypeAnnotation_ptr> Parser::parse_name_type_block(int expected_indent) {
+    std::map<std::string, TypeAnnotation_ptr> members;
+
+    while (true) {
+        token_pipe.ignore_empty_lines();
+        
+        if (token_pipe.lookahead_indents() != expected_indent) {
+            break;
+        }
+
+        token_pipe.expect_n_indents(expected_indent);
+        
+        auto [member_name, member_type] = parse_name_type_pair(expected_indent);
+        members[member_name] = member_type;
+    }
+
+    return members;
+}
+
+std::pair<std::string, TypeAnnotation_ptr> Parser::parse_name_type_pair(int member_indent) {
+    auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
+    std::string name = name_token.value;
+
+    if (token_pipe.consume_optional_in_line(TokenType::RECORD)) {
+        token_pipe.require_in_line(TokenType::EOL);
+        const int record_indent = member_indent + 1;
+        std::map<std::string, TypeAnnotation_ptr> record_members;
+
+        while (true) {
+            token_pipe.ignore_empty_lines();
+            
+            if (token_pipe.lookahead_indents() != record_indent) {
+                break;
+            }
+
+            token_pipe.expect_n_indents(record_indent);
+            auto [member_name, member_type] = parse_name_type_pair(record_indent);
+            record_members[member_name] = member_type;
+        }
+        
+        return make_pair(name, MAKE_RECURSIVE_TYPE(RecordTypeNode, record_members));
+    }
+
+    token_pipe.require_in_line(TokenType::COLON);
+    auto type = parse_type();
+
+    return make_pair(name, type);
+}
+
+Statement_ptr Parser::parse_class_definition(int indent_level) {
+    token_pipe.advance_pointer(); // Consume 'class' keyword
+
+    auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
+    auto class_name = name_token.value;
+
+    token_pipe.require_in_line(TokenType::EOL);
+
+    // Parse all members using the abstracted block loop
+    auto members = parse_name_type_block(indent_level + 1);
+
+    return MAKE_STATEMENT(ClassDefinition(class_name, members));
 }
 
 }

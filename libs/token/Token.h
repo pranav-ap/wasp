@@ -95,7 +95,7 @@
 	X(INTERFACE,      "interface", true) \
 	X(IMPL,      	  "impl", true) \
 	X(SHARED,      	  "shared",     true) \
-	X(PRIVATE,       "private",     true) \
+	X(RECORD,      	  "record",     true) \
 	X(ME,      	  	  "me",     true) \
 	X(US,      	      "us",     true) \
 	X(TYPE,           "type",     true) \
@@ -108,7 +108,6 @@
 	X(BOOL,           "bool",     true) \
 	X(ANY,            "any",     true) \
 	X(ENUM,           "enum",     true) \
-	X(RECORD,         "record",   true) \
 	X(TRUE_KEYWORD,   "true",     true) \
 	X(FALSE_KEYWORD,  "false",    true) \
 	X(TRY,            "try",      true) \

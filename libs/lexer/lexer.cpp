@@ -72,7 +72,7 @@ namespace Wasp {
             return consume_eol();
         }
 
-        if (std::isalpha(current_char)) {
+        if (std::isalpha(current_char) || current_char == '_') {
             return consume_identifier_or_keyword();
         }
 
