@@ -238,7 +238,21 @@ Statement_ptr Parser::parse_class_definition(int indent_level) {
     // Parse all members using the abstracted block loop
     auto members = parse_name_type_block(indent_level + 1);
 
-    return MAKE_STATEMENT(ClassDefinition(class_name, members));
+    return MAKE_STATEMENT(ClassDefinition(class_name, members, traits));
+}
+
+Statement_ptr Parser::parse_trait_definition(int indent_level) {
+    token_pipe.advance_pointer(); // Consume 'trait' keyword
+
+    auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
+    auto trait_name = name_token.value;
+
+    token_pipe.require_in_line(TokenType::EOL);
+
+    // Parse all members using the abstracted block loop
+    auto members = parse_name_type_block(indent_level + 1);
+
+    return MAKE_STATEMENT(TraitDefinition(trait_name, members));
 }
 
 Statement_ptr Parser::parse_impl_definition(int indent_level) {

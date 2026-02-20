@@ -86,10 +86,20 @@ struct AnnotationDefinition : public Definition {
 struct ClassDefinition : public Definition {
 	std::string name;
 	std::map<std::string, TypeAnnotation_ptr> members;
+	std::vector<std::string> traits;
 
-	ClassDefinition(std::string name, std::map<std::string, TypeAnnotation_ptr> members)
+	ClassDefinition(std::string name, std::map<std::string, TypeAnnotation_ptr> members, std::vector<std::string> traits)
+		: name(name), members(std::move(members)), traits(std::move(traits)) {};
+};
+
+struct TraitDefinition : public Definition {
+	std::string name;
+	std::map<std::string, TypeAnnotation_ptr> members;
+
+	TraitDefinition(std::string name, std::map<std::string, TypeAnnotation_ptr> members)
 		: name(name), members(std::move(members)) {};
 };
+
 
 struct ImplDefinition {
     std::string class_name;
@@ -188,8 +198,10 @@ struct Statement {
         
 	    VariableDefinition, AliasDefinition,
 		EnumDefinition, FunctionDefinition, 
-        AnnotationDefinition, ClassDefinition, 
+		ClassDefinition, TraitDefinition,
 		ImplDefinition,
+
+		AnnotationDefinition, 
 		
 		IfBranch, ElseBranch,
 		Pass, 

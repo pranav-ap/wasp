@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 
-TEST(ParserTestSuite, IntDefinition) {
+TEST(ParseDefinitions, IntDefinition) {
     auto mod = parse("let x: int = 5");
     ASSERT_EQ(mod.statements.size(), 1);
 
@@ -27,7 +27,7 @@ TEST(ParserTestSuite, IntDefinition) {
     EXPECT_EQ(assignment.rhs_expression->as<int>(), 5);
 }
 
-TEST(ParserTestSuite, ListDefinition) {
+TEST(ParseDefinitions, ListDefinition) {
     auto mod = parse("let x : [int] = [1, 2, 3]");
     ASSERT_EQ(mod.statements.size(), 1);
 
@@ -56,7 +56,7 @@ TEST(ParserTestSuite, ListDefinition) {
     EXPECT_EQ(list.expressions[0]->as<int>(), 1);
 }
 
-TEST(ParserTestSuite, SetDefinition) {
+TEST(ParseDefinitions, SetDefinition) {
     auto mod = parse("let x : { int } = {1, 2, 3}");
     ASSERT_EQ(mod.statements.size(), 1);
 
@@ -83,7 +83,7 @@ TEST(ParserTestSuite, SetDefinition) {
     EXPECT_EQ(set.expressions[0]->as<int>(), 1);
 }
 
-TEST(ParserTestSuite, MapDefinition) {
+TEST(ParseDefinitions, MapDefinition) {
     auto mod = parse("let x : { int => int } = {1 => 1, 2 => 2, 3 => 3}");
     ASSERT_EQ(mod.statements.size(), 1);
 
@@ -109,7 +109,7 @@ TEST(ParserTestSuite, MapDefinition) {
     ASSERT_EQ(map.pairs.size(), 3);
 }
 
-TEST(ParserTestSuite, FunTypeDefinition) {
+TEST(ParseDefinitions, FunTypeDefinition) {
     auto mod = parse("let x : (int) => int = function_name");
     ASSERT_EQ(mod.statements.size(), 1);
 
@@ -129,7 +129,7 @@ TEST(ParserTestSuite, FunTypeDefinition) {
     ASSERT_TRUE(std::holds_alternative<Wasp::IntTypeNode>(*funcType->return_type));
 }
 
-TEST(ParserTestSuite, VariantDefinition) {
+TEST(ParseDefinitions, VariantDefinition) {
     auto mod = parse("let x : int | float = 5");
     ASSERT_EQ(mod.statements.size(), 1);
 
@@ -150,7 +150,7 @@ TEST(ParserTestSuite, VariantDefinition) {
     EXPECT_EQ(assignment.rhs_expression->as<int>(), 5);
 }
 
-TEST(ParserTestSuite, AliasDefinition) {
+TEST(ParseDefinitions, AliasDefinition) {
     auto mod = parse("type int_list = [int]");
     ASSERT_EQ(mod.statements.size(), 1);
 
@@ -167,7 +167,7 @@ TEST(ParserTestSuite, AliasDefinition) {
 }
 
 
-TEST(ParserTestSuite, EnumSimpleDefinition) {
+TEST(ParseDefinitions, EnumSimpleDefinition) {
     auto mod = parse(R"(
 enum Animal
 	Dog
@@ -184,7 +184,7 @@ enum Animal
 }
 
 
-TEST(ParserTestSuite, EnumNestedDefinition) {
+TEST(ParseDefinitions, EnumNestedDefinition) {
     auto mod = parse(R"(
 enum Animal
 	Dog
@@ -203,28 +203,83 @@ enum Animal
     EXPECT_EQ(enumDef->members.size(), 3);
 }
 
-TEST(ParserTestSuite, FunctionDefinitionSimple) {
+TEST(ParseDefinitions, FunctionDefinitionSimple) {
     auto mod = parse(R"(
 fun add(a: int, b: int) => int
     x = a + b
     return x
 )");
- 
-    EXPECT_TRUE(mod.statements.size() == 1);
+
+    ASSERT_EQ(mod.statements.size(), 1);
+
+    auto* funcDef = std::get_if<Wasp::FunctionDefinition>(&mod.statements[0]->data);
+    ASSERT_NE(funcDef, nullptr);
+
+    EXPECT_EQ(funcDef->name, "add");
+
+    ASSERT_EQ(funcDef->parameters.size(), 2);
+    EXPECT_EQ(funcDef->parameters[0].first, "a");
+    ASSERT_NE(funcDef->parameters[0].second, nullptr);
+    EXPECT_TRUE(std::holds_alternative<Wasp::IntTypeNode>(*funcDef->parameters[0].second));
+
+    EXPECT_EQ(funcDef->parameters[1].first, "b");
+    ASSERT_NE(funcDef->parameters[1].second, nullptr);
+    EXPECT_TRUE(std::holds_alternative<Wasp::IntTypeNode>(*funcDef->parameters[1].second));
+
+    ASSERT_NE(funcDef->return_type, nullptr);
+    EXPECT_TRUE(std::holds_alternative<Wasp::IntTypeNode>(*funcDef->return_type));
+
+    ASSERT_EQ(funcDef->body.size(), 2);
+
+    auto* exprStmt = std::get_if<Wasp::ExpressionStatement>(&funcDef->body[0]->data);
+    ASSERT_NE(exprStmt, nullptr);
+    auto* assign = std::get_if<Wasp::UntypedAssignment>(&exprStmt->expression->data);
+    ASSERT_NE(assign, nullptr);
+    auto* assignLeft = std::get_if<Wasp::Identifier>(&assign->lhs_expression->data);
+    ASSERT_NE(assignLeft, nullptr);
+    EXPECT_EQ(assignLeft->name, "x");
+
+    auto* retStmt = std::get_if<Wasp::Return>(&funcDef->body[1]->data);
+    ASSERT_NE(retStmt, nullptr);
+    ASSERT_TRUE(retStmt->expression.has_value());
+    auto* retExpr = std::get_if<Wasp::Identifier>(&retStmt->expression.value()->data);
+    ASSERT_NE(retExpr, nullptr);
+    EXPECT_EQ(retExpr->name, "x");
 }
 
-TEST(ParserTestSuite, FunctionDefinitionWithIf) {
+TEST(ParseDefinitions, FunctionDefinitionWithIf) {
     auto mod = parse(R"(
 fun add(a: int, b: int) => int
     if a > b then
         x = a + b
     return x
 )");
- 
-    EXPECT_TRUE(mod.statements.size() == 1);
+
+    ASSERT_EQ(mod.statements.size(), 1);
+
+    auto* funcDef = std::get_if<Wasp::FunctionDefinition>(&mod.statements[0]->data);
+    ASSERT_NE(funcDef, nullptr);
+    EXPECT_EQ(funcDef->name, "add");
+
+    ASSERT_EQ(funcDef->body.size(), 2);
+
+    auto* ifBranch = std::get_if<Wasp::IfBranch>(&funcDef->body[0]->data);
+    ASSERT_NE(ifBranch, nullptr);
+    
+    ASSERT_NE(ifBranch->test, nullptr);
+    auto* testInfix = std::get_if<Wasp::Infix>(&ifBranch->test->data);
+    ASSERT_NE(testInfix, nullptr);
+    auto* testLeft = std::get_if<Wasp::Identifier>(&testInfix->left->data);
+    ASSERT_NE(testLeft, nullptr);
+    EXPECT_EQ(testLeft->name, "a");
+
+    ASSERT_EQ(ifBranch->body.size(), 1);
+
+    auto* retStmt = std::get_if<Wasp::Return>(&funcDef->body[1]->data);
+    ASSERT_NE(retStmt, nullptr);
 }
  
-TEST(ParserTestSuite, FunctionDefinitionWithIfElifElse) {
+TEST(ParseDefinitions, FunctionDefinitionWithIfElifElse) {
     auto mod = parse(R"(
 fun add(a: int, b: int) => int
     if a > b then
@@ -235,11 +290,32 @@ fun add(a: int, b: int) => int
         x = a * b
     return x
 )");
- 
-    EXPECT_TRUE(mod.statements.size() == 1);
+
+    ASSERT_EQ(mod.statements.size(), 1);
+
+    auto* funcDef = std::get_if<Wasp::FunctionDefinition>(&mod.statements[0]->data);
+    ASSERT_NE(funcDef, nullptr);
+    
+    ASSERT_EQ(funcDef->body.size(), 2);
+
+    auto* ifBranch = std::get_if<Wasp::IfBranch>(&funcDef->body[0]->data);
+    ASSERT_NE(ifBranch, nullptr);
+
+    ASSERT_TRUE(ifBranch->alternative.has_value());
+    auto elifStmt = ifBranch->alternative.value();
+    auto* elifBranch = std::get_if<Wasp::IfBranch>(&elifStmt->data);
+    ASSERT_NE(elifBranch, nullptr);
+
+    ASSERT_TRUE(elifBranch->alternative.has_value());
+    auto elseStmt = elifBranch->alternative.value();
+    auto* elseBranch = std::get_if<Wasp::ElseBranch>(&elseStmt->data);
+    ASSERT_NE(elseBranch, nullptr);
+
+    auto* retStmt = std::get_if<Wasp::Return>(&funcDef->body[1]->data);
+    ASSERT_NE(retStmt, nullptr);
 }
  
-TEST(ParserTestSuite, FunctionDefinitionWithWhile) {
+TEST(ParseDefinitions, FunctionDefinitionWithWhile) {
     auto mod = parse(R"(
 fun add(a: int, b: int) => int
     while a < b do
@@ -247,89 +323,185 @@ fun add(a: int, b: int) => int
 
     return x
 )");
- 
-    EXPECT_TRUE(mod.statements.size() == 1);
+
+    ASSERT_EQ(mod.statements.size(), 1);
+
+    auto* funcDef = std::get_if<Wasp::FunctionDefinition>(&mod.statements[0]->data);
+    ASSERT_NE(funcDef, nullptr);
+
+    ASSERT_EQ(funcDef->body.size(), 2);
+
+    auto* loop = std::get_if<Wasp::SimpleLoop>(&funcDef->body[0]->data);
+    ASSERT_NE(loop, nullptr);
+
+    ASSERT_NE(loop->condition, nullptr);
+    auto* condInfix = std::get_if<Wasp::Infix>(&loop->condition->data);
+    ASSERT_NE(condInfix, nullptr);
+
+    ASSERT_EQ(loop->body.size(), 1);
+
+    auto* retStmt = std::get_if<Wasp::Return>(&funcDef->body[1]->data);
+    ASSERT_NE(retStmt, nullptr);
 }
 
+// CLASS 
 
 
-TEST(ParserTestSuite, ClassDefinitionSimple) {
+TEST(ParseDefinitions, ClassDefinitionSimple) {
     auto mod = parse(R"(
 class Person
-    name: string
+    name: str
     age: int
 )");
 
-    EXPECT_TRUE(true);
+    ASSERT_EQ(mod.statements.size(), 1);
+
+    auto* classDef = std::get_if<Wasp::ClassDefinition>(&mod.statements[0]->data);
+    ASSERT_NE(classDef, nullptr);
+
+    EXPECT_EQ(classDef->name, "Person");
+    ASSERT_EQ(classDef->members.size(), 2);
+
+    ASSERT_TRUE(classDef->members.count("name"));
+    ASSERT_NE(classDef->members.at("name"), nullptr);
+    EXPECT_TRUE(std::holds_alternative<Wasp::StringTypeNode>(*classDef->members.at("name")));
+
+    ASSERT_TRUE(classDef->members.count("age"));
+    ASSERT_NE(classDef->members.at("age"), nullptr);
+    EXPECT_TRUE(std::holds_alternative<Wasp::IntTypeNode>(*classDef->members.at("age")));
 }
 
-TEST(ParserTestSuite, ClassDefinitionWithPrivateVariable) {
+TEST(ParseDefinitions, ClassDefinitionWithPrivateVariable) {
     auto mod = parse(R"(
 class Person
-    name: string
+    name: str
     _age: int
 )");
 
-    EXPECT_TRUE(true);
+    ASSERT_EQ(mod.statements.size(), 1);
+
+    auto* classDef = std::get_if<Wasp::ClassDefinition>(&mod.statements[0]->data);
+    ASSERT_NE(classDef, nullptr);
+
+    EXPECT_EQ(classDef->name, "Person");
+    ASSERT_EQ(classDef->members.size(), 2);
+
+    ASSERT_TRUE(classDef->members.count("_age"));
+    ASSERT_NE(classDef->members.at("_age"), nullptr);
+    EXPECT_TRUE(std::holds_alternative<Wasp::IntTypeNode>(*classDef->members.at("_age")));
 }
 
-
-TEST(ParserTestSuite, ClassDefinitionWithSimpleRecord) {
+TEST(ParseDefinitions, ClassDefinitionWithSimpleRecord) {
     auto mod = parse(R"(
 class Person
-    name: string
+    name: str
     address record
-        street: string
-        city: string
+        street: str
+        city: str
 )");
 
-    EXPECT_TRUE(true);
+    ASSERT_EQ(mod.statements.size(), 1);
+
+    auto* classDef = std::get_if<Wasp::ClassDefinition>(&mod.statements[0]->data);
+    ASSERT_NE(classDef, nullptr);
+    ASSERT_EQ(classDef->members.size(), 2);
+
+    ASSERT_TRUE(classDef->members.count("address"));
+    auto addressTypePtr = classDef->members.at("address");
+    ASSERT_NE(addressTypePtr, nullptr);
+    
+    auto* recordTypeNodePtr = std::get_if<std::shared_ptr<Wasp::RecordTypeNode>>(addressTypePtr.get());
+    ASSERT_NE(recordTypeNodePtr, nullptr) << "Expected 'address' to be a RecordTypeNode";
+    
+    auto recordType = *recordTypeNodePtr;
+    ASSERT_EQ(recordType->members.size(), 2);
+    
+    ASSERT_TRUE(recordType->members.count("street"));
+    EXPECT_TRUE(std::holds_alternative<Wasp::StringTypeNode>(*recordType->members.at("street")));
+    
+    ASSERT_TRUE(recordType->members.count("city"));
+    EXPECT_TRUE(std::holds_alternative<Wasp::StringTypeNode>(*recordType->members.at("city")));
 }
 
-
-TEST(ParserTestSuite, ClassDefinitionWithNestedRecord) {
+TEST(ParseDefinitions, ClassDefinitionWithNestedRecord) {
     auto mod = parse(R"(
 class Person
-    name: string
+    name: str
     address record
-        street: string
-        city: string
+        street: str
+        city: str
 
     job record
-        title: string
+        title: str
         salary: int
 
         experience record
             years: int
-            field: string
-
+            field: str
 )");
 
-    EXPECT_TRUE(true);
+    ASSERT_EQ(mod.statements.size(), 1);
+
+    auto* classDef = std::get_if<Wasp::ClassDefinition>(&mod.statements[0]->data);
+    ASSERT_NE(classDef, nullptr);
+
+    ASSERT_TRUE(classDef->members.count("job"));
+    auto* jobRecordPtr = std::get_if<std::shared_ptr<Wasp::RecordTypeNode>>(classDef->members.at("job").get());
+    ASSERT_NE(jobRecordPtr, nullptr);
+    
+    auto jobRecord = *jobRecordPtr;
+    // title, salary, experience
+    ASSERT_EQ(jobRecord->members.size(), 3); 
+
+    ASSERT_TRUE(jobRecord->members.count("experience"));
+    auto* expRecordPtr = std::get_if<std::shared_ptr<Wasp::RecordTypeNode>>(jobRecord->members.at("experience").get());
+    ASSERT_NE(expRecordPtr, nullptr);
+    
+    auto expRecord = *expRecordPtr;
+    ASSERT_EQ(expRecord->members.size(), 2);
+    
+    ASSERT_TRUE(expRecord->members.count("years"));
+    EXPECT_TRUE(std::holds_alternative<Wasp::IntTypeNode>(*expRecord->members.at("years")));
+    
+    ASSERT_TRUE(expRecord->members.count("field"));
+    EXPECT_TRUE(std::holds_alternative<Wasp::StringTypeNode>(*expRecord->members.at("field")));
 }
 
-TEST(ParserTestSuite, ClassDefinitionWithOneTrait) {
+
+TEST(ParseDefinitions, ClassDefinitionWithOneTrait) {
     auto mod = parse(R"(
 class Person is Fortifiable
-    name: string
+    name: str
     _age: int
 )");
 
-    EXPECT_TRUE(true);
+    ASSERT_EQ(mod.statements.size(), 1);
+
+    auto* classDef = std::get_if<Wasp::ClassDefinition>(&mod.statements[0]->data);
+    ASSERT_NE(classDef, nullptr);
+    EXPECT_EQ(classDef->name, "Person");
+    
+    ASSERT_EQ(classDef->traits.size(), 1);
+    EXPECT_EQ(classDef->traits[0], "Fortifiable");
 }
 
-TEST(ParserTestSuite, ClassDefinitionWithManyTraits) {
+TEST(ParseDefinitions, ClassDefinitionWithManyTraits) {
     auto mod = parse(R"(
 class Person is Fortifiable, Movable, Serializable
-    name: string
+    name: str
     _age: int
 )");
 
-    EXPECT_TRUE(true);
+    ASSERT_EQ(mod.statements.size(), 1);
+
+    auto* classDef = std::get_if<Wasp::ClassDefinition>(&mod.statements[0]->data);
+    ASSERT_NE(classDef, nullptr);
+    EXPECT_EQ(classDef->name, "Person");
+
+    ASSERT_EQ(classDef->traits.size(), 3);
 }
 
-
-TEST(ParserTestSuite, ClassImplSingleFunction) {
+TEST(ParseDefinitions, ClassImplSingleFunction) {
     auto mod = parse(R"(
 impl Person is Fortifiable
     fun fortify()
@@ -339,10 +511,24 @@ impl Person is Fortifiable
             x = x - 5
 )");
 
-    EXPECT_TRUE(true);
+    ASSERT_EQ(mod.statements.size(), 1);
+
+    auto* implDef = std::get_if<Wasp::ImplDefinition>(&mod.statements[0]->data);
+    ASSERT_NE(implDef, nullptr);
+
+    EXPECT_EQ(implDef->class_name, "Person");
+    
+    ASSERT_TRUE(implDef->trait_name.has_value());
+    EXPECT_EQ(implDef->trait_name.value(), "Fortifiable");
+
+    ASSERT_EQ(implDef->methods.size(), 1);
+    
+    auto* funcDef = std::get_if<Wasp::FunctionDefinition>(&implDef->methods[0]->data);
+    ASSERT_NE(funcDef, nullptr);
+    EXPECT_EQ(funcDef->name, "fortify");
 }
 
-TEST(ParserTestSuite, ClassImplMultipleFunctions) {
+TEST(ParseDefinitions, ClassImplMultipleFunctions) {
     auto mod = parse(R"(
 impl Person is Fortifiable
     fun fortify()
@@ -358,8 +544,25 @@ impl Person is Fortifiable
             me.defense = 0
 )");
 
-    EXPECT_TRUE(true);
+    ASSERT_EQ(mod.statements.size(), 1);
+
+    auto* implDef = std::get_if<Wasp::ImplDefinition>(&mod.statements[0]->data);
+    ASSERT_NE(implDef, nullptr);
+
+    EXPECT_EQ(implDef->class_name, "Person");
+    ASSERT_EQ(implDef->methods.size(), 2);
+
+    auto* funcDef1 = std::get_if<Wasp::FunctionDefinition>(&implDef->methods[0]->data);
+    ASSERT_NE(funcDef1, nullptr);
+    EXPECT_EQ(funcDef1->name, "fortify");
+    ASSERT_EQ(funcDef1->parameters.size(), 0);
+
+    auto* funcDef2 = std::get_if<Wasp::FunctionDefinition>(&implDef->methods[1]->data);
+    ASSERT_NE(funcDef2, nullptr);
+    EXPECT_EQ(funcDef2->name, "weaken");
+    
+    ASSERT_EQ(funcDef2->parameters.size(), 1);
+    EXPECT_EQ(funcDef2->parameters[0].first, "damage");
+    ASSERT_NE(funcDef2->parameters[0].second, nullptr);
+    EXPECT_TRUE(std::holds_alternative<Wasp::IntTypeNode>(*funcDef2->parameters[0].second));
 }
-
-
-

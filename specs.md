@@ -384,7 +384,7 @@ Behavior is attached to classes using `impl` blocks. `us` references static/shar
 ###  Lifecycle 
 
 ```python
-impl Worker lifecycle
+impl Worker
     fun default()
         me.time.hours_per_week_used = 0
         me.time.hours_per_week_total = 40
@@ -422,7 +422,7 @@ The `get` and `set` keywords allow you to define functions that can compute valu
 You can mark setters and getters as private if you wish. 
 
 ```python
-impl Worker accessors
+impl Worker
     get annual_salary => float
         return me.salary * 12 
 
@@ -440,7 +440,7 @@ impl Worker accessors
 ### Instance Functions 
 
 ```python
-impl Worker me 
+impl Worker 
     fun log_hours(hours: int)
         me.time.hours_per_week_used += hours 
 ```
@@ -450,7 +450,7 @@ impl Worker me
 Class functions are called like `Worker.get_total_workers()` and they cannot access `me`. 
 
 ```python
-impl Worker us
+impl Worker
     fun get_total_workers() => int
         return us.total
 ```
@@ -460,7 +460,7 @@ impl Worker us
 Can access `me` and `us`.
 
 ```python
-impl Worker meta
+impl Worker
     # Returns a string representation (debugging/logging)
     fun repr() => str
         return "$Worker - {me.name}"

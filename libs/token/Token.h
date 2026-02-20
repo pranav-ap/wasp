@@ -92,12 +92,10 @@
 	X(RETURN_KEYWORD, "return",   true) \
 	X(YIELD_KEYWORD,  "yield",    true) \
 	X(CLASS,          "class",    true) \
-	X(INTERFACE,      "interface", true) \
-	X(IMPL,      	  "impl", true) \
+	X(TRAIT,          "trait",    true) \
+	X(IMPL,      	  "impl",     true) \
 	X(SHARED,      	  "shared",     true) \
 	X(RECORD,      	  "record",     true) \
-	X(ACCESSORS,       "accessors",     true) \
-	X(LIFECYCLE,       "lifecycle",     true) \
 	X(ME,      	  	  "me",     true) \
 	X(US,      	      "us",     true) \
 	X(TYPE,           "type",     true) \

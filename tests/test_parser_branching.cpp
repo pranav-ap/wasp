@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 
-TEST(ParserTestSuite, TernaryExpression) {
+TEST(ParseBranching, TernaryExpression) {
     auto mod = parse("if true then 1 else 2");
     ASSERT_EQ(mod.statements.size(), 1);
     
@@ -35,7 +35,7 @@ TEST(ParserTestSuite, TernaryExpression) {
     EXPECT_EQ(elseBranch.expression->as<int>(), 2);
 }
 
-TEST(ParserTestSuite, TernaryLetExpression) {
+TEST(ParseBranching, TernaryLetExpression) {
     auto mod = parse("if let x = 1 then 1 else 2");
     ASSERT_EQ(mod.statements.size(), 1);
 
@@ -64,7 +64,7 @@ TEST(ParserTestSuite, TernaryLetExpression) {
     EXPECT_EQ(assignment.rhs_expression->as<int>(), 1);
 }
 
-TEST(ParserTestSuite, IfBlock) {
+TEST(ParseBranching, IfBlock) {
     auto mod = parse(R"(
 if true then
     1 
@@ -72,126 +72,146 @@ if true then
     ASSERT_EQ(mod.statements.size(), 1);
 
     auto* ifBranch = std::get_if<Wasp::IfBranch>(&mod.statements[0]->data);
-    ASSERT_NE(ifBranch, nullptr) << "Expected an IfBranch statement";
+    ASSERT_NE(ifBranch, nullptr);
 
-    // Safely check the 'test' expression
-    ASSERT_NE(ifBranch->test, nullptr) << "If condition pointer is null";
-    ASSERT_TRUE(ifBranch->test->template is<bool>());
-    EXPECT_EQ(ifBranch->test->template as<bool>(), true);
+    // 1. Check Condition
+    ASSERT_NE(ifBranch->test, nullptr);
+    auto* testVal = std::get_if<bool>(&ifBranch->test->data);
+    ASSERT_NE(testVal, nullptr);
+    EXPECT_EQ(*testVal, true);
 
-    // Safely check the 'body' block
+    // 2. Check Body
     ASSERT_EQ(ifBranch->body.size(), 1);
-    auto* innerExpr = std::get_if<Wasp::ExpressionStatement>(&ifBranch->body[0]->data);
-    ASSERT_NE(innerExpr, nullptr) << "Expected an ExpressionStatement inside the If block";
+    auto* innerExprStmt = std::get_if<Wasp::ExpressionStatement>(&ifBranch->body[0]->data);
+    ASSERT_NE(innerExprStmt, nullptr);
     
-    // Safely check the expression inside the body
-    ASSERT_NE(innerExpr->expression, nullptr) << "Body expression pointer is null";
-    ASSERT_TRUE(innerExpr->expression->template is<int>());
-    EXPECT_EQ(innerExpr->expression->template as<int>(), 1);
+    ASSERT_NE(innerExprStmt->expression, nullptr);
+    auto* bodyVal = std::get_if<int>(&innerExprStmt->expression->data);
+    ASSERT_NE(bodyVal, nullptr);
+    EXPECT_EQ(*bodyVal, 1);
 
-    // Verify there is no 'else' alternative
     EXPECT_FALSE(ifBranch->alternative.has_value());
 }
+TEST(ParseBranching, IfElseBlock) {
+    auto mod = parse(R"(
+if true then
+    1
+else
+    2
+)");
 
-// TEST(ParserTestSuite, IfElseBlock) {
-//     auto mod = parse(R"(
-// if true then
-//     1
-// else
-//     2
-// )");
+    ASSERT_EQ(mod.statements.size(), 1);
 
-//     ASSERT_EQ(mod.statements.size(), 1);
+    auto* ifBranch = std::get_if<Wasp::IfBranch>(&mod.statements[0]->data);
+    ASSERT_NE(ifBranch, nullptr);
 
-//     auto* ifBranch = std::get_if<Wasp::IfBranch>(&mod.statements[0]->data);
-//     ASSERT_NE(ifBranch, nullptr);
+    // 1. Check Condition
+    ASSERT_NE(ifBranch->test, nullptr);
+    auto* testVal = std::get_if<bool>(&ifBranch->test->data);
+    ASSERT_NE(testVal, nullptr);
+    EXPECT_EQ(*testVal, true);
 
-//     ASSERT_TRUE(ifBranch->test->is<bool>());
-//     EXPECT_EQ(ifBranch->test->as<bool>(), true);
-
-//     ASSERT_EQ(ifBranch->body.size(), 1);
-//     auto* innerExpr = std::get_if<Wasp::ExpressionStatement>(&ifBranch->body[0]->data);
-//     ASSERT_NE(innerExpr, nullptr);
-//     ASSERT_TRUE(innerExpr->expression->is<int>());
-//     EXPECT_EQ(innerExpr->expression->as<int>(), 1);
-
-//     ASSERT_TRUE(ifBranch->alternative.has_value());
-//     const auto& elseBranch = ifBranch->alternative.value();
-//     ASSERT_TRUE(elseBranch.is<Wasp::ElseBranch>());
+    // 2. Check If Body
+    ASSERT_EQ(ifBranch->body.size(), 1);
+    auto* innerExprStmt = std::get_if<Wasp::ExpressionStatement>(&ifBranch->body[0]->data);
+    ASSERT_NE(innerExprStmt, nullptr);
     
-//     const auto& elseBlock = elseBranch.as<Wasp::ElseBranch>();
-//     ASSERT_EQ(elseBlock.body.size(), 1);
+    ASSERT_NE(innerExprStmt->expression, nullptr);
+    auto* ifBodyVal = std::get_if<int>(&innerExprStmt->expression->data);
+    ASSERT_NE(ifBodyVal, nullptr);
+    EXPECT_EQ(*ifBodyVal, 1);
+
+    // 3. Extract Else Branch
+    ASSERT_TRUE(ifBranch->alternative.has_value());
+    auto elseBranchStmt = ifBranch->alternative.value();
+    ASSERT_NE(elseBranchStmt, nullptr);
     
-//     auto* elseInnerExpr = std::get_if<Wasp::ExpressionStatement>(&elseBlock.body[0]->data);
-//     ASSERT_NE(elseInnerExpr, nullptr);
-//     ASSERT_TRUE(elseInnerExpr->expression->is<int>());
-//     EXPECT_EQ(elseInnerExpr->expression->as<int>(), 2);
-// }
-
-
-// TEST(ParserTestSuite, IfElifElseBlock) {
-//     auto mod = parse(R"(
-// if x == 25 then
-//     pass
-// elif x == 30 then
-//     pass
-// else
-//     pass
-// )");
-
-//     ASSERT_EQ(mod.statements.size(), 1);
-
-//     // 1. Root IF
-//     auto* ifBranch = std::get_if<Wasp::IfBranch>(&mod.statements[0]->data);
-//     ASSERT_NE(ifBranch, nullptr);
-
-//     ASSERT_NE(ifBranch->test, nullptr);
-//     ASSERT_TRUE(ifBranch->test->is<Wasp::Infix>());
-//     const auto& infix = ifBranch->test->as<Wasp::Infix>();
-
-//     ASSERT_TRUE(infix.left->is<Wasp::Identifier>());
-//     EXPECT_EQ(infix.left->as<Wasp::Identifier>().name, "x");
-//     EXPECT_EQ(infix.op.type, Wasp::TokenType::EQUAL_EQUAL); // Assuming you have TokenType included
-
-//     ASSERT_TRUE(infix.right->is<int>());
-//     EXPECT_EQ(infix.right->as<int>(), 25);
-
-//     ASSERT_EQ(ifBranch->body.size(), 1);
-//     auto* passStmt = std::get_if<Wasp::Pass>(&ifBranch->body[0]->data);
-//     ASSERT_NE(passStmt, nullptr);
-
-//     // 2. ELIF (Parsed as a nested IfBranch in the alternative)
-//     ASSERT_TRUE(ifBranch->alternative.has_value());
-//     auto elifStmt = ifBranch->alternative.value();
-//     ASSERT_NE(elifStmt, nullptr);
-
-//     auto* elifBranch = std::get_if<Wasp::IfBranch>(&elifStmt->data);
-//     ASSERT_NE(elifBranch, nullptr) << "Expected elif to be parsed as a nested IfBranch";
-
-//     ASSERT_NE(elifBranch->test, nullptr);
-//     ASSERT_TRUE(elifBranch->test->is<Wasp::Infix>());
-//     const auto& elifInfix = elifBranch->test->as<Wasp::Infix>();
+    auto* elseBlock = std::get_if<Wasp::ElseBranch>(&elseBranchStmt->data);
+    ASSERT_NE(elseBlock, nullptr);
+    ASSERT_EQ(elseBlock->body.size(), 1);
     
-//     ASSERT_TRUE(elifInfix.left->is<Wasp::Identifier>());
-//     EXPECT_EQ(elifInfix.left->as<Wasp::Identifier>().name, "x");
-//     EXPECT_EQ(elifInfix.op.type, Wasp::TokenType::EQUAL_EQUAL); 
-
-//     ASSERT_TRUE(elifInfix.right->is<int>());
-//     EXPECT_EQ(elifInfix.right->as<int>(), 30);
-
-//     ASSERT_EQ(elifBranch->body.size(), 1);
-//     auto* elifPassStmt = std::get_if<Wasp::Pass>(&elifBranch->body[0]->data);
-//     ASSERT_NE(elifPassStmt, nullptr);
-
-//     // 3. ELSE (Parsed as an ElseBranch in the elif's alternative)
-//     ASSERT_TRUE(elifBranch->alternative.has_value());
-//     auto elseStmt = elifBranch->alternative.value();
-//     ASSERT_NE(elseStmt, nullptr);
-
-//     auto* elseBranch = std::get_if<Wasp::ElseBranch>(&elseStmt->data);
-//     ASSERT_NE(elseBranch, nullptr) << "Expected final alternative to be an ElseBranch";
+    // 4. Check Else Body
+    auto* elseInnerExprStmt = std::get_if<Wasp::ExpressionStatement>(&elseBlock->body[0]->data);
+    ASSERT_NE(elseInnerExprStmt, nullptr);
     
-//     ASSERT_EQ(elseBranch->body.size(), 1);
-//     auto* elsePassStmt = std::get_if<Wasp::Pass>(&elseBranch->body[0]->data);
-//     ASSERT_NE(elsePassStmt, nullptr);
-// }
+    ASSERT_NE(elseInnerExprStmt->expression, nullptr);
+    auto* elseBodyVal = std::get_if<int>(&elseInnerExprStmt->expression->data);
+    ASSERT_NE(elseBodyVal, nullptr);
+    EXPECT_EQ(*elseBodyVal, 2);
+}
+
+
+TEST(ParseBranching, IfElifElseBlock) {
+    auto mod = parse(R"(
+if x == 25 then
+    pass
+elif x == 30 then
+    pass
+else
+    pass
+)");
+
+    ASSERT_EQ(mod.statements.size(), 1);
+
+    auto* ifBranch = std::get_if<Wasp::IfBranch>(&mod.statements[0]->data);
+    ASSERT_NE(ifBranch, nullptr);
+
+    ASSERT_NE(ifBranch->test, nullptr);
+    auto* infix = std::get_if<Wasp::Infix>(&ifBranch->test->data);
+    ASSERT_NE(infix, nullptr);
+
+    ASSERT_NE(infix->left, nullptr);
+    auto* leftId = std::get_if<Wasp::Identifier>(&infix->left->data);
+    ASSERT_NE(leftId, nullptr);
+    EXPECT_EQ(leftId->name, "x");
+
+    EXPECT_EQ(infix->op.type, Wasp::TokenType::EQUAL_EQUAL);
+
+    ASSERT_NE(infix->right, nullptr);
+    auto* rightInt = std::get_if<int>(&infix->right->data);
+    ASSERT_NE(rightInt, nullptr);
+    EXPECT_EQ(*rightInt, 25);
+
+    ASSERT_EQ(ifBranch->body.size(), 1);
+    auto* passStmt = std::get_if<Wasp::Pass>(&ifBranch->body[0]->data);
+    ASSERT_NE(passStmt, nullptr);
+
+    ASSERT_TRUE(ifBranch->alternative.has_value());
+    auto elifStmt = ifBranch->alternative.value();
+    ASSERT_NE(elifStmt, nullptr);
+
+    auto* elifBranch = std::get_if<Wasp::IfBranch>(&elifStmt->data);
+    ASSERT_NE(elifBranch, nullptr) << "Expected elif to be parsed as a nested IfBranch";
+
+    ASSERT_NE(elifBranch->test, nullptr);
+    auto* elifInfix = std::get_if<Wasp::Infix>(&elifBranch->test->data);
+    ASSERT_NE(elifInfix, nullptr);
+    
+    ASSERT_NE(elifInfix->left, nullptr);
+    auto* elifLeftId = std::get_if<Wasp::Identifier>(&elifInfix->left->data);
+    ASSERT_NE(elifLeftId, nullptr);
+    EXPECT_EQ(elifLeftId->name, "x");
+
+    EXPECT_EQ(elifInfix->op.type, Wasp::TokenType::EQUAL_EQUAL); 
+
+    ASSERT_NE(elifInfix->right, nullptr);
+    auto* elifRightInt = std::get_if<int>(&elifInfix->right->data);
+    ASSERT_NE(elifRightInt, nullptr);
+    EXPECT_EQ(*elifRightInt, 30);
+
+    ASSERT_EQ(elifBranch->body.size(), 1);
+    auto* elifPassStmt = std::get_if<Wasp::Pass>(&elifBranch->body[0]->data);
+    ASSERT_NE(elifPassStmt, nullptr);
+
+    ASSERT_TRUE(elifBranch->alternative.has_value());
+    auto elseStmt = elifBranch->alternative.value();
+    ASSERT_NE(elseStmt, nullptr);
+
+    auto* elseBranch = std::get_if<Wasp::ElseBranch>(&elseStmt->data);
+    ASSERT_NE(elseBranch, nullptr) << "Expected final alternative to be an ElseBranch";
+    
+    ASSERT_EQ(elseBranch->body.size(), 1);
+    auto* elsePassStmt = std::get_if<Wasp::Pass>(&elseBranch->body[0]->data);
+    ASSERT_NE(elsePassStmt, nullptr);
+}
+
