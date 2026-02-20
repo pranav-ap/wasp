@@ -91,6 +91,19 @@ struct ClassDefinition : public Definition {
 		: name(name), members(std::move(members)) {};
 };
 
+struct ImplDefinition {
+    std::string class_name;
+    std::optional<std::string> trait_name; 
+    std::vector<Statement_ptr> methods;
+
+    ImplDefinition(std::string class_name, 
+                   std::optional<std::string> trait_name, 
+                   std::vector<Statement_ptr> methods)
+        : class_name(std::move(class_name)), 
+          trait_name(std::move(trait_name)), 
+          methods(std::move(methods)) {}
+};
+
 // Branching
 
 struct Branch
@@ -166,7 +179,6 @@ struct LoopControl {
 		: type(type), label(label) {}
 };
 
-
 // Statement Variant
 
 struct Statement {
@@ -177,6 +189,7 @@ struct Statement {
 	    VariableDefinition, AliasDefinition,
 		EnumDefinition, FunctionDefinition, 
         AnnotationDefinition, ClassDefinition, 
+		ImplDefinition,
 		
 		IfBranch, ElseBranch,
 		Pass, 

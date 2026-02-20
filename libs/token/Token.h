@@ -37,7 +37,7 @@
 	X(PLUS_EQUAL,     "+=",       false) \
 	X(MINUS,          "-",        false) \
 	X(MINUS_EQUAL,    "-=",       false) \
-	X(ARROW,          "->",       false) \
+	X(ARROW,          "=>",       false) \
 	X(STAR,           "*",        false) \
 	X(STAR_EQUAL,     "*=",       false) \
 	X(DIVISION,       "/",        false) \
@@ -96,10 +96,11 @@
 	X(IMPL,      	  "impl", true) \
 	X(SHARED,      	  "shared",     true) \
 	X(RECORD,      	  "record",     true) \
+	X(ACCESSORS,       "accessors",     true) \
+	X(LIFECYCLE,       "lifecycle",     true) \
 	X(ME,      	  	  "me",     true) \
 	X(US,      	      "us",     true) \
 	X(TYPE,           "type",     true) \
-	X(ALIAS,           "alias",     true) \
 	X(EXPORT,         "export",   true) \
 	X(OPERATOR,       "operator", true) \
 	X(INT,            "int",      true) \

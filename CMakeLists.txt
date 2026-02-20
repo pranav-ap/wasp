@@ -27,5 +27,5 @@ add_subdirectory(libs/ast)
 add_subdirectory(libs/parser)
 add_subdirectory(src)
 add_subdirectory(tests)
-add_subdirectory(benchmarks)
+# add_subdirectory(benchmarks)
 

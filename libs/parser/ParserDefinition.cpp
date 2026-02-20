@@ -223,6 +223,16 @@ Statement_ptr Parser::parse_class_definition(int indent_level) {
     auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
     auto class_name = name_token.value;
 
+    // parse traits list 
+    std::vector<std::string> traits;
+
+    if (token_pipe.consume_optional_in_line(TokenType::IS)) {
+        do {
+            auto trait_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
+            traits.push_back(trait_token.value);
+        } while (token_pipe.consume_optional_in_line(TokenType::COMMA));
+    }
+
     token_pipe.require_in_line(TokenType::EOL);
 
     // Parse all members using the abstracted block loop
@@ -231,4 +241,47 @@ Statement_ptr Parser::parse_class_definition(int indent_level) {
     return MAKE_STATEMENT(ClassDefinition(class_name, members));
 }
 
+Statement_ptr Parser::parse_impl_definition(int indent_level) {
+    // Consume 'impl' keyword
+    token_pipe.advance_pointer();
+
+    // Parse the class name
+    auto class_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
+    std::string class_name = class_token.value;
+
+    // Parse the single optional trait (e.g., `is Fortifiable`)
+    std::optional<std::string> trait_name = std::nullopt;
+    if (token_pipe.consume_optional_in_line(TokenType::IS)) {
+        auto trait_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
+        trait_name = trait_token.value;
+    }
+
+    token_pipe.require_in_line(TokenType::EOL);
+
+    // Parse the indented block of methods
+    std::vector<Statement_ptr> methods;
+    const int method_indent = indent_level + 1;
+
+    while (true) {
+        token_pipe.ignore_empty_lines();
+
+        // Break if we drop out of the impl block's indentation level
+        if (token_pipe.lookahead_indents() != method_indent) {
+            break;
+        }
+
+        token_pipe.expect_n_indents(method_indent);
+
+        // Within an `impl` block, we exclusively expect function definitions
+        if (token_pipe.consume_optional(TokenType::FUN)) {
+            auto func = parse_function_definition(method_indent);
+            methods.push_back(func);
+        } else {
+            std::cerr << "Syntax Error: Expected function definition ('fun') inside impl block." << std::endl;
+            exit(1); 
+        }
+    }
+
+    return MAKE_STATEMENT(ImplDefinition(class_name, trait_name, methods));
+}
 }

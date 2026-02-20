@@ -33,6 +33,9 @@ using std::make_shared;
 namespace Wasp {
     Parser::Parser() {
         register_parselet(TokenType::IDENTIFIER, make_shared<IdentifierParselet>());
+        register_parselet(TokenType::ME, make_shared<IdentifierParselet>());
+        register_parselet(TokenType::US, make_shared<IdentifierParselet>());
+
         register_parselet(TokenType::STRING_LITERAL, make_shared<LiteralParselet>());
         register_parselet(TokenType::NUMBER_LITERAL, make_shared<LiteralParselet>());
         register_parselet(TokenType::TRUE_KEYWORD, make_shared<LiteralParselet>());
@@ -66,7 +69,6 @@ namespace Wasp {
 
         register_infix_right(TokenType::POWER, Precedence::EXPONENT);
 
-        register_infix_right(TokenType::EQUAL, Precedence::ASSIGNMENT);
         register_parselet(TokenType::EQUAL, make_shared<AssignmentParselet>());
 
         register_parselet(TokenType::COLON, make_shared<TypePatternParselet>());

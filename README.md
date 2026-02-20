@@ -14,4 +14,3 @@ cmake --build build && ctest --test-dir build -L "unit" --rerun-failed --output-
 sudo chown -R vscode:vscode /workspaces/wasp
 
 ```
-

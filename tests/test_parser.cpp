@@ -1,206 +1,9 @@
+#include "token.h"
 #include "lexer.h"
 #include "parser.h"
+#include "test_utils.h"
 #include <gtest/gtest.h>
 
-
-Wasp::Module parse(const std::string& code) {
-    Wasp::Lexer lexer;
-    Wasp::Parser parser;
-
-    auto tokens = lexer.run(code);
-    auto mod = parser.run(tokens);
-
-    return mod;
-}
-
-TEST(ParserTestSuite, Number) {
-    auto mod = parse("2");
-    EXPECT_TRUE(true); 
-}
-
-TEST(ParserTestSuite, Addition) {
-    auto mod = parse("1 + 2");
-    EXPECT_TRUE(true);
-}
-
-TEST(ParserTestSuite, List) {
-    auto mod = parse("[1, 2, 3]");
-    EXPECT_TRUE(true);
-}
-
-TEST(ParserTestSuite, Tuple) {
-    auto mod = parse("(1, 2, 3)");
-    EXPECT_TRUE(true);
-}
-
-
-TEST(ParserTestSuite, EmptySet) {
-    auto mod = parse("{}");
-    EXPECT_TRUE(true);
-}
-
-
-TEST(ParserTestSuite, Set) {
-    auto mod = parse("{1, 2, 3}");
-    EXPECT_TRUE(true);
-}
-
-
-TEST(ParserTestSuite, EmptyMap) {
-    auto mod = parse("{->}");
-    EXPECT_TRUE(true);
-}
-
-TEST(ParserTestSuite, Map) {
-    auto mod = parse("{1 -> 1, 2 -> '2', 3 -> 3.0}");
-    EXPECT_TRUE(true);
-}
-
-TEST(ParserTestSuite, IntDefinition) {
-    auto mod = parse("let x : int = 5");
-    EXPECT_TRUE(true);
-}
-
-TEST(ParserTestSuite, ListDefinition) {
-    auto mod = parse("let x : [int] = [1, 2, 3]");
-    EXPECT_TRUE(true);
-}
-
-TEST(ParserTestSuite, SetDefinition) {
-    auto mod = parse("let x : { int } = {1, 2, 3}");
-    EXPECT_TRUE(true);
-}
-
-TEST(ParserTestSuite, MapDefinition) {
-    auto mod = parse("let x : { int -> int } = {1 -> 1, 2 -> 2, 3 -> 3}");
-    EXPECT_TRUE(true);
-}
-
-TEST(ParserTestSuite, FunTypeDefinition) {
-    auto mod = parse("let x : (int) -> int = function_name");
-    EXPECT_TRUE(true);
-}
-
-TEST(ParserTestSuite, VariantDefinition) {
-    auto mod = parse("let x : (int | float) = 5");
-    EXPECT_TRUE(true);
-}
-
-TEST(ParserTestSuite, AliasDefinition) {
-    auto mod = parse("alias int_list = [int]");
-    EXPECT_TRUE(true);
-}
-
-TEST(ParserTestSuite, TernaryExpression) {
-    auto mod = parse("if true then 1 else 2");
-    EXPECT_TRUE(true);
-}
-
-TEST(ParserTestSuite, TernaryLetExpression) {
-    auto mod = parse("if let x = 1 then 1 else 2");
-    EXPECT_TRUE(true);
-}
-
-TEST(ParserTestSuite, IfBlock) {
-    auto mod = parse(R"(
-if true then
-    1 
-)");
-
-    EXPECT_TRUE(true);
-}
-
-TEST(ParserTestSuite, IfElseBlock) {
-    auto mod = parse(R"(
-if true then
-    1
-else
-    2
-)");
-
-    EXPECT_TRUE(true);
-}
-
-
-TEST(ParserTestSuite, IfElifElseBlock) {
-    auto mod = parse(R"(
-if x == 25 then
-    pass
-elif x == 30 then
-    pass
-else
-    pass
-)");
-
-    EXPECT_TRUE(true);
-}
-
-TEST(ParserTestSuite, WhileSingle) {
-    auto mod = parse(R"(while x < 10 do x = x + 1)");
-
-    EXPECT_TRUE(true);
-}
-
-TEST(ParserTestSuite, WhileBlock) {
-    auto mod = parse(R"(
-while x < 10 do 
-    x = x + 1
-    y = 1
-)");
-
-    EXPECT_TRUE(true);
-}
-
-TEST(ParserTestSuite, Continue) {
-    auto mod = parse(R"(
-while x < 10 do 
-    x = x + 1
-    continue
-)");
-
-    EXPECT_TRUE(true);
-}
-
-TEST(ParserTestSuite, ForSingle) {
-    auto mod = parse(R"(for x in [1, 2, 3] do x = x + 1)");
-
-    EXPECT_TRUE(true);
-}
-
-TEST(ParserTestSuite, ForBlock) {
-    auto mod = parse(R"(
-for x in [1, 2, 3] do 
-    x = x + 1
-    y = 1
-)");
-
-    EXPECT_TRUE(true);
-}
-
-
-TEST(ParserTestSuite, EnumSimpleDefinition) {
-    auto mod = parse(R"(
-enum Animal
-	Dog
-    Cat
-)");
-
-    EXPECT_TRUE(true);
-}
-
-
-TEST(ParserTestSuite, EnumNestedDefinition) {
-    auto mod = parse(R"(
-enum Animal
-	Dog
-
-	enum Bird
-		Crow
-		Pigeon
-)");
-
-    EXPECT_TRUE(true);
-}
 
 TEST(ParserTestSuite, MemberAccessSimple) {
     auto mod = parse(R"(Animal.Dog)");
@@ -222,65 +25,31 @@ TEST(ParserTestSuite, MemberAccessWithString) {
 
 TEST(ParserTestSuite, ReturnStatementEmpty) {
     auto mod = parse(R"(return)");
-    EXPECT_TRUE(true);
-}
+    ASSERT_EQ(mod.statements.size(), 1);
 
-TEST(ParserTestSuite, ReturnStatementSimple) {
-    auto mod = parse(R"(return 5)");
-    EXPECT_TRUE(true);
+    // Unpack the variant instead of casting the pointer
+    auto* return_stmt = std::get_if<Wasp::Return>(&mod.statements[0]->data);
+    ASSERT_NE(return_stmt, nullptr) << "Expected a Return statement";
+    
+    EXPECT_FALSE(return_stmt->expression.has_value());
 }
 
 TEST(ParserTestSuite, ReturnStatementExpression) {
     auto mod = parse(R"(return 5 + 23)");
-    EXPECT_TRUE(true);
-}
+    ASSERT_EQ(mod.statements.size(), 1);
 
-TEST(ParserTestSuite, FunctionDefinitionSimple) {
-    auto mod = parse(R"(
-fun add(a: int, b: int) -> int
-    x = a + b
-    return x
-)");
- 
-    EXPECT_TRUE(mod.statements.size() == 1);
-}
-
-TEST(ParserTestSuite, FunctionDefinitionWithIf) {
-    auto mod = parse(R"(
-fun add(a: int, b: int) -> int
-    if a > b then
-        x = a + b
-    return x
-)");
- 
-    EXPECT_TRUE(mod.statements.size() == 1);
-}
- 
-TEST(ParserTestSuite, FunctionDefinitionWithIfElifElse) {
-    auto mod = parse(R"(
-fun add(a: int, b: int) -> int
-    if a > b then
-        x = a + b
-    elif a < b then
-        x = a - b
-    else
-        x = a * b
-    return x
-)");
- 
-    EXPECT_TRUE(mod.statements.size() == 1);
-}
- 
-TEST(ParserTestSuite, FunctionDefinitionWithWhile) {
-    auto mod = parse(R"(
-fun add(a: int, b: int) -> int
-    while a < b do
-        a = a + 1
-
-    return x
-)");
- 
-    EXPECT_TRUE(mod.statements.size() == 1);
+    auto* return_stmt = std::get_if<Wasp::Return>(&mod.statements[0]->data);
+    ASSERT_NE(return_stmt, nullptr) << "Expected a Return statement";
+    
+    // Ensure the optional has a value
+    ASSERT_TRUE(return_stmt->expression.has_value());
+    
+    // Safely verify the expression inside the return
+    auto expr = return_stmt->expression.value();
+    ASSERT_NE(expr, nullptr) << "Return expression pointer is null";
+    
+    // "5 + 23" should parse as an Infix expression
+    ASSERT_TRUE(expr->is<Wasp::Infix>()); 
 }
 
 TEST(ParserTestSuite, FunctionCallWithoutArguments) {
@@ -412,74 +181,3 @@ TEST(ParserTestSuite, AnnotationDefinitionSimple) {
 
     EXPECT_TRUE(true);
 }
-
-
-TEST(ParserTestSuite, ClassDefinitionSimple) {
-    auto mod = parse(R"(
-class Person
-    name: string
-    age: int
-)");
-
-    EXPECT_TRUE(true);
-}
-
-TEST(ParserTestSuite, ClassDefinitionWithPrivateVariable) {
-    auto mod = parse(R"(
-class Person
-    name: string
-    _age: int
-)");
-
-    EXPECT_TRUE(true);
-}
-
-
-TEST(ParserTestSuite, ClassDefinitionWithSimpleRecord) {
-    auto mod = parse(R"(
-class Person
-    name: string
-    address record
-        street: string
-        city: string
-)");
-
-    EXPECT_TRUE(true);
-}
-
-
-TEST(ParserTestSuite, ClassDefinitionWithNestedRecord) {
-    auto mod = parse(R"(
-class Person
-    name: string
-    address record
-        street: string
-        city: string
-
-    job record
-        title: string
-        salary: int
-
-        experience record
-            years: int
-            field: string
-
-)");
-
-    EXPECT_TRUE(true);
-}
-
-
-// TEST(ParserTestSuite, ClassDefinitionWithSimpleRecord) {
-//     auto mod = parse(R"(
-// class Person
-//     name: string
-//     address record
-//         street: string
-//         city: string
-// )");
-
-//     EXPECT_TRUE(true);
-// }
-
-

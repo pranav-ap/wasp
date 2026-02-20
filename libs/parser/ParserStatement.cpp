@@ -46,7 +46,7 @@ namespace Wasp {
         switch (token->type) {
 			CASE(TokenType::LET, parse_variable_definition(true));
 			CASE(TokenType::CONST_KEYWORD, parse_variable_definition(false));
-            CASE(TokenType::ALIAS, parse_alias_definition());
+            CASE(TokenType::TYPE, parse_alias_definition());
             CASE(TokenType::ENUM, parse_enum_definition());
 
             CASE(TokenType::IF, parse_branching(token.value().type, expected_indent_level));
@@ -69,6 +69,7 @@ namespace Wasp {
             CASE(TokenType::AT_SIGN, parse_annotation_definition());
 
             CASE(TokenType::CLASS, parse_class_definition(expected_indent_level));
+            CASE(TokenType::IMPL, parse_impl_definition(expected_indent_level));
 
             default:
                 return parse_expression_statement();
