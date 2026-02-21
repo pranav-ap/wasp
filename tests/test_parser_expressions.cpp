@@ -9,11 +9,15 @@ TEST(ParseExpressions, Number) {
     auto mod = parse("2");
     ASSERT_EQ(mod.statements.size(), 1);
 
-    auto* exprStmt = std::get_if<Wasp::ExpressionStatement>(&mod.statements[0]->data);
-    ASSERT_NE(exprStmt, nullptr) << "Expected an ExpressionStatement";
-
-    ASSERT_TRUE(exprStmt->expression->is<int>()) << "Expected an integer expression";
-    EXPECT_EQ(exprStmt->expression->as<int>(), 2);
+    // Using the new is<T> and as<T> helpers
+    auto& stmt = *mod.statements[0];
+    
+    ASSERT_TRUE(stmt.is<Wasp::ExpressionStatement>()) << "Expected an ExpressionStatement";
+    
+    const auto& exprStmt = stmt.as<Wasp::ExpressionStatement>();
+    
+    ASSERT_TRUE(exprStmt.expression->is<int>()) << "Expected an integer expression";
+    EXPECT_EQ(exprStmt.expression->as<int>(), 2);
 }
 
 
@@ -31,6 +35,25 @@ TEST(ParseExpressions, Addition) {
     EXPECT_EQ(infix.left->as<int>(), 1);
 
     EXPECT_EQ(infix.op.type, Wasp::TokenType::PLUS); 
+
+    ASSERT_TRUE(infix.right->is<int>());
+    EXPECT_EQ(infix.right->as<int>(), 2);
+}
+
+TEST(ParseExpressions, RocketOperator) {
+    auto mod = parse("1 <=> 2");
+    ASSERT_EQ(mod.statements.size(), 1);
+
+    auto* exprStmt = std::get_if<Wasp::ExpressionStatement>(&mod.statements[0]->data);
+    ASSERT_NE(exprStmt, nullptr);
+
+    ASSERT_TRUE(exprStmt->expression->is<Wasp::Infix>());
+    const auto& infix = exprStmt->expression->as<Wasp::Infix>();
+
+    ASSERT_TRUE(infix.left->is<int>());
+    EXPECT_EQ(infix.left->as<int>(), 1);
+
+    EXPECT_EQ(infix.op.type, Wasp::TokenType::ROCKET); 
 
     ASSERT_TRUE(infix.right->is<int>());
     EXPECT_EQ(infix.right->as<int>(), 2);
@@ -549,7 +572,6 @@ TEST(ParseExpressions, PipeOutput) {
     ASSERT_NE(fooCall, nullptr);
     EXPECT_EQ(fooCall->arguments.size(), 0);
 }
-
 TEST(ParseExpressions, Star) {
     auto mod = parse("*b");
     ASSERT_EQ(mod.statements.size(), 1);
@@ -558,12 +580,15 @@ TEST(ParseExpressions, Star) {
     ASSERT_NE(exprStmt, nullptr);
     ASSERT_NE(exprStmt->expression, nullptr);
 
-    auto* star = std::get_if<Wasp::StarGatherSpreadLiteral>(&exprStmt->expression->data);
+    auto* star = std::get_if<Wasp::Prefix>(&exprStmt->expression->data);
     ASSERT_NE(star, nullptr);
 
-    ASSERT_NE(star->expression, nullptr);
-    auto* id = std::get_if<Wasp::Identifier>(&star->expression->data);
+    // Fixed: 'operand' instead of 'right'
+    ASSERT_NE(star->operand, nullptr);
+    auto* id = std::get_if<Wasp::Identifier>(&star->operand->data);
     ASSERT_NE(id, nullptr);
+    
+    // Fixed: 'name' instead of 'value'
     EXPECT_EQ(id->name, "b");
 }
 
@@ -584,10 +609,11 @@ TEST(ParseExpressions, StarGather) {
     ASSERT_EQ(lhsList->expressions.size(), 3);
 
     ASSERT_NE(lhsList->expressions[1], nullptr);
-    auto* starGather = std::get_if<Wasp::StarGatherSpreadLiteral>(&lhsList->expressions[1]->data);
+    auto* starGather = std::get_if<Wasp::Prefix>(&lhsList->expressions[1]->data);
     ASSERT_NE(starGather, nullptr);
-    ASSERT_NE(starGather->expression, nullptr);
-    auto* gatherId = std::get_if<Wasp::Identifier>(&starGather->expression->data);
+    ASSERT_NE(starGather->operand, nullptr);
+    
+    auto* gatherId = std::get_if<Wasp::Identifier>(&starGather->operand->data);
     ASSERT_NE(gatherId, nullptr);
     EXPECT_EQ(gatherId->name, "b");
 
@@ -614,11 +640,11 @@ TEST(ParseExpressions, StarSpread) {
     ASSERT_EQ(lhsList->expressions.size(), 3);
 
     ASSERT_NE(assign->rhs_expression, nullptr);
-    auto* starSpread = std::get_if<Wasp::StarGatherSpreadLiteral>(&assign->rhs_expression->data);
+    auto* starSpread = std::get_if<Wasp::Prefix>(&assign->rhs_expression->data);
     ASSERT_NE(starSpread, nullptr);
     
-    ASSERT_NE(starSpread->expression, nullptr);
-    auto* spreadId = std::get_if<Wasp::Identifier>(&starSpread->expression->data);
+    ASSERT_NE(starSpread->operand, nullptr);
+    auto* spreadId = std::get_if<Wasp::Identifier>(&starSpread->operand->data);
     ASSERT_NE(spreadId, nullptr);
     EXPECT_EQ(spreadId->name, "three_nums");
 }
@@ -640,16 +666,15 @@ TEST(ParseExpressions, StarGatherAndSpread) {
     ASSERT_EQ(lhsList->expressions.size(), 3);
 
     ASSERT_NE(lhsList->expressions[1], nullptr);
-    auto* starGather = std::get_if<Wasp::StarGatherSpreadLiteral>(&lhsList->expressions[1]->data);
+    auto* starGather = std::get_if<Wasp::Prefix>(&lhsList->expressions[1]->data);
     ASSERT_NE(starGather, nullptr);
 
     ASSERT_NE(assign->rhs_expression, nullptr);
-    auto* starSpread = std::get_if<Wasp::StarGatherSpreadLiteral>(&assign->rhs_expression->data);
+    auto* starSpread = std::get_if<Wasp::Prefix>(&assign->rhs_expression->data);
     ASSERT_NE(starSpread, nullptr);
 
-    ASSERT_NE(starSpread->expression, nullptr);
-    auto* spreadId = std::get_if<Wasp::Identifier>(&starSpread->expression->data);
+    ASSERT_NE(starSpread->operand, nullptr);
+    auto* spreadId = std::get_if<Wasp::Identifier>(&starSpread->operand->data);
     ASSERT_NE(spreadId, nullptr);
     EXPECT_EQ(spreadId->name, "five_nums");
 }
-

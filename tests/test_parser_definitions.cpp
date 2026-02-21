@@ -505,7 +505,7 @@ TEST(ParseDefinitions, ClassImplSingleFunction) {
     auto mod = parse(R"(
 impl Person is Fortifiable
     fun fortify()
-        if me.age > 30 then
+        if my.age > 30 then
             x = x + 5
         else
             x = x - 5
@@ -532,16 +532,16 @@ TEST(ParseDefinitions, ClassImplMultipleFunctions) {
     auto mod = parse(R"(
 impl Person is Fortifiable
     fun fortify()
-        if me.age > 30 then
-            me.defense = me.defense + 15
+        if my.age > 30 then
+            my.defense = my.defense + 15
         else
-            me.defense = me.defense + 5
+            my.defense = my.defense + 5
     
     fun weaken(damage: int)
-        me.defense = me.defense - damage
+        my.defense = my.defense - damage
         
-        if me.defense < 0 then
-            me.defense = 0
+        if my.defense < 0 then
+            my.defense = 0
 )");
 
     ASSERT_EQ(mod.statements.size(), 1);

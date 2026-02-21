@@ -1,4 +1,4 @@
-# Variables and Constants
+# Variables
 
 Variables are declared using `let`, while constants use `const`. Types can be explicitly annotated. Otherwise they are inferred by default.
 
@@ -7,38 +7,29 @@ Variables are declared using `let`, while constants use `const`. Types can be ex
 let x: int = 34    
 
 # Immutable constant
-const x: int = 34  
-
-# list length is constant, but elements are mutable
-let x: const [int] = [1, 2, 3] 
-
-# list elements are constant, but list length is mutable
-let x: [const int] = [1, 2, 3]  
-
-# Both list length and elements are constant
-let x: const [const int] = [1, 2, 3] 
-const x: [int] = [1, 2, 3]  
+const x: int = 34
 ```
 
 # Type System 
+
+## Strings
+
+```python
+x = 'Some text'
+```
+
+Multi-line strings are trimmed by default. You can access properties on strings directly.
+
+```python
+x = '''
+    Some text
+    '''
+```
 
 ## Lists 
 
 ```python
 let x: [int] = [1, 2, 3]
-```
-
-## Ranges
-
-Ranges can be defined for iterative or slice operations.
-
-```python
-# Range Syntaxes
-1..10      # Standard range
-1...10     # Inclusive range
-1..10:2    # Range with step (2)
-1..        # Open-ended range
-1..:2      # Open-ended with step
 ```
 
 ## Tuples
@@ -62,6 +53,19 @@ a | b  # Union: {1, 2, 3, 4, 5, 6}
 a - b  # Difference: {1, 2}
 ```
 
+## Ranges
+
+Ranges can be defined for iterative or slice operations.
+
+```python
+# Range Syntaxes
+1..10      # Standard range
+1...10     # Inclusive range
+1..10:2    # Range with step (2)
+1..        # Open-ended range
+1..:2      # Open-ended with step
+```
+
 ## Maps
 
 ```python
@@ -72,20 +76,6 @@ let x: { => } = { "a" => "b", "c" => "d" }
 
 # Key access
 x."a" 
-```
-
-## Strings
-
-```python
-x = 'Some text'
-```
-
-Multi-line strings are trimmed by default. You can access properties on strings directly.
-
-```python
-x = '''
-    Some text
-    '''
 ```
 
 ## Type Alias 
@@ -100,6 +90,7 @@ type names = (str, str)
 
 ```python
 type Sizes = 1 | 2 | 3 
+type Sizes = 1...3:1 
 type WindowStates = "open" | "closed" | "minimized"
 ```
 
@@ -121,21 +112,6 @@ let y: LocaleID = "fr_admin"
 ## Type Logic 
 
 ```python
-trait Fortifiable
-    name: str
-    health: int 
-    
-trait Livable
-    name: str
-    housing_capacity: int
-
-class Castle is Fortifiable, Livable
-    pass 
-
-class Farm is Livable
-    pass
-
-
 # CLASS VARIANT
 # accepts any of the listed classes 
 type X = int | str | Castle 
@@ -148,10 +124,6 @@ type X = Fortifiable | Livable
 # accepts any class that implements both 
 type X = Fortifiable & Livable
 
-# COMMON CLASS MEMBERS 
-# common members must match in type as well as name 
-type X = CAT & DOG 
-
 # TRAIT NEGATION 
 # Class can be Uploadable but not Executable
 type SafeUpload = Uploadable & not Executable
@@ -159,28 +131,6 @@ type SafeUpload = Uploadable & not Executable
 # SUBTRACTION
 # Remove a Trait from a Class
 type CastleClassWithoutLivableTrait = Castle - Livable
-```
-
-## Omit & Pick
-
-```python
-class Worker
-    id: int
-    name: str
-    salary: float
-    secret_code: int
-
-# 1. Calculates a type containing ONLY 'id' and 'name'. 
-# 2. Private members can be picked as values are not being accessed here
-type WorkerIdentity = Worker.pick('id', 'name')
-
-# 1. Calculates a type with everything EXCEPT the sensitive fields
-# 2. Accessing these fields directly, or passing this type to a function that expects a full Worker, throws a compile-time error.
-type PublicWorker = Worker.omit('salary', 'secret_code')
-
-
-fun display_badge(w: WorkerIdentity)
-    pass
 ```
 
 ## Distinct
@@ -198,6 +148,7 @@ let total = price + tax
 # The developer is forced to explicitly cast or convert
 let total = price + convert_to_usd(tax)
 ```
+
 ## Enums
 
 Enums can be nested, establishing clear hierarchical namespaces.
@@ -271,6 +222,43 @@ let status = when user_age
     else "Unknown"
 ```
 
+## Operators 
+
+```python
+a <=> b 
+# returns -1, 0 or +1
+
+# Append & Remove 
+a = [1, 2, 3] ++ [4, 5]  
+# [1, 2, 3, 4, 5]
+b = a -- [1, 2]   
+# [3, 4, 5]
+
+padding = [0] * 5  
+# [0, 0, 0, 0, 0]
+
+# Zip Operator
+names = ["Alice", "Bob"]
+ages  = [25, 30]
+combined = names <> ages 
+# [("Alice", 25), ("Bob", 30)]
+
+# Merge Maps
+base_config = { "debug": true, "port": 8080 }
+overrides = { "port": 9000 }
+final_config = base_config << overrides 
+# { "debug": true, "port": 9000 }
+
+# Add Key Value Pairs
+a = { "id": 1, "name": "John" } ++ { "email": "a@b.com" } 
+# { "id": 1, "name": "John", "email": "a@b.com" }
+
+# Remove Keys
+user = { "id": 1, "name": "John", "email": "a@b.com" }
+public_profile = user -- ["id", "email"]
+# { "name": "John" }
+```
+
 # Control Flow
 
 ### Conditionals 
@@ -300,6 +288,14 @@ unless expr do a = a + 4
 
 while let x = expr do a = x + 4
 for x: int in [1, 2, 3] do x
+
+# squares of even numbers only
+evens = [x * x for x in 0..10 if x % 2 == 0]
+# Result: [0, 4, 16, 36, 64, 100]
+
+# Create a map of numbers to their squares
+squares = { x: x*x for x in 1..5 }
+# Result: { 1: 1, 2: 4, 3: 9, 4: 16, 5: 25 }
 ```
 
 ### Pattern Matching
@@ -350,12 +346,13 @@ foo() ~ bar(., 35) ~ boom(...)
 
 # Class
 
-## Schema
-
-Class members are public by default. You can use `private` and `shared` to control visibility and mutability. `const` can be used for class-level constants.
+## Data 
 
 ```python
 class Worker
+    private shared record 
+        _total: int
+        
     shared record 
         total: int
     
@@ -363,7 +360,7 @@ class Worker
         _performance_rating: float
         _secret_code: int
 
-    MAX_HOURS: const int = 60 
+    MAX_HOURS: const int
 
     name: str 
     salary: float 
@@ -377,34 +374,32 @@ class Worker
         title: str 
 ```
 
-## Implementation
-
-Behavior is attached to classes using `impl` blocks. `us` references static/shared context, and `me` references instance context. 
+## Functions 
 
 ###  Lifecycle 
 
 ```python
 impl Worker
     fun default()
-        me.time.hours_per_week_used = 0
-        me.time.hours_per_week_total = 40
-        me._performance_rating = 1.0
+        my.time.hours_per_week_used = 0
+        my.time.hours_per_week_total = 40
+        my._performance_rating = 1.0
 
     fun initialize(name: str, salary: float, secret: int)
-        me.name = name.capitalize() 
-        me.salary = salary 
-        me.secret_code = secret 
-        us.total = us.total + 1 
+        my.name = namy.capitalize() 
+        my.salary = salary 
+        my.secret_code = secret 
+        our.total = our.total + 1 
     
     fun initialize(source: Worker)
-        me.name = "${source.name} (Copy)"
-        me.salary = source.salary
+        my.name = "${source.name} (Copy)"
+        my.salary = source.salary
         # We DON'T copy the secret_code for security
-        me.secret_code = generate_new_code()
+        my.secret_code = generate_new_code()
         
     fun delete()
-        us.total = us.total - 1
-        print("Worker deleted. Total remaining: {us.total}")
+        our.total = our.total - 1
+        print("Worker deleted. Total remaining: {our.total}")
         
     fun enter()
         pass
@@ -413,68 +408,63 @@ impl Worker
         pass 
 ```
 
-### Accessors 
+### Functions 
 
-You get to decide whether to use explicit getter/setter functions or property accessors.
-
-The `get` and `set` keywords allow you to define functions that can compute values on the fly or perform validation when setting values.
-
-You can mark setters and getters as private if you wish. 
-
-```python
-impl Worker
-    get annual_salary => float
-        return me.salary * 12 
-
-    set annual_salary (s: float)
-        me.salary = s / 12 
-
-    get secret_code => int
-        return me._secret_code
-
-    private set secret_code (code: int)
-        if code > 1000 then
-            me._secret_code = code
-```
-
-### Instance Functions 
+Class functions are called like `Worker.get_total_workers()` and they cannot access `my`. Only instance functions can access `my`. 
 
 ```python
 impl Worker 
     fun log_hours(hours: int)
-        me.time.hours_per_week_used += hours 
+        my.time.hours_per_week_used += hours 
+        
+    fun our::get_total_workers() => int
+        return our.total
 ```
 
-### Class Functions  
-
-Class functions are called like `Worker.get_total_workers()` and they cannot access `me`. 
+### Accessors 
 
 ```python
 impl Worker
-    fun get_total_workers() => int
-        return us.total
+    get annual_salary => float
+        return my.salary * 12 
+
+    set annual_salary (s: float)
+        my.salary = s / 12 
+
+    get secret_code => int
+        return my._secret_code
+
+    private set secret_code (code: int)
+        if code > 1000 then
+            my._secret_code = code
+```
+
+### Compute
+
+```python
+impl Worker
+    compute annual_salary => float
+        return my.salary * 12 
 ```
 
 ### Meta Functions 
-
-Can access `me` and `us`.
 
 ```python
 impl Worker
     # Returns a string representation (debugging/logging)
     fun repr() => str
-        return "$Worker - {me.name}"
+        return "Worker - ${my.name}"
     
     # Returns a key-value map
-    fun to_map() => { str => . }
-        return { "name" => me.name, "salary" => me.salary }
+    fun to_map() => { str => }
+        return { "name" => my.name, "salary" => my.salary }
         
     # Returns a raw JSON string
     fun to_json() => str
-        return JSON.encode(me.to_map())
+        return JSON.encode(my.to_map())
     
     # Creates a Worker from a JSON string
-    fun from_json(data: str) => me
+    fun our::from_json(data: str) => Worker
         let m = JSON.decode(data)
         return new Worker(m."name", m."salary")
 ```
@@ -487,63 +477,175 @@ let sam = new Worker('sam', 4000.0, 1234)
 sam.log_hours(8)
 sam.annual_salary = 60000.0 
 
+# remove reference from symbol table
+# `sam` becomes inaccessible after this unless re-defined
 delete sam
 
-with Worker() as w
+with Worker() as w do
     pass
+
+with Worker() as w1, Worker() as w2, Project() as p do
+    w1.log_hours(5)
+    w2.log_hours(3)
+    p.assign_worker(w1)
+    # exit() is called for p, then w2, then w1 here
 ```
 
 # Traits
 
-Traits provide shared variables and functions with default logic. They must declare all class variables they interact with.
+*Purpose*
+Traits define functions and declare accessors. 
 
-Traits are in *conflict if they have overlapping member names*. The Class must mediate over them by overriding the conflicting members.  
+*Initialization*
+The trait `default()` functions do not get called automatically. Make sure the class `default()` and `initialize()` manages the initialization logic correctly. 
 
-The scope resolution operator `::` allows you to specify which trait's function to call when there are conflicts.
+*Access Modifiers*
+Public members of a trait must remain public in the class. The private members can be made public. 
 
-When your class overrides a variable in `Fortifiable`, then `Fortifiable::default()` will not automatically called. So, take care of the logic in your class's `default()`. Call `Fortifiable::default()` if needed.
+*When are members in conflict?*
+
+- Two variables are in conflict if they share the same name 
+- Two functions are in conflict if they share the same name and parameter types 
+
+- `my.Fortifiable::health` is available in the class `default()` and `initialize()` 
+- `my.Fortifiable::run()` is available in the class definition
+- `w.Fortifiable::run()` is available outside the class definition
 
 ```python
-trait Fortifiable
-    private record
-        _id: int 
+trait Worker
+    # privates may be made public in class 
+    # publics must remain so in class 
 
-    health: int
+    # declare required accessors
+    id: [g ps] int 
+    salary: [pg s] float 
 
-impl Fortifiable
-    fun default()        
-        me.health = 100
+impl Worker 
+    fun default() 
+        # calls accessors 
+        my.id = 0
+        my.salary = 0
+
+impl Worker 
+    compute health => float  
+        return my.salary * 100 
     
-    fun run()
-        # pass here means class must implement it.
-        # Class allowed to pass but type checking still done.
+impl Worker     
+    # class can optionally override this
+    fun action ()
+        print('Chop! Chop!')
+    
+    # class must override this 
+    fun shout_at_boss () => str
+        pass  
+    
+    # class must override this 
+    private fun say () => str 
         pass 
 
 
-trait Livable
-    health: int
+trait Player 
+    id: [g ps] int 
+    goals: [pg s] int 
+    health: [pg s] int
 
-impl Livable 
+impl Player 
+    fun default() 
+        my.id = 0
+        my.goals = 0
+        # `set health` gets called here     
+        my.health = 150 
+        
+    fun action ()
+        print('Kick!')
+    
+    fun transfer()
+        print('Transfer...')
+    
+
+class Person is Worker, Player 
+    private record
+        _work_id: int 
+        _salary: float
+        _game_id: int 
+        _goals: int 
+        _health: int
+
+impl Person
     fun default()
-        me.health = 50
+        # Setup local class state first
+        my._health = 0 
+        
+        # Can trigger trait defaults 
+        # Use your own logic 
+        my.Worker::default()
+        my.Player::default()
 
-    fun run()
-        pass
+    fun initialize(start_health: int)
+        my.health = start_health
 
+impl Person
+    # Person gets a Worker id
+    get Worker::id => int 
+        return my._work_id
+    
+    set Worker::id (id: int)
+        my._work_id = id
+    
+    # Person gets a Player id
+    get Player::id => int 
+        return my._game_id
+    
+    set Player::id (id: int)
+        my._game_id = id
+    
+    # Person only needs one health variable
+    # Notice there is no :: here 
+    merge get health => int
+        return my._health
+        
+    merge set health (h: int)
+        my._health = h
+    
+    # salary and goals are not in conflict 
+    # but you must still use :: 
+    get Worker::salary => float 
+        return my._salary
 
-class Worker is Fortifiable, Livable
-    # Conflicting variables are overriden
-    health: int 
+    get Player::goals => int 
+        return my._goals
 
-impl Worker 
-    fun default()
-        me.health = 75 
+impl Person
+    # overrides shout_at_boss from Worker
+    fun Worker::shout_at_boss () => str
+        return 'I Quit!'
+    
+    # tag 1
+    replace fun Worker::action () => str
+        # player action is suitable
+        # but worker action is not
+        # so we override one 
+        return 'Screw!'
+        
+    # override funs from 1 or more traits 
+    # that share same signature
+    override fun action ()
+        print('Wake Up')
+        # calls class action
+        my.Worker::action()
+        
+        my.Player::action() 
+    
 
-    fun run()
-        # 1. Function conflict resolved by ::
-        me::Fortifiable.run()
-        me::Livable.run()
-        # 2. Can also provide custom business logic
+let p = new Person()
+
+p.shout_at_boss()
+
+# calls class action
+p.action()
+# not allowed 
+p.Worker::action()
+p.Player::action()
 ```
 
 # Annotations
@@ -635,6 +737,7 @@ workspace/
             Payroll.wasp
         ops/
             Payroll.wasp
+            utils.wasp
             Machine.wasp
         wasp.yaml
         
@@ -652,21 +755,20 @@ from top.company import Worker, Machine
 from top.company.hr import Payroll as hr_Payroll 
 from top.company.ops import Payroll as ops_Payroll, Machine
 
-# me refers to the package current code is in 
+# my refers to the current folder 
 
 ## company/main.wasp 
-import me.hr 
-from me.hr import Payroll
+import my.hr 
+from my.hr import Payroll
 
 ## company/ops/Payroll.wasp 
-from me.ops.Machine import Machine
+from my.Machine import Machine
 
-# us refers to the set of sibling packages of current package
+# our refers to the set of sibling folders of current folder
 
-## main.wasp 
-import us.company
-from us.company import Worker
-
+## company/ops/Machine.wasp 
+import our.hr
+from our.hr import Payroll
 ```
 
 # Operator Overloading
@@ -681,11 +783,24 @@ operator left: Castle < right: Castle => bool
 # Generics
 
 ```python
-# Missing: Generic Class/Trait
 class Box[T]
     item: T
 
-# Missing: Generic Function
+let b = new Box[int]()
+
 fun wrap[T](item: T) => Box[T]
     return new Box(item)
+
+wrap[int](12)
+
+class Armory[T: Fortifiable] 
+    items: [T]
 ```
+
+# CMD Tool 
+
+```shell
+> wasp run main.wasp
+> wasp run 
+```
+

@@ -65,6 +65,8 @@ namespace Wasp {
         std::map<TokenType, IPrefixParselet_ptr> prefix_parselets;
         std::map<TokenType, IInfixParselet_ptr> infix_parselets;
 
+        void register_all_parselets();
+
         void register_parselet(TokenType token_type, IPrefixParselet_ptr parselet);
         void register_parselet(TokenType token_type, IInfixParselet_ptr parselet);
         void register_prefix(TokenType token_type, Precedence precedence);

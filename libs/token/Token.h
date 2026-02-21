@@ -34,8 +34,10 @@
 	X(QUESTION_DOT,   "?.",       false) \
 	X(QUESTION_EQUAL, "?=",       false) \
 	X(PLUS,           "+",        false) \
+	X(PLUS_PLUS,           "++",        false) \
 	X(PLUS_EQUAL,     "+=",       false) \
 	X(MINUS,          "-",        false) \
+	X(MINUS_MINUS,          "--",        false) \
 	X(MINUS_EQUAL,    "-=",       false) \
 	X(ARROW,          "=>",       false) \
 	X(STAR,           "*",        false) \
@@ -51,9 +53,13 @@
 	X(BANG,           "!",        false) \
 	X(BANG_EQUAL,     "!=",       false) \
 	X(LESSER_THAN,    "<",        false) \
+	X(LESSER_THAN_2,   "<<",       false) \
 	X(LESSER_THAN_EQUAL, "<=",    false) \
 	X(GREATER_THAN,   ">",        false) \
+	X(GREATER_THAN_2,   ">>",       false) \
 	X(GREATER_THAN_EQUAL, ">=",   false) \
+	X(ROCKET, 			"<=>",   false) \
+	X(ZIP, 				"<>", 		false) \
 	X(IMPORT,         "import",   true) \
 	X(FROM,           "from",     true) \
 	X(IF,             "if",       true) \
@@ -89,15 +95,19 @@
 	X(IS,             "is",       true) \
 	X(AS,             "as",       true) \
 	X(FUN,            "fun",      true) \
+	X(GET,            "get",      true) \
+	X(SET,            "set",      true) \
 	X(RETURN_KEYWORD, "return",   true) \
 	X(YIELD_KEYWORD,  "yield",    true) \
 	X(CLASS,          "class",    true) \
 	X(TRAIT,          "trait",    true) \
 	X(IMPL,      	  "impl",     true) \
 	X(SHARED,      	  "shared",     true) \
+	X(OVERRIDE_KEYWORD,       "override",      true) \
+	X(PRIVATE_KEYWORD,       "private",      true) \
 	X(RECORD,      	  "record",     true) \
-	X(ME,      	  	  "me",     true) \
-	X(US,      	      "us",     true) \
+	X(MY,      	  	  "my",     true) \
+	X(OUR,      	      "our",     true) \
 	X(TYPE,           "type",     true) \
 	X(EXPORT,         "export",   true) \
 	X(OPERATOR,       "operator", true) \

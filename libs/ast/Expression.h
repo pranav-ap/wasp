@@ -154,13 +154,6 @@ namespace Wasp {
             : start(std::move(start)), end(std::move(end)), step(std::move(step)), is_inclusive(is_inclusive) {}
     };
 
-    struct StarGatherSpreadLiteral {
-        Expression_ptr expression;
-
-        StarGatherSpreadLiteral(Expression_ptr expression)
-            : expression(std::move(expression)) {}
-    };
-
     // Expression Variant
 
     struct Expression {
@@ -171,7 +164,7 @@ namespace Wasp {
             
             Prefix, Infix, Postfix,
             ListLiteral, TupleLiteral, SetLiteral, MapLiteral,
-            RangeLiteral, StarGatherSpreadLiteral,
+            RangeLiteral, 
             
             TypePattern,
             VariableDefinitionExpression,
@@ -184,14 +177,17 @@ namespace Wasp {
 
         Expression() = default;
     
-        // Generic constructor for any variant type
         template<typename T>
         Expression(T&& val) : data(std::forward<T>(val)) {}
 
         template<typename T>
-        [[nodiscard]] bool is() const { return std::holds_alternative<T>(data); }
+        [[nodiscard]] bool is() const { 
+            return std::holds_alternative<T>(data); 
+        }
 
         template<typename T>
-        const T &as() const { return std::get<T>(data); }
+        const T &as() const { 
+            return std::get<T>(data); 
+        }
     };
 }

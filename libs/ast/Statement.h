@@ -214,6 +214,16 @@ struct Statement {
 
 	template<typename T>
     Statement(T&& val) : data(std::forward<T>(val)) {}
+
+	template<typename T>
+	bool is() const {
+		return std::holds_alternative<T>(data);
+	}
+
+	template<typename T>
+	const T& as() const {
+		return std::get<T>(data);
+	}
 };
 
 }

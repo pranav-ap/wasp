@@ -37,12 +37,16 @@ namespace Wasp {
                 return *token;
             }
 
-            cout << "Error: Expected token of type " << to_string(token_type) << " but got " << to_string(
-                token->type) << " at line " << token->line << endl;
-            exit(1);
+            cout << "Error: Expected token of type " << to_string(token_type) << 
+                    " but got " << to_string(token->type) << 
+                    " at line " << token->line << endl;
+            
+                    exit(1);
         }
 
-        cout << "Error: Expected token of type " << to_string(token_type) << " but got end of file" << endl;
+        cout << "Error: Expected token of type " << to_string(token_type) << 
+                " but got end of file" << endl;
+
         exit(1);
     }
 
@@ -57,13 +61,14 @@ namespace Wasp {
                 }
             }
 
-            // Error handling if no match is found
             std::cout << "Error: Expected one of { ";
+            
             for (size_t i = 0; i < token_types.size(); ++i) {
                 std::cout << to_string(token_types[i]) << (i < token_types.size() - 1 ? ", " : " ");
             }
-            std::cout << "} but got " << to_string(token->type) 
-                    << " at line " << token->line << std::endl;
+
+            std::cout << "} but got " << to_string(token->type) << 
+                         " at line " << token->line << std::endl;
             exit(1);
         }
 

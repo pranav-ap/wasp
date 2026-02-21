@@ -59,7 +59,7 @@ namespace Wasp {
         ));
     }
 
-    Expression_ptr ListParselet::parse(Parser &parser, const Token& token) {
+    Expression_ptr SquareBracketParselet::parse(Parser &parser, const Token& token) {
         parser.token_pipe.advance_pointer();
         ExpressionVector expressions = parser.parse_expressions();
         parser.token_pipe.require(TokenType::CLOSE_SQUARE_BRACKET);
@@ -245,12 +245,6 @@ namespace Wasp {
         return MAKE_EXPRESSION(DotLiteral{});
     }
 
-    Expression_ptr StarGatherSpreadParselet::parse(Parser &parser, const Token &token) {
-        parser.token_pipe.advance_pointer();
-        auto expr = parser.parse_expression();
-        return MAKE_EXPRESSION(StarGatherSpreadLiteral{expr});
-    }
-    
     // get_precedence
 
     int PrefixOperatorParselet::get_precedence() const {

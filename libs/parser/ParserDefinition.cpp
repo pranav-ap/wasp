@@ -18,15 +18,6 @@
 #define MAKE_RECURSIVE_TYPE(T, ...) std::make_shared<TypeAnnotation>(std::make_shared<T>(__VA_ARGS__))
 
 
-
-template<class... Ts>
-struct overloaded : Ts... {
-    using Ts::operator()...;
-};
-
-template<class... Ts>
-overloaded(Ts...) -> overloaded<Ts...>;
-
 using std::move;
 using std::cout;
 using std::optional;

@@ -28,7 +28,7 @@ namespace Wasp {
 
         // Structural
         POSTFIX,
-        CALL, // call() new
+        CALL, // call() new delete
         MEMBER_ACCESS // . ?. ::
     };
 }

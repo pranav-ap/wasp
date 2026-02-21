@@ -182,6 +182,10 @@ namespace Wasp {
             return Token(TokenType::PLUS_EQUAL, "+=", LINE_NUM, COL_NUM);
         }
 
+        if (expect_current_char('+')) {
+            return Token(TokenType::PLUS_PLUS, "++", LINE_NUM, COL_NUM);
+        }
+
         return Token(TokenType::PLUS, "+", LINE_NUM, COL_NUM);
     }
 
@@ -190,6 +194,10 @@ namespace Wasp {
         if (expect_current_char('=')) {
             return Token(TokenType::MINUS_EQUAL, "-=", LINE_NUM, COL_NUM);
         } 
+
+        if (expect_current_char('-')) {
+            return Token(TokenType::MINUS_MINUS, "--", LINE_NUM, COL_NUM);
+        }
 
         return Token(TokenType::MINUS, "-", LINE_NUM, COL_NUM);
     }
@@ -283,13 +291,26 @@ namespace Wasp {
         if (expect_current_char('=')) {
             return Token(TokenType::GREATER_THAN_EQUAL, ">=", LINE_NUM, COL_NUM);
         }
+        if (expect_current_char('>')) {
+            return Token(TokenType::GREATER_THAN_2, ">>", LINE_NUM, COL_NUM);
+        }
         return Token(TokenType::GREATER_THAN, ">", LINE_NUM, COL_NUM);
     }
 
     Token Lexer::consume_lesser_than() {
         next();
         if (expect_current_char('=')) {
+            if (expect_current_char('>')) {
+                return Token(TokenType::ROCKET, "<=>", LINE_NUM, COL_NUM);
+            }
+            if (expect_current_char('<')) {
+                return Token(TokenType::LESSER_THAN_2, "<<", LINE_NUM, COL_NUM);
+            }
             return Token(TokenType::LESSER_THAN_EQUAL, "<=", LINE_NUM, COL_NUM);
+        }
+
+        if (expect_current_char('>')) {
+            return Token(TokenType::ZIP, "<>", LINE_NUM, COL_NUM);
         }
         return Token(TokenType::LESSER_THAN, "<", LINE_NUM, COL_NUM);
     }

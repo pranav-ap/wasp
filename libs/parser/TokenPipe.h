@@ -53,6 +53,7 @@ namespace Wasp {
         
         int lookahead_indents() const;
         [[nodiscard]] bool peek_type_at_indent(int n, TokenType type) const;
+        
         // Utils
 
         [[nodiscard]] int get_current_index() const;
