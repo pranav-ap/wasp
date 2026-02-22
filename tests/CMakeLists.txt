@@ -2,7 +2,10 @@
 add_executable(unit_tests
     test_utils.cpp
     test_lexer.cpp
-    test_parser_expressions.cpp
+    test_parser_literals.cpp
+    test_parser_dots.cpp
+    test_parser_stars.cpp
+    test_parser_member_access.cpp
     test_parser_definitions.cpp
     test_parser_branching.cpp
     test_parser_looping.cpp

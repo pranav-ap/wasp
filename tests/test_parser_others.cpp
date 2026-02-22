@@ -31,3 +31,32 @@ TEST(ParseOthers, AnnotationDefinitionSimple) {
     ASSERT_NE(arg2, nullptr);
     EXPECT_EQ(*arg2, "unit");
 }
+
+TEST(ParseExpressions, ReturnStatementExpression) {
+    auto mod = parse(R"(return 5 + 23)");
+    ASSERT_EQ(mod.statements.size(), 1);
+
+    auto* return_stmt = std::get_if<Wasp::Return>(&mod.statements[0]->data);
+    ASSERT_NE(return_stmt, nullptr) << "Expected a Return statement";
+    
+    // Ensure the optional has a value
+    ASSERT_TRUE(return_stmt->expression.has_value());
+    
+    // Safely verify the expression inside the return
+    auto expr = return_stmt->expression.value();
+    ASSERT_NE(expr, nullptr) << "Return expression pointer is null";
+    
+    // "5 + 23" should parse as an Infix expression
+    ASSERT_TRUE(expr->is<Wasp::Infix>()); 
+}
+
+TEST(ParseExpressions, ReturnStatementEmpty) {
+    auto mod = parse(R"(return)");
+    ASSERT_EQ(mod.statements.size(), 1);
+
+    // Unpack the variant instead of casting the pointer
+    auto* return_stmt = std::get_if<Wasp::Return>(&mod.statements[0]->data);
+    ASSERT_NE(return_stmt, nullptr) << "Expected a Return statement";
+    
+    EXPECT_FALSE(return_stmt->expression.has_value());
+}
