@@ -386,7 +386,7 @@ impl Worker
         my._performance_rating = 1.0
 
     fun initialize(name: str, salary: float, secret: int)
-        my.name = namy.capitalize() 
+        my.name = name.capitalize() 
         my.salary = salary 
         my.secret_code = secret 
         our.total = our.total + 1 
@@ -526,11 +526,9 @@ impl Worker
         my.id = 0
         my.salary = 0
 
-impl Worker 
     compute health => float  
         return my.salary * 100 
-    
-impl Worker     
+        
     # class can optionally override this
     fun action ()
         print('Chop! Chop!')
@@ -601,6 +599,7 @@ impl Person
     
     # Person only needs one health variable
     # Notice there is no :: here 
+    # the most permissive visibility must be applied 
     merge get health => int
         return my._health
         
@@ -616,37 +615,38 @@ impl Person
         return my._goals
 
 impl Person
-    # overrides shout_at_boss from Worker
+    # overrides shout_at_boss() from Worker
+    # original cannot be accessed anymore 
     fun Worker::shout_at_boss () => str
+        # so we need super
+        me.super.Worker::shout_at_boss () 
         return 'I Quit!'
     
-    # tag 1
-    replace fun Worker::action () => str
-        # player action is suitable
-        # but worker action is not
-        # so we override one 
+    # overrides action() from Worker
+    fun Worker::action () => str
         return 'Screw!'
         
-    # override funs from 1 or more traits 
-    # that share same signature
-    override fun action ()
+    fun action () => str
         print('Wake Up')
-        # calls class action
         my.Worker::action()
-        
         my.Player::action() 
     
 
 let p = new Person()
 
+# both okay 
+p.Worker::shout_at_boss()
 p.shout_at_boss()
 
+# calls class Worker::action
+p.Worker::action()
+# calls Player::action 
+p.Player::action()
 # calls class action
 p.action()
-# not allowed 
-p.Worker::action()
-p.Player::action()
 ```
+
+In the above example, there are three bags of `action()`. Overloading occurs within the bags, not across. 
 
 # Annotations
 

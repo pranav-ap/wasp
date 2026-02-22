@@ -28,31 +28,52 @@ struct ListTypeNode;
 struct TupleTypeNode;
 struct SetTypeNode;
 struct MapTypeNode;
-
 struct VariantTypeNode;
-
 struct FunctionTypeNode;
 struct RecordTypeNode;
 
 
-using TypeAnnotation = std::variant<
-    std::monostate,
-    
-	AnyTypeNode,
-    NoneTypeNode,
+struct TypeAnnotation {
+    std::variant<
+        std::monostate,
+        
+        AnyTypeNode,
+        NoneTypeNode,
 
-    IntTypeNode, FloatTypeNode, StringTypeNode, BoolTypeNode,
-    IntLiteralTypeNode, FloatLiteralTypeNode, StringLiteralTypeNode, BoolLiteralTypeNode,
-    TypeIdentifierNode,
+        IntTypeNode, FloatTypeNode, StringTypeNode, BoolTypeNode,
+        IntLiteralTypeNode, FloatLiteralTypeNode, 
+        StringLiteralTypeNode, BoolLiteralTypeNode,
+        TypeIdentifierNode,
 
-    std::shared_ptr<ListTypeNode>, 
-    std::shared_ptr<TupleTypeNode>, 
-    std::shared_ptr<SetTypeNode>, 
-    std::shared_ptr<MapTypeNode>,
-    std::shared_ptr<VariantTypeNode>,
-    std::shared_ptr<FunctionTypeNode>,
-    std::shared_ptr<RecordTypeNode>
->;
+        std::shared_ptr<ListTypeNode>, 
+        std::shared_ptr<TupleTypeNode>, 
+        std::shared_ptr<SetTypeNode>, 
+        std::shared_ptr<MapTypeNode>,
+        std::shared_ptr<VariantTypeNode>,
+        std::shared_ptr<FunctionTypeNode>,
+        std::shared_ptr<RecordTypeNode>
+    > data;
+
+    TypeAnnotation() = default;
+
+    template<typename T>
+    TypeAnnotation(T&& val) : data(std::forward<T>(val)) {}
+
+    template<typename T>
+    [[nodiscard]] bool is() const { 
+        return std::holds_alternative<T>(data); 
+    }
+
+    template<typename T>
+    const T &as() const { 
+        return std::get<T>(data); 
+    }
+
+    template<typename T>
+    const T* try_as() const {
+        return std::get_if<T>(&data);
+    }
+};
 
 using TypeAnnotation_ptr = std::shared_ptr<TypeAnnotation>;
 using TypeAnnotationVector = std::vector<TypeAnnotation_ptr>;
@@ -60,41 +81,51 @@ using TypeAnnotationVector = std::vector<TypeAnnotation_ptr>;
 
 struct ListTypeNode {
     TypeAnnotation_ptr element_type;
+    explicit ListTypeNode() = default;
     explicit ListTypeNode(TypeAnnotation_ptr type) : element_type(std::move(type)) {}
 };
 
 struct TupleTypeNode {
     TypeAnnotationVector element_types;
+    explicit TupleTypeNode() = default;
     explicit TupleTypeNode(TypeAnnotationVector types) : element_types(std::move(types)) {}
 };
 
 struct SetTypeNode {
     TypeAnnotation_ptr element_type;
+    explicit SetTypeNode() = default;
     explicit SetTypeNode(TypeAnnotation_ptr type) : element_type(std::move(type)) {}
 };
 
 struct MapTypeNode {
     TypeAnnotation_ptr key_type;
     TypeAnnotation_ptr value_type;
-    MapTypeNode(TypeAnnotation_ptr key, TypeAnnotation_ptr value) 
-        : key_type(std::move(key)), value_type(std::move(value)) {}
+
+    explicit MapTypeNode() = default;
+    explicit MapTypeNode(TypeAnnotation_ptr key, TypeAnnotation_ptr value) 
+    : key_type(std::move(key)), value_type(std::move(value)) {}
 };
 
 struct VariantTypeNode {
     TypeAnnotationVector types;
+    explicit VariantTypeNode() = default;
     explicit VariantTypeNode(TypeAnnotationVector types) : types(std::move(types)) {}
 };
 
 struct FunctionTypeNode {
     TypeAnnotationVector input_types;
     TypeAnnotation_ptr return_type;
-    FunctionTypeNode(TypeAnnotationVector inputs, TypeAnnotation_ptr ret)
+
+    explicit FunctionTypeNode() = default;
+    explicit FunctionTypeNode(TypeAnnotationVector inputs, TypeAnnotation_ptr ret)
         : input_types(std::move(inputs)), return_type(std::move(ret)) {}
 };
 
 struct RecordTypeNode {
     std::map<std::string, TypeAnnotation_ptr> members;
-    RecordTypeNode(std::map<std::string, TypeAnnotation_ptr> members) 
+
+    explicit RecordTypeNode() = default;
+    explicit RecordTypeNode(std::map<std::string, TypeAnnotation_ptr> members) 
         : members(std::move(members)) {}
 };
 

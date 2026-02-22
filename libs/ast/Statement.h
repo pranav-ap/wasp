@@ -238,6 +238,8 @@ struct Statement {
 
     StatementData data;
 
+	Statement() = default;
+
 	template<typename T>
     Statement(T&& val) : data(std::forward<T>(val)) {}
 
