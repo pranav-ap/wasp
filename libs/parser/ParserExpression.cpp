@@ -31,19 +31,21 @@ namespace Wasp {
         auto token = token_pipe.current_in_line();
         RETURN_IF_NULLOPT(token);
 
-        if (token.value().type == TokenType::LET) {
+        auto token_type = token.value().type;
+
+        if (token_type == TokenType::LET) {
             token_pipe.advance_pointer();
             Expression_ptr expr = parse_expression();
             return MAKE_EXPRESSION(VariableDefinitionExpression(expr, true));
         }
         
-        if (token.value().type == TokenType::CONST_KEYWORD) {
+        if (token_type == TokenType::CONST_KEYWORD) {
             token_pipe.advance_pointer();
             Expression_ptr expr = parse_expression();
             return MAKE_EXPRESSION(VariableDefinitionExpression(expr, false));
         }
 
-        const IPrefixParselet_ptr prefix_parselet = prefix_parselets.at(token.value().type);
+        const IPrefixParselet_ptr prefix_parselet = prefix_parselets.at(token_type);
         EXIT_IF_NULLPTR(prefix_parselet);
         Expression_ptr left = prefix_parselet->parse(*this, token.value());
         EXIT_IF_NULLPTR(left);

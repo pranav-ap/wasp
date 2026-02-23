@@ -85,3 +85,21 @@ while x < 10 do
     EXPECT_EQ(ctrlStmt.type, Wasp::TokenType::CONTINUE);
 }
 
+TEST(ParseLooping, ContinueWithExpression) {
+    auto mod = parse(R"(
+while x < 10 do 
+    x = x + 1
+    continue x
+)"); 
+
+    auto& stmt = check<Wasp::SimpleLoop>(mod.statements[0]);
+    auto& body = stmt.body;
+    ASSERT_EQ(body.size(), 2);
+
+    auto& exprStmt = check<Wasp::ExpressionStatement>(body[0]);
+    auto& assign = check<Wasp::UntypedAssignment>(exprStmt.expression);
+
+    auto& ctrlStmt = check<Wasp::LoopControl>(body[1]);
+    EXPECT_EQ(ctrlStmt.type, Wasp::TokenType::CONTINUE);
+}
+

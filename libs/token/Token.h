@@ -8,15 +8,13 @@
 	X(UNKNOWN,        "UNKNOWN",  false) \
 	X(NUMBER_LITERAL, "NUMBER",   false) \
 	X(STRING_LITERAL, "STRING",   false) \
-	X(IDENTIFIER,     "IDENTIFIER",       false) \
+	X(IDENTIFIER,     "IDENTIFIER", false) \
 	X(OPEN_PARENTHESIS, "(",      false) \
 	X(CLOSE_PARENTHESIS, ")",     false) \
 	X(OPEN_CURLY_BRACE, "{",      false) \
 	X(CLOSE_CURLY_BRACE, "}",     false) \
 	X(OPEN_SQUARE_BRACKET, "[",   false) \
 	X(CLOSE_SQUARE_BRACKET, "]",  false) \
-	X(OPEN_ANGLE_BRACKET, "<",    false) \
-	X(CLOSE_ANGLE_BRACKET, ">",   false) \
 	X(BACKWARD_SLASH, "\\",       false) \
 	X(COMMA,          ",",        false) \
 	X(COLON,          ":",        false) \
@@ -34,10 +32,10 @@
 	X(QUESTION_DOT,   "?.",       false) \
 	X(QUESTION_EQUAL, "?=",       false) \
 	X(PLUS,           "+",        false) \
-	X(PLUS_PLUS,           "++",        false) \
+	X(PLUS_PLUS,      "++",        false) \
 	X(PLUS_EQUAL,     "+=",       false) \
 	X(MINUS,          "-",        false) \
-	X(MINUS_MINUS,          "--",        false) \
+	X(MINUS_MINUS,    "--",        false) \
 	X(MINUS_EQUAL,    "-=",       false) \
 	X(ARROW,          "=>",       false) \
 	X(STAR,           "*",        false) \
@@ -107,7 +105,7 @@
 	X(PRIVATE_KEYWORD,       "private",      true) \
 	X(RECORD,      	  "record",     true) \
 	X(MY,      	  	  "my",     true) \
-	X(OUR,      	      "our",     true) \
+	X(OUR,			  "our",     true) \
 	X(TYPE,           "type",     true) \
 	X(EXPORT,         "export",   true) \
 	X(OPERATOR,       "operator", true) \
