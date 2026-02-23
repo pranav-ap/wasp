@@ -12,8 +12,8 @@
 #define EXIT_IF_NULLOPT(token) if (!token.has_value()) exit(1);
 #define RETURN_IF_NULLPTR(token) if (!token) return nullptr;
 #define EXIT_IF_NULLPTR(token) if (!token) exit(1);
-#define MAKE_TYPE(x) std::make_shared<TypeAnnotation>(x)
-#define MAKE_RECURSIVE_TYPE(T, ...) std::make_shared<TypeAnnotation>(std::make_shared<T>(__VA_ARGS__))
+#define MAKE_TYPE(x) std::make_shared<TypeAnnotation>(TypeAnnotation{x})
+#define MAKE_RECURSIVE_TYPE(T, ...) std::make_shared<TypeAnnotation>(TypeAnnotation{std::make_shared<T>(__VA_ARGS__)})
 
 
 using std::move;

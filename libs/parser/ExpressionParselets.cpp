@@ -61,6 +61,12 @@ namespace Wasp {
 
     Expression_ptr SquareBracketParselet::parse(Parser &parser, const Token& token) {
         parser.token_pipe.advance_pointer();
+        parser.token_pipe.ignore_spaces();
+
+        if (parser.token_pipe.consume_optional(TokenType::CLOSE_SQUARE_BRACKET)) {
+            return MAKE_EXPRESSION(ListLiteral());
+        }
+
         ExpressionVector expressions = parser.parse_expressions();
         parser.token_pipe.require(TokenType::CLOSE_SQUARE_BRACKET);
         return MAKE_EXPRESSION(ListLiteral(expressions));
@@ -68,6 +74,12 @@ namespace Wasp {
 
     Expression_ptr ParenthesisParselet::parse(Parser &parser, const Token& token) {
         parser.token_pipe.advance_pointer();
+        parser.token_pipe.ignore_spaces();
+
+        if (parser.token_pipe.consume_optional(TokenType::CLOSE_PARENTHESIS)) {
+            return MAKE_EXPRESSION(TupleLiteral());
+        }
+
         ExpressionVector expressions = parser.parse_expressions();
         parser.token_pipe.require(TokenType::CLOSE_PARENTHESIS);
         return MAKE_EXPRESSION(TupleLiteral(expressions));
@@ -75,16 +87,15 @@ namespace Wasp {
 
     Expression_ptr CurlyBraceParselet::parse(Parser &parser, const Token& token) {
         parser.token_pipe.advance_pointer();
-
         parser.token_pipe.ignore_spaces();
 
         if (parser.token_pipe.consume_optional(TokenType::ARROW)) {
             parser.token_pipe.require(TokenType::CLOSE_CURLY_BRACE);
-            return MAKE_EXPRESSION(MapLiteral({}));
+            return MAKE_EXPRESSION(MapLiteral());
         }
 
         if (parser.token_pipe.consume_optional(TokenType::CLOSE_CURLY_BRACE)) {
-            return MAKE_EXPRESSION(SetLiteral({}));
+            return MAKE_EXPRESSION(SetLiteral());
         }
 
         parser.token_pipe.ignore_spaces();
