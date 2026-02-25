@@ -11,14 +11,20 @@ add_executable(unit_tests
     test_parser_branching.cpp
     test_parser_looping.cpp
     test_parser_statements.cpp
+    test_semantics.cpp
+    test_compile.cpp
 )
 
 # Link all necessary libraries
 target_link_libraries(unit_tests
     PRIVATE
         GTest::gtest_main
+        CompilerLib
+        BytecodeSystemLib
+        SemanticAnalyzerLib
         ParserLib
         LexerLib
+        ASTLib
         TokenLib
 )
 

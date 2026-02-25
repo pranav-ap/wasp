@@ -178,16 +178,18 @@ struct RangeLiteral {
 struct Expression {
     std::variant<
         std::monostate,
+
         int, double, std::string, bool,
+
         Identifier, DotLiteral, DotDotLiteral, DotDotDotLiteral,
         
         Prefix, Infix, Postfix,
-        ListLiteral, TupleLiteral, SetLiteral, MapLiteral,
-        RangeLiteral, 
+
+        ListLiteral, TupleLiteral, MapLiteral, SetLiteral, RangeLiteral, 
         
-        TypePattern,
         VariableDefinitionExpression,
         UntypedAssignment, TypedAssignment,
+        TypePattern,
         
         IfTernaryBranch, ElseTernaryBranch,
 

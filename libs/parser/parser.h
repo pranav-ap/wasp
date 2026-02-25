@@ -16,10 +16,6 @@
 
 
 namespace Wasp {
-    struct Module {
-        std::vector<Statement_ptr> statements;
-    };
-
     class Parser {
         // Statement Parser
 

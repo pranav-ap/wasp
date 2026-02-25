@@ -13,6 +13,10 @@ struct ExpressionStatement;
 using Statement_ptr = std::shared_ptr<Statement>;
 using Block = std::vector<Statement_ptr>;
 
+struct Module {
+	std::vector<Statement_ptr> statements;
+};
+
 struct ExpressionStatement
 {
     Expression_ptr expression;
@@ -230,10 +234,10 @@ struct Statement {
 		AnnotationDefinition, 
 		
 		IfBranch, ElseBranch,
-		Pass, 
-		
 		SimpleLoop, ForInLoop, 
-		Return, LoopControl
+		LoopControl, 
+
+		Pass, Return
     >;
 
     StatementData data;

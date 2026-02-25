@@ -75,7 +75,7 @@ let x: { str => str } = { "a" => "b", "c" => "d" }
 let x: { => } = { "a" => "b", "c" => "d" } 
 
 # Key access
-x."a" 
+x.'a'
 ```
 
 ## Type Alias 
@@ -164,7 +164,7 @@ Animal.Dog
 Animal.Bird.Crow 
 ```
 
-## Optional Type
+# Optional Type
 
 ```python
 # Declares an optional variable.
@@ -222,7 +222,7 @@ let status = when user_age
     else "Unknown"
 ```
 
-## Operators 
+# Operators 
 
 ```python
 a <=> b 
@@ -288,14 +288,6 @@ unless expr do a = a + 4
 
 while let x = expr do a = x + 4
 for x: int in [1, 2, 3] do x
-
-# squares of even numbers only
-evens = [x * x for x in 0..10 if x % 2 == 0]
-# Result: [0, 4, 16, 36, 64, 100]
-
-# Create a map of numbers to their squares
-squares = { x: x*x for x in 1..5 }
-# Result: { 1: 1, 2: 4, 3: 9, 4: 16, 5: 25 }
 ```
 
 ### Pattern Matching
@@ -365,7 +357,7 @@ class Worker
     name: str 
     salary: float 
 
-    time record 
+    time const record 
         hours_per_week_used: int 
         hours_per_week_total: int 
 
@@ -396,11 +388,11 @@ impl Worker
         my.salary = source.salary
         # We DON'T copy the secret_code for security
         my.secret_code = generate_new_code()
-        
+
     fun delete()
         our.total = our.total - 1
         print("Worker deleted. Total remaining: {our.total}")
-        
+
     fun enter()
         pass
 
@@ -444,6 +436,9 @@ impl Worker
 ```python
 impl Worker
     compute annual_salary => float
+        return my.salary * 12 
+    
+    lazy compute annual_salary => float
         return my.salary * 12 
 ```
 
@@ -491,162 +486,170 @@ with Worker() as w1, Worker() as w2, Project() as p do
     # exit() is called for p, then w2, then w1 here
 ```
 
-# Traits
-
-*Purpose*
-Traits define functions and declare accessors. 
-
-*Initialization*
-The trait `default()` functions do not get called automatically. Make sure the class `default()` and `initialize()` manages the initialization logic correctly. 
-
-*Access Modifiers*
-Public members of a trait must remain public in the class. The private members can be made public. 
-
-*When are members in conflict?*
-
-- Two variables are in conflict if they share the same name 
-- Two functions are in conflict if they share the same name and parameter types 
-
-- `my.Fortifiable::health` is available in the class `default()` and `initialize()` 
-- `my.Fortifiable::run()` is available in the class definition
-- `w.Fortifiable::run()` is available outside the class definition
+# Composition
 
 ```python
-trait Worker
-    # privates may be made public in class 
-    # publics must remain so in class 
+interface Athlete
+    run: fun () => str 
 
-    # declare required accessors
-    id: [g ps] int 
-    salary: [pg s] float 
 
-impl Worker 
-    fun default() 
-        # calls accessors 
-        my.id = 0
-        my.salary = 0
+class Footballer is Athlete
+    fun run () => str
+        return 'Run!'
 
-    compute health => float  
-        return my.salary * 100 
+
+class Human 
+    a: Athlete
+
+    fun initialize (a: Athlete)
+        my.a = a 
         
-    # class can optionally override this
-    fun action ()
-        print('Chop! Chop!')
-    
-    # class must override this 
-    fun shout_at_boss () => str
-        pass  
-    
-    # class must override this 
-    private fun say () => str 
-        pass 
+    override fun run () => str
+        return 'Override Run!'
 
 
-trait Player 
-    id: [g ps] int 
-    goals: [pg s] int 
-    health: [pg s] int
-
-impl Player 
-    fun default() 
-        my.id = 0
-        my.goals = 0
-        # `set health` gets called here     
-        my.health = 150 
-        
-    fun action ()
-        print('Kick!')
-    
-    fun transfer()
-        print('Transfer...')
-    
-
-class Person is Worker, Player 
-    private record
-        _work_id: int 
-        _salary: float
-        _game_id: int 
-        _goals: int 
-        _health: int
-
-impl Person
-    fun default()
-        # Setup local class state first
-        my._health = 0 
-        
-        # Can trigger trait defaults 
-        # Use your own logic 
-        my.Worker::default()
-        my.Player::default()
-
-    fun initialize(start_health: int)
-        my.health = start_health
-
-impl Person
-    # Person gets a Worker id
-    get Worker::id => int 
-        return my._work_id
-    
-    set Worker::id (id: int)
-        my._work_id = id
-    
-    # Person gets a Player id
-    get Player::id => int 
-        return my._game_id
-    
-    set Player::id (id: int)
-        my._game_id = id
-    
-    # Person only needs one health variable
-    # Notice there is no :: here 
-    # the most permissive visibility must be applied 
-    merge get health => int
-        return my._health
-        
-    merge set health (h: int)
-        my._health = h
-    
-    # salary and goals are not in conflict 
-    # but you must still use :: 
-    get Worker::salary => float 
-        return my._salary
-
-    get Player::goals => int 
-        return my._goals
-
-impl Person
-    # overrides shout_at_boss() from Worker
-    # original cannot be accessed anymore 
-    fun Worker::shout_at_boss () => str
-        # so we need super
-        me.super.Worker::shout_at_boss () 
-        return 'I Quit!'
-    
-    # overrides action() from Worker
-    fun Worker::action () => str
-        return 'Screw!'
-        
-    fun action () => str
-        print('Wake Up')
-        my.Worker::action()
-        my.Player::action() 
-    
-
-let p = new Person()
-
-# both okay 
-p.Worker::shout_at_boss()
-p.shout_at_boss()
-
-# calls class Worker::action
-p.Worker::action()
-# calls Player::action 
-p.Player::action()
-# calls class action
-p.action()
+h = Human(Footballer())
+h.run()
 ```
 
-In the above example, there are three bags of `action()`. Overloading occurs within the bags, not across. 
+# Interface
+
+```python
+interface Athlete
+    run: fun () => str 
+    shout: fun () => str 
+
+interface Musician
+    run: fun () => str 
+    sing: fun () => str 
+```
+# Deputy 
+
+- A deputy implements an interface
+- `ctx` is only available inside a deputy function but it is not allowed inside `default` or `initialize`
+
+```python
+# ---------------------------------------------------------
+# 1. TRAITS
+# ---------------------------------------------------------
+trait Footballer requires Stadium
+    run: fun () => str 
+    shout: fun () => str 
+
+trait Referee requires Stadium
+    run: fun () => str
+    whistle: fun () => str
+
+trait Musician requires Studio 
+    run: fun () => str 
+    sing: fun () => str 
+
+# ---------------------------------------------------------
+# 2. CONTEXTS
+# ---------------------------------------------------------
+context Stadium
+    crowd_size: int
+    area: float
+
+context Studio
+    crowd_size: int
+    area: float
+    has_mike: bool
+
+# ---------------------------------------------------------
+# TRAIT IMPLEMENTATINS
+# ---------------------------------------------------------
+impl Footballer
+    fun run () => str
+        if ctx.crowd_size > 1000 then 
+            return 'Sprint!'
+        return 'Jog'
+    
+    fun shout () => str
+        return 'Yeah!'
+
+impl Referee
+    fun run () => str
+        return 'Keep up with the play!'
+        
+    fun whistle () => str
+        return 'Whistle!'
+
+impl Musician
+    fun run () => str
+        return 'Walk'
+    
+    fun sing () => str
+        if ctx.has_mike then
+            return 'Loud Mememee!'
+            
+        return 'Quiet Mememee!'
+    
+# ---------------------------------------------------------
+# 4. CLASS
+# ---------------------------------------------------------
+class Human is Footballer, Referee, Musician 
+    private record
+        _sports_fans: int
+        _music_fans: int
+        _shared_area: float
+        _mike_ready: bool
+
+impl Human
+    fun default ()
+        my._sports_fans = 50000
+        my._music_fans = 10
+        my._shared_area = 120.5
+        my._mike_ready = true
+   
+    fun initialize ()
+        pass
+
+    override fun run () => str
+        # Safely orchestrating three overlapping trait methods
+        let sport_run: str = my.Footballer.run()
+        let ref_run: str = my.Referee.run()
+        let music_run: str = my.Musician.run()
+        return sport_run + ", " + ref_run + ", and " + music_run
+
+# ---------------------------------------------------------
+# 5. CONTEXT FULFILLMENT
+# ---------------------------------------------------------
+
+# GLOBAL MAPPING: Shared between ALL traits on this class
+impl Human
+    override get area => float
+        return my._shared_area
+        
+    override get has_mike => bool
+        return my._mike_ready
+        
+# GROUPED MAPPING
+# Both sports traits share the exact same crowd state
+impl Human for Footballer, Referee 
+    override get crowd_size => int
+        return my._sports_fans
+
+# SCOPED MAPPING
+# The musician trait gets its own isolated crowd state
+impl Human for Musician 
+    override get crowd_size => int
+        return my._music_fans
+
+# ---------------------------------------------------------
+# USAGE
+# ---------------------------------------------------------
+h = new Human() with Footballer(), Referee(), Musician()
+
+# Allowed calls
+h.run()
+h.shout()     
+h.whistle()   
+h.sing()      
+
+# Blocked by Compiler (Strict Encapsulation)
+# h.Footballer.run()
+```
 
 # Annotations
 

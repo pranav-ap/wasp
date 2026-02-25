@@ -41,8 +41,9 @@ struct TypeAnnotation {
         NoneTypeNode,
 
         IntTypeNode, FloatTypeNode, StringTypeNode, BoolTypeNode,
-        IntLiteralTypeNode, FloatLiteralTypeNode, 
-        StringLiteralTypeNode, BoolLiteralTypeNode,
+
+        IntLiteralTypeNode, FloatLiteralTypeNode, StringLiteralTypeNode, BoolLiteralTypeNode,
+        
         TypeIdentifierNode,
 
         std::shared_ptr<ListTypeNode>, 
