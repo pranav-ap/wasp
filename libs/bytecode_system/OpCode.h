@@ -6,61 +6,60 @@
 
 using ByteVector = std::vector<std::byte>;
 
-#define OPCODE_LIST(X)        \
-    /* 0-arity */             \
-    X(NO_OP, 0)               \
-    X(START, 0)               \
-    X(STOP, 0)                \
-    X(FUNCTION_START, 0)      \
-    X(FUNCTION_STOP, 0)       \
-    X(PUSH_LOCAL_SCOPE, 0)    \
-    X(POP_LOCAL_SCOPE, 0)     \
-    X(POP_FROM_STACK, 0)      \
-    X(UNARY_NEGATIVE, 0)      \
-    X(UNARY_NOT, 0)           \
-    X(ADD, 0)                 \
-    X(SUBTRACT, 0)            \
-    X(MULTIPLY, 0)            \
-    X(DIVISION, 0)            \
-    X(REMINDER, 0)            \
-    X(POWER, 0)               \
-    X(NOT_EQUAL, 0)           \
-    X(EQUAL, 0)               \
-    X(LESSER_THAN, 0)         \
-    X(LESSER_THAN_EQUAL, 0)   \
-    X(GREATER_THAN, 0)        \
-    X(GREATER_THAN_EQUAL, 0)  \
-    X(AND, 0)                 \
-    X(OR, 0)                  \
-    X(NULLISH_COALESE, 0)     \
-    X(RETURN_VOID, 0)         \
-    X(RETURN_VALUE, 0)        \
-    X(YIELD_VOID, 0)          \
-    X(YIELD_VALUE, 0)         \
-    X(PUSH_CONSTANT_TRUE, 0)  \
-    X(PUSH_CONSTANT_FALSE, 0) \
-    X(ASSERT, 0)              \
-    X(MAKE_ITERABLE, 0)       \
-    X(CONVERT_TYPE, 0)        \
-    /* 1-arity */             \
-    X(PUSH_CONSTANT, 1)       \
-    X(CREATE_LOCAL, 1)        \
-    X(STORE_LOCAL, 1)         \
-    X(LOAD_LOCAL, 1)          \
-    X(MAKE_LIST, 1)           \
-    X(MAKE_TUPLE, 1)          \
-    X(MAKE_SET, 1)            \
-    X(MAKE_MAP, 1)            \
-    X(JUMP, 1)                \
-    X(JUMP_IF_FALSE, 1)       \
-    X(POP_JUMP, 1)            \
-    X(POP_JUMP_IF_FALSE, 1)   \
-    X(GET_NEXT_OR_JUMP, 1)    \
-    X(LABEL, 1)               \
-    /* 2-arity */             \
-    X(CALL_FUNCTION, 2)       \
-    X(CALL_GENERATOR, 2)      \
-    X(CALL_BUILTIN_FUN, 2)
+#define OPCODE_LIST(X)                                                             \
+    /* --- System & Lifecycle --- */                                               \
+    X(NO_OP, 0)        /* No operation */                                          \
+    X(HALT, 0)         /* Stop execution */                                        \
+    X(ENTER_MODULE, 0) /* Initialize module state */                               \
+    X(EXIT_MODULE, 0)  /* Cleanup module state */                                  \
+    /* --- Stack Manipulation --- */                                               \
+    X(POP, 0) /* [val] -> [] | Discard top of stack */                             \
+    X(DUP, 0) /* [val] -> [val, val] | Duplicate top of stack */                   \
+    /* --- Constants & Memory --- */                                               \
+    X(LOAD_CONST, 1) /* [] -> [val] | Load constant from pool at index */          \
+    X(LOAD_TRUE, 0)  /* [] -> [true] */                                            \
+    X(LOAD_FALSE, 0) /* [] -> [false] */                                           \
+    X(LOAD_NONE, 0)  /* [] -> [none] */                                            \
+    /* --- Variables & Scoping --- */                                              \
+    X(DEFINE_LOCAL, 1) /* [val] -> [] | Create local variable in current slot */   \
+    X(SET_LOCAL, 1)    /* [val] -> [] | Assign value to existing local slot */     \
+    X(GET_LOCAL, 1)    /* [] -> [val] | Read value from local slot onto stack */   \
+    X(PUSH_SCOPE, 0)   /* Enter new lexical block scope */                         \
+    X(POP_SCOPE, 0)    /* Exit current lexical block scope */                      \
+    /* --- Arithmetic --- */                                                       \
+    X(NEGATE, 0) /* [a] -> [-a] */                                                 \
+    X(ADD, 0)    /* [a, b] -> [a+b] */                                             \
+    X(SUB, 0)    /* [a, b] -> [a-b] */                                             \
+    X(MUL, 0)    /* [a, b] -> [a*b] */                                             \
+    X(DIV, 0)    /* [a, b] -> [a/b] */                                             \
+    X(MOD, 0)    /* [a, b] -> [a%b] */                                             \
+    X(POW, 0)    /* [a, b] -> [a^b] */                                             \
+    /* --- Comparison & Logic --- */                                               \
+    X(NOT, 0)         /* [a] -> [!a] */                                            \
+    X(EQ, 0)          /* [a, b] -> [a == b] */                                     \
+    X(NE, 0)          /* [a, b] -> [a != b] */                                     \
+    X(LT, 0)          /* [a, b] -> [a < b] */                                      \
+    X(LE, 0)          /* [a, b] -> [a <= b] */                                     \
+    X(GT, 0)          /* [a, b] -> [a > b] */                                      \
+    X(GE, 0)          /* [a, b] -> [a >= b] */                                     \
+    X(LOGICAL_AND, 0) /* [a, b] -> [a && b] */                                     \
+    X(LOGICAL_OR, 0)  /* [a, b] -> [a || b] */                                     \
+    X(COALESCE, 0)    /* [a, b] -> [a ? b] */                                      \
+    /* --- Control Flow --- */                                                     \
+    X(JUMP, 1)          /* Unconditional jump to offset */                         \
+    X(JUMP_IF_FALSE, 1) /* Jump to offset if TOS is false */                       \
+    X(LOOP_ITER, 1)     /* GET_NEXT_OR_JUMP | Advance iterator or jump to end */   \
+    /* --- Data Structures --- */                                                  \
+    X(BUILD_LIST, 1)  /* [v1...vn] -> [list] | Build list from N stack elements */ \
+    X(BUILD_TUPLE, 1) /* [v1...vn] -> [tuple] */                                   \
+    X(BUILD_MAP, 1)   /* [k1, v1...kn, vn] -> [map] */                             \
+    X(BUILD_SET, 1)   /* [v1...vn] -> [set] */                                     \
+    /* --- Functions & Returns --- */                                              \
+    X(CALL, 2)   /* [args...] -> [result] | Call with (name_idx, arg_count) */     \
+    X(RETURN, 0) /* Exit function with value on top of stack */                    \
+    X(YIELD, 0)  /* Suspend generator with value on top of stack */                \
+    /* --- Diagnostics --- */                                                      \
+    X(ASSERT, 0) /* [cond, msg] -> [] | Throw error if cond is false */
 
 namespace Wasp
 {

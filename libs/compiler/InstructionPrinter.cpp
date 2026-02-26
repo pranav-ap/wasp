@@ -8,8 +8,8 @@
 #define ASSERT(condition, message) assert((condition) && message)
 #endif
 
-#define OPCODE_WIDTH 27
-#define OPERAND_WIDTH 15
+#define OPCODE_WIDTH 10
+#define OPERAND_WIDTH 10
 
 using std::byte;
 using std::cout;
@@ -27,15 +27,15 @@ namespace Wasp
 
         switch (static_cast<OpCode>(opcode))
         {
-        case OpCode::PUSH_CONSTANT:
+        case OpCode::LOAD_CONST:
             if (constant_pool)
             {
                 ss << std::right << setw(OPERAND_WIDTH) << " (" << stringify_object(constant_pool->get(op_int)) << ")";
             }
             break;
-        case OpCode::CREATE_LOCAL:
-        case OpCode::STORE_LOCAL:
-        case OpCode::LOAD_LOCAL:
+        case OpCode::DEFINE_LOCAL:
+        case OpCode::SET_LOCAL:
+        case OpCode::GET_LOCAL:
             if (name_map.contains(op_int))
             {
                 ss << std::right << setw(OPERAND_WIDTH) << " (" << name_map.at(op_int) << ")";
@@ -58,9 +58,7 @@ namespace Wasp
 
         switch (static_cast<OpCode>(opcode))
         {
-        case OpCode::CALL_FUNCTION:
-        case OpCode::CALL_GENERATOR:
-        case OpCode::CALL_BUILTIN_FUN:
+        case OpCode::CALL:
         {
             string name = name_map.contains(op1_int) ? name_map.at(op1_int) : "unknown";
             ss << " (fn " << name << ", " << op2_int << " args)";
@@ -76,8 +74,6 @@ namespace Wasp
     {
         int length = static_cast<int>(code_object.length());
         int index_width = std::to_string(length).size() + 2;
-
-        out << "\n# Wasp Bytecode Disassembly\n";
 
         for (int index = 0; index < length;)
         {

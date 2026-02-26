@@ -17,6 +17,10 @@ namespace Wasp
 	private:
 		ConstantPool_ptr constant_pool;
 
+		// ------------------------------------------------------------------------
+		// Control Flow Graph
+		// ------------------------------------------------------------------------
+
 		CFGraph graph;
 		BlockId current_block_id;
 
@@ -49,6 +53,11 @@ namespace Wasp
 		void visit(std::vector<Statement_ptr> &statements);
 
 		void visit(ExpressionStatement &statement);
+		void visit(VariableDefinition &statement);
+
+		void visit(IfBranch &statement);
+		void visit(ElseBranch &statement);
+		void visit(Pass &statement);
 
 		// ========================================================================
 		// Expression Visitors (Now returning void!)
@@ -90,6 +99,13 @@ namespace Wasp
 		// -----------------------------------------------------------------------
 		// UTILS
 		// -----------------------------------------------------------------------
+		void set_current_block(BlockId block_id);
+
+		std::map<BlockId, size_t> calculate_block_offsets() const;
+		void resolve_jumps_in_block(ByteVector &bytes, const std::map<BlockId, size_t> &offsets) const;
+
+		void compile_variable_definition(const Expression_ptr &assignment, bool is_mutable);
+		void compile_assignment(const Expression_ptr &lhs, const Expression_ptr &rhs);
 
 		CodeObject flatten();
 
