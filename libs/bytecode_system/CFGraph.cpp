@@ -2,6 +2,7 @@
 #include <stdexcept>
 #include <utility>
 #include <memory>
+#include <algorithm>
 
 #ifndef ASSERT
 #include <cassert>
@@ -119,8 +120,15 @@ namespace Wasp
             throw std::out_of_range("Invalid block ID for edge");
         }
 
-        blocks[from_id].successors.push_back(to_id);
-        blocks[to_id].predecessors.push_back(from_id);
+        auto &successors = blocks[from_id].successors;
+        auto &predecessors = blocks[to_id].predecessors;
+
+        // Only add the edge if it does not already exist
+        if (std::find(successors.begin(), successors.end(), to_id) == successors.end())
+        {
+            successors.push_back(to_id);
+            predecessors.push_back(from_id);
+        }
     }
 
     BasicBlock &CFGraph::get_block(BlockId id)

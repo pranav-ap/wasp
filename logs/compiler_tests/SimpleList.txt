@@ -4,5 +4,6 @@
    5: LOAD_CONST 12         (3)
    7: BUILD_LIST 3
    9: POP
-  10: EXIT_MODULE
+  10: JUMP       12
+  12: EXIT_MODULE
 

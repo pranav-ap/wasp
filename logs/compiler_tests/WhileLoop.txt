@@ -1,0 +1,11 @@
+   0: ENTER_MODULE
+   1: JUMP       3
+   3: LOAD_TRUE
+   4: JUMP_IF_FALSE 13
+   6: JUMP       8
+   8: LOAD_CONST 10         (25)
+  10: POP
+  11: JUMP       3
+  13: JUMP       15
+  15: EXIT_MODULE
+

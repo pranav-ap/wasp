@@ -2,5 +2,6 @@
   1: LOAD_CONST 10         (2)
   3: NEGATE
   4: POP
-  5: EXIT_MODULE
+  5: JUMP       7
+  7: EXIT_MODULE
 

@@ -94,6 +94,11 @@ namespace Wasp
                               [&](ElseBranch &else_branch)
                               { visit(else_branch); },
 
+                              [&](SimpleLoop &loop_stmt)
+                              { visit(loop_stmt); },
+                              [&](ForInLoop &for_in_stmt)
+                              { visit(for_in_stmt); },
+
                               [&](Pass &pass_stmt)
                               { visit(pass_stmt); },
 
@@ -108,50 +113,64 @@ namespace Wasp
         emit(OpCode::POP);
     }
 
+    // ------------------------------------------------------------------------
+    // Variable Definition
+    // -----------------------------------------------------------------------
+
     void Compiler::visit(VariableDefinition &statement)
     {
         compile_variable_definition(statement.expression, statement.is_mutable);
     }
 
+    //-----------------------------------------------------------------------
+    // Control Flow
+    //-----------------------------------------------------------------------
+
     void Compiler::visit(IfBranch &statement)
     {
-        // Evaluate condition into current block
         visit(statement.test);
 
-        // Provision blocks for the CFG
+        bool has_alternative = statement.alternative.has_value();
 
         BlockId true_block_id = graph.create_block();
-        BlockId false_block_id = statement.alternative ? graph.create_block() : InvalidBlockId;
         BlockId end_block_id = graph.create_block();
+        BlockId false_block_id = has_alternative ? graph.create_block() : end_block_id;
 
-        if (!statement.alternative)
-        {
-            false_block_id = end_block_id;
-        }
-
-        // Track logical edges
         graph.add_edge(current_block_id, true_block_id);
         graph.add_edge(current_block_id, false_block_id);
+        graph.add_edge(current_block_id, end_block_id);
 
-        // Emit conditional jump to false block
         emit(OpCode::JUMP_IF_FALSE, static_cast<int>(false_block_id));
+        emit(OpCode::JUMP, static_cast<int>(true_block_id));
 
-        // Compile the true branch
+        // ========================================================================
+        // Compile the True Branch
+        // ========================================================================
         set_current_block(true_block_id);
         visit(statement.body);
-
-        // Jump to end and link graph
         emit(OpCode::JUMP, static_cast<int>(end_block_id));
-        graph.add_edge(true_block_id, end_block_id);
 
-        //  Compile the false (alternative) branch if it exists
-        if (statement.alternative)
+        // ========================================================================
+        // Compile the False Branch (Elif or Else)
+        // ========================================================================
+        if (has_alternative)
         {
             set_current_block(false_block_id);
-            visit(*statement.alternative);
 
+            auto &alt_variant = statement.alternative.value()->data;
+
+            if (std::holds_alternative<IfBranch>(alt_variant))
+            {
+                visit(std::get<IfBranch>(alt_variant));
+            }
+            else if (std::holds_alternative<ElseBranch>(alt_variant))
+            {
+                visit(std::get<ElseBranch>(alt_variant));
+            }
+
+            // Once the alternative finishes, jump to the end block
             emit(OpCode::JUMP, static_cast<int>(end_block_id));
-            graph.add_edge(false_block_id, end_block_id);
+            graph.add_edge(current_block_id, end_block_id);
         }
 
         set_current_block(end_block_id);
@@ -160,6 +179,114 @@ namespace Wasp
     void Compiler::visit(ElseBranch &statement)
     {
         visit(statement.body);
+    }
+
+    void Compiler::visit(SimpleLoop &statement)
+    {
+        BlockId header_block_id = graph.create_block();
+        BlockId body_block_id = graph.create_block();
+        BlockId end_block_id = graph.create_block();
+
+        emit(OpCode::JUMP, static_cast<int>(header_block_id));
+        graph.add_edge(current_block_id, header_block_id);
+
+        // ========================================================================
+        // Compile the Header
+        // ========================================================================
+        set_current_block(header_block_id);
+        visit(statement.condition);
+
+        if (statement.style == TokenType::UNTIL || statement.style == TokenType::UNLESS)
+        {
+            emit(OpCode::NOT);
+        }
+
+        graph.add_edge(header_block_id, body_block_id);
+        graph.add_edge(header_block_id, end_block_id);
+
+        // If condition is false, jump to the end. Otherwise, jump into the body.
+        emit(OpCode::JUMP_IF_FALSE, static_cast<int>(end_block_id));
+        emit(OpCode::JUMP, static_cast<int>(body_block_id));
+
+        // ========================================================================
+        // Compile the Body
+        // ========================================================================
+        set_current_block(body_block_id);
+        visit(statement.body);
+        emit(OpCode::JUMP, static_cast<int>(header_block_id));
+        graph.add_edge(current_block_id, header_block_id);
+
+        // Done
+        set_current_block(end_block_id);
+    }
+
+    void Compiler::visit(ForInLoop &statement)
+    {
+        // Place iterable object on TOS
+        visit(statement.iterable_expression);
+
+        BlockId header_block_id = graph.create_block();
+        BlockId body_block_id = graph.create_block();
+        BlockId end_block_id = graph.create_block();
+
+        // 2. Jump into the loop header
+        emit(OpCode::JUMP, static_cast<int>(header_block_id));
+        graph.add_edge(current_block_id, header_block_id);
+
+        // ========================================================================
+        // 3. Compile the Header
+        // ========================================================================
+        set_current_block(header_block_id);
+
+        // LOOP_ITER checks the iterator on the stack.
+        // If it's exhausted, it jumps to end_block_id.
+        // If it has a next item, it pushes that item onto the stack and falls through.
+        emit(OpCode::LOOP_ITER, static_cast<int>(end_block_id));
+
+        graph.add_edge(header_block_id, body_block_id);
+        graph.add_edge(header_block_id, end_block_id);
+
+        emit(OpCode::JUMP, static_cast<int>(body_block_id));
+
+        // ========================================================================
+        // 4. Compile the Body
+        // ========================================================================
+        set_current_block(body_block_id);
+
+        // Bind the loop variable (which LOOP_ITER just pushed to the stack)
+        // to the local scope.
+        if (statement.lhs->is<Identifier>())
+        {
+            std::string var_name = statement.lhs->as<Identifier>().name;
+
+            int symbol_id = next_symbol_id++;
+            auto symbol = std::make_shared<Symbol>(symbol_id, var_name, nullptr, false, true);
+
+            current_scope->define(var_name, symbol);
+            debug_name_map[symbol_id] = var_name;
+
+            // Pops the yielded value off the stack and saves it in the local slot
+            emit(OpCode::DEFINE_LOCAL, symbol_id);
+        }
+        else
+        {
+            FATAL("Compiler Error: For-in loop LHS must be a simple Identifier.");
+        }
+
+        visit(statement.body);
+
+        // Back-edge to fetch the next item
+        emit(OpCode::JUMP, static_cast<int>(header_block_id));
+        graph.add_edge(current_block_id, header_block_id);
+
+        // ========================================================================
+        // 5. Exit the loop
+        // ========================================================================
+        set_current_block(end_block_id);
+
+        // Once the loop terminates, the original iterable/iterator is still on
+        // the stack. We must pop it to prevent stack leaks.
+        emit(OpCode::POP);
     }
 
     void Compiler::visit(Pass &statement)
@@ -636,6 +763,11 @@ namespace Wasp
         }
 
         leave_scope();
+
+        BlockId exit_block_id = graph.create_block();
+        graph.add_edge(current_block_id, exit_block_id);
+        emit(OpCode::JUMP, static_cast<int>(exit_block_id));
+        set_current_block(exit_block_id);
         emit(OpCode::EXIT_MODULE);
 
         CodeObject final_bytecode = flatten();

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Statement.h"
-#include "ObjectStore.h"
+#include "ObjectStores.h"
 #include "CFGraph.h"
 #include "SymbolScope.h"
 
@@ -56,8 +56,12 @@ namespace Wasp
 		void visit(VariableDefinition &statement);
 
 		void visit(IfBranch &statement);
+		void visit_elif(IfBranch &statement, int exit_block_id);
 		void visit(ElseBranch &statement);
 		void visit(Pass &statement);
+
+		void visit(SimpleLoop &statement);
+		void visit(ForInLoop &statement);
 
 		// ========================================================================
 		// Expression Visitors (Now returning void!)
