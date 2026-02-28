@@ -108,7 +108,7 @@ namespace Wasp
 		std::map<BlockId, size_t> calculate_block_offsets() const;
 		void resolve_jumps_in_block(ByteVector &bytes, const std::map<BlockId, size_t> &offsets) const;
 
-		void compile_variable_definition(const Expression_ptr &assignment, bool is_mutable);
+		void compile_variable_definition(const Expression_ptr &assignment, bool is_mutable, bool as_expression = false);
 		void compile_assignment(const Expression_ptr &lhs, const Expression_ptr &rhs);
 
 		CodeObject flatten();

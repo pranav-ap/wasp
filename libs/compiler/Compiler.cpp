@@ -122,6 +122,11 @@ namespace Wasp
         compile_variable_definition(statement.expression, statement.is_mutable);
     }
 
+    void Compiler::visit(VariableDefinitionExpression &expr)
+    {
+        compile_variable_definition(expr.assignment, expr.is_mutable, true);
+    }
+
     //-----------------------------------------------------------------------
     // Control Flow
     //-----------------------------------------------------------------------
@@ -222,19 +227,18 @@ namespace Wasp
 
     void Compiler::visit(ForInLoop &statement)
     {
-        // Place iterable object on TOS
+        // Place IteratorObject on TOS
         visit(statement.iterable_expression);
 
         BlockId header_block_id = graph.create_block();
         BlockId body_block_id = graph.create_block();
         BlockId end_block_id = graph.create_block();
 
-        // 2. Jump into the loop header
         emit(OpCode::JUMP, static_cast<int>(header_block_id));
         graph.add_edge(current_block_id, header_block_id);
 
         // ========================================================================
-        // 3. Compile the Header
+        // Compile the Header
         // ========================================================================
         set_current_block(header_block_id);
 
@@ -242,19 +246,16 @@ namespace Wasp
         // If it's exhausted, it jumps to end_block_id.
         // If it has a next item, it pushes that item onto the stack and falls through.
         emit(OpCode::LOOP_ITER, static_cast<int>(end_block_id));
+        emit(OpCode::JUMP, static_cast<int>(body_block_id));
 
         graph.add_edge(header_block_id, body_block_id);
         graph.add_edge(header_block_id, end_block_id);
 
-        emit(OpCode::JUMP, static_cast<int>(body_block_id));
-
         // ========================================================================
-        // 4. Compile the Body
+        // Compile the Body
         // ========================================================================
         set_current_block(body_block_id);
 
-        // Bind the loop variable (which LOOP_ITER just pushed to the stack)
-        // to the local scope.
         if (statement.lhs->is<Identifier>())
         {
             std::string var_name = statement.lhs->as<Identifier>().name;
@@ -264,8 +265,6 @@ namespace Wasp
 
             current_scope->define(var_name, symbol);
             debug_name_map[symbol_id] = var_name;
-
-            // Pops the yielded value off the stack and saves it in the local slot
             emit(OpCode::DEFINE_LOCAL, symbol_id);
         }
         else
@@ -274,18 +273,14 @@ namespace Wasp
         }
 
         visit(statement.body);
-
-        // Back-edge to fetch the next item
         emit(OpCode::JUMP, static_cast<int>(header_block_id));
         graph.add_edge(current_block_id, header_block_id);
 
         // ========================================================================
-        // 5. Exit the loop
+        // Exit the loop
         // ========================================================================
         set_current_block(end_block_id);
-
-        // Once the loop terminates, the original iterable/iterator is still on
-        // the stack. We must pop it to prevent stack leaks.
+        // Pop the IterableObject
         emit(OpCode::POP);
     }
 
@@ -528,11 +523,6 @@ namespace Wasp
 
     void Compiler::visit(RangeLiteral &expr) {}
 
-    void Compiler::visit(VariableDefinitionExpression &expr)
-    {
-        compile_variable_definition(expr.assignment, expr.is_mutable);
-    }
-
     void Compiler::visit(UntypedAssignment &expr)
     {
         compile_assignment(expr.lhs_expression, expr.rhs_expression);
@@ -601,7 +591,7 @@ namespace Wasp
         current_block_id = block_id;
     }
 
-    void Compiler::compile_variable_definition(const Expression_ptr &assignment, bool is_mutable)
+    void Compiler::compile_variable_definition(const Expression_ptr &assignment, bool is_mutable, bool as_expression)
     {
         NULL_CHECK(assignment);
 
@@ -642,6 +632,11 @@ namespace Wasp
         // Visit RHS & push result onto stack
 
         visit(rhs_expr);
+
+        if (as_expression)
+        {
+            emit(OpCode::DUP);
+        }
 
         // Register symbol in the current lexical scope
 
@@ -710,11 +705,10 @@ namespace Wasp
         {
             OpCode op = static_cast<OpCode>(bytes[ip]);
 
-            // If it is a jump, replace the BlockId operand with the absolute byte offset
-            if (op == OpCode::JUMP || op == OpCode::JUMP_IF_FALSE)
+            // If it is a jump instruction, replace the BlockId operand with the absolute byte offset
+            if (op == OpCode::JUMP || op == OpCode::JUMP_IF_FALSE || op == OpCode::LOOP_ITER)
             {
                 BlockId target_block = static_cast<BlockId>(bytes[ip + 1]);
-
                 bytes[ip + 1] = static_cast<std::byte>(offsets.at(target_block));
             }
 
