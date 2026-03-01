@@ -640,23 +640,67 @@ while true do
 
         // Header
         /* 4 */ B(Wasp::OpCode::LOAD_TRUE),
-        /* 5 */ B(Wasp::OpCode::JUMP_IF_FALSE), B(20), B(0), // Jumps to End
-        /* 8 */ B(Wasp::OpCode::JUMP), B(11), B(0),          // Jumps to Body
+        /* 5 */ B(Wasp::OpCode::JUMP_IF_FALSE), B(20), B(0),
+        /* 8 */ B(Wasp::OpCode::JUMP), B(11), B(0),
 
-        // Body (Start)
-        /* 11*/ B(Wasp::OpCode::PUSH_SCOPE), // Target of REDO
+        // Body
+        /* 11*/ B(Wasp::OpCode::PUSH_SCOPE),
 
         // Redo Statement
-        /* 12*/ B(Wasp::OpCode::POP_SCOPE),         // Clean up the body scope
-        /* 13*/ B(Wasp::OpCode::JUMP), B(11), B(0), // Jump back to Body Start!
+        /* 12*/ B(Wasp::OpCode::POP_SCOPE),
+        /* 13*/ B(Wasp::OpCode::JUMP), B(11), B(0),
 
         // End of Body block (Dead code)
         /* 16*/ B(Wasp::OpCode::POP_SCOPE),
-        /* 17*/ B(Wasp::OpCode::JUMP), B(4), B(0), // Normal back-edge to Header
+        /* 17*/ B(Wasp::OpCode::JUMP), B(4), B(0),
 
         // End Block
         /* 20*/ B(Wasp::OpCode::JUMP), B(23), B(0),
         /* 23*/ B(Wasp::OpCode::EXIT_MODULE)};
+
+    EXPECT_EQ(actual_bytes, expected_bytes);
+}
+
+TEST_F(CompilerTest, RangeExclusiveFull)
+{
+    auto actual_bytes = compile(R"(
+1..10:2
+)");
+
+    std::vector<std::byte> expected_bytes = {
+        /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
+
+        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 3 */ B(Wasp::OpCode::LOAD_CONST), B(11),
+        /* 5 */ B(Wasp::OpCode::LOAD_CONST), B(12),
+        /* 7 */ B(Wasp::OpCode::BUILD_RANGE), B(0),
+        /* 9 */ B(Wasp::OpCode::POP),
+
+        /* 10*/ B(Wasp::OpCode::JUMP), B(13), B(0),
+
+        /* 13*/ B(Wasp::OpCode::EXIT_MODULE)};
+
+    EXPECT_EQ(actual_bytes, expected_bytes);
+}
+
+TEST_F(CompilerTest, RangeInclusivePartial)
+{
+    auto actual_bytes = compile(R"(
+...100
+)");
+
+    std::vector<std::byte> expected_bytes = {
+        /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
+
+        /* 1 */ B(Wasp::OpCode::LOAD_NONE),
+        /* 2 */ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 4 */ B(Wasp::OpCode::LOAD_NONE),
+        /* 5 */ B(Wasp::OpCode::BUILD_RANGE), B(1),
+        /* 7 */ B(Wasp::OpCode::POP),
+
+        /* 8 */ B(Wasp::OpCode::JUMP), B(11), B(0),
+
+        /* 11*/ B(Wasp::OpCode::EXIT_MODULE)};
 
     EXPECT_EQ(actual_bytes, expected_bytes);
 }

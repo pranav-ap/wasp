@@ -54,6 +54,9 @@ using ByteVector = std::vector<std::byte>;
     X(BUILD_TUPLE, 1) /* [v1...vn] -> [tuple] */                                           \
     X(BUILD_MAP, 1)   /* [k1, v1...kn, vn] -> [map] */                                     \
     X(BUILD_SET, 1)                                                                        \
+    X(BUILD_RANGE, 1)                                                                      \
+    /* --- Collections & Iteration --- */                                                  \
+    X(GET_ITER, 0)           /* [iterable] -> [iterator] | Get iterator from iterable */   \
     /* [v1...vn] -> [set] */ /* --- Functions & Returns --- */                             \
     X(CALL, 2)               /* [args...] -> [result] | Call with (name_idx, arg_count) */ \
     X(RETURN, 0)             /* Exit function with value on top of stack */                \

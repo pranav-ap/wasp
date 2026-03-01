@@ -605,7 +605,37 @@ namespace Wasp
         emit(OpCode::BUILD_SET, static_cast<int>(expr.expressions.size()));
     }
 
-    void Compiler::visit(RangeLiteral &expr) {}
+    void Compiler::visit(RangeLiteral &expr)
+    {
+        if (expr.start)
+        {
+            visit(expr.start);
+        }
+        else
+        {
+            emit(OpCode::LOAD_NONE);
+        }
+
+        if (expr.end)
+        {
+            visit(expr.end);
+        }
+        else
+        {
+            emit(OpCode::LOAD_NONE);
+        }
+
+        if (expr.step)
+        {
+            visit(expr.step);
+        }
+        else
+        {
+            emit(OpCode::LOAD_NONE);
+        }
+
+        emit(OpCode::BUILD_RANGE, expr.is_inclusive ? 1 : 0);
+    }
 
     void Compiler::visit(UntypedAssignment &expr)
     {
