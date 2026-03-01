@@ -23,7 +23,8 @@ namespace Wasp
 
 		CFGraph graph;
 		BlockId current_block_id;
-
+		// Stack of <HeaderBlockId, BodyBlockId, EndBlockId>
+		std::vector<std::tuple<BlockId, BlockId, BlockId>> loop_tracking_stack;
 		// -----------------------------------------------------------------------
 		// Scoping and Symbol Resolution
 		// -----------------------------------------------------------------------
@@ -58,10 +59,12 @@ namespace Wasp
 		void visit(IfBranch &statement);
 		void visit_elif(IfBranch &statement, int exit_block_id);
 		void visit(ElseBranch &statement);
-		void visit(Pass &statement);
 
 		void visit(SimpleLoop &statement);
 		void visit(ForInLoop &statement);
+
+		void visit(Pass &statement);
+		void visit(LoopControl &statement);
 
 		// ========================================================================
 		// Expression Visitors (Now returning void!)

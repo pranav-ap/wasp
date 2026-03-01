@@ -9,5 +9,6 @@ digraph CFG {
     // 2. Output all the Edges
     block0 -> block1;
     block0 -> block2;
+    block1 -> block2;
     block2 -> block3;
 }

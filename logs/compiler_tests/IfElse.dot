@@ -11,6 +11,7 @@ digraph CFG {
     block0 -> block1;
     block0 -> block3;
     block0 -> block2;
+    block1 -> block2;
     block2 -> block4;
     block3 -> block2;
 }

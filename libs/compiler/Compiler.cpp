@@ -111,6 +111,8 @@ namespace Wasp
 
                               [&](Pass &pass_stmt)
                               { visit(pass_stmt); },
+                              [&](LoopControl &break_stmt)
+                              { visit(break_stmt); },
 
                               [](auto)
                               { FATAL("Never Seen this Statement before!"); }},
@@ -167,6 +169,7 @@ namespace Wasp
         leave_scope(true);
 
         emit(OpCode::JUMP, static_cast<int>(end_block_id));
+        graph.add_edge(current_block_id, end_block_id);
 
         // ========================================================================
         // Compile the False Branch (Elif or Else)
@@ -196,11 +199,9 @@ namespace Wasp
 
     void Compiler::visit(ElseBranch &statement)
     {
-        // OPEN SCOPE for Else Body
         enter_scope(ScopeType::BRANCH, true);
         visit(statement.body);
         leave_scope(true);
-        // CLOSE SCOPE
     }
 
     void Compiler::visit(SimpleLoop &statement)
@@ -211,6 +212,8 @@ namespace Wasp
 
         emit(OpCode::JUMP, static_cast<int>(header_block_id));
         graph.add_edge(current_block_id, header_block_id);
+
+        loop_tracking_stack.push_back({header_block_id, body_block_id, end_block_id});
 
         // ========================================================================
         // Compile the Header
@@ -234,17 +237,15 @@ namespace Wasp
         // Compile the Body
         // ========================================================================
         set_current_block(body_block_id);
-
-        // OPEN SCOPE for Loop Body
         enter_scope(ScopeType::LOOP, true);
         visit(statement.body);
         leave_scope(true);
-        // CLOSE SCOPE
 
         emit(OpCode::JUMP, static_cast<int>(header_block_id));
         graph.add_edge(current_block_id, header_block_id);
 
-        // Done
+        loop_tracking_stack.pop_back();
+
         set_current_block(end_block_id);
     }
 
@@ -274,12 +275,12 @@ namespace Wasp
         graph.add_edge(header_block_id, body_block_id);
         graph.add_edge(header_block_id, end_block_id);
 
+        loop_tracking_stack.push_back({header_block_id, body_block_id, end_block_id});
+
         // ========================================================================
         // Compile the Body
         // ========================================================================
         set_current_block(body_block_id);
-
-        // OPEN SCOPE HERE (So 'x' belongs strictly to this iteration)
         enter_scope(ScopeType::LOOP, true);
 
         if (statement.lhs->is<Identifier>())
@@ -300,11 +301,12 @@ namespace Wasp
 
         visit(statement.body);
 
-        // CLOSE SCOPE HERE (Destroys 'x' before back-edge)
         leave_scope(true);
 
         emit(OpCode::JUMP, static_cast<int>(header_block_id));
         graph.add_edge(current_block_id, header_block_id);
+
+        loop_tracking_stack.pop_back();
 
         // ========================================================================
         // Exit the loop
@@ -312,6 +314,58 @@ namespace Wasp
         set_current_block(end_block_id);
         // Pop the IterableObject
         emit(OpCode::POP);
+    }
+
+    void Compiler::visit(LoopControl &statement)
+    {
+        if (!statement.label.empty())
+        {
+            FATAL("Compiler Error: Labeled break, continue, and redo statements are not supported yet.");
+        }
+
+        if (loop_tracking_stack.empty())
+        {
+            FATAL("Compiler Error: Loop control statement not within a loop.");
+        }
+
+        int scopes_to_pop = 0;
+        SymbolScope_ptr temp_scope = current_scope;
+
+        while (temp_scope && temp_scope->get_type() != ScopeType::LOOP)
+        {
+            scopes_to_pop++;
+            temp_scope = temp_scope->get_enclosing();
+        }
+
+        scopes_to_pop++;
+
+        for (int i = 0; i < scopes_to_pop; i++)
+        {
+            emit(OpCode::POP_SCOPE);
+        }
+
+        auto [header_id, body_id, end_id] = loop_tracking_stack.back();
+
+        if (statement.type == TokenType::BREAK)
+        {
+            emit(OpCode::JUMP, static_cast<int>(end_id));
+            graph.add_edge(current_block_id, end_id);
+        }
+        else if (statement.type == TokenType::CONTINUE)
+        {
+            emit(OpCode::JUMP, static_cast<int>(header_id));
+            graph.add_edge(current_block_id, header_id);
+        }
+        else if (statement.type == TokenType::REDO)
+        {
+            // Redo skips the header and jumps straight back to the body
+            emit(OpCode::JUMP, static_cast<int>(body_id));
+            graph.add_edge(current_block_id, body_id);
+        }
+        else
+        {
+            FATAL("Compiler Error: Unknown LoopControl statement type.");
+        }
     }
 
     void Compiler::visit(Pass &statement)

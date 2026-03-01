@@ -244,6 +244,7 @@ if true then
 
     EXPECT_EQ(actual_bytes, expected_bytes);
 }
+
 TEST_F(CompilerTest, IfElse)
 {
     auto actual_bytes = compile(R"(
@@ -491,6 +492,171 @@ for let x in [1, 2, 3] do
 
         /* 29*/ B(Wasp::OpCode::JUMP), B(32), B(0),
         /* 32*/ B(Wasp::OpCode::EXIT_MODULE)};
+
+    EXPECT_EQ(actual_bytes, expected_bytes);
+}
+
+TEST_F(CompilerTest, WhileBreak)
+{
+    auto actual_bytes = compile(R"(
+while true do
+    break
+)");
+
+    std::vector<std::byte> expected_bytes = {
+        /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
+        /* 1 */ B(Wasp::OpCode::JUMP), B(4), B(0),
+
+        // Header
+        /* 4 */ B(Wasp::OpCode::LOAD_TRUE),
+        /* 5 */ B(Wasp::OpCode::JUMP_IF_FALSE), B(20), B(0), // Jumps to Loop End
+        /* 8 */ B(Wasp::OpCode::JUMP), B(11), B(0),
+
+        // Body
+        /* 11*/ B(Wasp::OpCode::PUSH_SCOPE),
+
+        // Break Statement
+        /* 12*/ B(Wasp::OpCode::POP_SCOPE),         // Clean up the loop body scope
+        /* 13*/ B(Wasp::OpCode::JUMP), B(20), B(0), // Jump to Loop End
+
+        // End of Body block (Normal completion - unreachable in this code)
+        /* 16*/ B(Wasp::OpCode::POP_SCOPE),
+        /* 17*/ B(Wasp::OpCode::JUMP), B(4), B(0),
+
+        // End Block
+        /* 20*/ B(Wasp::OpCode::JUMP), B(23), B(0),
+        /* 23*/ B(Wasp::OpCode::EXIT_MODULE)};
+
+    EXPECT_EQ(actual_bytes, expected_bytes);
+}
+
+TEST_F(CompilerTest, WhileContinue)
+{
+    auto actual_bytes = compile(R"(
+while true do
+    continue
+)");
+
+    std::vector<std::byte> expected_bytes = {
+        /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
+        /* 1 */ B(Wasp::OpCode::JUMP), B(4), B(0),
+
+        // Header
+        /* 4 */ B(Wasp::OpCode::LOAD_TRUE),
+        /* 5 */ B(Wasp::OpCode::JUMP_IF_FALSE), B(20), B(0),
+        /* 8 */ B(Wasp::OpCode::JUMP), B(11), B(0),
+
+        // Body
+        /* 11*/ B(Wasp::OpCode::PUSH_SCOPE),
+
+        // Continue Statement
+        /* 12*/ B(Wasp::OpCode::POP_SCOPE),        // Clean up the loop body scope
+        /* 13*/ B(Wasp::OpCode::JUMP), B(4), B(0), // Jump back to Header
+
+        // End of Body block
+        /* 16*/ B(Wasp::OpCode::POP_SCOPE),
+        /* 17*/ B(Wasp::OpCode::JUMP), B(4), B(0),
+
+        // End Block
+        /* 20*/ B(Wasp::OpCode::JUMP), B(23), B(0),
+        /* 23*/ B(Wasp::OpCode::EXIT_MODULE)};
+
+    EXPECT_EQ(actual_bytes, expected_bytes);
+}
+TEST_F(CompilerTest, ConditionalBreak)
+{
+    auto actual_bytes = compile(R"(
+while true do
+    if true then
+        break
+)");
+
+    std::vector<std::byte> expected_bytes = {
+        // ==========================================================
+        // BLOCK 0: Entry Point
+        // ==========================================================
+        /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
+        /* 1 */ B(Wasp::OpCode::JUMP), B(4), B(0), // Jump to Block 1
+
+        // ==========================================================
+        // BLOCK 1: Loop Header
+        // ==========================================================
+        /* 4 */ B(Wasp::OpCode::LOAD_TRUE),
+        /* 5 */ B(Wasp::OpCode::JUMP_IF_FALSE), B(19), B(0), // If false, Jump to Block 3 (Loop End)
+        /* 8 */ B(Wasp::OpCode::JUMP), B(11), B(0),          // If true, Jump to Block 2 (Loop Body)
+
+        // ==========================================================
+        // BLOCK 2: Loop Body (Contains the If Condition)
+        // ==========================================================
+        /* 11 */ B(Wasp::OpCode::PUSH_SCOPE), // Open Loop Scope
+
+        /* 12 */ B(Wasp::OpCode::LOAD_TRUE),
+        /* 13 */ B(Wasp::OpCode::JUMP_IF_FALSE), B(32), B(0), // If false, Jump to Block 5 (If End)
+        /* 16 */ B(Wasp::OpCode::JUMP), B(22), B(0),          // If true, Jump to Block 4 (If True)
+
+        // ==========================================================
+        // BLOCK 3: Loop End Block
+        // ==========================================================
+        /* 19 */ B(Wasp::OpCode::JUMP), B(36), B(0), // Jump to Block 6 (Exit Module)
+
+        // ==========================================================
+        // BLOCK 4: If True Block
+        // ==========================================================
+        /* 22 */ B(Wasp::OpCode::PUSH_SCOPE), // Open If Scope
+
+        // --- Break Statement Logic Starts Here ---
+        /* 23 */ B(Wasp::OpCode::POP_SCOPE),         // 1. Clean up If Scope
+        /* 24 */ B(Wasp::OpCode::POP_SCOPE),         // 2. Clean up Loop Scope
+        /* 25 */ B(Wasp::OpCode::JUMP), B(19), B(0), // 3. Jump to Block 3 (Loop End)
+
+        // --- Dead Code (Unreachable because of the break jump) ---
+        /* 28 */ B(Wasp::OpCode::POP_SCOPE),
+        /* 29 */ B(Wasp::OpCode::JUMP), B(32), B(0),
+
+        // ==========================================================
+        // BLOCK 5: If End Block (Reconvergence inside loop)
+        // ==========================================================
+        /* 32 */ B(Wasp::OpCode::POP_SCOPE),        // Close Loop Scope (Normal iteration)
+        /* 33 */ B(Wasp::OpCode::JUMP), B(4), B(0), // Back-edge to Block 1 (Header)
+
+        // ==========================================================
+        // BLOCK 6: Exit Module Block
+        // ==========================================================
+        /* 36 */ B(Wasp::OpCode::EXIT_MODULE)};
+
+    EXPECT_EQ(actual_bytes, expected_bytes);
+}
+
+TEST_F(CompilerTest, WhileRedo)
+{
+    auto actual_bytes = compile(R"(
+while true do
+    redo
+)");
+
+    std::vector<std::byte> expected_bytes = {
+        /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
+        /* 1 */ B(Wasp::OpCode::JUMP), B(4), B(0),
+
+        // Header
+        /* 4 */ B(Wasp::OpCode::LOAD_TRUE),
+        /* 5 */ B(Wasp::OpCode::JUMP_IF_FALSE), B(20), B(0), // Jumps to End
+        /* 8 */ B(Wasp::OpCode::JUMP), B(11), B(0),          // Jumps to Body
+
+        // Body (Start)
+        /* 11*/ B(Wasp::OpCode::PUSH_SCOPE), // Target of REDO
+
+        // Redo Statement
+        /* 12*/ B(Wasp::OpCode::POP_SCOPE),         // Clean up the body scope
+        /* 13*/ B(Wasp::OpCode::JUMP), B(11), B(0), // Jump back to Body Start!
+
+        // End of Body block (Dead code)
+        /* 16*/ B(Wasp::OpCode::POP_SCOPE),
+        /* 17*/ B(Wasp::OpCode::JUMP), B(4), B(0), // Normal back-edge to Header
+
+        // End Block
+        /* 20*/ B(Wasp::OpCode::JUMP), B(23), B(0),
+        /* 23*/ B(Wasp::OpCode::EXIT_MODULE)};
 
     EXPECT_EQ(actual_bytes, expected_bytes);
 }
