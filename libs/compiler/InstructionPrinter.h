@@ -27,6 +27,7 @@ namespace Wasp
 			: constant_pool(constant_pool), name_map(name_map) {};
 
 		void print(const CodeObject &code_object, std::ostream &out = std::cout);
+		void print(const CFGraph &graph, std::ostream &out = std::cout);
 	};
 
 	using InstructionPrinter_ptr = std::shared_ptr<InstructionPrinter>;

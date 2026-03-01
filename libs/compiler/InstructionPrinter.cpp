@@ -8,7 +8,7 @@
 #define ASSERT(condition, message) assert((condition) && message)
 #endif
 
-#define OPCODE_WIDTH 10
+#define OPCODE_WIDTH 15 // Widened slightly to fit longer names like JUMP_IF_FALSE
 #define OPERAND_WIDTH 10
 
 using std::byte;
@@ -49,24 +49,34 @@ namespace Wasp
 
     string InstructionPrinter::stringify_instruction(byte opcode, byte op1, byte op2)
     {
-        int op1_int = std::to_integer<int>(op1);
-        int op2_int = std::to_integer<int>(op2);
+        OpCode op = static_cast<OpCode>(opcode);
         std::stringstream ss;
 
-        ss << std::left << setw(OPCODE_WIDTH) << stringify_opcode(opcode)
-           << " " << op1_int << " " << op2_int;
+        // Check if this is a 16-bit little-endian payload (our jumps)
+        if (op == OpCode::JUMP || op == OpCode::JUMP_IF_FALSE || op == OpCode::LOOP_ITER)
+        {
+            // Reconstruct the 16-bit absolute byte offset
+            int target_offset = std::to_integer<int>(op1) | (std::to_integer<int>(op2) << 8);
 
-        switch (static_cast<OpCode>(opcode))
-        {
-        case OpCode::CALL:
-        {
-            string name = name_map.contains(op1_int) ? name_map.at(op1_int) : "unknown";
-            ss << " (fn " << name << ", " << op2_int << " args)";
-            break;
+            ss << std::left << setw(OPCODE_WIDTH) << stringify_opcode(opcode)
+               << " " << target_offset;
         }
-        default:
-            break;
+        // Otherwise, treat as two distinct 8-bit operands (like CALL)
+        else
+        {
+            int op1_int = std::to_integer<int>(op1);
+            int op2_int = std::to_integer<int>(op2);
+
+            ss << std::left << setw(OPCODE_WIDTH) << stringify_opcode(opcode)
+               << " " << op1_int << " " << op2_int;
+
+            if (op == OpCode::CALL)
+            {
+                string name = name_map.contains(op1_int) ? name_map.at(op1_int) : "unknown";
+                ss << " (fn " << name << ", " << op2_int << " args)";
+            }
         }
+
         return ss.str();
     }
 
@@ -94,4 +104,56 @@ namespace Wasp
         }
         out << std::endl;
     }
+
+    void InstructionPrinter::print(const CFGraph &graph, std::ostream &out)
+    {
+        out << "digraph CFG {\n";
+        // Use a monospaced font so your hex dump alignment stays perfect
+        out << "    node [shape=box, fontname=\"Courier\", style=filled, fillcolor=\"#f9f9f9\"];\n\n";
+
+        // 1. Output all the Blocks (Nodes)
+        for (const auto &block : graph.get_all_blocks())
+        {
+            out << "    block" << block.get_id() << " [label=\"Block " << block.get_id() << "\\l";
+            out << "---------------------------------\\l";
+
+            if (block.get_code().length() > 0)
+            {
+                std::stringstream ss;
+                // Reuse your existing hex-dump printer!
+                print(block.get_code(), ss);
+                std::string code_str = ss.str();
+
+                // Graphviz strings require special escaping.
+                // \l means "left-aligned newline" in DOT syntax.
+                for (char c : code_str)
+                {
+                    if (c == '\n')
+                        out << "\\l";
+                    else if (c == '\"')
+                        out << "\\\"";
+                    else if (c == '\\')
+                        out << "\\\\";
+                    else
+                        out << c;
+                }
+            }
+            else
+            {
+                out << "(Empty)\\l";
+            }
+            out << "\"];\n";
+        }
+
+        out << "\n    // 2. Output all the Edges\n";
+        for (const auto &block : graph.get_all_blocks())
+        {
+            for (auto succ : block.get_successors())
+            {
+                out << "    block" << block.get_id() << " -> block" << succ << ";\n";
+            }
+        }
+        out << "}\n";
+    }
+
 }

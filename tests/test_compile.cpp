@@ -21,6 +21,7 @@ protected:
     Wasp::ConstantPool_ptr current_pool;
     std::map<int, std::string> current_name_map;
     Wasp::CodeObject current_bytecode;
+    Wasp::CFGraph current_graph;
 
     void SetUp() override
     {
@@ -45,7 +46,9 @@ protected:
 
         current_pool = std::get<0>(result);
         current_bytecode = std::get<1>(result);
+
         current_name_map = compiler.get_name_map();
+        current_graph = compiler.get_graph();
 
         if (enable_logging)
         {
@@ -65,9 +68,23 @@ protected:
         std::string file_path = log_dir + "/" + test_name + ".txt";
         std::ofstream log_file(file_path);
 
+        std::string dot_file_path = log_dir + "/" + test_name + ".dot";
+        std::ofstream dot_file(dot_file_path);
+
+        Wasp::InstructionPrinter printer(current_pool, current_name_map);
+
+        if (dot_file.is_open())
+        {
+            printer.print(current_graph, dot_file);
+            dot_file.close();
+        }
+        else
+        {
+            FAIL() << "Could not open dot file: " << dot_file_path;
+        }
+
         if (log_file.is_open())
         {
-            Wasp::InstructionPrinter printer(current_pool, current_name_map);
             printer.print(current_bytecode, log_file);
             log_file.close();
         }
@@ -83,11 +100,13 @@ TEST_F(CompilerTest, SimpleInteger)
     auto actual_bytes = compile("25");
 
     std::vector<std::byte> expected_bytes = {
-        B(Wasp::OpCode::ENTER_MODULE),
-        B(Wasp::OpCode::LOAD_CONST), B(10),
-        B(Wasp::OpCode::POP),
-        B(Wasp::OpCode::JUMP), B(6),
-        B(Wasp::OpCode::EXIT_MODULE)};
+        /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
+        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 3 */ B(Wasp::OpCode::POP),
+
+        /* 4 */ B(Wasp::OpCode::JUMP), B(7), B(0),
+
+        /* 7 */ B(Wasp::OpCode::EXIT_MODULE)};
 
     EXPECT_EQ(actual_bytes, expected_bytes);
 }
@@ -97,14 +116,16 @@ TEST_F(CompilerTest, SimpleList)
     auto actual_bytes = compile("[1, 2, 3]");
 
     std::vector<std::byte> expected_bytes = {
-        B(Wasp::OpCode::ENTER_MODULE),
-        B(Wasp::OpCode::LOAD_CONST), B(10),
-        B(Wasp::OpCode::LOAD_CONST), B(11),
-        B(Wasp::OpCode::LOAD_CONST), B(12),
-        B(Wasp::OpCode::BUILD_LIST), B(3),
-        B(Wasp::OpCode::POP),
-        B(Wasp::OpCode::JUMP), B(12),
-        B(Wasp::OpCode::EXIT_MODULE)};
+        /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
+        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 3 */ B(Wasp::OpCode::LOAD_CONST), B(11),
+        /* 5 */ B(Wasp::OpCode::LOAD_CONST), B(12),
+        /* 7 */ B(Wasp::OpCode::BUILD_LIST), B(3),
+        /* 9 */ B(Wasp::OpCode::POP),
+
+        /* 10*/ B(Wasp::OpCode::JUMP), B(13), B(0),
+
+        /* 13*/ B(Wasp::OpCode::EXIT_MODULE)};
 
     EXPECT_EQ(actual_bytes, expected_bytes);
 }
@@ -114,12 +135,14 @@ TEST_F(CompilerTest, NegateNumber)
     auto actual_bytes = compile("-2");
 
     std::vector<std::byte> expected_bytes = {
-        B(Wasp::OpCode::ENTER_MODULE),
-        B(Wasp::OpCode::LOAD_CONST), B(10),
-        B(Wasp::OpCode::NEGATE),
-        B(Wasp::OpCode::POP),
-        B(Wasp::OpCode::JUMP), B(7),
-        B(Wasp::OpCode::EXIT_MODULE)};
+        /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
+        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 3 */ B(Wasp::OpCode::NEGATE),
+        /* 4 */ B(Wasp::OpCode::POP),
+
+        /* 5 */ B(Wasp::OpCode::JUMP), B(8), B(0),
+
+        /* 8 */ B(Wasp::OpCode::EXIT_MODULE)};
 
     EXPECT_EQ(actual_bytes, expected_bytes);
 }
@@ -129,13 +152,15 @@ TEST_F(CompilerTest, SimpleAddition)
     auto actual_bytes = compile("1 + 2");
 
     std::vector<std::byte> expected_bytes = {
-        B(Wasp::OpCode::ENTER_MODULE),
-        B(Wasp::OpCode::LOAD_CONST), B(10),
-        B(Wasp::OpCode::LOAD_CONST), B(11),
-        B(Wasp::OpCode::ADD),
-        B(Wasp::OpCode::POP),
-        B(Wasp::OpCode::JUMP), B(9),
-        B(Wasp::OpCode::EXIT_MODULE)};
+        /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
+        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 3 */ B(Wasp::OpCode::LOAD_CONST), B(11),
+        /* 5 */ B(Wasp::OpCode::ADD),
+        /* 6 */ B(Wasp::OpCode::POP),
+
+        /* 7 */ B(Wasp::OpCode::JUMP), B(10), B(0),
+
+        /* 10*/ B(Wasp::OpCode::EXIT_MODULE)};
 
     EXPECT_EQ(actual_bytes, expected_bytes);
 }
@@ -148,18 +173,19 @@ x + 1
 )");
 
     std::vector<std::byte> expected_bytes = {
-        B(Wasp::OpCode::ENTER_MODULE),
+        /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
 
-        B(Wasp::OpCode::LOAD_CONST), B(10),
-        B(Wasp::OpCode::DEFINE_LOCAL), B(0),
+        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 3 */ B(Wasp::OpCode::DEFINE_LOCAL), B(0),
 
-        B(Wasp::OpCode::GET_LOCAL), B(0),
-        B(Wasp::OpCode::LOAD_CONST), B(11),
-        B(Wasp::OpCode::ADD),
-        B(Wasp::OpCode::POP),
-        B(Wasp::OpCode::JUMP), B(13),
+        /* 5 */ B(Wasp::OpCode::GET_LOCAL), B(0),
+        /* 7 */ B(Wasp::OpCode::LOAD_CONST), B(11),
+        /* 9 */ B(Wasp::OpCode::ADD),
+        /* 10*/ B(Wasp::OpCode::POP),
 
-        B(Wasp::OpCode::EXIT_MODULE)};
+        /* 11*/ B(Wasp::OpCode::JUMP), B(14), B(0),
+
+        /* 14*/ B(Wasp::OpCode::EXIT_MODULE)};
 
     EXPECT_EQ(actual_bytes, expected_bytes);
 }
@@ -172,19 +198,20 @@ x = x + 1
 )");
 
     std::vector<std::byte> expected_bytes = {
-        B(Wasp::OpCode::ENTER_MODULE),
+        /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
 
-        B(Wasp::OpCode::LOAD_CONST), B(10),
-        B(Wasp::OpCode::DEFINE_LOCAL), B(0),
+        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 3 */ B(Wasp::OpCode::DEFINE_LOCAL), B(0),
 
-        B(Wasp::OpCode::GET_LOCAL), B(0),
-        B(Wasp::OpCode::LOAD_CONST), B(11),
-        B(Wasp::OpCode::ADD),
-        B(Wasp::OpCode::SET_LOCAL), B(0),
-        B(Wasp::OpCode::POP),
-        B(Wasp::OpCode::JUMP), B(15),
+        /* 5 */ B(Wasp::OpCode::GET_LOCAL), B(0),
+        /* 7 */ B(Wasp::OpCode::LOAD_CONST), B(11),
+        /* 9 */ B(Wasp::OpCode::ADD),
+        /* 10*/ B(Wasp::OpCode::SET_LOCAL), B(0),
+        /* 12*/ B(Wasp::OpCode::POP),
 
-        B(Wasp::OpCode::EXIT_MODULE)};
+        /* 13*/ B(Wasp::OpCode::JUMP), B(16), B(0),
+
+        /* 16*/ B(Wasp::OpCode::EXIT_MODULE)};
 
     EXPECT_EQ(actual_bytes, expected_bytes);
 }
@@ -200,22 +227,23 @@ if true then
         /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
 
         /* 1 */ B(Wasp::OpCode::LOAD_TRUE),
-        /* 2 */ B(Wasp::OpCode::JUMP_IF_FALSE), B(11),
-        /* 4 */ B(Wasp::OpCode::JUMP), B(6),
+        /* 2 */ B(Wasp::OpCode::JUMP_IF_FALSE), B(16), B(0),
+        /* 5 */ B(Wasp::OpCode::JUMP), B(8), B(0),
 
         // True Block
-        /* 6 */ B(Wasp::OpCode::LOAD_CONST), B(10),
-        /* 8 */ B(Wasp::OpCode::POP),
-        /* 9 */ B(Wasp::OpCode::JUMP), B(11),
+        /* 8 */ B(Wasp::OpCode::PUSH_SCOPE),
+        /* 9 */ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 11*/ B(Wasp::OpCode::POP),
+        /* 12*/ B(Wasp::OpCode::POP_SCOPE),
+        /* 13*/ B(Wasp::OpCode::JUMP), B(16), B(0),
 
-        // Reconvergance/End Block
-        /* 11 */ B(Wasp::OpCode::JUMP), B(13),
+        // End Block
+        /* 16*/ B(Wasp::OpCode::JUMP), B(19), B(0),
 
-        /* 13 */ B(Wasp::OpCode::EXIT_MODULE)};
+        /* 19*/ B(Wasp::OpCode::EXIT_MODULE)};
 
     EXPECT_EQ(actual_bytes, expected_bytes);
 }
-
 TEST_F(CompilerTest, IfElse)
 {
     auto actual_bytes = compile(R"(
@@ -229,23 +257,27 @@ else
         /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
 
         /* 1 */ B(Wasp::OpCode::LOAD_FALSE),
-        /* 2 */ B(Wasp::OpCode::JUMP_IF_FALSE), B(13),
-        /* 4 */ B(Wasp::OpCode::JUMP), B(6),
+        /* 2 */ B(Wasp::OpCode::JUMP_IF_FALSE), B(19), B(0),
+        /* 5 */ B(Wasp::OpCode::JUMP), B(8), B(0),
 
         // True Block
-        /* 6 */ B(Wasp::OpCode::LOAD_CONST), B(10),
-        /* 8 */ B(Wasp::OpCode::POP),
-        /* 9 */ B(Wasp::OpCode::JUMP), B(11),
+        /* 8 */ B(Wasp::OpCode::PUSH_SCOPE),
+        /* 9 */ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 11*/ B(Wasp::OpCode::POP),
+        /* 12*/ B(Wasp::OpCode::POP_SCOPE),
+        /* 13*/ B(Wasp::OpCode::JUMP), B(16), B(0),
 
-        // End Block / Jump to Exit
-        /* 11 */ B(Wasp::OpCode::JUMP), B(18),
+        // End Block
+        /* 16*/ B(Wasp::OpCode::JUMP), B(27), B(0),
 
-        // False Block
-        /* 13 */ B(Wasp::OpCode::LOAD_CONST), B(10),
-        /* 15 */ B(Wasp::OpCode::POP),
-        /* 16 */ B(Wasp::OpCode::JUMP), B(11),
+        // False Block (Else)
+        /* 19*/ B(Wasp::OpCode::PUSH_SCOPE),
+        /* 20*/ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 22*/ B(Wasp::OpCode::POP),
+        /* 23*/ B(Wasp::OpCode::POP_SCOPE),
+        /* 24*/ B(Wasp::OpCode::JUMP), B(16), B(0),
 
-        /* 18 */ B(Wasp::OpCode::EXIT_MODULE)};
+        /* 27*/ B(Wasp::OpCode::EXIT_MODULE)};
 
     EXPECT_EQ(actual_bytes, expected_bytes);
 }
@@ -263,24 +295,40 @@ else
 
     std::vector<std::byte> expected_bytes = {
         /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
+
         /* 1 */ B(Wasp::OpCode::LOAD_FALSE),
-        /* 2 */ B(Wasp::OpCode::JUMP_IF_FALSE), B(13),
-        /* 4 */ B(Wasp::OpCode::JUMP), B(6),
-        /* 6 */ B(Wasp::OpCode::LOAD_CONST), B(10),
-        /* 8 */ B(Wasp::OpCode::POP),
-        /* 9 */ B(Wasp::OpCode::JUMP), B(11),
-        /* 11 */ B(Wasp::OpCode::JUMP), B(30),
-        /* 13 */ B(Wasp::OpCode::LOAD_TRUE),
-        /* 14 */ B(Wasp::OpCode::JUMP_IF_FALSE), B(25),
-        /* 16 */ B(Wasp::OpCode::JUMP), B(18),
-        /* 18 */ B(Wasp::OpCode::LOAD_CONST), B(10),
-        /* 20 */ B(Wasp::OpCode::POP),
-        /* 21 */ B(Wasp::OpCode::JUMP), B(23),
-        /* 23 */ B(Wasp::OpCode::JUMP), B(11),
-        /* 25 */ B(Wasp::OpCode::LOAD_CONST), B(10),
-        /* 27 */ B(Wasp::OpCode::POP),
-        /* 28 */ B(Wasp::OpCode::JUMP), B(23),
-        /* 30 */ B(Wasp::OpCode::EXIT_MODULE)};
+        /* 2 */ B(Wasp::OpCode::JUMP_IF_FALSE), B(19), B(0),
+        /* 5 */ B(Wasp::OpCode::JUMP), B(8), B(0),
+
+        // If True Block
+        /* 8 */ B(Wasp::OpCode::PUSH_SCOPE),
+        /* 9 */ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 11 */ B(Wasp::OpCode::POP),
+        /* 12 */ B(Wasp::OpCode::POP_SCOPE),
+        /* 13 */ B(Wasp::OpCode::JUMP), B(16), B(0),
+        /* 16 */ B(Wasp::OpCode::JUMP), B(45), B(0),
+
+        // Elif Condition
+        /* 19 */ B(Wasp::OpCode::LOAD_TRUE),
+        /* 20 */ B(Wasp::OpCode::JUMP_IF_FALSE), B(37), B(0),
+        /* 23 */ B(Wasp::OpCode::JUMP), B(26), B(0),
+
+        // Elif True Block
+        /* 26 */ B(Wasp::OpCode::PUSH_SCOPE),
+        /* 27 */ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 29 */ B(Wasp::OpCode::POP),
+        /* 30 */ B(Wasp::OpCode::POP_SCOPE),
+        /* 31 */ B(Wasp::OpCode::JUMP), B(34), B(0),
+        /* 34 */ B(Wasp::OpCode::JUMP), B(16), B(0),
+
+        // Else Block
+        /* 37 */ B(Wasp::OpCode::PUSH_SCOPE),
+        /* 38 */ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 40 */ B(Wasp::OpCode::POP),
+        /* 41 */ B(Wasp::OpCode::POP_SCOPE),
+        /* 42 */ B(Wasp::OpCode::JUMP), B(34), B(0),
+
+        /* 45 */ B(Wasp::OpCode::EXIT_MODULE)};
 
     EXPECT_EQ(actual_bytes, expected_bytes);
 }
@@ -295,21 +343,21 @@ if false then 25 else 10
         /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
 
         /* 1 */ B(Wasp::OpCode::LOAD_FALSE),
-        /* 2 */ B(Wasp::OpCode::JUMP_IF_FALSE), B(8),
+        /* 2 */ B(Wasp::OpCode::JUMP_IF_FALSE), B(10), B(0),
 
         // True Expression
-        /* 4 */ B(Wasp::OpCode::LOAD_CONST), B(10), // (25)
-        /* 6 */ B(Wasp::OpCode::JUMP), B(12),
+        /* 5 */ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 7 */ B(Wasp::OpCode::JUMP), B(15), B(0),
 
         // False Expression
-        /* 8 */ B(Wasp::OpCode::LOAD_CONST), B(11), // (10)
-        /* 10 */ B(Wasp::OpCode::JUMP), B(12),
+        /* 10*/ B(Wasp::OpCode::LOAD_CONST), B(11),
+        /* 12*/ B(Wasp::OpCode::JUMP), B(15), B(0),
 
-        // End of Ternary (Expression Statement Pop)
-        /* 12 */ B(Wasp::OpCode::POP),
+        // End of Ternary
+        /* 15*/ B(Wasp::OpCode::POP),
 
-        /* 13 */ B(Wasp::OpCode::JUMP), B(15),
-        /* 15 */ B(Wasp::OpCode::EXIT_MODULE)};
+        /* 16*/ B(Wasp::OpCode::JUMP), B(19), B(0),
+        /* 19*/ B(Wasp::OpCode::EXIT_MODULE)};
 
     EXPECT_EQ(actual_bytes, expected_bytes);
 }
@@ -325,22 +373,21 @@ if let x = true then
         /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
 
         /* 1 */ B(Wasp::OpCode::LOAD_TRUE),
-
-        // Duplicate so we can bind one and check the other
         /* 2 */ B(Wasp::OpCode::DUP),
-
         /* 3 */ B(Wasp::OpCode::DEFINE_LOCAL), B(0),
 
-        /* 5 */ B(Wasp::OpCode::JUMP_IF_FALSE), B(14),
-        /* 7 */ B(Wasp::OpCode::JUMP), B(9),
+        /* 5 */ B(Wasp::OpCode::JUMP_IF_FALSE), B(19), B(0),
+        /* 8 */ B(Wasp::OpCode::JUMP), B(11), B(0),
 
-        /* 9 */ B(Wasp::OpCode::LOAD_CONST), B(10), // (25)
-        /* 11 */ B(Wasp::OpCode::POP),
+        // True Block
+        /* 11*/ B(Wasp::OpCode::PUSH_SCOPE),
+        /* 12*/ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 14*/ B(Wasp::OpCode::POP),
+        /* 15*/ B(Wasp::OpCode::POP_SCOPE),
+        /* 16*/ B(Wasp::OpCode::JUMP), B(19), B(0),
+        /* 19*/ B(Wasp::OpCode::JUMP), B(22), B(0),
 
-        /* 12 */ B(Wasp::OpCode::JUMP), B(14),
-        /* 14 */ B(Wasp::OpCode::JUMP), B(16),
-
-        /* 16 */ B(Wasp::OpCode::EXIT_MODULE)};
+        /* 22*/ B(Wasp::OpCode::EXIT_MODULE)};
 
     EXPECT_EQ(actual_bytes, expected_bytes);
 }
@@ -355,20 +402,24 @@ while true do
     std::vector<std::byte> expected_bytes = {
         /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
 
-        // Header Block
-        /* 1 */ B(Wasp::OpCode::JUMP), B(3),
-        /* 3 */ B(Wasp::OpCode::LOAD_TRUE),
-        /* 4 */ B(Wasp::OpCode::JUMP_IF_FALSE), B(13),
-        /* 6 */ B(Wasp::OpCode::JUMP), B(8),
+        /* 1 */ B(Wasp::OpCode::JUMP), B(4), B(0),
+
+        // Header
+        /* 4 */ B(Wasp::OpCode::LOAD_TRUE),
+        /* 5 */ B(Wasp::OpCode::JUMP_IF_FALSE), B(19), B(0),
+        /* 8 */ B(Wasp::OpCode::JUMP), B(11), B(0),
 
         // Body
-        /* 8 */ B(Wasp::OpCode::LOAD_CONST), B(10), // (25)
-        /* 10 */ B(Wasp::OpCode::POP),
+        /* 11*/ B(Wasp::OpCode::PUSH_SCOPE),
+        /* 12*/ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 14*/ B(Wasp::OpCode::POP),
+        /* 15*/ B(Wasp::OpCode::POP_SCOPE),
 
-        /* 11 */ B(Wasp::OpCode::JUMP), B(3),
-        /* 13 */ B(Wasp::OpCode::JUMP), B(15),
+        /* 16*/ B(Wasp::OpCode::JUMP), B(4), B(0),
 
-        /* 15 */ B(Wasp::OpCode::EXIT_MODULE)};
+        // End block
+        /* 19*/ B(Wasp::OpCode::JUMP), B(22), B(0),
+        /* 22*/ B(Wasp::OpCode::EXIT_MODULE)};
 
     EXPECT_EQ(actual_bytes, expected_bytes);
 }
@@ -383,21 +434,25 @@ until true do
     std::vector<std::byte> expected_bytes = {
         /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
 
+        /* 1 */ B(Wasp::OpCode::JUMP), B(4), B(0),
+
         // Header
-        /* 1 */ B(Wasp::OpCode::JUMP), B(3),
-        /* 3 */ B(Wasp::OpCode::LOAD_TRUE),
-        /* 4 */ B(Wasp::OpCode::NOT), // Inverts the condition
-        /* 5 */ B(Wasp::OpCode::JUMP_IF_FALSE), B(14),
-        /* 7 */ B(Wasp::OpCode::JUMP), B(9),
+        /* 4 */ B(Wasp::OpCode::LOAD_TRUE),
+        /* 5 */ B(Wasp::OpCode::NOT),
+        /* 6 */ B(Wasp::OpCode::JUMP_IF_FALSE), B(20), B(0),
+        /* 9 */ B(Wasp::OpCode::JUMP), B(12), B(0),
 
         // Body
-        /* 9 */ B(Wasp::OpCode::LOAD_CONST), B(10), // (25)
-        /* 11 */ B(Wasp::OpCode::POP),
+        /* 12*/ B(Wasp::OpCode::PUSH_SCOPE),
+        /* 13*/ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 15*/ B(Wasp::OpCode::POP),
+        /* 16*/ B(Wasp::OpCode::POP_SCOPE),
 
-        /* 12 */ B(Wasp::OpCode::JUMP), B(3),
-        /* 14 */ B(Wasp::OpCode::JUMP), B(16),
+        /* 17*/ B(Wasp::OpCode::JUMP), B(4), B(0),
 
-        /* 16 */ B(Wasp::OpCode::EXIT_MODULE)};
+        // End Block
+        /* 20*/ B(Wasp::OpCode::JUMP), B(23), B(0),
+        /* 23*/ B(Wasp::OpCode::EXIT_MODULE)};
 
     EXPECT_EQ(actual_bytes, expected_bytes);
 }
@@ -412,30 +467,30 @@ for let x in [1, 2, 3] do
     std::vector<std::byte> expected_bytes = {
         /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
 
-        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(10), // (1)
-        /* 3 */ B(Wasp::OpCode::LOAD_CONST), B(11), // (2)
-        /* 5 */ B(Wasp::OpCode::LOAD_CONST), B(12), // (3)
+        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 3 */ B(Wasp::OpCode::LOAD_CONST), B(11),
+        /* 5 */ B(Wasp::OpCode::LOAD_CONST), B(12),
         /* 7 */ B(Wasp::OpCode::BUILD_LIST), B(3),
 
-        /* 9 */ B(Wasp::OpCode::JUMP), B(11),
+        /* 9 */ B(Wasp::OpCode::JUMP), B(12), B(0),
 
-        // --------------------------------------------------------------------
         // Header
-        // --------------------------------------------------------------------
-        /* 11 */ B(Wasp::OpCode::LOOP_ITER), B(22),
-        /* 13 */ B(Wasp::OpCode::JUMP), B(15),
+        /* 12*/ B(Wasp::OpCode::LOOP_ITER), B(28), B(0),
+        /* 15*/ B(Wasp::OpCode::JUMP), B(18), B(0),
 
-        // --------------------------------------------------------------------
         // Body
-        // --------------------------------------------------------------------
-        /* 15 */ B(Wasp::OpCode::DEFINE_LOCAL), B(0),
-        /* 17 */ B(Wasp::OpCode::GET_LOCAL), B(0),
-        /* 19 */ B(Wasp::OpCode::POP),
+        /* 18*/ B(Wasp::OpCode::PUSH_SCOPE),
+        /* 19*/ B(Wasp::OpCode::DEFINE_LOCAL), B(0),
+        /* 21*/ B(Wasp::OpCode::GET_LOCAL), B(0),
+        /* 23*/ B(Wasp::OpCode::POP),
+        /* 24*/ B(Wasp::OpCode::POP_SCOPE),
 
-        /* 20 */ B(Wasp::OpCode::JUMP), B(11),
-        /* 22 */ B(Wasp::OpCode::POP),
-        /* 23 */ B(Wasp::OpCode::JUMP), B(25),
-        /* 25 */ B(Wasp::OpCode::EXIT_MODULE)};
+        /* 25*/ B(Wasp::OpCode::JUMP), B(12), B(0),
+
+        /* 28*/ B(Wasp::OpCode::POP),
+
+        /* 29*/ B(Wasp::OpCode::JUMP), B(32), B(0),
+        /* 32*/ B(Wasp::OpCode::EXIT_MODULE)};
 
     EXPECT_EQ(actual_bytes, expected_bytes);
 }

@@ -1,0 +1,16 @@
+digraph CFG {
+    node [shape=box, fontname="Courier", style=filled, fillcolor="#f9f9f9"];
+
+    block0 [label="Block 0\l---------------------------------\l  0: ENTER_MODULE\l  1: LOAD_FALSE\l  2: JUMP_IF_FALSE   2\l\l"];
+    block1 [label="Block 1\l---------------------------------\l  0: LOAD_CONST      10         (25)\l  2: JUMP            3\l\l"];
+    block2 [label="Block 2\l---------------------------------\l  0: LOAD_CONST      11         (10)\l  2: JUMP            3\l\l"];
+    block3 [label="Block 3\l---------------------------------\l  0: POP\l  1: JUMP            4\l\l"];
+    block4 [label="Block 4\l---------------------------------\l  0: EXIT_MODULE\l\l"];
+
+    // 2. Output all the Edges
+    block0 -> block1;
+    block0 -> block2;
+    block1 -> block3;
+    block2 -> block3;
+    block3 -> block4;
+}

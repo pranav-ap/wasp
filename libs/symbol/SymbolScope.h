@@ -38,12 +38,12 @@ namespace Wasp
 
 		void define(std::string_view name, Symbol_ptr symbol);
 
-		[[nodiscard]] Symbol_ptr lookup(std::string_view name) const;
+		Symbol_ptr lookup(std::string_view name) const;
 
-		[[nodiscard]] bool enclosed_in(ScopeType target_type) const;
-		[[nodiscard]] bool enclosed_in(const std::vector<ScopeType> &types) const;
+		bool enclosed_in(ScopeType target_type) const;
+		bool enclosed_in(const std::vector<ScopeType> &types) const;
 
-		[[nodiscard]] ScopeType get_type() const { return type; }
-		[[nodiscard]] SymbolScope_ptr get_enclosing() const { return enclosing_scope; }
+		ScopeType get_type() const { return type; }
+		SymbolScope_ptr get_enclosing() const { return enclosing_scope; }
 	};
 }

@@ -46,9 +46,9 @@ using ByteVector = std::vector<std::byte>;
     X(LOGICAL_OR, 0)      /* [a, b] -> [a || b] */                                         \
     X(COALESCE, 0)                                                                         \
     /* [a, b] -> [a ? b] */ /* --- Control Flow --- */                                     \
-    X(JUMP, 1)              /* Unconditional jump to offset */                             \
-    X(JUMP_IF_FALSE, 1)     /* Jump to offset if TOS is false */                           \
-    X(LOOP_ITER, 1)         /* GET_NEXT_OR_JUMP | Advance iterator or jump to end */       \
+    X(JUMP, 2)              /* Unconditional jump to offset */                             \
+    X(JUMP_IF_FALSE, 2)     /* Jump to offset if TOS is false */                           \
+    X(LOOP_ITER, 2)         /* GET_NEXT_OR_JUMP | Advance iterator or jump to end */       \
     /* --- Data Structures --- */                                                          \
     X(BUILD_LIST, 1)  /* [v1...vn] -> [list] | Build list from N stack elements */         \
     X(BUILD_TUPLE, 1) /* [v1...vn] -> [tuple] */                                           \

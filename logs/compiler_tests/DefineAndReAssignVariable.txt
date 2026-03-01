@@ -1,11 +1,11 @@
    0: ENTER_MODULE
-   1: LOAD_CONST 10         (42)
-   3: DEFINE_LOCAL 0         (x)
-   5: GET_LOCAL  0         (x)
-   7: LOAD_CONST 11         (1)
+   1: LOAD_CONST      10         (42)
+   3: DEFINE_LOCAL    0         (x)
+   5: GET_LOCAL       0         (x)
+   7: LOAD_CONST      11         (1)
    9: ADD
-  10: SET_LOCAL  0         (x)
+  10: SET_LOCAL       0         (x)
   12: POP
-  13: JUMP       15
-  15: EXIT_MODULE
+  13: JUMP            16
+  16: EXIT_MODULE
 

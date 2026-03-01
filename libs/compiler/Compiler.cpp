@@ -36,16 +36,26 @@ namespace Wasp
     // Scoping and Symbol Resolution
     // -----------------------------------------------------------------------
 
-    void Compiler::enter_scope(ScopeType type)
+    void Compiler::enter_scope(ScopeType type, bool emit_opcodes)
     {
         current_scope = std::make_shared<SymbolScope>(type, current_scope);
+
+        if (emit_opcodes)
+        {
+            emit(OpCode::PUSH_SCOPE);
+        }
     }
 
-    void Compiler::leave_scope()
+    void Compiler::leave_scope(bool emit_opcodes)
     {
         if (current_scope)
         {
             current_scope = current_scope->get_enclosing();
+
+            if (emit_opcodes)
+            {
+                emit(OpCode::POP_SCOPE);
+            }
         }
     }
 
@@ -152,7 +162,10 @@ namespace Wasp
         // Compile the True Branch
         // ========================================================================
         set_current_block(true_block_id);
+        enter_scope(ScopeType::BRANCH, true);
         visit(statement.body);
+        leave_scope(true);
+
         emit(OpCode::JUMP, static_cast<int>(end_block_id));
 
         // ========================================================================
@@ -183,7 +196,11 @@ namespace Wasp
 
     void Compiler::visit(ElseBranch &statement)
     {
+        // OPEN SCOPE for Else Body
+        enter_scope(ScopeType::BRANCH, true);
         visit(statement.body);
+        leave_scope(true);
+        // CLOSE SCOPE
     }
 
     void Compiler::visit(SimpleLoop &statement)
@@ -217,7 +234,13 @@ namespace Wasp
         // Compile the Body
         // ========================================================================
         set_current_block(body_block_id);
+
+        // OPEN SCOPE for Loop Body
+        enter_scope(ScopeType::LOOP, true);
         visit(statement.body);
+        leave_scope(true);
+        // CLOSE SCOPE
+
         emit(OpCode::JUMP, static_cast<int>(header_block_id));
         graph.add_edge(current_block_id, header_block_id);
 
@@ -256,6 +279,9 @@ namespace Wasp
         // ========================================================================
         set_current_block(body_block_id);
 
+        // OPEN SCOPE HERE (So 'x' belongs strictly to this iteration)
+        enter_scope(ScopeType::LOOP, true);
+
         if (statement.lhs->is<Identifier>())
         {
             std::string var_name = statement.lhs->as<Identifier>().name;
@@ -273,6 +299,10 @@ namespace Wasp
         }
 
         visit(statement.body);
+
+        // CLOSE SCOPE HERE (Destroys 'x' before back-edge)
+        leave_scope(true);
+
         emit(OpCode::JUMP, static_cast<int>(header_block_id));
         graph.add_edge(current_block_id, header_block_id);
 
@@ -705,11 +735,26 @@ namespace Wasp
         {
             OpCode op = static_cast<OpCode>(bytes[ip]);
 
-            // If it is a jump instruction, replace the BlockId operand with the absolute byte offset
+            // If it is a jump instruction, replace the 16-bit BlockId operand with the absolute byte offset
             if (op == OpCode::JUMP || op == OpCode::JUMP_IF_FALSE || op == OpCode::LOOP_ITER)
             {
-                BlockId target_block = static_cast<BlockId>(bytes[ip + 1]);
-                bytes[ip + 1] = static_cast<std::byte>(offsets.at(target_block));
+                // 1. Read the 2-byte BlockId placeholder (Little Endian)
+                BlockId target_block = static_cast<BlockId>(
+                    static_cast<uint8_t>(bytes[ip + 1]) |
+                    (static_cast<uint8_t>(bytes[ip + 2]) << 8));
+
+                // 2. Look up the true absolute offset
+                size_t absolute_offset = offsets.at(target_block);
+
+                // 3. Safety check
+                if (absolute_offset > 0xFFFF)
+                {
+                    FATAL("Jump target offset exceeds 16-bit limit (65535 bytes).");
+                }
+
+                // 4. Write the 2-byte absolute offset back (Little Endian)
+                bytes[ip + 1] = static_cast<std::byte>(absolute_offset & 0xFF);
+                bytes[ip + 2] = static_cast<std::byte>((absolute_offset >> 8) & 0xFF);
             }
 
             // Skip to the next instruction: 1 byte for OpCode + N bytes for operands
@@ -749,14 +794,14 @@ namespace Wasp
         graph.set_entry_block(current_block_id);
 
         emit(OpCode::ENTER_MODULE);
-        enter_scope(ScopeType::MODULE);
+        enter_scope(ScopeType::MODULE, false);
 
         for (const auto &stmt : module.statements)
         {
             visit(stmt);
         }
 
-        leave_scope();
+        leave_scope(false);
 
         BlockId exit_block_id = graph.create_block();
         graph.add_edge(current_block_id, exit_block_id);

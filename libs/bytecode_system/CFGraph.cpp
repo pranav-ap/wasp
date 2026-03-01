@@ -40,7 +40,6 @@ namespace Wasp
     {
         instructions = std::move(instrs);
     }
-
     void CodeObject::emit(OpCode opcode)
     {
         instructions.push_back(static_cast<std::byte>(opcode));
@@ -48,17 +47,32 @@ namespace Wasp
 
     void CodeObject::emit(OpCode opcode, int operand)
     {
-        // Ensure we aren't losing data
-        ASSERT(operand >= 0 && operand <= 255, "Operand out of range for 8-bit encoding");
-
         instructions.push_back(static_cast<std::byte>(opcode));
-        instructions.push_back(static_cast<std::byte>(operand));
+
+        // Explicitly handle 16-bit operands for jumps
+        if (opcode == OpCode::JUMP ||
+            opcode == OpCode::JUMP_IF_FALSE ||
+            opcode == OpCode::LOOP_ITER)
+        {
+            // Expand the assertion to allow up to 65,535
+            ASSERT(operand >= 0 && operand <= 65535, "Operand out of range for 16-bit jump encoding");
+
+            // Write 16-bit payload in Little Endian (Low byte, then High byte)
+            instructions.push_back(static_cast<std::byte>(operand & 0xFF));
+            instructions.push_back(static_cast<std::byte>((operand >> 8) & 0xFF));
+        }
+        else
+        {
+            // Standard 8-bit operand
+            ASSERT(operand >= 0 && operand <= 255, "Operand out of range for 8-bit encoding");
+            instructions.push_back(static_cast<std::byte>(operand));
+        }
     }
 
     void CodeObject::emit(OpCode opcode, int operand_1, int operand_2)
     {
-        ASSERT(operand_1 >= 0 && operand_1 <= 255, "Operand out of range for 8-bit encoding");
-        ASSERT(operand_2 >= 0 && operand_2 <= 255, "Operand out of range for 8-bit encoding");
+        ASSERT(operand_1 >= 0 && operand_1 <= 255, "Operand 1 out of range for 8-bit encoding");
+        ASSERT(operand_2 >= 0 && operand_2 <= 255, "Operand 2 out of range for 8-bit encoding");
 
         instructions.push_back(static_cast<std::byte>(opcode));
         instructions.push_back(static_cast<std::byte>(operand_1));

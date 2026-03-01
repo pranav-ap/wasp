@@ -23,7 +23,7 @@ namespace Wasp
         CodeObject() = default;
         CodeObject(ByteVector instrs) : instructions(std::move(instrs)) {}
 
-        [[nodiscard]] std::size_t length() const;
+        std::size_t length() const;
 
         void push(const ByteVector &instruction);
         void replace(std::size_t index, std::byte replacement);
@@ -33,10 +33,10 @@ namespace Wasp
         void emit(OpCode opcode, int operand);
         void emit(OpCode opcode, int operand_1, int operand_2);
 
-        [[nodiscard]] ByteVector instruction_at(std::size_t index) const;
-        [[nodiscard]] ByteVector operands_of_opcode_at(std::size_t opcode_index) const;
+        ByteVector instruction_at(std::size_t index) const;
+        ByteVector operands_of_opcode_at(std::size_t opcode_index) const;
 
-        [[nodiscard]] const std::byte *data() const;
+        const std::byte *data() const;
     };
 
     using CodeObject_ptr = std::shared_ptr<CodeObject>;
@@ -67,13 +67,13 @@ namespace Wasp
     public:
         BasicBlock() = delete;
 
-        [[nodiscard]] BlockId get_id() const { return id; }
+        BlockId get_id() const { return id; }
 
-        [[nodiscard]] CodeObject &get_code() { return code; }
-        [[nodiscard]] const CodeObject &get_code() const { return code; }
+        CodeObject &get_code() { return code; }
+        const CodeObject &get_code() const { return code; }
 
-        [[nodiscard]] const std::vector<BlockId> &get_successors() const { return successors; }
-        [[nodiscard]] const std::vector<BlockId> &get_predecessors() const { return predecessors; }
+        const std::vector<BlockId> &get_successors() const { return successors; }
+        const std::vector<BlockId> &get_predecessors() const { return predecessors; }
     };
 
     // ============================================================================
@@ -94,10 +94,10 @@ namespace Wasp
         void set_entry_block(BlockId id);
         void add_edge(BlockId from_id, BlockId to_id);
 
-        [[nodiscard]] BlockId get_entry_block() const { return entry_block_id; }
+        BlockId get_entry_block() const { return entry_block_id; }
 
-        [[nodiscard]] BasicBlock &get_block(BlockId id);
-        [[nodiscard]] const BasicBlock &get_block(BlockId id) const;
-        [[nodiscard]] const std::vector<BasicBlock> &get_all_blocks() const { return blocks; }
+        BasicBlock &get_block(BlockId id);
+        const BasicBlock &get_block(BlockId id) const;
+        const std::vector<BasicBlock> &get_all_blocks() const { return blocks; }
     };
 }

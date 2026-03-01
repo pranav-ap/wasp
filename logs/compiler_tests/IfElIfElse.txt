@@ -1,20 +1,26 @@
    0: ENTER_MODULE
    1: LOAD_FALSE
-   2: JUMP_IF_FALSE 13
-   4: JUMP       6
-   6: LOAD_CONST 10         (25)
-   8: POP
-   9: JUMP       11
-  11: JUMP       30
-  13: LOAD_TRUE
-  14: JUMP_IF_FALSE 25
-  16: JUMP       18
-  18: LOAD_CONST 10         (25)
-  20: POP
-  21: JUMP       23
-  23: JUMP       11
-  25: LOAD_CONST 10         (25)
-  27: POP
-  28: JUMP       23
-  30: EXIT_MODULE
+   2: JUMP_IF_FALSE   19
+   5: JUMP            8
+   8: PUSH_SCOPE
+   9: LOAD_CONST      10         (25)
+  11: POP
+  12: POP_SCOPE
+  13: JUMP            16
+  16: JUMP            45
+  19: LOAD_TRUE
+  20: JUMP_IF_FALSE   37
+  23: JUMP            26
+  26: PUSH_SCOPE
+  27: LOAD_CONST      10         (25)
+  29: POP
+  30: POP_SCOPE
+  31: JUMP            34
+  34: JUMP            16
+  37: PUSH_SCOPE
+  38: LOAD_CONST      10         (25)
+  40: POP
+  41: POP_SCOPE
+  42: JUMP            34
+  45: EXIT_MODULE
 

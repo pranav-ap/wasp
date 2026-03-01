@@ -32,8 +32,8 @@ namespace Wasp
 		// used for generating unique labels for jumps and branches
 		int next_symbol_id;
 
-		void enter_scope(ScopeType type);
-		void leave_scope();
+		void enter_scope(ScopeType type, bool emit_opcodes);
+		void leave_scope(bool emit_opcodes);
 
 		std::map<int, std::string> debug_name_map;
 
@@ -116,7 +116,9 @@ namespace Wasp
 	public:
 		Compiler();
 
+		const CFGraph &get_graph() const { return graph; }
 		const std::map<int, std::string> &get_name_map() const { return debug_name_map; }
+
 		std::tuple<ConstantPool_ptr, CodeObject> run(const Module &module);
 	};
 
