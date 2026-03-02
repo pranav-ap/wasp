@@ -1,5 +1,6 @@
 #pragma once
 
+#include "CFGraph.h"
 #include <optional>
 #include <string>
 #include <vector>
@@ -18,7 +19,6 @@ namespace Wasp
     using StringVector = std::vector<std::string>;
 
     // Base Classes
-    // FIXED: Added virtual inheritance to prevent the Diamond Problem
 
     struct AbstractObject
     {
@@ -165,6 +165,15 @@ namespace Wasp
         bool has_value();
     };
 
+    struct FunctionObject : public CompositeObject
+    {
+        CodeObject code;
+        std::map<int, std::string> local_names;
+
+        FunctionObject(CodeObject code, std::map<int, std::string> local_names = {})
+            : code(std::move(code)), local_names(std::move(local_names)) {};
+    };
+
     // Action Objects
 
     struct BreakObject : public ActionObject
@@ -174,9 +183,6 @@ namespace Wasp
     {
     };
     struct RedoObject : public ActionObject
-    {
-    };
-    struct RetryObject : public ActionObject
     {
     };
 
@@ -333,10 +339,11 @@ namespace Wasp
             std::shared_ptr<MapObject>,
             std::shared_ptr<VariantObject>,
 
+            std::shared_ptr<FunctionObject>,
+
             std::shared_ptr<BreakObject>,
             std::shared_ptr<ContinueObject>,
             std::shared_ptr<RedoObject>,
-            std::shared_ptr<RetryObject>,
             std::shared_ptr<ReturnObject>,
             std::shared_ptr<ErrorObject>,
 

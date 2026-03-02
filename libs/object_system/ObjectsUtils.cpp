@@ -204,6 +204,8 @@ namespace Wasp
                                      { return "map object"; },
                                      [](const std::shared_ptr<VariantObject> &) -> std::string
                                      { return "variant object"; },
+                                     [](const std::shared_ptr<FunctionObject> &) -> std::string
+                                     { return "function object"; },
 
                                      // Action Objects
                                      [](const std::shared_ptr<ReturnObject> &) -> std::string
@@ -212,8 +214,6 @@ namespace Wasp
                                      { return "error: " + obj->message; },
                                      [](const std::shared_ptr<RedoObject> &) -> std::string
                                      { return "redo"; },
-                                     [](const std::shared_ptr<RetryObject> &) -> std::string
-                                     { return "retry"; },
                                      [](const std::shared_ptr<BreakObject> &) -> std::string
                                      { return "break"; },
                                      [](const std::shared_ptr<ContinueObject> &) -> std::string

@@ -3,13 +3,14 @@
 #include "Expression.h"
 #include <memory>
 
-
-namespace Wasp {
+namespace Wasp
+{
     class Parser;
-    
+
     // PREFIX PARSELETS
 
-    class IPrefixParselet {
+    class IPrefixParselet
+    {
     public:
         virtual ~IPrefixParselet() = default;
 
@@ -18,109 +19,129 @@ namespace Wasp {
 
     using IPrefixParselet_ptr = std::shared_ptr<IPrefixParselet>;
 
-    class IdentifierParselet : public IPrefixParselet {
+    class IdentifierParselet : public IPrefixParselet
+    {
     public:
         Expression_ptr parse(Parser &parser, const Token &token) override;
     };
 
-    class LiteralParselet : public IPrefixParselet {
+    class LiteralParselet : public IPrefixParselet
+    {
     public:
         Expression_ptr parse(Parser &parser, const Token &token) override;
     };
 
-    class PrefixOperatorParselet : public IPrefixParselet {
+    class PrefixOperatorParselet : public IPrefixParselet
+    {
         int precedence;
 
     public:
         explicit PrefixOperatorParselet(const int precedence)
-            : precedence(precedence) {
+            : precedence(precedence)
+        {
         }
 
         Expression_ptr parse(Parser &parser, const Token &token) override;
 
-        [[nodiscard]] int get_precedence() const;
+        int get_precedence() const;
     };
 
-    class SquareBracketParselet : public IPrefixParselet {
+    class SquareBracketParselet : public IPrefixParselet
+    {
     public:
-        Expression_ptr parse(Parser& parser, const Token& token);
+        Expression_ptr parse(Parser &parser, const Token &token);
     };
 
-    class ParenthesisParselet : public IPrefixParselet {
+    class ParenthesisParselet : public IPrefixParselet
+    {
     public:
-        Expression_ptr parse(Parser& parser, const Token& token);
+        Expression_ptr parse(Parser &parser, const Token &token);
     };
 
-    class CurlyBraceParselet : public IPrefixParselet {
+    class CurlyBraceParselet : public IPrefixParselet
+    {
     public:
-        Expression_ptr parse(Parser& parser, const Token& token);
-    }; 
-
-    class TernaryConditionParselet : public IPrefixParselet {
-    public:
-        Expression_ptr parse(Parser& parser, const Token& token);
-        [[nodiscard]] int get_precedence() const;
+        Expression_ptr parse(Parser &parser, const Token &token);
     };
 
-    class PrefixRangeParselet : public IPrefixParselet {
+    class TernaryConditionParselet : public IPrefixParselet
+    {
+    public:
+        Expression_ptr parse(Parser &parser, const Token &token);
+        int get_precedence() const;
+    };
+
+    class PrefixRangeParselet : public IPrefixParselet
+    {
+        bool is_inclusive;
+
+    public:
+        explicit PrefixRangeParselet(bool is_inclusive) : is_inclusive(is_inclusive) {}
+        Expression_ptr parse(Parser &parser, const Token &token) override;
+        int get_precedence() const;
+    };
+
+    class PlaceholderDotParselet : public IPrefixParselet
+    {
     public:
         Expression_ptr parse(Parser &parser, const Token &token) override;
-        [[nodiscard]] int get_precedence() const;
     };
-
-    class PlaceholderDotParselet : public IPrefixParselet {
-    public:
-        Expression_ptr parse(Parser &parser, const Token &token) override;
-    };
-
 
     // INFIX PARSELETS
 
-    class IInfixParselet {
+    class IInfixParselet
+    {
     public:
         virtual ~IInfixParselet() = default;
         virtual Expression_ptr parse(Parser &parser, Expression_ptr left, const Token &token) = 0;
-        [[nodiscard]] virtual int get_precedence() const = 0;
+        virtual int get_precedence() const = 0;
     };
 
     using IInfixParselet_ptr = std::shared_ptr<IInfixParselet>;
 
-    class InfixOperatorParselet : public IInfixParselet {
+    class InfixOperatorParselet : public IInfixParselet
+    {
         int precedence;
         bool is_right_associative;
 
     public:
         InfixOperatorParselet(const int precedence, const bool is_right_associative)
             : precedence(precedence), is_right_associative(is_right_associative) {
-        };
+              };
 
         Expression_ptr parse(Parser &parser, Expression_ptr left, const Token &token) override;
 
-        [[nodiscard]] int get_precedence() const override;
+        int get_precedence() const override;
     };
 
-    class TypePatternParselet : public IInfixParselet {
+    class TypePatternParselet : public IInfixParselet
+    {
     public:
-        Expression_ptr parse(Parser& parser, Expression_ptr left, const Token& token) override;
-        [[nodiscard]] int get_precedence() const override;
+        Expression_ptr parse(Parser &parser, Expression_ptr left, const Token &token) override;
+        int get_precedence() const override;
     };
-    
+
     class AssignmentParselet : public IInfixParselet
     {
     public:
         Expression_ptr parse(Parser &parser, Expression_ptr left, const Token &token) override;
-        [[nodiscard]] int get_precedence() const override;
+        int get_precedence() const override;
     };
 
-    class CallParselet : public IInfixParselet {
+    class CallParselet : public IInfixParselet
+    {
     public:
         Expression_ptr parse(Parser &parser, const Expression_ptr left, const Token &token) override;
-        [[nodiscard]] int get_precedence() const override;
+        int get_precedence() const override;
     };
 
-    class InfixRangeParselet : public IInfixParselet {
+    class InfixRangeParselet : public IInfixParselet
+    {
+        bool is_inclusive;
+
     public:
+        explicit InfixRangeParselet(bool is_inclusive) : is_inclusive(is_inclusive) {}
         Expression_ptr parse(Parser &parser, Expression_ptr left, const Token &token) override;
-        [[nodiscard]] int get_precedence() const override;
+        int get_precedence() const override;
     };
 }

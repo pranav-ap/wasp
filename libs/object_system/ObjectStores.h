@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Objects.h"
+#include "CFGraph.h"
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -23,6 +24,7 @@ namespace Wasp
         ~ConstantPool() = default;
 
         Object_ptr get(int id) const;
+        size_t get_size() const { return objects.size(); }
 
         Object_ptr get_any_type() const;
         Object_ptr get_int_type() const;
@@ -48,6 +50,7 @@ namespace Wasp
         int allocate(double value);
         int allocate(std::string value);
         int allocate_type(Object_ptr value);
+        int allocate_function_definition(CodeObject func_code, std::map<int, std::string> local_names);
     };
 
     class DefinitionStore

@@ -32,6 +32,15 @@ namespace Wasp
     {
     }
 
+    Compiler::Compiler(ConstantPool_ptr pool, SymbolScope_ptr enclosing_scope)
+        : constant_pool(std::move(pool)),
+          current_scope(std::make_shared<SymbolScope>(ScopeType::FUNCTION, enclosing_scope)),
+          next_symbol_id(0)
+    {
+        current_block_id = graph.create_block();
+        graph.set_entry_block(current_block_id);
+    }
+
     // -----------------------------------------------------------------------
     // Scoping and Symbol Resolution
     // -----------------------------------------------------------------------
@@ -113,6 +122,11 @@ namespace Wasp
                               { visit(pass_stmt); },
                               [&](LoopControl &break_stmt)
                               { visit(break_stmt); },
+
+                              [&](FunctionDefinition &func_def)
+                              { visit(func_def); },
+                              [&](Return &return_stmt)
+                              { visit(return_stmt); },
 
                               [](auto)
                               { FATAL("Never Seen this Statement before!"); }},
@@ -373,6 +387,67 @@ namespace Wasp
         // do nothing
     }
 
+    // -----------------------------------------------------------------------
+    // Function Definition
+    // ------------------------------------------------------------------------
+
+    void Compiler::visit(FunctionDefinition &statement)
+    {
+        Compiler func_compiler(constant_pool, current_scope);
+
+        // Define parameters as local variables (IDs 0, 1, 2...)
+        for (const auto &[param_name, param_type] : statement.parameters)
+        {
+            int symbol_id = func_compiler.next_symbol_id++;
+            auto symbol = std::make_shared<Symbol>(symbol_id, param_name, nullptr, false, true);
+
+            func_compiler.current_scope->define(param_name, symbol);
+            func_compiler.debug_name_map[symbol_id] = param_name;
+        }
+
+        func_compiler.visit(statement.body);
+
+        // Place a default return at the end of the block
+        func_compiler.emit(OpCode::LOAD_NONE);
+        func_compiler.emit(OpCode::RETURN);
+
+        CodeObject func_code = func_compiler.flatten();
+        func_code.local_names = std::move(func_compiler.debug_name_map);
+
+        int const_id = constant_pool->allocate_function_definition(
+            std::move(func_code),
+            std::move(func_compiler.debug_name_map));
+
+        // ========================================================================
+        // Back to the Main Compiler
+        // ========================================================================
+
+        emit(OpCode::LOAD_CONST, const_id);
+        emit(OpCode::MAKE_FUNCTION);
+
+        int symbol_id = next_symbol_id++;
+        auto symbol = std::make_shared<Symbol>(symbol_id, statement.name, nullptr, false, true);
+
+        current_scope->define(statement.name, symbol);
+        debug_name_map[symbol_id] = statement.name;
+
+        emit(OpCode::DEFINE_LOCAL, symbol_id);
+    }
+
+    void Compiler::visit(Return &statement)
+    {
+        if (statement.expression.has_value())
+        {
+            visit(statement.expression.value());
+        }
+        else
+        {
+            emit(OpCode::LOAD_NONE);
+        }
+
+        emit(OpCode::RETURN);
+    }
+
     // ========================================================================
     // Expression Visitors
     // ========================================================================
@@ -396,10 +471,6 @@ namespace Wasp
                               { visit(id); },
                               [&](DotLiteral &dot)
                               { visit(dot); },
-                              [&](DotDotLiteral &dotdot)
-                              { visit(dotdot); },
-                              [&](DotDotDotLiteral &dotdotdot)
-                              { visit(dotdotdot); },
 
                               [&](Prefix &prefix)
                               { visit(prefix); },
@@ -494,10 +565,6 @@ namespace Wasp
 
         emit(OpCode::GET_LOCAL, symbol->id);
     }
-
-    void Compiler::visit(DotLiteral &expr) {}
-    void Compiler::visit(DotDotLiteral &expr) {}
-    void Compiler::visit(DotDotDotLiteral &expr) {}
 
     void Compiler::visit(Prefix &expr)
     {
@@ -695,6 +762,8 @@ namespace Wasp
     }
 
     void Compiler::visit(Call &expr) {}
+
+    void Compiler::visit(DotLiteral &expr) {}
 
     // -----------------------------------------------------------------------
     // UTILS

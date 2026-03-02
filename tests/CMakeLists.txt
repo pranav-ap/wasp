@@ -13,6 +13,7 @@ add_executable(unit_tests
     test_parser_statements.cpp
     test_semantics.cpp
     test_compile.cpp
+    test_compile_functions.cpp
 )
 
 # Link all necessary libraries

@@ -1,6 +1,0 @@
-  0: ENTER_MODULE
-  1: LOAD_CONST      10         (25)
-  3: POP
-  4: JUMP            7
-  7: EXIT_MODULE
-

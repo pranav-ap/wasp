@@ -1,34 +1,36 @@
 #pragma once
 
-namespace Wasp {
-    enum class Precedence : int {
+namespace Wasp
+{
+    enum class Precedence : int
+    {
         COMMA = 1,
         DEFINITION,
         ASSIGNMENT,
-        PIPE, // ~ 
-	    TERNARY_CONDITION,
+        PIPE, // ~
+        TERNARY_CONDITION,
         TYPE_PATTERN, // :
 
         // Logical
         OR,
         AND,
-        EQUALITY, // == !=
+        EQUALITY,   // == !=
         COMPARISON, // < > <= >= in is
-        
+
         RANGE,
 
         // Arithmetic
-        TERM, // + -
+        TERM,    // + -
         PRODUCT, // * / %
 
         // Transformational
-        CAST, // as 
+        CAST,     // as
         EXPONENT, // ^
-        PREFIX, // + - ! typeof ...
+        PREFIX,   // + - typeof
 
         // Structural
         POSTFIX,
-        CALL, // call() new delete
-        MEMBER_ACCESS // . ?. ::
+        CALL,         // call() new delete
+        MEMBER_ACCESS // . ?.
     };
 }

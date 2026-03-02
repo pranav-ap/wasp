@@ -19,7 +19,7 @@ protected:
     bool enable_logging = true;
 
     Wasp::ConstantPool_ptr current_pool;
-    std::map<int, std::string> current_name_map;
+    // REMOVED: std::map<int, std::string> current_name_map;
     Wasp::CodeObject current_bytecode;
     Wasp::CFGraph current_graph;
 
@@ -47,7 +47,9 @@ protected:
         current_pool = std::get<0>(result);
         current_bytecode = std::get<1>(result);
 
-        current_name_map = compiler.get_name_map();
+        // Ensure your compiler.run() method attaches the debug_name_map directly
+        // to current_bytecode.local_names before returning it!
+
         current_graph = compiler.get_graph();
 
         if (enable_logging)
@@ -71,7 +73,7 @@ protected:
         std::string dot_file_path = log_dir + "/" + test_name + ".dot";
         std::ofstream dot_file(dot_file_path);
 
-        Wasp::InstructionPrinter printer(current_pool, current_name_map);
+        Wasp::InstructionPrinter printer(current_pool);
 
         if (dot_file.is_open())
         {
@@ -86,6 +88,8 @@ protected:
         if (log_file.is_open())
         {
             printer.print(current_bytecode, log_file);
+            printer.print_pool(log_file);
+
             log_file.close();
         }
         else
@@ -664,7 +668,7 @@ while true do
 TEST_F(CompilerTest, RangeExclusiveFull)
 {
     auto actual_bytes = compile(R"(
-1..10:2
+1..<10 step 2
 )");
 
     std::vector<std::byte> expected_bytes = {
@@ -686,7 +690,7 @@ TEST_F(CompilerTest, RangeExclusiveFull)
 TEST_F(CompilerTest, RangeInclusivePartial)
 {
     auto actual_bytes = compile(R"(
-...100
+..<100
 )");
 
     std::vector<std::byte> expected_bytes = {
@@ -695,7 +699,7 @@ TEST_F(CompilerTest, RangeInclusivePartial)
         /* 1 */ B(Wasp::OpCode::LOAD_NONE),
         /* 2 */ B(Wasp::OpCode::LOAD_CONST), B(10),
         /* 4 */ B(Wasp::OpCode::LOAD_NONE),
-        /* 5 */ B(Wasp::OpCode::BUILD_RANGE), B(1),
+        /* 5 */ B(Wasp::OpCode::BUILD_RANGE), B(0),
         /* 7 */ B(Wasp::OpCode::POP),
 
         /* 8 */ B(Wasp::OpCode::JUMP), B(11), B(0),

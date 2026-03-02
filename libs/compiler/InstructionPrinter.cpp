@@ -8,7 +8,7 @@
 #define ASSERT(condition, message) assert((condition) && message)
 #endif
 
-#define OPCODE_WIDTH 15 // Widened slightly to fit longer names like JUMP_IF_FALSE
+#define OPCODE_WIDTH 15
 #define OPERAND_WIDTH 10
 
 using std::byte;
@@ -18,7 +18,7 @@ using std::string;
 
 namespace Wasp
 {
-    string InstructionPrinter::stringify_instruction(byte opcode, byte operand)
+    string InstructionPrinter::stringify_instruction(byte opcode, byte operand, const std::map<int, std::string> &names)
     {
         int op_int = std::to_integer<int>(operand);
         std::stringstream ss;
@@ -36,9 +36,9 @@ namespace Wasp
         case OpCode::DEFINE_LOCAL:
         case OpCode::SET_LOCAL:
         case OpCode::GET_LOCAL:
-            if (name_map.contains(op_int))
+            if (names.contains(op_int))
             {
-                ss << std::right << setw(OPERAND_WIDTH) << " (" << name_map.at(op_int) << ")";
+                ss << std::right << setw(OPERAND_WIDTH) << " (" << names.at(op_int) << ")";
             }
             break;
         default:
@@ -47,21 +47,18 @@ namespace Wasp
         return ss.str();
     }
 
-    string InstructionPrinter::stringify_instruction(byte opcode, byte op1, byte op2)
+    string InstructionPrinter::stringify_instruction(byte opcode, byte op1, byte op2, const std::map<int, std::string> &names)
     {
         OpCode op = static_cast<OpCode>(opcode);
         std::stringstream ss;
 
-        // Check if this is a 16-bit little-endian payload (our jumps)
         if (op == OpCode::JUMP || op == OpCode::JUMP_IF_FALSE || op == OpCode::LOOP_ITER)
         {
-            // Reconstruct the 16-bit absolute byte offset
             int target_offset = std::to_integer<int>(op1) | (std::to_integer<int>(op2) << 8);
 
             ss << std::left << setw(OPCODE_WIDTH) << stringify_opcode(opcode)
                << " " << target_offset;
         }
-        // Otherwise, treat as two distinct 8-bit operands (like CALL)
         else
         {
             int op1_int = std::to_integer<int>(op1);
@@ -72,7 +69,7 @@ namespace Wasp
 
             if (op == OpCode::CALL)
             {
-                string name = name_map.contains(op1_int) ? name_map.at(op1_int) : "unknown";
+                string name = names.contains(op1_int) ? names.at(op1_int) : "unknown";
                 ss << " (fn " << name << ", " << op2_int << " args)";
             }
         }
@@ -96,9 +93,11 @@ namespace Wasp
             if (arity == 0)
                 out << stringify_opcode(opcode) << "\n";
             else if (arity == 1)
-                out << stringify_instruction(opcode, instruction[1]) << "\n";
+                // Pass the CodeObject's map to the instruction parser
+                out << stringify_instruction(opcode, instruction[1], code_object.local_names) << "\n";
             else if (arity == 2)
-                out << stringify_instruction(opcode, instruction[1], instruction[2]) << "\n";
+                // Pass the CodeObject's map to the instruction parser
+                out << stringify_instruction(opcode, instruction[1], instruction[2], code_object.local_names) << "\n";
 
             index += static_cast<int>(instruction.size());
         }
@@ -108,7 +107,6 @@ namespace Wasp
     void InstructionPrinter::print(const CFGraph &graph, std::ostream &out)
     {
         out << "digraph CFG {\n";
-        // Use a monospaced font so your hex dump alignment stays perfect
         out << "    node [shape=box, fontname=\"Courier\", style=filled, fillcolor=\"#f9f9f9\"];\n\n";
 
         // 1. Output all the Blocks (Nodes)
@@ -120,12 +118,9 @@ namespace Wasp
             if (block.get_code().length() > 0)
             {
                 std::stringstream ss;
-                // Reuse your existing hex-dump printer!
                 print(block.get_code(), ss);
                 std::string code_str = ss.str();
 
-                // Graphviz strings require special escaping.
-                // \l means "left-aligned newline" in DOT syntax.
                 for (char c : code_str)
                 {
                     if (c == '\n')
@@ -156,4 +151,28 @@ namespace Wasp
         out << "}\n";
     }
 
+    void InstructionPrinter::print_pool(std::ostream &out)
+    {
+        if (!constant_pool)
+            return;
+
+        out << "\n=========================================\n";
+        out << " CONSTANT POOL FUNCTIONS\n";
+        out << "=========================================\n\n";
+
+        for (size_t i = 0; i < constant_pool->get_size(); i++)
+        {
+            auto obj = constant_pool->get(i);
+            if (obj && obj->is<std::shared_ptr<FunctionObject>>())
+            {
+                auto func_obj = obj->as<std::shared_ptr<FunctionObject>>();
+
+                out << "--- Pool Index " << i << " ---\n";
+
+                print(func_obj->code, out);
+
+                out << "\n";
+            }
+        }
+    }
 }

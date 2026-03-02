@@ -1,9 +1,0 @@
-digraph CFG {
-    node [shape=box, fontname="Courier", style=filled, fillcolor="#f9f9f9"];
-
-    block0 [label="Block 0\l---------------------------------\l   0: ENTER_MODULE\l   1: LOAD_CONST      10         (1)\l   3: LOAD_CONST      11         (2)\l   5: ADD\l   6: POP\l   7: JUMP            1\l\l"];
-    block1 [label="Block 1\l---------------------------------\l  0: EXIT_MODULE\l\l"];
-
-    // 2. Output all the Edges
-    block0 -> block1;
-}

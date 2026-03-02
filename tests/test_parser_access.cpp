@@ -145,20 +145,25 @@ TEST(ParseExpressions, MethodCallWithArgumentsThenMemberAccess)
 
 TEST(ParseExpressions, PipeOutput)
 {
-    auto mod = parse("foo() ~ bar(., 35) ~ boom(...)");
+    auto mod = parse("foo() ~ bar(., 35) ~ boom(*.)");
     ASSERT_EQ(mod.statements.size(), 1);
 
     auto &stmt = check<Wasp::ExpressionStatement>(mod.statements[0]);
 
-    // Top Level: [foo() ~ bar(., 35)] ~ [boom(...)]
+    // Top Level: [foo() ~ bar(., 35)] ~ [boom(*.)]
     auto &root_infix = check<Wasp::Infix>(stmt.expression);
 
     {
-        // Right side: boom(...)
+        // Right side: boom(*.)
         auto &right_call = check<Wasp::Call>(root_infix.right);
         EXPECT_EQ(right_call.arguments.size(), 1);
 
-        auto &boom_arg = check<Wasp::DotDotDotLiteral>(right_call.arguments[0]);
+        // The argument is a Prefix expression for `*`
+        auto &boom_arg = check<Wasp::Prefix>(right_call.arguments[0]);
+        EXPECT_EQ(boom_arg.op.type, Wasp::TokenType::STAR);
+
+        // The target of the spread `*` is the pipe placeholder `.`
+        auto &spread_target = check<Wasp::DotLiteral>(boom_arg.operand);
     }
 
     {

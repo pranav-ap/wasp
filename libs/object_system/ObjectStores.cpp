@@ -8,6 +8,7 @@
 #endif
 
 #define MAKE_OBJECT_VARIANT(x) std::make_shared<Object>(x)
+#define MAKE_SHARED_OBJECT_VARIANT(Type, ...) std::make_shared<Object>(std::make_shared<Type>(__VA_ARGS__))
 
 namespace Wasp
 {
@@ -134,6 +135,13 @@ namespace Wasp
 
         int id = objects.size();
         objects.push_back(std::move(new_value));
+        return id;
+    }
+
+    int ConstantPool::allocate_function_definition(CodeObject func_code, std::map<int, std::string> local_names)
+    {
+        int id = objects.size();
+        objects.push_back(MAKE_SHARED_OBJECT_VARIANT(FunctionObject, std::move(func_code), std::move(local_names)));
         return id;
     }
 

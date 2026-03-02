@@ -58,12 +58,11 @@ a - b  # Difference: {1, 2}
 Ranges can be defined for iterative or slice operations.
 
 ```python
-# Range Syntaxes
-1..10      # Standard range
-1...10     # Inclusive range
-1..10:2    # Range with step (2)
+1..<10      # Exclusive range
+1..=10     # Inclusive range
+1..<10 step 2    # Range with step (2)
 1..        # Open-ended range
-1..:2      # Open-ended with step
+1.. step 2      # Open-ended with step
 ```
 
 ## Maps

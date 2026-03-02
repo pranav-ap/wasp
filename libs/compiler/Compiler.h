@@ -66,6 +66,9 @@ namespace Wasp
 		void visit(Pass &statement);
 		void visit(LoopControl &statement);
 
+		void visit(FunctionDefinition &statement);
+		void visit(Return &statement);
+
 		// ========================================================================
 		// Expression Visitors (Now returning void!)
 		// ========================================================================
@@ -80,8 +83,6 @@ namespace Wasp
 
 		void visit(Identifier &expr);
 		void visit(DotLiteral &expr);
-		void visit(DotDotLiteral &expr);
-		void visit(DotDotDotLiteral &expr);
 
 		void visit(Prefix &expr);
 		void visit(Infix &expr);
@@ -118,6 +119,7 @@ namespace Wasp
 
 	public:
 		Compiler();
+		Compiler(ConstantPool_ptr pool, SymbolScope_ptr enclosing_scope);
 
 		const CFGraph &get_graph() const { return graph; }
 		const std::map<int, std::string> &get_name_map() const { return debug_name_map; }

@@ -26,7 +26,8 @@
 	X(AT_SIGN, "@", false)                       \
 	X(DOT, ".", false)                           \
 	X(DOT_DOT, "..", false)                      \
-	X(DOT_DOT_DOT, "...", false)                 \
+	X(DOT_DOT_LESS, "..<", false)                \
+	X(DOT_DOT_EQUAL, "..=", false)               \
 	X(QUESTION, "?", false)                      \
 	X(QUESTION_DOT, "?.", false)                 \
 	X(QUESTION_EQUAL, "?=", false)               \
@@ -57,6 +58,7 @@
 	X(GREATER_THAN_EQUAL, ">=", false)           \
 	X(ROCKET, "<=>", false)                      \
 	X(ZIP, "<>", false)                          \
+	X(STEP, "step", true)                        \
 	X(IMPORT, "import", true)                    \
 	X(FROM, "from", true)                        \
 	X(IF, "if", true)                            \

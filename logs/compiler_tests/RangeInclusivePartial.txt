@@ -1,9 +1,0 @@
-   0: ENTER_MODULE
-   1: LOAD_NONE
-   2: LOAD_CONST      10         (100)
-   4: LOAD_NONE
-   5: BUILD_RANGE     1
-   7: POP
-   8: JUMP            11
-  11: EXIT_MODULE
-

@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <memory>
 #include <vector>
+#include <map>
 
 namespace Wasp
 {
@@ -21,7 +22,10 @@ namespace Wasp
 
     public:
         CodeObject() = default;
-        CodeObject(ByteVector instrs) : instructions(std::move(instrs)) {}
+        CodeObject(ByteVector instrs, std::map<int, std::string> names = {})
+            : instructions(std::move(instrs)), local_names(std::move(names)) {}
+
+        std::map<int, std::string> local_names;
 
         std::size_t length() const;
 
