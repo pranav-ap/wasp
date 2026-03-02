@@ -138,10 +138,10 @@ namespace Wasp
         return id;
     }
 
-    int ConstantPool::allocate_function_definition(CodeObject func_code, std::map<int, std::string> local_names)
+    int ConstantPool::allocate_function_definition(CodeObject func_code)
     {
         int id = objects.size();
-        objects.push_back(MAKE_SHARED_OBJECT_VARIANT(FunctionObject, std::move(func_code), std::move(local_names)));
+        objects.push_back(MAKE_SHARED_OBJECT_VARIANT(FunctionObject, std::move(func_code)));
         return id;
     }
 

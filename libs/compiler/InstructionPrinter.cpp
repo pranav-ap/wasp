@@ -41,6 +41,10 @@ namespace Wasp
                 ss << std::right << setw(OPERAND_WIDTH) << " (" << names.at(op_int) << ")";
             }
             break;
+        case OpCode::CALL:
+            // Now correctly shows arg count for the 1-operand version
+            ss << std::right << setw(OPERAND_WIDTH) << " (" << op_int << " args)";
+            break;
         default:
             break;
         }
@@ -52,6 +56,7 @@ namespace Wasp
         OpCode op = static_cast<OpCode>(opcode);
         std::stringstream ss;
 
+        // 16-bit payload instructions (Jumps)
         if (op == OpCode::JUMP || op == OpCode::JUMP_IF_FALSE || op == OpCode::LOOP_ITER)
         {
             int target_offset = std::to_integer<int>(op1) | (std::to_integer<int>(op2) << 8);
@@ -67,11 +72,7 @@ namespace Wasp
             ss << std::left << setw(OPCODE_WIDTH) << stringify_opcode(opcode)
                << " " << op1_int << " " << op2_int;
 
-            if (op == OpCode::CALL)
-            {
-                string name = names.contains(op1_int) ? names.at(op1_int) : "unknown";
-                ss << " (fn " << name << ", " << op2_int << " args)";
-            }
+            // Note: Custom CALL logic moved to 1-operand stringifier above
         }
 
         return ss.str();
@@ -93,15 +94,12 @@ namespace Wasp
             if (arity == 0)
                 out << stringify_opcode(opcode) << "\n";
             else if (arity == 1)
-                // Pass the CodeObject's map to the instruction parser
                 out << stringify_instruction(opcode, instruction[1], code_object.local_names) << "\n";
             else if (arity == 2)
-                // Pass the CodeObject's map to the instruction parser
                 out << stringify_instruction(opcode, instruction[1], instruction[2], code_object.local_names) << "\n";
 
             index += static_cast<int>(instruction.size());
         }
-        out << std::endl;
     }
 
     void InstructionPrinter::print(const CFGraph &graph, std::ostream &out)
@@ -109,7 +107,6 @@ namespace Wasp
         out << "digraph CFG {\n";
         out << "    node [shape=box, fontname=\"Courier\", style=filled, fillcolor=\"#f9f9f9\"];\n\n";
 
-        // 1. Output all the Blocks (Nodes)
         for (const auto &block : graph.get_all_blocks())
         {
             out << "    block" << block.get_id() << " [label=\"Block " << block.get_id() << "\\l";
@@ -140,7 +137,7 @@ namespace Wasp
             out << "\"];\n";
         }
 
-        out << "\n    // 2. Output all the Edges\n";
+        out << "\n    // Edges\n";
         for (const auto &block : graph.get_all_blocks())
         {
             for (auto succ : block.get_successors())
@@ -167,7 +164,7 @@ namespace Wasp
             {
                 auto func_obj = obj->as<std::shared_ptr<FunctionObject>>();
 
-                out << "--- Pool Index " << i << " ---\n";
+                out << "--- Pool Index " << i << " (" << func_obj->code.name << ") ---\n";
 
                 print(func_obj->code, out);
 

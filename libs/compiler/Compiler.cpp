@@ -407,16 +407,15 @@ namespace Wasp
 
         func_compiler.visit(statement.body);
 
-        // Place a default return at the end of the block
         func_compiler.emit(OpCode::LOAD_NONE);
         func_compiler.emit(OpCode::RETURN);
 
         CodeObject func_code = func_compiler.flatten();
+
+        func_code.name = statement.name;
         func_code.local_names = std::move(func_compiler.debug_name_map);
 
-        int const_id = constant_pool->allocate_function_definition(
-            std::move(func_code),
-            std::move(func_compiler.debug_name_map));
+        int const_id = constant_pool->allocate_function_definition(std::move(func_code));
 
         // ========================================================================
         // Back to the Main Compiler
@@ -761,7 +760,20 @@ namespace Wasp
         visit(expr.expression);
     }
 
-    void Compiler::visit(Call &expr) {}
+    void Compiler::visit(Call &expr)
+    {
+        // Push the Function Object onto the stack
+        visit(expr.callee);
+
+        //  Push the Arguments onto the stack (Left to Right)
+        for (const auto &arg : expr.arguments)
+        {
+            visit(arg);
+        }
+
+        int arg_count = static_cast<int>(expr.arguments.size());
+        emit(OpCode::CALL, arg_count);
+    }
 
     void Compiler::visit(DotLiteral &expr) {}
 

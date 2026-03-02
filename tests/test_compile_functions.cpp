@@ -101,9 +101,7 @@ fun add(a: int, b: int) => int
     return a + b
 )");
 
-    // ========================================================================
-    // 1. Verify Outer Module Bytecode
-    // ========================================================================
+    // Verify Outer Module Bytecode
     std::vector<std::byte> expected_bytes = {
         /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
 
@@ -119,11 +117,7 @@ fun add(a: int, b: int) => int
 
     EXPECT_EQ(actual_bytes, expected_bytes);
 
-    // ========================================================================
-    // 2. Extract Function Blueprint from Constant Pool
-    // ========================================================================
-
-    // Constant ID 10 is where LOAD_CONST points
+    // Extract Function Object
     auto pool_obj = current_pool->get(10);
 
     // Ensure the object actually exists and is a FunctionObject
@@ -132,9 +126,7 @@ fun add(a: int, b: int) => int
 
     const Wasp::CodeObject &inner_code = func_obj->code;
 
-    // ========================================================================
-    // 3. Verify Inner Function Bytecode
-    // ========================================================================
+    // Verify Function Bytecode
     std::vector<std::byte> actual_inner_bytes(
         inner_code.data(),
         inner_code.data() + inner_code.length());
@@ -150,4 +142,102 @@ fun add(a: int, b: int) => int
         /* 7 */ B(Wasp::OpCode::RETURN)};
 
     EXPECT_EQ(actual_inner_bytes, expected_inner_bytes);
+}
+
+TEST_F(CompilerFunctionsTest, MaxFunction)
+{
+    auto actual_bytes = compile(R"(
+fun max(a: int, b: int) => int
+    if a > b then 
+        return a
+    else
+        return b
+)");
+
+    // Verify Outer Module Bytecode
+    std::vector<std::byte> expected_bytes = {
+        /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
+
+        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 3 */ B(Wasp::OpCode::MAKE_FUNCTION),
+        /* 4 */ B(Wasp::OpCode::DEFINE_LOCAL), B(0),
+
+        /* 6 */ B(Wasp::OpCode::JUMP), B(9), B(0),
+
+        /* 9 */ B(Wasp::OpCode::EXIT_MODULE)};
+
+    EXPECT_EQ(actual_bytes, expected_bytes);
+
+    // Extract Function Object
+    auto pool_obj = current_pool->get(10);
+    ASSERT_TRUE(pool_obj->is<std::shared_ptr<Wasp::FunctionObject>>());
+    auto func_obj = pool_obj->as<std::shared_ptr<Wasp::FunctionObject>>();
+    const Wasp::CodeObject &inner_code = func_obj->code;
+
+    std::vector<std::byte> actual_inner_bytes(
+        inner_code.data(),
+        inner_code.data() + inner_code.length());
+
+    std::vector<std::byte> expected_inner_bytes = {
+        // --- Condition: a > b ---
+        /* 0 */ B(Wasp::OpCode::GET_LOCAL), B(0), // a
+        /* 2 */ B(Wasp::OpCode::GET_LOCAL), B(1), // b
+        /* 4 */ B(Wasp::OpCode::GT),
+
+        // Jump to ELSE block (Offset 21) if false
+        /* 5 */ B(Wasp::OpCode::JUMP_IF_FALSE), B(21), B(0),
+
+        // Jump into THEN block
+        /* 8 */ B(Wasp::OpCode::JUMP), B(11), B(0),
+
+        // --- THEN Block ---
+        /* 11 */ B(Wasp::OpCode::PUSH_SCOPE),
+        /* 12 */ B(Wasp::OpCode::GET_LOCAL), B(0), // a
+        /* 14 */ B(Wasp::OpCode::RETURN),
+        /* 15 */ B(Wasp::OpCode::POP_SCOPE),         // (Dead code)
+        /* 16 */ B(Wasp::OpCode::JUMP), B(19), B(0), // (Dead code)
+
+        // --- Failsafe Return Block ---
+        /* 19 */ B(Wasp::OpCode::LOAD_NONE),
+        /* 20 */ B(Wasp::OpCode::RETURN),
+
+        // --- ELSE Block ---
+        /* 21 */ B(Wasp::OpCode::PUSH_SCOPE),
+        /* 22 */ B(Wasp::OpCode::GET_LOCAL), B(1), // b
+        /* 24 */ B(Wasp::OpCode::RETURN),
+        /* 25 */ B(Wasp::OpCode::POP_SCOPE),        // (Dead code)
+        /* 26 */ B(Wasp::OpCode::JUMP), B(19), B(0) // (Dead code)
+    };
+
+    EXPECT_EQ(actual_inner_bytes, expected_inner_bytes);
+}
+
+TEST_F(CompilerFunctionsTest, CallFunction)
+{
+    auto actual_bytes = compile(R"(
+fun add(a: int, b: int) => int
+    return a + b
+
+let result = add(10, 20)
+)");
+
+    std::vector<std::byte> expected_bytes = {
+        /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
+
+        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 3 */ B(Wasp::OpCode::MAKE_FUNCTION),
+        /* 4 */ B(Wasp::OpCode::DEFINE_LOCAL), B(0),
+
+        /* 6 */ B(Wasp::OpCode::GET_LOCAL), B(0),   // Push 'add'
+        /* 8 */ B(Wasp::OpCode::LOAD_CONST), B(11), // Push 10
+        /* 10*/ B(Wasp::OpCode::LOAD_CONST), B(12), // Push 20
+        /* 12*/ B(Wasp::OpCode::CALL), B(2),        // CALL (2 Args)
+
+        /* 14*/ B(Wasp::OpCode::DEFINE_LOCAL), B(1), // Bind to 'result'
+
+        /* 16*/ B(Wasp::OpCode::JUMP), B(19), B(0),
+
+        /* 19*/ B(Wasp::OpCode::EXIT_MODULE)};
+
+    EXPECT_EQ(actual_bytes, expected_bytes);
 }

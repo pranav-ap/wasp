@@ -21,11 +21,20 @@ namespace Wasp
         ByteVector instructions;
 
     public:
-        CodeObject() = default;
-        CodeObject(ByteVector instrs, std::map<int, std::string> names = {})
-            : instructions(std::move(instrs)), local_names(std::move(names)) {}
-
+        // Metadata for debugging and stack traces
+        std::string name;
         std::map<int, std::string> local_names;
+
+        // Default to <main> for the top-level module
+        CodeObject() : name("<main>") {};
+
+        // Flexible constructor for sub-compilers to pass everything at once
+        CodeObject(ByteVector instrs,
+                   std::map<int, std::string> names = {},
+                   std::string name = "<anonymous>")
+            : instructions(std::move(instrs)),
+              local_names(std::move(names)),
+              name(std::move(name)) {}
 
         std::size_t length() const;
 

@@ -59,10 +59,9 @@ using ByteVector = std::vector<std::byte>;
     X(GET_ITER, 0) /* [iterable] -> [iterator] | Get iterator from iterable */       \
     /* --- Functions & Returns --- */                                                \
     X(MAKE_FUNCTION, 0) /* [code_obj] -> [func_obj] | Wrap compiled code */          \
-    X(CALL, 2)          /* [func, args...] -> [result] | Invoke top of stack */      \
+    X(CALL, 1)          /* [func, args...] -> [result] | Invoke top of stack */      \
     X(RETURN, 0)        /* Exit function with value on top of stack */               \
-    X(YIELD, 0)                                                                      \
-    /* Suspend generator with value on top of stack */                               \
+    X(YIELD, 0)         /* Suspend generator with value on top of stack */           \
     /* --- Diagnostics --- */                                                        \
     X(ASSERT, 0) /* [cond, msg] -> [] | Throw error if cond is false */
 

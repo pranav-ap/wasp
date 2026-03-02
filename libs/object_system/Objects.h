@@ -168,10 +168,8 @@ namespace Wasp
     struct FunctionObject : public CompositeObject
     {
         CodeObject code;
-        std::map<int, std::string> local_names;
 
-        FunctionObject(CodeObject code, std::map<int, std::string> local_names = {})
-            : code(std::move(code)), local_names(std::move(local_names)) {};
+        FunctionObject(CodeObject code) : code(std::move(code)) {};
     };
 
     // Action Objects

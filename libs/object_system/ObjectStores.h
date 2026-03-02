@@ -50,7 +50,7 @@ namespace Wasp
         int allocate(double value);
         int allocate(std::string value);
         int allocate_type(Object_ptr value);
-        int allocate_function_definition(CodeObject func_code, std::map<int, std::string> local_names);
+        int allocate_function_definition(CodeObject func_code);
     };
 
     class DefinitionStore
