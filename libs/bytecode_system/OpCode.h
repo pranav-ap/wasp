@@ -57,11 +57,16 @@ using ByteVector = std::vector<std::byte>;
     X(BUILD_RANGE, 1)                                                                \
     /* --- Collections & Iteration --- */                                            \
     X(GET_ITER, 0) /* [iterable] -> [iterator] | Get iterator from iterable */       \
-    /* --- Functions & Returns --- */                                                \
-    X(MAKE_FUNCTION, 0) /* [code_obj] -> [func_obj] | Wrap compiled code */          \
+    /* --- Functions & Closures --- */                                               \
+    X(MAKE_FUNCTION, 1) /* [code_obj] -> [func_obj] | Wrap compiled code */          \
     X(CALL, 1)          /* [func, args...] -> [result] | Invoke top of stack */      \
     X(RETURN, 0)        /* Exit function with value on top of stack */               \
     X(YIELD, 0)         /* Suspend generator with value on top of stack */           \
+    X(GET_GLOBAL, 1)    /* [ ] -> [val] | Get global variable */                     \
+    X(SET_GLOBAL, 1)    /* [val] -> [ ] | Set global variable */                     \
+    X(GET_UPVALUE, 1)   /* [ ] -> [val] | Get captured variable from closure */      \
+    X(SET_UPVALUE, 1)   /* [val] -> [ ] | Set captured variable in closure */        \
+    X(CLOSE_UPVALUE, 0) /* Move a local variable from stack to heap */               \
     /* --- Diagnostics --- */                                                        \
     X(ASSERT, 0) /* [cond, msg] -> [] | Throw error if cond is false */
 

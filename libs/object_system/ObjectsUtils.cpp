@@ -155,7 +155,7 @@ namespace Wasp
                                      [](const FloatObject &obj) -> std::string
                                      { return std::to_string(obj.value); },
                                      [](const StringObject &obj) -> std::string
-                                     { return obj.value; }, // Fixed
+                                     { return "\"" + obj.value + "\""; },
                                      [](const BooleanObject &obj) -> std::string
                                      { return obj.value ? "true" : "false"; },
 
@@ -193,19 +193,63 @@ namespace Wasp
 
                                      // Composite Objects
                                      [](const std::shared_ptr<IteratorObject> &) -> std::string
-                                     { return "iterator object"; },
-                                     [](const std::shared_ptr<ListObject> &) -> std::string
-                                     { return "list object"; },
-                                     [](const std::shared_ptr<TupleObject> &) -> std::string
-                                     { return "tuple object"; },
-                                     [](const std::shared_ptr<SetObject> &) -> std::string
-                                     { return "set object"; },
-                                     [](const std::shared_ptr<MapObject> &) -> std::string
-                                     { return "map object"; },
+                                     { return "<iterator>"; },
+
+                                     [](const std::shared_ptr<ListObject> &obj) -> std::string
+                                     {
+                                         std::string res = "[";
+                                         for (size_t i = 0; i < obj->values.size(); ++i)
+                                         {
+                                             res += stringify_object(obj->values[i]);
+                                             if (i < obj->values.size() - 1)
+                                                 res += ", ";
+                                         }
+                                         return res + "]";
+                                     },
+
+                                     [](const std::shared_ptr<TupleObject> &obj) -> std::string
+                                     {
+                                         std::string res = "(";
+                                         for (size_t i = 0; i < obj->values.size(); ++i)
+                                         {
+                                             res += stringify_object(obj->values[i]);
+                                             if (i < obj->values.size() - 1)
+                                                 res += ", ";
+                                         }
+                                         return res + ")";
+                                     },
+
+                                     [](const std::shared_ptr<SetObject> &obj) -> std::string
+                                     {
+                                         std::string res = "{";
+                                         auto it = obj->values.begin();
+                                         while (it != obj->values.end())
+                                         {
+                                             res += stringify_object(*it);
+                                             if (++it != obj->values.end())
+                                                 res += ", ";
+                                         }
+                                         return res + "}";
+                                     },
+
+                                     [](const std::shared_ptr<MapObject> &obj) -> std::string
+                                     {
+                                         std::string res = "{";
+                                         auto it = obj->pairs.begin();
+                                         while (it != obj->pairs.end())
+                                         {
+                                             res += stringify_object(it->first) + ": " + stringify_object(it->second);
+                                             if (++it != obj->pairs.end())
+                                                 res += ", ";
+                                         }
+                                         return res + "}";
+                                     },
+
                                      [](const std::shared_ptr<VariantObject> &) -> std::string
-                                     { return "variant object"; },
-                                     [](const std::shared_ptr<FunctionObject> &) -> std::string
-                                     { return "function object"; },
+                                     { return "<variant>"; },
+
+                                     [](const std::shared_ptr<FunctionObject> &func) -> std::string
+                                     { return "<function " + func->code.name + ">"; },
 
                                      // Action Objects
                                      [](const std::shared_ptr<ReturnObject> &) -> std::string

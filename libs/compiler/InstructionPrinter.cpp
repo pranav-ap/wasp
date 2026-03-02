@@ -42,7 +42,6 @@ namespace Wasp
             }
             break;
         case OpCode::CALL:
-            // Now correctly shows arg count for the 1-operand version
             ss << std::right << setw(OPERAND_WIDTH) << " (" << op_int << " args)";
             break;
         default:
@@ -56,7 +55,6 @@ namespace Wasp
         OpCode op = static_cast<OpCode>(opcode);
         std::stringstream ss;
 
-        // 16-bit payload instructions (Jumps)
         if (op == OpCode::JUMP || op == OpCode::JUMP_IF_FALSE || op == OpCode::LOOP_ITER)
         {
             int target_offset = std::to_integer<int>(op1) | (std::to_integer<int>(op2) << 8);
@@ -71,8 +69,6 @@ namespace Wasp
 
             ss << std::left << setw(OPCODE_WIDTH) << stringify_opcode(opcode)
                << " " << op1_int << " " << op2_int;
-
-            // Note: Custom CALL logic moved to 1-operand stringifier above
         }
 
         return ss.str();
@@ -83,13 +79,42 @@ namespace Wasp
         int length = static_cast<int>(code_object.length());
         int index_width = std::to_string(length).size() + 2;
 
+        // Grab direct access to the raw bytes to handle variable-length payloads
+        const byte *data = code_object.data();
+
         for (int index = 0; index < length;)
         {
-            auto instruction = code_object.instruction_at(index);
-            byte opcode = instruction[0];
-            int arity = static_cast<int>(instruction.size()) - 1;
+            byte opcode = data[index];
+            OpCode op = static_cast<OpCode>(opcode);
 
             out << std::right << setw(index_width) << index << ": ";
+
+            // --- SPECIAL CASE: Variable length MAKE_FUNCTION ---
+            if (op == OpCode::MAKE_FUNCTION)
+            {
+                int upvalue_count = std::to_integer<int>(data[index + 1]);
+
+                out << std::left << setw(OPCODE_WIDTH) << stringify_opcode(opcode) << " " << upvalue_count;
+                out << std::right << setw(OPERAND_WIDTH) << " (" << upvalue_count << " upvalues)\n";
+
+                // Print the trailing breadcrumbs nicely
+                int capture_offset = index + 2;
+                for (int i = 0; i < upvalue_count; i++)
+                {
+                    bool is_local = std::to_integer<int>(data[capture_offset + (i * 2)]) == 1;
+                    int upv_idx = std::to_integer<int>(data[capture_offset + (i * 2) + 1]);
+
+                    out << std::right << setw(index_width) << " " << "  | capture "
+                        << (is_local ? "local " : "upvalue ") << upv_idx << "\n";
+                }
+
+                index += 2 + (upvalue_count * 2);
+                continue;
+            }
+
+            // --- STANDARD CASE: Fixed arity instructions ---
+            auto instruction = code_object.instruction_at(index);
+            int arity = static_cast<int>(instruction.size()) - 1;
 
             if (arity == 0)
                 out << stringify_opcode(opcode) << "\n";

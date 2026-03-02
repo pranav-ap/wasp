@@ -27,6 +27,7 @@ namespace Wasp
 	private:
 		ScopeType type;
 		SymbolScope_ptr enclosing_scope;
+		int depth;
 
 		std::unordered_map<std::string, Symbol_ptr> symbols;
 
@@ -45,5 +46,7 @@ namespace Wasp
 
 		ScopeType get_type() const { return type; }
 		SymbolScope_ptr get_enclosing() const { return enclosing_scope; }
+
+		int get_depth() const { return depth; }
 	};
 }

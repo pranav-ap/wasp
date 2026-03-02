@@ -10,7 +10,6 @@
 
 namespace Wasp
 {
-
     struct TypeSystem
     {
         ConstantPool_ptr type_pool;

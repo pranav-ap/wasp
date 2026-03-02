@@ -10,12 +10,30 @@
 #include <tuple>
 #include <string>
 
+// Inside your Compiler class:
+
 namespace Wasp
 {
+	struct Upvalue
+	{
+		int index;	   // The ID in the parent's locals OR the parent's upvalues
+		bool is_local; // True if it's a local in the immediate parent scope
+	};
+
 	class Compiler
 	{
 	private:
 		ConstantPool_ptr constant_pool;
+
+		// ------------------------------------------------------------------------
+		// Closure Support
+		// ------------------------------------------------------------------------
+
+		Compiler *parent;
+		std::vector<Upvalue> upvalues;
+
+		int add_upvalue(int index, bool is_local);
+		int resolve_upvalue(Compiler *current_compiler, Symbol_ptr symbol);
 
 		// ------------------------------------------------------------------------
 		// Control Flow Graph
@@ -23,8 +41,10 @@ namespace Wasp
 
 		CFGraph graph;
 		BlockId current_block_id;
+
 		// Stack of <HeaderBlockId, BodyBlockId, EndBlockId>
 		std::vector<std::tuple<BlockId, BlockId, BlockId>> loop_tracking_stack;
+
 		// -----------------------------------------------------------------------
 		// Scoping and Symbol Resolution
 		// -----------------------------------------------------------------------
@@ -45,6 +65,8 @@ namespace Wasp
 		void emit(OpCode opcode);
 		void emit(OpCode opcode, int operand);
 		void emit(OpCode opcode, int operand_1, int operand_2);
+
+		void emit_raw_byte(std::byte b);
 
 		// ========================================================================
 		// Statement Visitors
@@ -119,7 +141,7 @@ namespace Wasp
 
 	public:
 		Compiler();
-		Compiler(ConstantPool_ptr pool, SymbolScope_ptr enclosing_scope);
+		Compiler(ConstantPool_ptr pool, SymbolScope_ptr enclosing_scope, Compiler *parent = nullptr);
 
 		const CFGraph &get_graph() const { return graph; }
 		const std::map<int, std::string> &get_name_map() const { return debug_name_map; }

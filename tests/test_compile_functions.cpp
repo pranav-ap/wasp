@@ -105,15 +105,14 @@ fun add(a: int, b: int) => int
     std::vector<std::byte> expected_bytes = {
         /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
 
-        // Load blueprint, wrap it, and bind to "add" (Symbol ID 0)
         /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(10),
-        /* 3 */ B(Wasp::OpCode::MAKE_FUNCTION),
-        /* 4 */ B(Wasp::OpCode::DEFINE_LOCAL), B(0),
+        /* 3 */ B(Wasp::OpCode::MAKE_FUNCTION), B(0),
+        /* 5 */ B(Wasp::OpCode::DEFINE_LOCAL), B(0),
 
-        // Jump to exit block
-        /* 6 */ B(Wasp::OpCode::JUMP), B(9), B(0),
+        // Jump to exit block (Shifted to 10)
+        /* 7 */ B(Wasp::OpCode::JUMP), B(10), B(0),
 
-        /* 9 */ B(Wasp::OpCode::EXIT_MODULE)};
+        /* 10*/ B(Wasp::OpCode::EXIT_MODULE)};
 
     EXPECT_EQ(actual_bytes, expected_bytes);
 
@@ -132,12 +131,11 @@ fun add(a: int, b: int) => int
         inner_code.data() + inner_code.length());
 
     std::vector<std::byte> expected_inner_bytes = {
-        /* 0 */ B(Wasp::OpCode::GET_LOCAL), B(0), // Load param 'a' (Symbol ID 0)
-        /* 2 */ B(Wasp::OpCode::GET_LOCAL), B(1), // Load param 'b' (Symbol ID 1)
-        /* 4 */ B(Wasp::OpCode::ADD),             // Evaluate a + b
-        /* 5 */ B(Wasp::OpCode::RETURN),          // Explicit user return
+        /* 0 */ B(Wasp::OpCode::GET_LOCAL), B(0),
+        /* 2 */ B(Wasp::OpCode::GET_LOCAL), B(1),
+        /* 4 */ B(Wasp::OpCode::ADD),
+        /* 5 */ B(Wasp::OpCode::RETURN),
 
-        // Default fallback return automatically injected by compiler
         /* 6 */ B(Wasp::OpCode::LOAD_NONE),
         /* 7 */ B(Wasp::OpCode::RETURN)};
 
@@ -159,12 +157,12 @@ fun max(a: int, b: int) => int
         /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
 
         /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(10),
-        /* 3 */ B(Wasp::OpCode::MAKE_FUNCTION),
-        /* 4 */ B(Wasp::OpCode::DEFINE_LOCAL), B(0),
+        /* 3 */ B(Wasp::OpCode::MAKE_FUNCTION), B(0),
+        /* 5 */ B(Wasp::OpCode::DEFINE_LOCAL), B(0),
 
-        /* 6 */ B(Wasp::OpCode::JUMP), B(9), B(0),
+        /* 7 */ B(Wasp::OpCode::JUMP), B(10), B(0),
 
-        /* 9 */ B(Wasp::OpCode::EXIT_MODULE)};
+        /* 10*/ B(Wasp::OpCode::EXIT_MODULE)};
 
     EXPECT_EQ(actual_bytes, expected_bytes);
 
@@ -178,6 +176,7 @@ fun max(a: int, b: int) => int
         inner_code.data(),
         inner_code.data() + inner_code.length());
 
+    // Inner bytes remain completely unchanged
     std::vector<std::byte> expected_inner_bytes = {
         // --- Condition: a > b ---
         /* 0 */ B(Wasp::OpCode::GET_LOCAL), B(0), // a
@@ -192,10 +191,10 @@ fun max(a: int, b: int) => int
 
         // --- THEN Block ---
         /* 11 */ B(Wasp::OpCode::PUSH_SCOPE),
-        /* 12 */ B(Wasp::OpCode::GET_LOCAL), B(0), // a
+        /* 12 */ B(Wasp::OpCode::GET_LOCAL), B(0),
         /* 14 */ B(Wasp::OpCode::RETURN),
-        /* 15 */ B(Wasp::OpCode::POP_SCOPE),         // (Dead code)
-        /* 16 */ B(Wasp::OpCode::JUMP), B(19), B(0), // (Dead code)
+        /* 15 */ B(Wasp::OpCode::POP_SCOPE),
+        /* 16 */ B(Wasp::OpCode::JUMP), B(19), B(0),
 
         // --- Failsafe Return Block ---
         /* 19 */ B(Wasp::OpCode::LOAD_NONE),
@@ -203,11 +202,10 @@ fun max(a: int, b: int) => int
 
         // --- ELSE Block ---
         /* 21 */ B(Wasp::OpCode::PUSH_SCOPE),
-        /* 22 */ B(Wasp::OpCode::GET_LOCAL), B(1), // b
+        /* 22 */ B(Wasp::OpCode::GET_LOCAL), B(1),
         /* 24 */ B(Wasp::OpCode::RETURN),
-        /* 25 */ B(Wasp::OpCode::POP_SCOPE),        // (Dead code)
-        /* 26 */ B(Wasp::OpCode::JUMP), B(19), B(0) // (Dead code)
-    };
+        /* 25 */ B(Wasp::OpCode::POP_SCOPE),
+        /* 26 */ B(Wasp::OpCode::JUMP), B(19), B(0)};
 
     EXPECT_EQ(actual_inner_bytes, expected_inner_bytes);
 }
@@ -225,19 +223,95 @@ let result = add(10, 20)
         /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
 
         /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(10),
-        /* 3 */ B(Wasp::OpCode::MAKE_FUNCTION),
-        /* 4 */ B(Wasp::OpCode::DEFINE_LOCAL), B(0),
+        /* 3 */ B(Wasp::OpCode::MAKE_FUNCTION), B(0),
+        /* 5 */ B(Wasp::OpCode::DEFINE_LOCAL), B(0),
 
-        /* 6 */ B(Wasp::OpCode::GET_LOCAL), B(0),   // Push 'add'
-        /* 8 */ B(Wasp::OpCode::LOAD_CONST), B(11), // Push 10
-        /* 10*/ B(Wasp::OpCode::LOAD_CONST), B(12), // Push 20
-        /* 12*/ B(Wasp::OpCode::CALL), B(2),        // CALL (2 Args)
+        /* 7 */ B(Wasp::OpCode::GET_LOCAL), B(0),
+        /* 9 */ B(Wasp::OpCode::LOAD_CONST), B(11),
+        /* 11*/ B(Wasp::OpCode::LOAD_CONST), B(12),
+        /* 13*/ B(Wasp::OpCode::CALL), B(2),
 
-        /* 14*/ B(Wasp::OpCode::DEFINE_LOCAL), B(1), // Bind to 'result'
+        /* 15*/ B(Wasp::OpCode::DEFINE_LOCAL), B(1),
 
-        /* 16*/ B(Wasp::OpCode::JUMP), B(19), B(0),
+        /* 17*/ B(Wasp::OpCode::JUMP), B(20), B(0),
 
-        /* 19*/ B(Wasp::OpCode::EXIT_MODULE)};
+        /* 20*/ B(Wasp::OpCode::EXIT_MODULE)};
 
     EXPECT_EQ(actual_bytes, expected_bytes);
+}
+
+TEST_F(CompilerFunctionsTest, SimpleClosure)
+{
+    auto actual_bytes = compile(R"(
+fun outer(a: int)
+    fun inner()
+        return a
+    return inner
+)");
+
+    // ========================================================================
+    // 1. Verify Outer Module (Creates 'outer')
+    // ========================================================================
+    std::vector<std::byte> expected_bytes = {
+        /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
+
+        // Load blueprint for 'outer' (ID 11), 0 upvalues, bind to 'outer' (Symbol 0)
+        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(11),
+        /* 3 */ B(Wasp::OpCode::MAKE_FUNCTION), B(0),
+        /* 5 */ B(Wasp::OpCode::DEFINE_LOCAL), B(0),
+
+        /* 7 */ B(Wasp::OpCode::JUMP), B(10), B(0),
+        /* 10*/ B(Wasp::OpCode::EXIT_MODULE)};
+
+    EXPECT_EQ(actual_bytes, expected_bytes);
+
+    // ========================================================================
+    // 2. Verify Outer Function (Creates 'inner' and captures 'a')
+    // ========================================================================
+    auto outer_pool_obj = current_pool->get(11);
+    ASSERT_TRUE(outer_pool_obj->is<std::shared_ptr<Wasp::FunctionObject>>());
+    const Wasp::CodeObject &outer_code = outer_pool_obj->as<std::shared_ptr<Wasp::FunctionObject>>()->code;
+
+    std::vector<std::byte> actual_outer_bytes(outer_code.data(), outer_code.data() + outer_code.length());
+
+    std::vector<std::byte> expected_outer_bytes = {
+        // Load blueprint for 'inner' (ID 10)
+        /* 0 */ B(Wasp::OpCode::LOAD_CONST), B(10),
+
+        // MAKE_FUNCTION with 1 upvalue
+        /* 2 */ B(Wasp::OpCode::MAKE_FUNCTION), B(1),
+        /* 4 */ B(1), // Breadcrumb: is_local = true (grab from stack)
+        /* 5 */ B(0), // Breadcrumb: index = 0 (grab parameter 'a')
+
+        /* 6 */ B(Wasp::OpCode::DEFINE_LOCAL), B(1), // Bind to 'inner' (Symbol 1)
+
+        // return inner
+        /* 8 */ B(Wasp::OpCode::GET_LOCAL), B(1),
+        /* 10*/ B(Wasp::OpCode::RETURN),
+
+        // Failsafe return
+        /* 11*/ B(Wasp::OpCode::LOAD_NONE),
+        /* 12*/ B(Wasp::OpCode::RETURN)};
+
+    EXPECT_EQ(actual_outer_bytes, expected_outer_bytes);
+
+    // ========================================================================
+    // 3. Verify Inner Function (Reads from the backpack)
+    // ========================================================================
+    auto inner_pool_obj = current_pool->get(10);
+    ASSERT_TRUE(inner_pool_obj->is<std::shared_ptr<Wasp::FunctionObject>>());
+    const Wasp::CodeObject &inner_code = inner_pool_obj->as<std::shared_ptr<Wasp::FunctionObject>>()->code;
+
+    std::vector<std::byte> actual_inner_bytes(inner_code.data(), inner_code.data() + inner_code.length());
+
+    std::vector<std::byte> expected_inner_bytes = {
+        // return a (Reads from the closure backpack at index 0)
+        /* 0 */ B(Wasp::OpCode::GET_UPVALUE), B(0),
+        /* 2 */ B(Wasp::OpCode::RETURN),
+
+        // Failsafe return
+        /* 3 */ B(Wasp::OpCode::LOAD_NONE),
+        /* 4 */ B(Wasp::OpCode::RETURN)};
+
+    EXPECT_EQ(actual_inner_bytes, expected_inner_bytes);
 }

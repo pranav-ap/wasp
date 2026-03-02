@@ -13,8 +13,25 @@ namespace Wasp
 	SymbolScope::SymbolScope(ScopeType type, SymbolScope_ptr enclosing_scope)
 		: type(type), enclosing_scope(std::move(enclosing_scope))
 	{
+		if (this->enclosing_scope == nullptr)
+		{
+			// Module level
+			this->depth = 0;
+		}
+		else
+		{
+			// If we cross a function boundary, increase depth.
+			// Otherwise, inherit it.
+			if (type == ScopeType::FUNCTION)
+			{
+				this->depth = this->enclosing_scope->get_depth() + 1;
+			}
+			else
+			{
+				this->depth = this->enclosing_scope->get_depth();
+			}
+		}
 	}
-
 	void SymbolScope::define(std::string_view name, Symbol_ptr symbol)
 	{
 		ASSERT(symbol != nullptr, "Cannot define a null symbol");

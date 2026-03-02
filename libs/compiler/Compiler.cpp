@@ -28,14 +28,16 @@ namespace Wasp
         : constant_pool(std::make_shared<ConstantPool>()),
           current_block_id(InvalidBlockId),
           current_scope(nullptr),
-          next_symbol_id(0)
+          next_symbol_id(0),
+          parent(nullptr)
     {
     }
 
-    Compiler::Compiler(ConstantPool_ptr pool, SymbolScope_ptr enclosing_scope)
+    Compiler::Compiler(ConstantPool_ptr pool, SymbolScope_ptr enclosing_scope, Compiler *parent)
         : constant_pool(std::move(pool)),
           current_scope(std::make_shared<SymbolScope>(ScopeType::FUNCTION, enclosing_scope)),
-          next_symbol_id(0)
+          next_symbol_id(0),
+          parent(parent)
     {
         current_block_id = graph.create_block();
         graph.set_entry_block(current_block_id);
@@ -68,6 +70,43 @@ namespace Wasp
         }
     }
 
+    // ------------------------------------------------------------------------
+    // Closure Support
+    // ------------------------------------------------------------------------
+
+    int Compiler::add_upvalue(int index, bool is_local)
+    {
+        // Don't capture the same variable twice!
+        for (int i = 0; i < static_cast<int>(upvalues.size()); i++)
+        {
+            if (upvalues[i].index == index && upvalues[i].is_local == is_local)
+            {
+                return i;
+            }
+        }
+
+        upvalues.push_back({index, is_local});
+        return static_cast<int>(upvalues.size()) - 1;
+    }
+
+    int Compiler::resolve_upvalue(Compiler *current_compiler, Symbol_ptr symbol)
+    {
+        if (current_compiler->parent == nullptr)
+        {
+            FATAL("Compiler Error: Reached global scope while resolving upvalue.");
+        }
+
+        // Does the variable belong to the immediate parent?
+        if (symbol->depth == current_compiler->parent->current_scope->get_depth())
+        {
+            return current_compiler->add_upvalue(symbol->id, true);
+        }
+
+        // Otherwise, it belongs to a grandparent. Force the parent to capture it first!
+        int upvalue_index_in_parent = resolve_upvalue(current_compiler->parent, symbol);
+        return current_compiler->add_upvalue(upvalue_index_in_parent, false);
+    }
+
     // -----------------------------------------------------------------------
     // Emit
     // ----------------------------------------------------------------------
@@ -85,6 +124,12 @@ namespace Wasp
     void Compiler::emit(OpCode opcode, int operand_1, int operand_2)
     {
         graph.get_block(current_block_id).get_code().emit(opcode, operand_1, operand_2);
+    }
+
+    void Compiler::emit_raw_byte(std::byte b)
+    {
+        ByteVector bv = {b};
+        graph.get_block(current_block_id).get_code().push(bv);
     }
 
     // ========================================================================
@@ -302,7 +347,13 @@ namespace Wasp
             std::string var_name = statement.lhs->as<Identifier>().name;
 
             int symbol_id = next_symbol_id++;
-            auto symbol = std::make_shared<Symbol>(symbol_id, var_name, nullptr, false, true);
+            auto symbol = std::make_shared<Symbol>(
+                symbol_id,
+                var_name,
+                nullptr,
+                false,
+                true,
+                current_scope->get_depth());
 
             current_scope->define(var_name, symbol);
             debug_name_map[symbol_id] = var_name;
@@ -393,13 +444,16 @@ namespace Wasp
 
     void Compiler::visit(FunctionDefinition &statement)
     {
-        Compiler func_compiler(constant_pool, current_scope);
+        Compiler func_compiler(constant_pool, current_scope, this);
 
-        // Define parameters as local variables (IDs 0, 1, 2...)
+        // Define parameters as local variables
         for (const auto &[param_name, param_type] : statement.parameters)
         {
             int symbol_id = func_compiler.next_symbol_id++;
-            auto symbol = std::make_shared<Symbol>(symbol_id, param_name, nullptr, false, true);
+
+            auto symbol = std::make_shared<Symbol>(
+                symbol_id, param_name, nullptr, false, true,
+                func_compiler.current_scope->get_depth());
 
             func_compiler.current_scope->define(param_name, symbol);
             func_compiler.debug_name_map[symbol_id] = param_name;
@@ -411,7 +465,6 @@ namespace Wasp
         func_compiler.emit(OpCode::RETURN);
 
         CodeObject func_code = func_compiler.flatten();
-
         func_code.name = statement.name;
         func_code.local_names = std::move(func_compiler.debug_name_map);
 
@@ -422,10 +475,21 @@ namespace Wasp
         // ========================================================================
 
         emit(OpCode::LOAD_CONST, const_id);
-        emit(OpCode::MAKE_FUNCTION);
+
+        int upvalue_count = static_cast<int>(func_compiler.upvalues.size());
+        emit(OpCode::MAKE_FUNCTION, upvalue_count);
+
+        for (const auto &uv : func_compiler.upvalues)
+        {
+            emit_raw_byte(uv.is_local ? std::byte{1} : std::byte{0});
+            emit_raw_byte(static_cast<std::byte>(uv.index));
+        }
 
         int symbol_id = next_symbol_id++;
-        auto symbol = std::make_shared<Symbol>(symbol_id, statement.name, nullptr, false, true);
+
+        auto symbol = std::make_shared<Symbol>(
+            symbol_id, statement.name, nullptr, false, true,
+            current_scope->get_depth());
 
         current_scope->define(statement.name, symbol);
         debug_name_map[symbol_id] = statement.name;
@@ -556,13 +620,34 @@ namespace Wasp
     void Compiler::visit(Identifier &expr)
     {
         auto symbol = current_scope->lookup(expr.name);
+        ASSERT(symbol != nullptr, ("Undefined variable: " + expr.name).c_str());
 
-        if (!symbol)
+        int current_depth = current_scope->get_depth();
+
+        /*
+        A running function only needs to look in three places:
+
+        GET_LOCAL: Is the variable on my current stack?
+        GET_UPVALUE: Is the variable in my immediate backpack?
+        GET_GLOBAL: Is the variable in the global module?
+        */
+
+        // CASE 1: True Local (Same function scope)
+        if (symbol->depth == current_depth)
         {
-            FATAL("Compiler Error: Attempted to load undefined variable '" + expr.name + "'");
+            emit(OpCode::GET_LOCAL, symbol->id);
         }
-
-        emit(OpCode::GET_LOCAL, symbol->id);
+        // CASE 2: Closure Capture (Outer function scope)
+        else if (symbol->depth > 0 && symbol->depth < current_depth)
+        {
+            int upvalue_index = resolve_upvalue(this, symbol);
+            emit(OpCode::GET_UPVALUE, upvalue_index);
+        }
+        // CASE 3: Global/Module Scope
+        else
+        {
+            emit(OpCode::GET_GLOBAL, symbol->id);
+        }
     }
 
     void Compiler::visit(Prefix &expr)
@@ -842,7 +927,8 @@ namespace Wasp
             var_name,
             nullptr, // Type info could go here later if using TypedAssignment
             false,   // is_public
-            is_mutable);
+            is_mutable,
+            current_scope->get_depth());
 
         current_scope->define(var_name, symbol);
         debug_name_map[symbol_id] = var_name;
@@ -899,6 +985,13 @@ namespace Wasp
         while (ip < bytes.size())
         {
             OpCode op = static_cast<OpCode>(bytes[ip]);
+
+            if (op == OpCode::MAKE_FUNCTION)
+            {
+                int upvalue_count = static_cast<int>(bytes[ip + 1]);
+                ip += 2 + (upvalue_count * 2);
+                continue;
+            }
 
             // If it is a jump instruction, replace the 16-bit BlockId operand with the absolute byte offset
             if (op == OpCode::JUMP || op == OpCode::JUMP_IF_FALSE || op == OpCode::LOOP_ITER)

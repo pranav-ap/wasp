@@ -4,21 +4,23 @@
 #include <memory>
 #include <string>
 
-namespace Wasp {
-struct Symbol
+namespace Wasp
 {
-	int id;
-	std::string name;
+	struct Symbol
+	{
+		int id;
+		std::string name;
 
-	bool is_public;
-	bool is_mutable;
-	bool is_builtin;
+		bool is_public;
+		bool is_mutable;
 
-	Object_ptr type;
+		int depth;
 
-	Symbol(int id, std::string name, Object_ptr type, bool is_public, bool is_mutable)
-		: id(id), name(name), type(type), is_public(is_public), is_mutable(is_mutable), is_builtin(false) {};
-};
+		Object_ptr type;
 
-using Symbol_ptr = std::shared_ptr<Symbol>;
+		Symbol(int id, std::string name, Object_ptr type, bool is_public, bool is_mutable, int depth)
+			: id(id), name(name), type(type), is_public(is_public), is_mutable(is_mutable), depth(depth) {};
+	};
+
+	using Symbol_ptr = std::shared_ptr<Symbol>;
 }
