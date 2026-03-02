@@ -139,6 +139,15 @@ namespace Wasp
 		return std::visit(overloaded{[](AnyType const &, const auto &) -> bool
 									 { return true; },
 
+									 [](IntType const &, IntType const &) -> bool
+									 { return true; },
+									 [](FloatType const &, FloatType const &) -> bool
+									 { return true; },
+									 [](BooleanType const &, BooleanType const &) -> bool
+									 { return true; },
+									 [](StringType const &, StringType const &) -> bool
+									 { return true; },
+
 									 // Standard types accept their literal counterparts
 									 [](IntType const &, IntLiteralType const &) -> bool
 									 { return true; },
@@ -466,5 +475,37 @@ namespace Wasp
 	{
 		if (!is_key_type(scope, type))
 			FATAL("Semantic Error: Type cannot be used as a Dictionary/Map key.");
+	}
+
+	// ============================================================================
+	// Type Utilities
+	// ============================================================================
+
+	bool TypeSystem::any_eq(SymbolScope_ptr scope, const ObjectVector vec, const Object_ptr x) const
+	{
+		for (const auto &item : vec)
+		{
+			if (equal(scope, item, x))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	ObjectVector TypeSystem::remove_duplicates(SymbolScope_ptr scope, const ObjectVector vec) const
+	{
+		ObjectVector unique_types;
+		unique_types.reserve(vec.size());
+
+		for (const auto &item : vec)
+		{
+			if (!any_eq(scope, unique_types, item))
+			{
+				unique_types.push_back(item);
+			}
+		}
+
+		return unique_types;
 	}
 }

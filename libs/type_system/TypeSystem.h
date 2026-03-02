@@ -10,9 +10,13 @@
 
 namespace Wasp
 {
-    struct TypeSystem
+    class TypeSystem
     {
+    public:
         ConstantPool_ptr type_pool;
+
+        TypeSystem()
+            : type_pool(std::make_shared<ConstantPool>()) {};
 
         bool equal(SymbolScope_ptr scope, const Object_ptr type_1, const Object_ptr type_2) const;
         bool equal(SymbolScope_ptr scope, const ObjectVector type_vector_1, const ObjectVector type_vector_2) const;
@@ -50,8 +54,9 @@ namespace Wasp
         void expect_iterable_type(SymbolScope_ptr scope, const Object_ptr type) const;
         void expect_key_type(SymbolScope_ptr scope, const Object_ptr type) const;
 
-        TypeSystem()
-            : type_pool(std::make_shared<ConstantPool>()) {};
+        // Type Utilities
+        bool any_eq(SymbolScope_ptr scope, const ObjectVector vec, const Object_ptr x) const;
+        ObjectVector remove_duplicates(SymbolScope_ptr scope, const ObjectVector vec) const;
     };
 
     using TypeSystem_ptr = std::shared_ptr<TypeSystem>;

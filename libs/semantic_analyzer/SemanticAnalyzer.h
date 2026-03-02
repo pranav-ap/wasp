@@ -31,7 +31,6 @@ namespace Wasp
 
         void visit(ExpressionStatement &statement);
 
-        void visit(VariableDefinition &statement);
         void visit(AliasDefinition &statement);
         void visit(EnumDefinition &statement);
         void visit(FunctionDefinition &statement);
@@ -49,6 +48,16 @@ namespace Wasp
 
         void visit(Pass &statement);
         void visit(Return &statement);
+
+        // --------------------------------------------------------------------------
+        // Variables & Assignments
+        // ------------------------------------------------------------------------
+        Object_ptr define_variable(Expression_ptr assignment_expr, bool is_mutable);
+        Object_ptr mutate_variable(Expression_ptr lhs_expr, Expression_ptr rhs_expr, Object_ptr explicit_type);
+        void visit(VariableDefinition &statement);
+        Object_ptr visit(VariableDefinitionExpression &expr);
+        Object_ptr visit(UntypedAssignment &expr);
+        Object_ptr visit(TypedAssignment &expr);
 
         // ========================================================================
         // Expression Visitors
@@ -75,17 +84,12 @@ namespace Wasp
         Object_ptr visit(SetLiteral &expr);
         Object_ptr visit(RangeLiteral &expr);
 
-        Object_ptr visit(VariableDefinitionExpression &expr);
-        Object_ptr visit(UntypedAssignment &expr);
-        Object_ptr visit(TypedAssignment &expr);
         Object_ptr visit(TypePattern &expr);
 
         Object_ptr visit(IfTernaryBranch &expr);
         Object_ptr visit(ElseTernaryBranch &expr);
 
         Object_ptr visit(Call &expr);
-
-        Object_ptr infer_chain_member_type(Object_ptr lhs_operand_type, Expression_ptr expr, bool null_check_access);
 
         // ========================================================================
         // Type Visitors
@@ -127,11 +131,6 @@ namespace Wasp
 
         void enter_scope(ScopeType scope_type);
         void leave_scope();
-
-        std::tuple<std::string, Object_ptr> deconstruct_type_pattern(Expression_ptr expression);
-
-        bool any_eq(ObjectVector vec, Object_ptr x);
-        ObjectVector remove_duplicates(ObjectVector vec);
 
     public:
         SemanticAnalyzer()

@@ -230,7 +230,9 @@ namespace Wasp
     // Scalar Types
     struct IntType : public ScalarType
     {
+        std::string name = "int";
     };
+
     struct FloatType : public ScalarType
     {
     };
