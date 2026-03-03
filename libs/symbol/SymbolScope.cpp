@@ -9,49 +9,36 @@
 
 namespace Wasp
 {
-
-	SymbolScope::SymbolScope(ScopeType type, SymbolScope_ptr enclosing_scope)
-		: type(type), enclosing_scope(std::move(enclosing_scope))
+	SymbolScope::SymbolScope(ScopeType type, SymbolScope_ptr enclosing)
+		: type(type), enclosing_scope(std::move(enclosing)), depth(0)
 	{
-		if (this->enclosing_scope == nullptr)
+		if (enclosing_scope)
 		{
-			// Module level
-			this->depth = 0;
-		}
-		else
-		{
-			// If we cross a function boundary, increase depth.
-			// Otherwise, inherit it.
-			if (type == ScopeType::FUNCTION)
-			{
-				this->depth = this->enclosing_scope->get_depth() + 1;
-			}
-			else
-			{
-				this->depth = this->enclosing_scope->get_depth();
-			}
+			depth = enclosing_scope->depth + (type == ScopeType::FUNCTION ? 1 : 0);
 		}
 	}
+
 	void SymbolScope::define(std::string_view name, Symbol_ptr symbol)
 	{
 		ASSERT(symbol != nullptr, "Cannot define a null symbol");
+		auto [it, inserted] = symbols.emplace(std::string(name), std::move(symbol));
 
-		auto [it, inserted] = symbols.try_emplace(std::string(name), std::move(symbol));
-		ASSERT(inserted, "Name already exists in scope!");
+		ASSERT(inserted, "Variable name already exists in this scope!");
 	}
 
 	Symbol_ptr SymbolScope::lookup(std::string_view name) const
 	{
-		const SymbolScope *current = this;
 		std::string search_name{name};
+		const SymbolScope *current = this;
 
-		while (current != nullptr)
+		while (current)
 		{
 			auto it = current->symbols.find(search_name);
 			if (it != current->symbols.end())
 			{
 				return it->second;
 			}
+
 			current = current->enclosing_scope.get();
 		}
 
@@ -61,7 +48,7 @@ namespace Wasp
 	bool SymbolScope::enclosed_in(ScopeType target_type) const
 	{
 		const SymbolScope *current = this;
-		while (current != nullptr)
+		while (current)
 		{
 			if (current->type == target_type)
 				return true;
@@ -73,17 +60,15 @@ namespace Wasp
 	bool SymbolScope::enclosed_in(const std::vector<ScopeType> &types) const
 	{
 		const SymbolScope *current = this;
-		while (current != nullptr)
+		while (current)
 		{
-			if (std::any_of(types.begin(), types.end(),
-							[current](ScopeType t)
-							{ return current->type == t; }))
+			for (auto t : types)
 			{
-				return true;
+				if (current->type == t)
+					return true;
 			}
 			current = current->enclosing_scope.get();
 		}
 		return false;
 	}
-
 }

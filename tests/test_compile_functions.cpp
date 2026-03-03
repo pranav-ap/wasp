@@ -243,8 +243,8 @@ let result = add(10, 20)
 TEST_F(CompilerFunctionsTest, SimpleClosure)
 {
     auto actual_bytes = compile(R"(
-fun outer(a: int)
-    fun inner()
+fun outer(a: int) => any
+    fun inner() => int
         return a
     return inner
 )");

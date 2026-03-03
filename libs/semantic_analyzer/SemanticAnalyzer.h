@@ -21,6 +21,7 @@ namespace Wasp
 
         TypeSystem_ptr type_system;
         SymbolScope_ptr current_scope;
+        ObjectVector return_type_stack;
 
         // ========================================================================
         // Statement Visitors

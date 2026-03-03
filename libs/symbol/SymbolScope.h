@@ -38,7 +38,6 @@ namespace Wasp
 		SymbolScope &operator=(const SymbolScope &) = delete;
 
 		void define(std::string_view name, Symbol_ptr symbol);
-
 		Symbol_ptr lookup(std::string_view name) const;
 
 		bool enclosed_in(ScopeType target_type) const;
@@ -46,7 +45,6 @@ namespace Wasp
 
 		ScopeType get_type() const { return type; }
 		SymbolScope_ptr get_enclosing() const { return enclosing_scope; }
-
 		int get_depth() const { return depth; }
 	};
 }
