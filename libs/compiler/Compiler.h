@@ -10,8 +10,6 @@
 #include <tuple>
 #include <string>
 
-// Inside your Compiler class:
-
 namespace Wasp
 {
 	struct Upvalue

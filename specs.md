@@ -16,6 +16,7 @@ const x: int = 34
 
 ```python
 x = 'Some text'
+x = 'Some ${text}'
 ```
 
 Multi-line strings are trimmed by default. You can access properties on strings directly.
@@ -89,7 +90,7 @@ type names = (str, str)
 
 ```python
 type Sizes = 1 | 2 | 3 
-type Sizes = 1...3:1 
+type Sizes = 1..=3 step 1 
 type WindowStates = "open" | "closed" | "minimized"
 ```
 

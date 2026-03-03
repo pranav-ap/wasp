@@ -507,10 +507,6 @@ namespace Wasp
 
     // --- Access ---
 
-    // ============================================================================
-    // IDENTIFIERS (Variable Lookup & Capture)
-    // ============================================================================
-
     Object_ptr SemanticAnalyzer::visit(Identifier &expr)
     {
         auto symbol = current_scope->lookup(expr.name);
