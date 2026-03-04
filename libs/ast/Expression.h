@@ -2,6 +2,7 @@
 
 #include "Token.h"
 #include "TypeAnnotation.h"
+#include "Resolvable.h"
 
 #include <string>
 #include <memory>
@@ -18,9 +19,12 @@ namespace Wasp
     using ExpressionVector = std::vector<Expression_ptr>;
     using ExpressionStack = std::stack<Expression_ptr>;
 
-    struct Identifier
+    struct Symbol;
+
+    struct Identifier : public Resolvable
     {
         std::string name;
+
         Identifier() = default;
         Identifier(std::string name) : name(std::move(name)) {}
     };
@@ -103,7 +107,7 @@ namespace Wasp
             : expression(std::move(expression)), type_node(std::move(type_node)) {};
     };
 
-    struct VariableDefinitionExpression
+    struct VariableDefinitionExpression : public Resolvable
     {
         Expression_ptr assignment;
         bool is_mutable;
@@ -169,7 +173,7 @@ namespace Wasp
 
     // Other
 
-    struct Call
+    struct Call : public Resolvable
     {
         Expression_ptr callee;
         ExpressionVector arguments;

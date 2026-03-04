@@ -12,8 +12,11 @@ add_executable(unit_tests
     test_parser_looping.cpp
     test_parser_statements.cpp
     test_semantics.cpp
-    test_compile.cpp
+    test_compile_expressions.cpp
     test_compile_functions.cpp
+    test_compile_variables.cpp
+    test_compile_branches.cpp
+    test_compile_loops.cpp
 )
 
 # Link all necessary libraries
