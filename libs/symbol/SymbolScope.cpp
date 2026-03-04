@@ -10,30 +10,38 @@
 namespace Wasp
 {
 	SymbolScope::SymbolScope(ScopeType type, SymbolScope_ptr enclosing)
-		: type(type), enclosing_scope(std::move(enclosing)), depth(0)
+		: type(type), enclosing_scope(std::move(enclosing)), closure_depth(0), lexical_depth(0)
 	{
 		if (enclosing_scope)
 		{
-			depth = enclosing_scope->depth + (type == ScopeType::FUNCTION ? 1 : 0);
+			closure_depth = enclosing_scope->closure_depth + (type == ScopeType::FUNCTION ? 1 : 0);
+			lexical_depth = enclosing_scope->lexical_depth + 1;
 		}
 	}
 
-	void SymbolScope::define(std::string_view name, Symbol_ptr symbol)
+	Symbol_ptr SymbolScope::define(Symbol_ptr symbol)
 	{
 		ASSERT(symbol != nullptr, "Cannot define a null symbol");
-		auto [it, inserted] = symbols.emplace(std::string(name), std::move(symbol));
 
-		ASSERT(inserted, "Variable name already exists in this scope!");
+		if (symbols.find(std::string(symbol->name)) != symbols.end())
+		{
+			throw std::runtime_error("Variable '" + std::string(symbol->name) + "' already declared in this scope.");
+		}
+
+		int id = static_cast<int>(symbols.size());
+		symbol->id = id;
+
+		symbols.emplace(std::string(symbol->name), symbol);
+		return symbol;
 	}
 
-	Symbol_ptr SymbolScope::lookup(std::string_view name) const
+	Symbol_ptr SymbolScope::lookup(std::string name) const
 	{
-		std::string search_name{name};
 		const SymbolScope *current = this;
 
 		while (current)
 		{
-			auto it = current->symbols.find(search_name);
+			auto it = current->symbols.find(name);
 			if (it != current->symbols.end())
 			{
 				return it->second;

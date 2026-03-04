@@ -66,9 +66,13 @@ namespace Wasp
         EXIT_IF_NULLPTR(expression);
 
         Expression_ptr infix_expr = expression;
+        bool is_mutable = false;
+
         if (expression->is<VariableDefinitionExpression>())
         {
-            infix_expr = expression->as<VariableDefinitionExpression>().assignment;
+            auto &var_def_expr = expression->as<VariableDefinitionExpression>();
+            is_mutable = var_def_expr.is_mutable;
+            infix_expr = var_def_expr.assignment;
         }
 
         if (!infix_expr->is<Infix>())
@@ -93,14 +97,14 @@ namespace Wasp
         if (token_pipe.consume_optional_in_line(TokenType::EOL))
         {
             auto body = parse_statements_block(loop_indent_level + 1);
-            return MAKE_STATEMENT(ForInLoop(body, lhs, iterable_expression));
+            return MAKE_STATEMENT(ForInLoop(body, lhs, iterable_expression, is_mutable));
         }
 
         auto statement = parse_expression_statement();
         EXIT_IF_NULLPTR(statement);
 
         Block body = {statement};
-        return MAKE_STATEMENT(ForInLoop(body, lhs, iterable_expression));
+        return MAKE_STATEMENT(ForInLoop(body, lhs, iterable_expression, is_mutable));
     }
 
     Statement_ptr Parser::parse_loop_control_statement(TokenType control_type)

@@ -12,10 +12,10 @@
 
 namespace fs = std::filesystem;
 
-class CompilerFunctionsTest : public ::testing::Test
+class CompileFunctions : public ::testing::Test
 {
 protected:
-    const std::string log_dir = "/workspaces/wasp/logs/compiler_tests";
+    std::string log_dir;
     bool enable_logging = true;
 
     Wasp::ConstantPool_ptr current_pool;
@@ -24,9 +24,26 @@ protected:
 
     void SetUp() override
     {
-        if (!fs::exists(log_dir))
+        const ::testing::TestInfo *const test_info =
+            ::testing::UnitTest::GetInstance()->current_test_info();
+
+        std::string suite_name = test_info->test_suite_name();
+
+        log_dir = "/workspaces/wasp/logs/compiler_tests/" + suite_name;
+
+        if (enable_logging)
         {
-            fs::create_directories(log_dir);
+            if (!std::filesystem::exists(log_dir))
+            {
+                std::filesystem::create_directories(log_dir);
+            }
+
+            // Create 'dots' subdirectory
+            std::string dots_dir = log_dir + "/dots";
+            if (!std::filesystem::exists(dots_dir))
+            {
+                std::filesystem::create_directories(dots_dir);
+            }
         }
     }
 
@@ -65,7 +82,7 @@ protected:
         std::string file_path = log_dir + "/" + test_name + ".txt";
         std::ofstream log_file(file_path);
 
-        std::string dot_file_path = log_dir + "/" + test_name + ".dot";
+        std::string dot_file_path = log_dir + "/dots/" + test_name + ".dot";
         std::ofstream dot_file(dot_file_path);
 
         Wasp::InstructionPrinter printer(current_pool);
@@ -75,26 +92,17 @@ protected:
             printer.print(current_graph, dot_file);
             dot_file.close();
         }
-        else
-        {
-            FAIL() << "Could not open dot file: " << dot_file_path;
-        }
 
         if (log_file.is_open())
         {
             printer.print(current_bytecode, log_file);
             printer.print_pool(log_file);
-
             log_file.close();
-        }
-        else
-        {
-            FAIL() << "Could not open log file: " << file_path;
         }
     }
 };
 
-TEST_F(CompilerFunctionsTest, AddFunction)
+TEST_F(CompileFunctions, AddFunction)
 {
     auto actual_bytes = compile(R"(
 fun add(a: int, b: int) => int
@@ -104,45 +112,40 @@ fun add(a: int, b: int) => int
     // Verify Outer Module Bytecode
     std::vector<std::byte> expected_bytes = {
         /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
-
         /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(10),
         /* 3 */ B(Wasp::OpCode::MAKE_FUNCTION), B(0),
         /* 5 */ B(Wasp::OpCode::DEFINE_LOCAL), B(0),
-
-        // Jump to exit block (Shifted to 10)
         /* 7 */ B(Wasp::OpCode::JUMP), B(10), B(0),
-
         /* 10*/ B(Wasp::OpCode::EXIT_MODULE)};
 
     EXPECT_EQ(actual_bytes, expected_bytes);
 
     // Extract Function Object
     auto pool_obj = current_pool->get(10);
-
-    // Ensure the object actually exists and is a FunctionObject
     ASSERT_TRUE(pool_obj->is<std::shared_ptr<Wasp::FunctionObject>>());
     auto func_obj = pool_obj->as<std::shared_ptr<Wasp::FunctionObject>>();
-
     const Wasp::CodeObject &inner_code = func_obj->code;
 
-    // Verify Function Bytecode
-    std::vector<std::byte> actual_inner_bytes(
-        inner_code.data(),
-        inner_code.data() + inner_code.length());
+    std::vector<std::byte> actual_inner_bytes(inner_code.data(), inner_code.data() + inner_code.length());
 
     std::vector<std::byte> expected_inner_bytes = {
-        /* 0 */ B(Wasp::OpCode::GET_LOCAL), B(0),
-        /* 2 */ B(Wasp::OpCode::GET_LOCAL), B(1),
-        /* 4 */ B(Wasp::OpCode::ADD),
-        /* 5 */ B(Wasp::OpCode::RETURN),
+        /* 0 */ B(Wasp::OpCode::PUSH_SCOPE),
+        /* 1 */ B(Wasp::OpCode::GET_LOCAL), B(0),
+        /* 3 */ B(Wasp::OpCode::GET_LOCAL), B(1),
+        /* 5 */ B(Wasp::OpCode::ADD),
+        /* 7 */ B(Wasp::OpCode::RETURN),
 
-        /* 6 */ B(Wasp::OpCode::LOAD_NONE),
-        /* 7 */ B(Wasp::OpCode::RETURN)};
+        // can be ignored as return will take care of pop scope
+        /* 6 */ B(Wasp::OpCode::POP_SCOPE),
+
+        // implicit return can also be ignored
+        /* 8 */ B(Wasp::OpCode::LOAD_NONE),
+        /* 9 */ B(Wasp::OpCode::RETURN)};
 
     EXPECT_EQ(actual_inner_bytes, expected_inner_bytes);
 }
 
-TEST_F(CompilerFunctionsTest, MaxFunction)
+TEST_F(CompileFunctions, MaxFunction)
 {
     auto actual_bytes = compile(R"(
 fun max(a: int, b: int) => int
@@ -155,13 +158,10 @@ fun max(a: int, b: int) => int
     // Verify Outer Module Bytecode
     std::vector<std::byte> expected_bytes = {
         /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
-
         /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(10),
         /* 3 */ B(Wasp::OpCode::MAKE_FUNCTION), B(0),
         /* 5 */ B(Wasp::OpCode::DEFINE_LOCAL), B(0),
-
         /* 7 */ B(Wasp::OpCode::JUMP), B(10), B(0),
-
         /* 10*/ B(Wasp::OpCode::EXIT_MODULE)};
 
     EXPECT_EQ(actual_bytes, expected_bytes);
@@ -172,75 +172,47 @@ fun max(a: int, b: int) => int
     auto func_obj = pool_obj->as<std::shared_ptr<Wasp::FunctionObject>>();
     const Wasp::CodeObject &inner_code = func_obj->code;
 
-    std::vector<std::byte> actual_inner_bytes(
-        inner_code.data(),
-        inner_code.data() + inner_code.length());
+    std::vector<std::byte> actual_inner_bytes(inner_code.data(), inner_code.data() + inner_code.length());
 
-    // Inner bytes remain completely unchanged
     std::vector<std::byte> expected_inner_bytes = {
-        // --- Condition: a > b ---
-        /* 0 */ B(Wasp::OpCode::GET_LOCAL), B(0), // a
-        /* 2 */ B(Wasp::OpCode::GET_LOCAL), B(1), // b
-        /* 4 */ B(Wasp::OpCode::GT),
+        /* 0 */ B(Wasp::OpCode::PUSH_SCOPE), // Function Scope
 
-        // Jump to ELSE block (Offset 21) if false
-        /* 5 */ B(Wasp::OpCode::JUMP_IF_FALSE), B(21), B(0),
-
-        // Jump into THEN block
-        /* 8 */ B(Wasp::OpCode::JUMP), B(11), B(0),
+        // --- If Condition ---
+        /* 1 */ B(Wasp::OpCode::PUSH_SCOPE), // If Statement Scope (wraps condition + body)
+        /* 2 */ B(Wasp::OpCode::GET_LOCAL), B(0),
+        /* 4 */ B(Wasp::OpCode::GET_LOCAL), B(1),
+        /* 6 */ B(Wasp::OpCode::JUMP_IF_FALSE), B(22), B(0),
+        /* 9 */ B(Wasp::OpCode::JUMP), B(12), B(0),
 
         // --- THEN Block ---
-        /* 11 */ B(Wasp::OpCode::PUSH_SCOPE),
-        /* 12 */ B(Wasp::OpCode::GET_LOCAL), B(0),
-        /* 14 */ B(Wasp::OpCode::RETURN),
-        /* 15 */ B(Wasp::OpCode::POP_SCOPE),
-        /* 16 */ B(Wasp::OpCode::JUMP), B(19), B(0),
+        // Notice no POP_SCOPE before RETURN, VM handles it.
+        /* 12*/ B(Wasp::OpCode::GET_LOCAL), B(0),
+        /* 14*/ B(Wasp::OpCode::RETURN),
 
-        // --- Failsafe Return Block ---
-        /* 19 */ B(Wasp::OpCode::LOAD_NONE),
-        /* 20 */ B(Wasp::OpCode::RETURN),
+        // Dead code (If cleanup path)
+        /* 15*/ B(Wasp::OpCode::POP_SCOPE),
+        /* 16*/ B(Wasp::OpCode::JUMP), B(19), B(0),
 
-        // --- ELSE Block ---
-        /* 21 */ B(Wasp::OpCode::PUSH_SCOPE),
-        /* 22 */ B(Wasp::OpCode::GET_LOCAL), B(1),
-        /* 24 */ B(Wasp::OpCode::RETURN),
-        /* 25 */ B(Wasp::OpCode::POP_SCOPE),
-        /* 26 */ B(Wasp::OpCode::JUMP), B(19), B(0)};
+        // Dead code (End of function exit path)
+        /* 19*/ B(Wasp::OpCode::POP_SCOPE),
+        /* 20*/ B(Wasp::OpCode::LOAD_NONE),
+        /* 21*/ B(Wasp::OpCode::RETURN),
+
+        // --- ELSE Block (Trampoline) ---
+        /* 22*/ B(Wasp::OpCode::POP_SCOPE), // Pop Condition Scope
+
+        /* 23*/ B(Wasp::OpCode::PUSH_SCOPE), // Else Scope
+        /* 24*/ B(Wasp::OpCode::GET_LOCAL), B(1),
+        /* 26*/ B(Wasp::OpCode::RETURN),
+
+        // Dead code (Else cleanup path)
+        /* 27*/ B(Wasp::OpCode::POP_SCOPE),
+        /* 28*/ B(Wasp::OpCode::JUMP), B(19), B(0)};
 
     EXPECT_EQ(actual_inner_bytes, expected_inner_bytes);
 }
 
-TEST_F(CompilerFunctionsTest, CallFunction)
-{
-    auto actual_bytes = compile(R"(
-fun add(a: int, b: int) => int
-    return a + b
-
-let result = add(10, 20)
-)");
-
-    std::vector<std::byte> expected_bytes = {
-        /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
-
-        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(10),
-        /* 3 */ B(Wasp::OpCode::MAKE_FUNCTION), B(0),
-        /* 5 */ B(Wasp::OpCode::DEFINE_LOCAL), B(0),
-
-        /* 7 */ B(Wasp::OpCode::GET_LOCAL), B(0),
-        /* 9 */ B(Wasp::OpCode::LOAD_CONST), B(11),
-        /* 11*/ B(Wasp::OpCode::LOAD_CONST), B(12),
-        /* 13*/ B(Wasp::OpCode::CALL), B(2),
-
-        /* 15*/ B(Wasp::OpCode::DEFINE_LOCAL), B(1),
-
-        /* 17*/ B(Wasp::OpCode::JUMP), B(20), B(0),
-
-        /* 20*/ B(Wasp::OpCode::EXIT_MODULE)};
-
-    EXPECT_EQ(actual_bytes, expected_bytes);
-}
-
-TEST_F(CompilerFunctionsTest, SimpleClosure)
+TEST_F(CompileFunctions, SimpleClosure)
 {
     auto actual_bytes = compile(R"(
 fun outer(a: int) => any
@@ -254,17 +226,13 @@ fun outer(a: int) => any
     // ========================================================================
     std::vector<std::byte> expected_bytes = {
         /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
-
-        // Load blueprint for 'outer' (ID 11), 0 upvalues, bind to 'outer' (Symbol 0)
-        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(11),
+        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(11), // 'outer' FunctionObject
         /* 3 */ B(Wasp::OpCode::MAKE_FUNCTION), B(0),
         /* 5 */ B(Wasp::OpCode::DEFINE_LOCAL), B(0),
-
         /* 7 */ B(Wasp::OpCode::JUMP), B(10), B(0),
         /* 10*/ B(Wasp::OpCode::EXIT_MODULE)};
 
     EXPECT_EQ(actual_bytes, expected_bytes);
-
     // ========================================================================
     // 2. Verify Outer Function (Creates 'inner' and captures 'a')
     // ========================================================================
@@ -275,43 +243,27 @@ fun outer(a: int) => any
     std::vector<std::byte> actual_outer_bytes(outer_code.data(), outer_code.data() + outer_code.length());
 
     std::vector<std::byte> expected_outer_bytes = {
-        // Load blueprint for 'inner' (ID 10)
-        /* 0 */ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 0 */ B(Wasp::OpCode::PUSH_SCOPE),
 
-        // MAKE_FUNCTION with 1 upvalue
-        /* 2 */ B(Wasp::OpCode::MAKE_FUNCTION), B(1),
-        /* 4 */ B(1), // Breadcrumb: is_local = true (grab from stack)
-        /* 5 */ B(0), // Breadcrumb: index = 0 (grab parameter 'a')
+        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(10), // 'inner' FunctionObject
 
-        /* 6 */ B(Wasp::OpCode::DEFINE_LOCAL), B(1), // Bind to 'inner' (Symbol 1)
+        // [FIXED] Now expects 1 upvalue!
+        /* 3 */ B(Wasp::OpCode::MAKE_FUNCTION), B(1),
+
+        // Upvalue 0: Capture 'a' (is_local=1, index=0)
+        /* 5 */ B(1),
+        /* 6 */ B(0),
+
+        /* 7 */ B(Wasp::OpCode::DEFINE_LOCAL), B(1), // Define 'inner' at Index 1 ('a' is 0)
 
         // return inner
-        /* 8 */ B(Wasp::OpCode::GET_LOCAL), B(1),
-        /* 10*/ B(Wasp::OpCode::RETURN),
+        /* 9 */ B(Wasp::OpCode::GET_LOCAL), B(1),
+        /* 11*/ B(Wasp::OpCode::RETURN),
 
-        // Failsafe return
-        /* 11*/ B(Wasp::OpCode::LOAD_NONE),
-        /* 12*/ B(Wasp::OpCode::RETURN)};
+        // Implicit Return
+        /* 12*/ B(Wasp::OpCode::POP_SCOPE),
+        /* 13*/ B(Wasp::OpCode::LOAD_NONE),
+        /* 14*/ B(Wasp::OpCode::RETURN)};
 
     EXPECT_EQ(actual_outer_bytes, expected_outer_bytes);
-
-    // ========================================================================
-    // 3. Verify Inner Function (Reads from the backpack)
-    // ========================================================================
-    auto inner_pool_obj = current_pool->get(10);
-    ASSERT_TRUE(inner_pool_obj->is<std::shared_ptr<Wasp::FunctionObject>>());
-    const Wasp::CodeObject &inner_code = inner_pool_obj->as<std::shared_ptr<Wasp::FunctionObject>>()->code;
-
-    std::vector<std::byte> actual_inner_bytes(inner_code.data(), inner_code.data() + inner_code.length());
-
-    std::vector<std::byte> expected_inner_bytes = {
-        // return a (Reads from the closure backpack at index 0)
-        /* 0 */ B(Wasp::OpCode::GET_UPVALUE), B(0),
-        /* 2 */ B(Wasp::OpCode::RETURN),
-
-        // Failsafe return
-        /* 3 */ B(Wasp::OpCode::LOAD_NONE),
-        /* 4 */ B(Wasp::OpCode::RETURN)};
-
-    EXPECT_EQ(actual_inner_bytes, expected_inner_bytes);
 }

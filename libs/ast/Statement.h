@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Expression.h"
+#include "Resolvable.h"
 #include <memory>
 #include <variant>
 #include <utility>
@@ -30,7 +31,7 @@ namespace Wasp
 
 	// Definitions
 
-	struct Definition
+	struct Definition : public Resolvable
 	{
 	};
 
@@ -127,7 +128,7 @@ namespace Wasp
 			: name(name), members(std::move(members)) {};
 	};
 
-	struct ImplDefinition
+	struct ImplDefinition : public Definition
 	{
 		std::string class_name;
 		std::optional<std::string> trait_name;
@@ -190,15 +191,17 @@ namespace Wasp
 
 	struct ForInLoop : public Loop
 	{
+		bool lhs_is_mutable;
 		Expression_ptr lhs;
 		Expression_ptr iterable_expression;
 
 		ForInLoop() = default;
 
-		ForInLoop(Block body, Expression_ptr lhs, Expression_ptr iterable_expression)
+		ForInLoop(Block body, Expression_ptr lhs, Expression_ptr iterable_expression, bool lhs_is_mutable)
 			: Loop(body),
 			  lhs(std::move(lhs)),
-			  iterable_expression(std::move(iterable_expression)) {};
+			  iterable_expression(std::move(iterable_expression)),
+			  lhs_is_mutable(lhs_is_mutable) {};
 	};
 
 	// Other

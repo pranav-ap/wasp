@@ -1,4 +1,4 @@
-add_library(SemanticAnalyzerLib SemanticAnalyzer.cpp)
+add_library(SemanticAnalyzerLib SemanticAnalyzer.cpp SemanticAnalyzerTypes.cpp)
 
 target_link_libraries(SemanticAnalyzerLib PUBLIC TokenLib ASTLib SymbolLib TypeSystemLib)
 

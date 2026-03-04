@@ -24,50 +24,43 @@ overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
+    // ------------------------------------------------------------------------
+    // Constructors
+    // ------------------------------------------------------------------------
+
     Compiler::Compiler()
         : constant_pool(std::make_shared<ConstantPool>()),
           current_block_id(InvalidBlockId),
-          current_scope(nullptr),
-          next_symbol_id(0),
-          parent(nullptr)
-    {
-    }
-
-    Compiler::Compiler(ConstantPool_ptr pool, SymbolScope_ptr enclosing_scope, Compiler *parent)
-        : constant_pool(std::move(pool)),
-          current_scope(std::make_shared<SymbolScope>(ScopeType::FUNCTION, enclosing_scope)),
-          next_symbol_id(0),
-          parent(parent)
+          parent(nullptr),
+          compiler_depth(0)
     {
         current_block_id = graph.create_block();
         graph.set_entry_block(current_block_id);
     }
 
-    // -----------------------------------------------------------------------
-    // Scoping and Symbol Resolution
-    // -----------------------------------------------------------------------
-
-    void Compiler::enter_scope(ScopeType type, bool emit_opcodes)
+    Compiler::Compiler(ConstantPool_ptr pool, Compiler *parent)
+        : constant_pool(std::move(pool)),
+          parent(parent),
+          compiler_depth(parent->compiler_depth + 1)
     {
-        current_scope = std::make_shared<SymbolScope>(type, current_scope);
-
-        if (emit_opcodes)
-        {
-            emit(OpCode::PUSH_SCOPE);
-        }
+        current_block_id = graph.create_block();
+        graph.set_entry_block(current_block_id);
     }
 
-    void Compiler::leave_scope(bool emit_opcodes)
-    {
-        if (current_scope)
-        {
-            current_scope = current_scope->get_enclosing();
+    // ------------------------------------------------------------------------
+    // Scope
+    // ------------------------------------------------------------------------
 
-            if (emit_opcodes)
-            {
-                emit(OpCode::POP_SCOPE);
-            }
-        }
+    void Compiler::enter_scope()
+    {
+        emit(OpCode::PUSH_SCOPE);
+        current_lexical_scope_depth++;
+    }
+
+    void Compiler::leave_scope()
+    {
+        emit(OpCode::POP_SCOPE);
+        current_lexical_scope_depth--;
     }
 
     // ------------------------------------------------------------------------
@@ -76,7 +69,6 @@ namespace Wasp
 
     int Compiler::add_upvalue(int index, bool is_local)
     {
-        // Don't capture the same variable twice!
         for (int i = 0; i < static_cast<int>(upvalues.size()); i++)
         {
             if (upvalues[i].index == index && upvalues[i].is_local == is_local)
@@ -96,13 +88,11 @@ namespace Wasp
             FATAL("Compiler Error: Reached global scope while resolving upvalue.");
         }
 
-        // Does the variable belong to the immediate parent?
-        if (symbol->depth == current_compiler->parent->current_scope->get_depth())
+        if (symbol->closure_depth == current_compiler->parent->compiler_depth)
         {
             return current_compiler->add_upvalue(symbol->id, true);
         }
 
-        // Otherwise, it belongs to a grandparent. Force the parent to capture it first!
         int upvalue_index_in_parent = resolve_upvalue(current_compiler->parent, symbol);
         return current_compiler->add_upvalue(upvalue_index_in_parent, false);
     }
@@ -111,20 +101,11 @@ namespace Wasp
     // Emit
     // ----------------------------------------------------------------------
 
-    void Compiler::emit(OpCode opcode)
-    {
-        graph.get_block(current_block_id).get_code().emit(opcode);
-    }
+    void Compiler::emit(OpCode opcode) { graph.get_block(current_block_id).get_code().emit(opcode); }
 
-    void Compiler::emit(OpCode opcode, int operand)
-    {
-        graph.get_block(current_block_id).get_code().emit(opcode, operand);
-    }
+    void Compiler::emit(OpCode opcode, int operand) { graph.get_block(current_block_id).get_code().emit(opcode, operand); }
 
-    void Compiler::emit(OpCode opcode, int operand_1, int operand_2)
-    {
-        graph.get_block(current_block_id).get_code().emit(opcode, operand_1, operand_2);
-    }
+    void Compiler::emit(OpCode opcode, int operand_1, int operand_2) { graph.get_block(current_block_id).get_code().emit(opcode, operand_1, operand_2); }
 
     void Compiler::emit_raw_byte(std::byte b)
     {
@@ -139,42 +120,34 @@ namespace Wasp
     void Compiler::visit(std::vector<Statement_ptr> &statements)
     {
         for (const auto &stmt : statements)
-        {
             visit(stmt);
-        }
     }
 
     void Compiler::visit(const Statement_ptr statement)
     {
         NULL_CHECK(statement);
-
         std::visit(overloaded{[&](ExpressionStatement &stat)
                               { visit(stat); },
-                              [&](VariableDefinition &var_def)
-                              { visit(var_def); },
-
-                              [&](IfBranch &if_branch)
-                              { visit(if_branch); },
-                              [&](ElseBranch &else_branch)
-                              { visit(else_branch); },
-
-                              [&](SimpleLoop &loop_stmt)
-                              { visit(loop_stmt); },
-                              [&](ForInLoop &for_in_stmt)
-                              { visit(for_in_stmt); },
-
-                              [&](Pass &pass_stmt)
-                              { visit(pass_stmt); },
-                              [&](LoopControl &break_stmt)
-                              { visit(break_stmt); },
-
-                              [&](FunctionDefinition &func_def)
-                              { visit(func_def); },
-                              [&](Return &return_stmt)
-                              { visit(return_stmt); },
-
+                              [&](VariableDefinition &stat)
+                              { visit(stat); },
+                              [&](IfBranch &stat)
+                              { visit(stat); },
+                              [&](ElseBranch &stat)
+                              { visit(stat); },
+                              [&](SimpleLoop &stat)
+                              { visit(stat); },
+                              [&](ForInLoop &stat)
+                              { visit(stat); },
+                              [&](Pass &stat)
+                              { visit(stat); },
+                              [&](LoopControl &stat)
+                              { visit(stat); },
+                              [&](FunctionDefinition &stat)
+                              { visit(stat); },
+                              [&](Return &stat)
+                              { visit(stat); },
                               [](auto)
-                              { FATAL("Never Seen this Statement before!"); }},
+                              { FATAL("Unknown Statement"); }},
                    statement->data);
     }
 
@@ -184,59 +157,157 @@ namespace Wasp
         emit(OpCode::POP);
     }
 
-    // ------------------------------------------------------------------------
+    // -----------------------------------------------------------------------
     // Variable Definition
     // -----------------------------------------------------------------------
 
     void Compiler::visit(VariableDefinition &statement)
     {
-        compile_variable_definition(statement.expression, statement.is_mutable);
+        compile_variable_definition(statement.expression, false);
     }
 
     void Compiler::visit(VariableDefinitionExpression &expr)
     {
-        compile_variable_definition(expr.assignment, expr.is_mutable, true);
+        compile_variable_definition(expr.assignment, true);
     }
 
-    //-----------------------------------------------------------------------
+    void Compiler::compile_variable_definition(const Expression_ptr &assignment, bool as_expression)
+    {
+        NULL_CHECK(assignment);
+
+        Expression_ptr lhs = nullptr;
+        Expression_ptr rhs = nullptr;
+
+        if (assignment->is<UntypedAssignment>())
+        {
+            const auto &assign = assignment->as<UntypedAssignment>();
+            lhs = assign.lhs_expression;
+            rhs = assign.rhs_expression;
+        }
+        else if (assignment->is<TypedAssignment>())
+        {
+            const auto &assign = assignment->as<TypedAssignment>();
+            lhs = assign.lhs_expression;
+            rhs = assign.rhs_expression;
+        }
+        else
+        {
+            FATAL("Invalid definition assignment type.");
+        }
+
+        visit(rhs);
+
+        if (as_expression)
+        {
+            emit(OpCode::DUP);
+        }
+
+        if (!lhs->is<Identifier>())
+        {
+            FATAL("Left-hand side of definition must be an Identifier.");
+        }
+
+        auto symbol = lhs->as<Identifier>().resolution;
+
+        if (!symbol)
+        {
+            FATAL("Compiler Error: Unresolved definition");
+        }
+
+        debug_name_map[symbol->id] = symbol->name;
+
+        emit(OpCode::DEFINE_LOCAL, symbol->id);
+    }
+
+    // -----------------------------------------------------------------------
     // Control Flow
-    //-----------------------------------------------------------------------
+    // -----------------------------------------------------------------------
+
+    void Compiler::visit(IfTernaryBranch &expr)
+    {
+        enter_scope();
+        visit(expr.test);
+
+        BlockId true_block = graph.create_block();
+        BlockId false_block = graph.create_block();
+        BlockId end_block = graph.create_block();
+
+        graph.add_edge(current_block_id, true_block);
+        graph.add_edge(current_block_id, false_block);
+
+        emit(OpCode::JUMP_IF_FALSE, static_cast<int>(false_block));
+        emit(OpCode::JUMP, static_cast<int>(true_block));
+
+        // --- True Branch ---
+        set_current_block(true_block);
+        visit(expr.true_expression);
+        leave_scope();
+
+        emit(OpCode::JUMP, static_cast<int>(end_block));
+        graph.add_edge(true_block, end_block);
+
+        // --- False Branch ---
+        set_current_block(false_block);
+        leave_scope();
+
+        if (expr.alternative)
+        {
+            visit(expr.alternative);
+        }
+        else
+        {
+            emit(OpCode::LOAD_NONE);
+        }
+
+        emit(OpCode::JUMP, static_cast<int>(end_block));
+        graph.add_edge(false_block, end_block);
+
+        // --- Converge ---
+        set_current_block(end_block);
+    }
+
+    void Compiler::visit(ElseTernaryBranch &expr)
+    {
+        enter_scope();
+        visit(expr.expression);
+        leave_scope();
+    }
 
     void Compiler::visit(IfBranch &statement)
     {
+        enter_scope();
+
         visit(statement.test);
 
         bool has_alternative = statement.alternative.has_value();
 
-        BlockId true_block_id = graph.create_block();
-        BlockId end_block_id = graph.create_block();
-        BlockId false_block_id = has_alternative ? graph.create_block() : end_block_id;
+        BlockId true_block = graph.create_block();
+        BlockId end_block = graph.create_block();
+        BlockId false_block = has_alternative ? graph.create_block() : end_block;
 
-        graph.add_edge(current_block_id, true_block_id);
-        graph.add_edge(current_block_id, false_block_id);
-        graph.add_edge(current_block_id, end_block_id);
+        // If no alternative, we need a separate block just to POP the condition scope before ending.
+        BlockId cleanup_block = has_alternative ? false_block : graph.create_block();
 
-        emit(OpCode::JUMP_IF_FALSE, static_cast<int>(false_block_id));
-        emit(OpCode::JUMP, static_cast<int>(true_block_id));
+        graph.add_edge(current_block_id, true_block);
+        graph.add_edge(current_block_id, cleanup_block);
 
-        // ========================================================================
-        // Compile the True Branch
-        // ========================================================================
-        set_current_block(true_block_id);
-        enter_scope(ScopeType::BRANCH, true);
+        emit(OpCode::JUMP_IF_FALSE, static_cast<int>(cleanup_block));
+        emit(OpCode::JUMP, static_cast<int>(true_block));
+
+        // --- True Branch ---
+        set_current_block(true_block);
         visit(statement.body);
-        leave_scope(true);
+        leave_scope();
 
-        emit(OpCode::JUMP, static_cast<int>(end_block_id));
-        graph.add_edge(current_block_id, end_block_id);
+        emit(OpCode::JUMP, static_cast<int>(end_block));
+        graph.add_edge(true_block, end_block);
 
-        // ========================================================================
-        // Compile the False Branch (Elif or Else)
-        // ========================================================================
+        // --- False Branch / Exit Trampoline ---
+        set_current_block(cleanup_block);
+        leave_scope();
+
         if (has_alternative)
         {
-            set_current_block(false_block_id);
-
             auto &alt_variant = statement.alternative.value()->data;
 
             if (std::holds_alternative<IfBranch>(alt_variant))
@@ -248,36 +319,98 @@ namespace Wasp
                 visit(std::get<ElseBranch>(alt_variant));
             }
 
-            // Once the alternative finishes, jump to the end block
-            emit(OpCode::JUMP, static_cast<int>(end_block_id));
-            graph.add_edge(current_block_id, end_block_id);
+            emit(OpCode::JUMP, static_cast<int>(end_block));
+            graph.add_edge(cleanup_block, end_block);
+        }
+        else
+        {
+            emit(OpCode::JUMP, static_cast<int>(end_block));
+            graph.add_edge(cleanup_block, end_block);
         }
 
-        set_current_block(end_block_id);
+        set_current_block(end_block);
     }
 
     void Compiler::visit(ElseBranch &statement)
     {
-        enter_scope(ScopeType::BRANCH, true);
+        enter_scope();
         visit(statement.body);
-        leave_scope(true);
+        leave_scope();
+    }
+
+    // ============================================================================
+    // Control Flow: Loops
+    // ============================================================================
+
+    void Compiler::visit(ForInLoop &statement)
+    {
+        visit(statement.iterable_expression);
+
+        BlockId header = graph.create_block();
+        BlockId body = graph.create_block();
+        BlockId end = graph.create_block();
+
+        emit(OpCode::JUMP, static_cast<int>(header));
+        graph.add_edge(current_block_id, header);
+
+        // --- Header ---
+        set_current_block(header);
+
+        emit(OpCode::LOOP_ITER, static_cast<int>(end));
+        emit(OpCode::JUMP, static_cast<int>(body));
+
+        graph.add_edge(header, body);
+        graph.add_edge(header, end);
+
+        loop_tracking_stack.emplace_back(header, body, end, current_lexical_scope_depth, current_lexical_scope_depth);
+
+        // --- Body ---
+        set_current_block(body);
+        enter_scope();
+
+        if (statement.lhs->is<Identifier>())
+        {
+            auto symbol = statement.lhs->as<Identifier>().resolution;
+            if (symbol)
+            {
+                debug_name_map[symbol->id] = symbol->name;
+                emit(OpCode::DEFINE_LOCAL, symbol->id);
+            }
+        }
+        else
+        {
+            FATAL("For-in loop LHS must be a simple Identifier.");
+        }
+
+        visit(statement.body);
+        leave_scope();
+
+        // Loop Back
+        emit(OpCode::JUMP, static_cast<int>(header));
+        graph.add_edge(body, header);
+
+        // End
+        loop_tracking_stack.pop_back();
+        set_current_block(end);
+        // Clean up the iterator object
+        emit(OpCode::POP);
     }
 
     void Compiler::visit(SimpleLoop &statement)
     {
-        BlockId header_block_id = graph.create_block();
-        BlockId body_block_id = graph.create_block();
-        BlockId end_block_id = graph.create_block();
+        BlockId header = graph.create_block();
+        BlockId body = graph.create_block();
+        BlockId cleanup_block = graph.create_block();
+        BlockId end = graph.create_block();
 
-        emit(OpCode::JUMP, static_cast<int>(header_block_id));
-        graph.add_edge(current_block_id, header_block_id);
+        emit(OpCode::JUMP, static_cast<int>(header));
 
-        loop_tracking_stack.push_back({header_block_id, body_block_id, end_block_id});
+        graph.add_edge(current_block_id, header);
+        loop_tracking_stack.emplace_back(header, body, end, current_lexical_scope_depth, current_lexical_scope_depth + 1);
 
-        // ========================================================================
-        // Compile the Header
-        // ========================================================================
-        set_current_block(header_block_id);
+        // --- Header ---
+        set_current_block(header);
+        enter_scope();
         visit(statement.condition);
 
         if (statement.style == TokenType::UNTIL || statement.style == TokenType::UNLESS)
@@ -285,158 +418,81 @@ namespace Wasp
             emit(OpCode::NOT);
         }
 
-        graph.add_edge(header_block_id, body_block_id);
-        graph.add_edge(header_block_id, end_block_id);
+        graph.add_edge(header, body);
+        graph.add_edge(header, cleanup_block);
+        emit(OpCode::JUMP_IF_FALSE, static_cast<int>(cleanup_block));
+        emit(OpCode::JUMP, static_cast<int>(body));
 
-        // If condition is false, jump to the end. Otherwise, jump into the body.
-        emit(OpCode::JUMP_IF_FALSE, static_cast<int>(end_block_id));
-        emit(OpCode::JUMP, static_cast<int>(body_block_id));
-
-        // ========================================================================
-        // Compile the Body
-        // ========================================================================
-        set_current_block(body_block_id);
-        enter_scope(ScopeType::LOOP, true);
+        // --- Body ---
+        set_current_block(body);
+        enter_scope();
         visit(statement.body);
-        leave_scope(true);
+        leave_scope();
 
-        emit(OpCode::JUMP, static_cast<int>(header_block_id));
-        graph.add_edge(current_block_id, header_block_id);
+        // Next Iteration
+        leave_scope();
+        emit(OpCode::JUMP, static_cast<int>(header));
+        graph.add_edge(body, header);
+
+        // Cleanup
+        set_current_block(cleanup_block);
+        emit(OpCode::POP_SCOPE);
+
+        emit(OpCode::JUMP, static_cast<int>(end));
+        graph.add_edge(cleanup_block, end);
 
         loop_tracking_stack.pop_back();
-
-        set_current_block(end_block_id);
-    }
-
-    void Compiler::visit(ForInLoop &statement)
-    {
-        // Place IteratorObject on TOS
-        visit(statement.iterable_expression);
-
-        BlockId header_block_id = graph.create_block();
-        BlockId body_block_id = graph.create_block();
-        BlockId end_block_id = graph.create_block();
-
-        emit(OpCode::JUMP, static_cast<int>(header_block_id));
-        graph.add_edge(current_block_id, header_block_id);
-
-        // ========================================================================
-        // Compile the Header
-        // ========================================================================
-        set_current_block(header_block_id);
-
-        // LOOP_ITER checks the iterator on the stack.
-        // If it's exhausted, it jumps to end_block_id.
-        // If it has a next item, it pushes that item onto the stack and falls through.
-        emit(OpCode::LOOP_ITER, static_cast<int>(end_block_id));
-        emit(OpCode::JUMP, static_cast<int>(body_block_id));
-
-        graph.add_edge(header_block_id, body_block_id);
-        graph.add_edge(header_block_id, end_block_id);
-
-        loop_tracking_stack.push_back({header_block_id, body_block_id, end_block_id});
-
-        // ========================================================================
-        // Compile the Body
-        // ========================================================================
-        set_current_block(body_block_id);
-        enter_scope(ScopeType::LOOP, true);
-
-        if (statement.lhs->is<Identifier>())
-        {
-            std::string var_name = statement.lhs->as<Identifier>().name;
-
-            int symbol_id = next_symbol_id++;
-            auto symbol = std::make_shared<Symbol>(
-                symbol_id,
-                var_name,
-                nullptr,
-                false,
-                true,
-                current_scope->get_depth());
-
-            current_scope->define(var_name, symbol);
-            debug_name_map[symbol_id] = var_name;
-            emit(OpCode::DEFINE_LOCAL, symbol_id);
-        }
-        else
-        {
-            FATAL("Compiler Error: For-in loop LHS must be a simple Identifier.");
-        }
-
-        visit(statement.body);
-
-        leave_scope(true);
-
-        emit(OpCode::JUMP, static_cast<int>(header_block_id));
-        graph.add_edge(current_block_id, header_block_id);
-
-        loop_tracking_stack.pop_back();
-
-        // ========================================================================
-        // Exit the loop
-        // ========================================================================
-        set_current_block(end_block_id);
-        // Pop the IterableObject
-        emit(OpCode::POP);
+        set_current_block(end);
     }
 
     void Compiler::visit(LoopControl &statement)
     {
-        if (!statement.label.empty())
-        {
-            FATAL("Compiler Error: Labeled break, continue, and redo statements are not supported yet.");
-        }
-
         if (loop_tracking_stack.empty())
         {
-            FATAL("Compiler Error: Loop control statement not within a loop.");
+            FATAL("Loop control outside loop");
         }
 
-        int scopes_to_pop = 0;
-        SymbolScope_ptr temp_scope = current_scope;
+        auto [header, body, end, entry_depth, body_depth] = loop_tracking_stack.back();
 
-        while (temp_scope && temp_scope->get_type() != ScopeType::LOOP)
+        int target_depth;
+
+        if (statement.type == TokenType::REDO)
         {
-            scopes_to_pop++;
-            temp_scope = temp_scope->get_enclosing();
+            // Unwind to the exact state before the body block's internal scope is pushed
+            target_depth = body_depth;
+        }
+        else
+        {
+            // Break and Continue unwind completely to the loop's entry state
+            target_depth = entry_depth;
         }
 
-        scopes_to_pop++;
+        int scopes_to_pop = current_lexical_scope_depth - target_depth;
+        ASSERT(scopes_to_pop >= 0, "Compiler Error: Current lexical scope depth is less than loop entry depth!");
 
-        for (int i = 0; i < scopes_to_pop; i++)
+        for (int i = 0; i < scopes_to_pop; ++i)
         {
             emit(OpCode::POP_SCOPE);
         }
 
-        auto [header_id, body_id, end_id] = loop_tracking_stack.back();
-
         if (statement.type == TokenType::BREAK)
         {
-            emit(OpCode::JUMP, static_cast<int>(end_id));
-            graph.add_edge(current_block_id, end_id);
+            emit(OpCode::JUMP, static_cast<int>(end));
+            graph.add_edge(current_block_id, end);
         }
         else if (statement.type == TokenType::CONTINUE)
         {
-            emit(OpCode::JUMP, static_cast<int>(header_id));
-            graph.add_edge(current_block_id, header_id);
+            emit(OpCode::JUMP, static_cast<int>(header));
+            graph.add_edge(current_block_id, header);
         }
         else if (statement.type == TokenType::REDO)
         {
-            // Redo skips the header and jumps straight back to the body
-            emit(OpCode::JUMP, static_cast<int>(body_id));
-            graph.add_edge(current_block_id, body_id);
-        }
-        else
-        {
-            FATAL("Compiler Error: Unknown LoopControl statement type.");
+            emit(OpCode::JUMP, static_cast<int>(body));
+            graph.add_edge(current_block_id, body);
         }
     }
 
-    void Compiler::visit(Pass &statement)
-    {
-        // do nothing
-    }
+    void Compiler::visit(Pass &statement) {}
 
     // -----------------------------------------------------------------------
     // Function Definition
@@ -444,22 +500,11 @@ namespace Wasp
 
     void Compiler::visit(FunctionDefinition &statement)
     {
-        Compiler func_compiler(constant_pool, current_scope, this);
+        Compiler func_compiler(constant_pool, this);
 
-        // Define parameters as local variables
-        for (const auto &[param_name, param_type] : statement.parameters)
-        {
-            int symbol_id = func_compiler.next_symbol_id++;
-
-            auto symbol = std::make_shared<Symbol>(
-                symbol_id, param_name, nullptr, false, true,
-                func_compiler.current_scope->get_depth());
-
-            func_compiler.current_scope->define(param_name, symbol);
-            func_compiler.debug_name_map[symbol_id] = param_name;
-        }
-
+        func_compiler.enter_scope();
         func_compiler.visit(statement.body);
+        func_compiler.leave_scope();
 
         func_compiler.emit(OpCode::LOAD_NONE);
         func_compiler.emit(OpCode::RETURN);
@@ -469,11 +514,6 @@ namespace Wasp
         func_code.local_names = std::move(func_compiler.debug_name_map);
 
         int const_id = constant_pool->allocate_function_definition(std::move(func_code));
-
-        // ========================================================================
-        // Back to the Main Compiler
-        // ========================================================================
-
         emit(OpCode::LOAD_CONST, const_id);
 
         int upvalue_count = static_cast<int>(func_compiler.upvalues.size());
@@ -485,95 +525,26 @@ namespace Wasp
             emit_raw_byte(static_cast<std::byte>(uv.index));
         }
 
-        int symbol_id = next_symbol_id++;
-
-        auto symbol = std::make_shared<Symbol>(
-            symbol_id, statement.name, nullptr, false, true,
-            current_scope->get_depth());
-
-        current_scope->define(statement.name, symbol);
-        debug_name_map[symbol_id] = statement.name;
-
-        emit(OpCode::DEFINE_LOCAL, symbol_id);
+        if (statement.resolution)
+        {
+            debug_name_map[statement.resolution->id] = statement.name;
+            emit(OpCode::DEFINE_LOCAL, statement.resolution->id);
+        }
     }
 
     void Compiler::visit(Return &statement)
     {
         if (statement.expression.has_value())
-        {
             visit(statement.expression.value());
-        }
         else
-        {
             emit(OpCode::LOAD_NONE);
-        }
 
         emit(OpCode::RETURN);
     }
 
-    // ========================================================================
-    // Expression Visitors
-    // ========================================================================
-
-    void Compiler::visit(const Expression_ptr expr)
-    {
-        NULL_CHECK(expr);
-
-        std::visit(overloaded{[&](std::monostate) { /* Do nothing */ },
-
-                              [&](int val)
-                              { visit(val); },
-                              [&](double val)
-                              { visit(val); },
-                              [&](std::string val)
-                              { visit(val); },
-                              [&](bool val)
-                              { visit(val); },
-
-                              [&](Identifier &id)
-                              { visit(id); },
-                              [&](DotLiteral &dot)
-                              { visit(dot); },
-
-                              [&](Prefix &prefix)
-                              { visit(prefix); },
-                              [&](Infix &infix)
-                              { visit(infix); },
-                              [&](Postfix &postfix)
-                              { visit(postfix); },
-
-                              [&](ListLiteral &list)
-                              { visit(list); },
-                              [&](TupleLiteral &tuple)
-                              { visit(tuple); },
-                              [&](MapLiteral &map)
-                              { visit(map); },
-                              [&](SetLiteral &set)
-                              { visit(set); },
-                              [&](RangeLiteral &range)
-                              { visit(range); },
-
-                              [&](VariableDefinitionExpression &var_def)
-                              { visit(var_def); },
-                              [&](UntypedAssignment &untyped_assign)
-                              { visit(untyped_assign); },
-                              [&](TypedAssignment &typed_assign)
-                              { visit(typed_assign); },
-                              [&](TypePattern &type_pattern)
-                              { visit(type_pattern); },
-
-                              [&](IfTernaryBranch &if_branch)
-                              { visit(if_branch); },
-                              [&](ElseTernaryBranch &else_branch)
-                              { visit(else_branch); },
-
-                              [&](Call &call)
-                              { visit(call); },
-
-                              [&](auto &)
-                              { FATAL("Unhandled Expression type in variant dispatch!"); }},
-                   expr->data);
-    }
+    // -----------------------------------------------------------------------
+    // Expressions
+    // -----------------------------------------------------------------------
 
     void Compiler::visit(std::vector<Expression_ptr> &expressions)
     {
@@ -583,83 +554,123 @@ namespace Wasp
         }
     }
 
-    // -----------------------------------------------------------------------
-    // Primitives
-    // -----------------------------------------------------------------------
-
-    void Compiler::visit(int expr)
+    void Compiler::visit(const Expression_ptr expr)
     {
-        int id = constant_pool->allocate(expr);
-        emit(OpCode::LOAD_CONST, id);
+        NULL_CHECK(expr);
+        std::visit(overloaded{[&](int val)
+                              { visit(val); },
+                              [&](double val)
+                              { visit(val); },
+                              [&](std::string val)
+                              { visit(val); },
+                              [&](bool val)
+                              { visit(val); },
+                              [&](Identifier &id)
+                              { visit(id); },
+                              [&](UntypedAssignment &a)
+                              { visit(a); },
+                              [&](TypedAssignment &a)
+                              { visit(a); },
+                              [&](Prefix &p)
+                              { visit(p); },
+                              [&](Infix &i)
+                              { visit(i); },
+                              [&](Call &c)
+                              { visit(c); },
+                              [&](ListLiteral &l)
+                              { visit(l); },
+                              [&](TupleLiteral &t)
+                              { visit(t); },
+                              [&](MapLiteral &m)
+                              { visit(m); },
+                              [&](SetLiteral &s)
+                              { visit(s); },
+                              [&](RangeLiteral &r)
+                              { visit(r); },
+                              [&](VariableDefinitionExpression &v)
+                              { visit(v); },
+                              [&](IfTernaryBranch &i)
+                              { visit(i); },
+                              [&](ElseTernaryBranch &e)
+                              { visit(e); },
+                              [&](auto &) { /* Fallback */ }},
+                   expr->data);
     }
 
-    void Compiler::visit(double expr)
-    {
-        int id = constant_pool->allocate(expr);
-        emit(OpCode::LOAD_CONST, id);
-    }
+    void Compiler::visit(int expr) { emit(OpCode::LOAD_CONST, constant_pool->allocate(expr)); }
 
-    void Compiler::visit(std::string expr)
-    {
-        int id = constant_pool->allocate(expr);
-        emit(OpCode::LOAD_CONST, id);
-    }
+    void Compiler::visit(double expr) { emit(OpCode::LOAD_CONST, constant_pool->allocate(expr)); }
 
-    void Compiler::visit(bool expr)
-    {
-        if (expr)
-        {
-            emit(OpCode::LOAD_TRUE);
-        }
-        else
-        {
-            emit(OpCode::LOAD_FALSE);
-        }
-    }
+    void Compiler::visit(std::string expr) { emit(OpCode::LOAD_CONST, constant_pool->allocate(expr)); }
+
+    void Compiler::visit(bool expr) { emit(expr ? OpCode::LOAD_TRUE : OpCode::LOAD_FALSE); }
 
     void Compiler::visit(Identifier &expr)
     {
-        auto symbol = current_scope->lookup(expr.name);
-        ASSERT(symbol != nullptr, ("Undefined variable: " + expr.name).c_str());
+        auto symbol = expr.resolution;
 
-        int current_depth = current_scope->get_depth();
-
-        /*
-        A running function only needs to look in three places:
-
-        GET_LOCAL: Is the variable on my current stack?
-        GET_UPVALUE: Is the variable in my immediate backpack?
-        GET_GLOBAL: Is the variable in the global module?
-        */
-
-        // CASE 1: True Local (Same function scope)
-        if (symbol->depth == current_depth)
+        if (!symbol)
         {
-            emit(OpCode::GET_LOCAL, symbol->id);
+            FATAL("Unresolved identifier");
         }
-        // CASE 2: Closure Capture (Outer function scope)
-        else if (symbol->depth > 0 && symbol->depth < current_depth)
-        {
-            int upvalue_index = resolve_upvalue(this, symbol);
-            emit(OpCode::GET_UPVALUE, upvalue_index);
-        }
-        // CASE 3: Global/Module Scope
-        else
+
+        if (symbol->lexical_depth == 0)
         {
             emit(OpCode::GET_GLOBAL, symbol->id);
         }
+        else if (symbol->is_captured)
+        {
+            int upval_index = resolve_upvalue(this, symbol);
+            emit(OpCode::GET_UPVALUE, upval_index);
+        }
+        else
+        {
+            emit(OpCode::GET_LOCAL, symbol->id);
+        }
+    }
+
+    void Compiler::compile_assignment(const Expression_ptr &lhs, const Expression_ptr &rhs)
+    {
+        visit(rhs);
+
+        if (!lhs->is<Identifier>())
+            FATAL("Only ID assignment supported");
+
+        auto symbol = lhs->as<Identifier>().resolution;
+        if (!symbol)
+            FATAL("Unresolved assignment");
+
+        if (symbol->is_captured)
+        {
+            int idx = resolve_upvalue(this, symbol);
+            emit(OpCode::SET_UPVALUE, idx);
+        }
+        else if (symbol->closure_depth == 0)
+        {
+            emit(OpCode::SET_GLOBAL, symbol->id);
+        }
+        else
+        {
+            emit(OpCode::SET_LOCAL, symbol->id);
+        }
+    }
+
+    void Compiler::visit(UntypedAssignment &expr)
+    {
+        compile_assignment(expr.lhs_expression, expr.rhs_expression);
+    }
+
+    void Compiler::visit(TypedAssignment &expr)
+    {
+        // do nothing
     }
 
     void Compiler::visit(Prefix &expr)
     {
         visit(expr.operand);
 
-        // emit appropriate opcode based on expr.op
         switch (expr.op.type)
         {
-        case TokenType::PLUS:
-            // do nothing
-            break;
         case TokenType::MINUS:
             emit(OpCode::NEGATE);
             break;
@@ -667,7 +678,7 @@ namespace Wasp
             emit(OpCode::NOT);
             break;
         default:
-            FATAL("Unsupported prefix operator: " + expr.op.value);
+            break;
         }
     }
 
@@ -690,292 +701,89 @@ namespace Wasp
         case TokenType::DIVISION:
             emit(OpCode::DIV);
             break;
-        case TokenType::REMINDER:
-            emit(OpCode::MOD);
-            break;
         case TokenType::EQUAL_EQUAL:
             emit(OpCode::EQ);
             break;
-        case TokenType::BANG_EQUAL:
-            emit(OpCode::NE);
-            break;
-        case TokenType::LESSER_THAN:
-            emit(OpCode::LT);
-            break;
-        case TokenType::LESSER_THAN_EQUAL:
-            emit(OpCode::LE);
-            break;
-        case TokenType::GREATER_THAN:
-            emit(OpCode::GT);
-            break;
-        case TokenType::GREATER_THAN_EQUAL:
-            emit(OpCode::GE);
-            break;
-        case TokenType::AND:
-            emit(OpCode::LOGICAL_AND);
-            break;
-        case TokenType::OR:
-            emit(OpCode::LOGICAL_OR);
-            break;
         default:
-            FATAL("Unsupported infix operator: " + expr.op.value);
+            break;
         }
     }
 
-    void Compiler::visit(Postfix &expr)
+    void Compiler::visit(Call &expr)
     {
-        // no prefix ops available
+        visit(expr.callee);
+        for (const auto &arg : expr.arguments)
+            visit(arg);
+
+        emit(OpCode::CALL, (int)expr.arguments.size());
     }
 
     void Compiler::visit(ListLiteral &expr)
     {
         visit(expr.expressions);
-        emit(OpCode::BUILD_LIST, static_cast<int>(expr.expressions.size()));
+        emit(OpCode::BUILD_LIST, (int)expr.expressions.size());
     }
 
     void Compiler::visit(TupleLiteral &expr)
     {
         visit(expr.expressions);
-        emit(OpCode::BUILD_TUPLE, static_cast<int>(expr.expressions.size()));
-    }
-
-    void Compiler::visit(MapLiteral &expr)
-    {
-        for (const auto &[key, value] : expr.pairs)
-        {
-            visit(key);
-            visit(value);
-        }
-
-        emit(OpCode::BUILD_MAP, static_cast<int>(expr.pairs.size()));
+        emit(OpCode::BUILD_TUPLE, (int)expr.expressions.size());
     }
 
     void Compiler::visit(SetLiteral &expr)
     {
         visit(expr.expressions);
-        emit(OpCode::BUILD_SET, static_cast<int>(expr.expressions.size()));
+        emit(OpCode::BUILD_SET, (int)expr.expressions.size());
+    }
+
+    void Compiler::visit(MapLiteral &expr)
+    {
+        for (auto &[k, v] : expr.pairs)
+        {
+            visit(k);
+            visit(v);
+        }
+
+        emit(OpCode::BUILD_MAP, (int)expr.pairs.size());
     }
 
     void Compiler::visit(RangeLiteral &expr)
     {
         if (expr.start)
-        {
             visit(expr.start);
-        }
         else
-        {
             emit(OpCode::LOAD_NONE);
-        }
-
         if (expr.end)
-        {
             visit(expr.end);
-        }
         else
-        {
             emit(OpCode::LOAD_NONE);
-        }
-
         if (expr.step)
-        {
             visit(expr.step);
-        }
         else
-        {
             emit(OpCode::LOAD_NONE);
-        }
 
         emit(OpCode::BUILD_RANGE, expr.is_inclusive ? 1 : 0);
     }
 
-    void Compiler::visit(UntypedAssignment &expr)
-    {
-        compile_assignment(expr.lhs_expression, expr.rhs_expression);
-    }
-
-    void Compiler::visit(TypedAssignment &expr)
-    {
-        compile_assignment(expr.lhs_expression, expr.rhs_expression);
-    }
-
-    void Compiler::visit(TypePattern &expr)
-    {
-        // nothing to do
-    }
-
-    void Compiler::visit(IfTernaryBranch &expr)
-    {
-        // Evaluate condition into current block
-        visit(expr.test);
-
-        // Provision blocks for the branch
-
-        BlockId true_block_id = graph.create_block();
-        BlockId false_block_id = expr.alternative ? graph.create_block() : InvalidBlockId;
-        BlockId end_block_id = graph.create_block();
-
-        if (!expr.alternative)
-        {
-            false_block_id = end_block_id;
-        }
-
-        // Track logical edges in your CFG
-        graph.add_edge(current_block_id, true_block_id);
-        graph.add_edge(current_block_id, false_block_id);
-
-        emit(OpCode::JUMP_IF_FALSE, static_cast<int>(false_block_id));
-
-        // Compile the true branch
-        set_current_block(true_block_id);
-        visit(expr.true_expression);
-        emit(OpCode::JUMP, static_cast<int>(end_block_id));
-        graph.add_edge(true_block_id, end_block_id);
-
-        // Compile the false (alternative) branch
-        set_current_block(false_block_id);
-        visit(expr.alternative);
-        emit(OpCode::JUMP, static_cast<int>(end_block_id));
-        graph.add_edge(false_block_id, end_block_id);
-
-        set_current_block(end_block_id);
-    }
-
-    void Compiler::visit(ElseTernaryBranch &expr)
-    {
-        visit(expr.expression);
-    }
-
-    void Compiler::visit(Call &expr)
-    {
-        // Push the Function Object onto the stack
-        visit(expr.callee);
-
-        //  Push the Arguments onto the stack (Left to Right)
-        for (const auto &arg : expr.arguments)
-        {
-            visit(arg);
-        }
-
-        int arg_count = static_cast<int>(expr.arguments.size());
-        emit(OpCode::CALL, arg_count);
-    }
-
     void Compiler::visit(DotLiteral &expr) {}
 
+    void Compiler::visit(TypePattern &expr) {}
+
+    void Compiler::visit(Postfix &expr) {}
+
     // -----------------------------------------------------------------------
-    // UTILS
+    // Utils & Run
     // -----------------------------------------------------------------------
-
-    void Compiler::set_current_block(BlockId block_id)
-    {
-        current_block_id = block_id;
-    }
-
-    void Compiler::compile_variable_definition(const Expression_ptr &assignment, bool is_mutable, bool as_expression)
-    {
-        NULL_CHECK(assignment);
-
-        std::string var_name;
-        Expression_ptr rhs_expr = nullptr;
-
-        if (assignment->is<UntypedAssignment>())
-        {
-            const auto &assign = assignment->as<UntypedAssignment>();
-            if (assign.lhs_expression->is<Identifier>())
-            {
-                var_name = assign.lhs_expression->as<Identifier>().name;
-                rhs_expr = assign.rhs_expression;
-            }
-            else
-            {
-                FATAL("Left-hand side of definition must be an Identifier.");
-            }
-        }
-        else if (assignment->is<TypedAssignment>())
-        {
-            const auto &assign = assignment->as<TypedAssignment>();
-            if (assign.lhs_expression->is<Identifier>())
-            {
-                var_name = assign.lhs_expression->as<Identifier>().name;
-                rhs_expr = assign.rhs_expression;
-            }
-            else
-            {
-                FATAL("Left-hand side of definition must be an Identifier.");
-            }
-        }
-        else
-        {
-            FATAL("Definition assignment must be an UntypedAssignment or TypedAssignment.");
-        }
-
-        // Visit RHS & push result onto stack
-
-        visit(rhs_expr);
-
-        if (as_expression)
-        {
-            emit(OpCode::DUP);
-        }
-
-        // Register symbol in the current lexical scope
-
-        int symbol_id = next_symbol_id++;
-
-        auto symbol = std::make_shared<Symbol>(
-            symbol_id,
-            var_name,
-            nullptr, // Type info could go here later if using TypedAssignment
-            false,   // is_public
-            is_mutable,
-            current_scope->get_depth());
-
-        current_scope->define(var_name, symbol);
-        debug_name_map[symbol_id] = var_name;
-
-        // Emit
-
-        emit(OpCode::DEFINE_LOCAL, symbol_id);
-    }
-
-    void Compiler::compile_assignment(const Expression_ptr &lhs, const Expression_ptr &rhs)
-    {
-        visit(rhs);
-
-        if (lhs->is<Identifier>())
-        {
-            const auto &var_name = lhs->as<Identifier>().name;
-            auto symbol = current_scope->lookup(var_name);
-
-            if (!symbol)
-            {
-                FATAL("Compiler Error: Attempted to assign to undefined variable '" + var_name + "'");
-            }
-
-            if (!symbol->is_mutable)
-            {
-                FATAL("Compiler Error: Cannot reassign immutable variable '" + var_name + "'");
-            }
-
-            emit(OpCode::SET_LOCAL, symbol->id);
-        }
-        else
-        {
-            FATAL("Unsupported assignment target. Only simple variable assignments are supported for now.");
-        }
-    }
 
     std::map<BlockId, size_t> Compiler::calculate_block_offsets() const
     {
         std::map<BlockId, size_t> offsets;
-        size_t current_offset = 0;
-
+        size_t current = 0;
         for (const auto &block : graph.get_all_blocks())
         {
-            offsets[block.get_id()] = current_offset;
-            current_offset += block.get_code().length();
+            offsets[block.get_id()] = current;
+            current += block.get_code().length();
         }
-
         return offsets;
     }
 
@@ -985,37 +793,18 @@ namespace Wasp
         while (ip < bytes.size())
         {
             OpCode op = static_cast<OpCode>(bytes[ip]);
-
             if (op == OpCode::MAKE_FUNCTION)
             {
-                int upvalue_count = static_cast<int>(bytes[ip + 1]);
-                ip += 2 + (upvalue_count * 2);
+                ip += 2 + (static_cast<int>(bytes[ip + 1]) * 2);
                 continue;
             }
-
-            // If it is a jump instruction, replace the 16-bit BlockId operand with the absolute byte offset
             if (op == OpCode::JUMP || op == OpCode::JUMP_IF_FALSE || op == OpCode::LOOP_ITER)
             {
-                // 1. Read the 2-byte BlockId placeholder (Little Endian)
-                BlockId target_block = static_cast<BlockId>(
-                    static_cast<uint8_t>(bytes[ip + 1]) |
-                    (static_cast<uint8_t>(bytes[ip + 2]) << 8));
-
-                // 2. Look up the true absolute offset
-                size_t absolute_offset = offsets.at(target_block);
-
-                // 3. Safety check
-                if (absolute_offset > 0xFFFF)
-                {
-                    FATAL("Jump target offset exceeds 16-bit limit (65535 bytes).");
-                }
-
-                // 4. Write the 2-byte absolute offset back (Little Endian)
-                bytes[ip + 1] = static_cast<std::byte>(absolute_offset & 0xFF);
-                bytes[ip + 2] = static_cast<std::byte>((absolute_offset >> 8) & 0xFF);
+                BlockId target = static_cast<BlockId>(static_cast<uint8_t>(bytes[ip + 1]) | (static_cast<uint8_t>(bytes[ip + 2]) << 8));
+                size_t off = offsets.at(target);
+                bytes[ip + 1] = static_cast<std::byte>(off & 0xFF);
+                bytes[ip + 2] = static_cast<std::byte>((off >> 8) & 0xFF);
             }
-
-            // Skip to the next instruction: 1 byte for OpCode + N bytes for operands
             ip += 1 + get_opcode_arity(op);
         }
     }
@@ -1042,33 +831,22 @@ namespace Wasp
         return final_bytecode;
     }
 
-    // -----------------------------------------------------------------------
-    // RUN
-    // -----------------------------------------------------------------------
-
     std::tuple<ConstantPool_ptr, CodeObject> Compiler::run(const Module &module)
     {
-        current_block_id = graph.create_block();
-        graph.set_entry_block(current_block_id);
-
         emit(OpCode::ENTER_MODULE);
-        enter_scope(ScopeType::MODULE, false);
 
         for (const auto &stmt : module.statements)
         {
             visit(stmt);
         }
 
-        leave_scope(false);
+        BlockId exit = graph.create_block();
+        graph.add_edge(current_block_id, exit);
+        emit(OpCode::JUMP, static_cast<int>(exit));
+        set_current_block(exit);
 
-        BlockId exit_block_id = graph.create_block();
-        graph.add_edge(current_block_id, exit_block_id);
-        emit(OpCode::JUMP, static_cast<int>(exit_block_id));
-        set_current_block(exit_block_id);
         emit(OpCode::EXIT_MODULE);
 
-        CodeObject final_bytecode = flatten();
-
-        return {constant_pool, final_bytecode};
+        return {constant_pool, flatten()};
     }
 }

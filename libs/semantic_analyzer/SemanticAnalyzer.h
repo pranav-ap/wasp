@@ -50,11 +50,12 @@ namespace Wasp
         void visit(Pass &statement);
         void visit(Return &statement);
 
-        // --------------------------------------------------------------------------
+        // ------------------------------------------------------------------------
         // Variables & Assignments
         // ------------------------------------------------------------------------
+
         Object_ptr define_variable(Expression_ptr assignment_expr, bool is_mutable);
-        Object_ptr mutate_variable(Expression_ptr lhs_expr, Expression_ptr rhs_expr, Object_ptr explicit_type);
+        Object_ptr mutate_variable(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
         void visit(VariableDefinition &statement);
         Object_ptr visit(VariableDefinitionExpression &expr);
         Object_ptr visit(UntypedAssignment &expr);
@@ -108,16 +109,13 @@ namespace Wasp
         Object_ptr visit(StringTypeNode &expr);
         Object_ptr visit(BoolTypeNode &expr);
 
-        // Literal Types
         Object_ptr visit(IntLiteralTypeNode &expr);
         Object_ptr visit(FloatLiteralTypeNode &expr);
         Object_ptr visit(StringLiteralTypeNode &expr);
         Object_ptr visit(BoolLiteralTypeNode &expr);
 
-        // Identifier Type
         Object_ptr visit(TypeIdentifierNode &expr);
 
-        // Composite Types
         Object_ptr visit(ListTypeNode &expr);
         Object_ptr visit(TupleTypeNode &expr);
         Object_ptr visit(SetTypeNode &expr);
