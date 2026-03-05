@@ -14,11 +14,15 @@ namespace Wasp
 		bool is_public;
 		bool is_mutable;
 		bool is_captured;
+		bool is_builtin;
 
 		int closure_depth;
 		int lexical_depth;
 
 		Object_ptr type;
+
+		Symbol(std::string name, Object_ptr type, bool is_builtin)
+			: id(0), name(name), type(type), is_builtin(is_builtin), is_public(true), is_mutable(is_mutable), closure_depth(0), lexical_depth(0), is_captured(false) {};
 
 		Symbol(std::string name, Object_ptr type, bool is_public, bool is_mutable, int closure_depth, int lexical_depth)
 			: id(0), name(name), type(type), is_public(is_public), is_mutable(is_mutable), closure_depth(closure_depth), lexical_depth(lexical_depth), is_captured(false) {};

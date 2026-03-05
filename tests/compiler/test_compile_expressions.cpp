@@ -108,7 +108,7 @@ TEST_F(CompileExpressions, SimpleInteger)
 
     std::vector<std::byte> expected_bytes = {
         /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
-        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(11),
         /* 3 */ B(Wasp::OpCode::POP),
         /* 4 */ B(Wasp::OpCode::JUMP), B(7), B(0),
         /* 7 */ B(Wasp::OpCode::EXIT_MODULE)};
@@ -122,9 +122,9 @@ TEST_F(CompileExpressions, SimpleList)
 
     std::vector<std::byte> expected_bytes = {
         /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
-        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(10),
-        /* 3 */ B(Wasp::OpCode::LOAD_CONST), B(11),
-        /* 5 */ B(Wasp::OpCode::LOAD_CONST), B(12),
+        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(11),
+        /* 3 */ B(Wasp::OpCode::LOAD_CONST), B(12),
+        /* 5 */ B(Wasp::OpCode::LOAD_CONST), B(13),
         /* 7 */ B(Wasp::OpCode::BUILD_LIST), B(3),
         /* 9 */ B(Wasp::OpCode::POP),
         /* 10*/ B(Wasp::OpCode::JUMP), B(13), B(0),
@@ -143,7 +143,7 @@ TEST_F(CompileExpressions, NegateNumber)
 
     std::vector<std::byte> expected_bytes = {
         /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
-        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(11),
         /* 3 */ B(Wasp::OpCode::NEGATE),
         /* 4 */ B(Wasp::OpCode::POP),
         /* 5 */ B(Wasp::OpCode::JUMP), B(8), B(0),
@@ -158,8 +158,8 @@ TEST_F(CompileExpressions, SimpleAddition)
 
     std::vector<std::byte> expected_bytes = {
         /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
-        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(10),
-        /* 3 */ B(Wasp::OpCode::LOAD_CONST), B(11),
+        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(11),
+        /* 3 */ B(Wasp::OpCode::LOAD_CONST), B(12),
         /* 5 */ B(Wasp::OpCode::ADD),
         /* 6 */ B(Wasp::OpCode::POP),
         /* 7 */ B(Wasp::OpCode::JUMP), B(10), B(0),
@@ -180,9 +180,9 @@ TEST_F(CompileExpressions, RangeExclusiveFull)
 
     std::vector<std::byte> expected_bytes = {
         /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
-        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(10),
-        /* 3 */ B(Wasp::OpCode::LOAD_CONST), B(11),
-        /* 5 */ B(Wasp::OpCode::LOAD_CONST), B(12),
+        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(11),
+        /* 3 */ B(Wasp::OpCode::LOAD_CONST), B(12),
+        /* 5 */ B(Wasp::OpCode::LOAD_CONST), B(13),
         /* 7 */ B(Wasp::OpCode::BUILD_RANGE), B(0), // 0 = Exclusive
         /* 9 */ B(Wasp::OpCode::POP),
         /* 10*/ B(Wasp::OpCode::JUMP), B(13), B(0),
@@ -200,7 +200,7 @@ TEST_F(CompileExpressions, RangeInclusivePartial)
     std::vector<std::byte> expected_bytes = {
         /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
         /* 1 */ B(Wasp::OpCode::LOAD_NONE),
-        /* 2 */ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 2 */ B(Wasp::OpCode::LOAD_CONST), B(11),
         /* 4 */ B(Wasp::OpCode::LOAD_NONE),
         /* 5 */ B(Wasp::OpCode::BUILD_RANGE), B(0),
         /* 7 */ B(Wasp::OpCode::POP),

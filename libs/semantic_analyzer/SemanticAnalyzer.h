@@ -17,8 +17,6 @@ namespace Wasp
 
     class SemanticAnalyzer
     {
-        int next_id;
-
         TypeSystem_ptr type_system;
         SymbolScope_ptr current_scope;
         ObjectVector return_type_stack;
@@ -133,8 +131,7 @@ namespace Wasp
 
     public:
         SemanticAnalyzer()
-            : next_id(10),
-              type_system(std::make_shared<TypeSystem>()) {};
+            : type_system(std::make_shared<TypeSystem>()) {};
 
         void run(struct Module &ast);
     };

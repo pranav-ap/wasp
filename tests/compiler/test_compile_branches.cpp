@@ -116,14 +116,14 @@ if false then 25 else 10
         /* 6 */ B(Wasp::OpCode::JUMP), B(9), B(0),
 
         // True Expression
-        /* 9 */ B(Wasp::OpCode::LOAD_CONST), B(10), // Value: 25
+        /* 9 */ B(Wasp::OpCode::LOAD_CONST), B(11), // Value: 25
         /* 11*/ B(Wasp::OpCode::POP_SCOPE),         // Pop Scope 1
         /* 12*/ B(Wasp::OpCode::JUMP), B(23), B(0), // Jump to Converge
 
         // False Expression
         /* 15*/ B(Wasp::OpCode::POP_SCOPE),         // Pop Scope 1 (Clean up Test Scope)
         /* 16*/ B(Wasp::OpCode::PUSH_SCOPE),        // Scope 2 (Else Branch Scope)
-        /* 17*/ B(Wasp::OpCode::LOAD_CONST), B(11), // Value: 10
+        /* 17*/ B(Wasp::OpCode::LOAD_CONST), B(12), // Value: 10
         /* 19*/ B(Wasp::OpCode::POP_SCOPE),         // Pop Scope 2
         /* 20*/ B(Wasp::OpCode::JUMP), B(23), B(0), // Jump to Converge
 
@@ -145,27 +145,26 @@ if true then
     std::vector<std::byte> expected_bytes = {
         /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
 
-        // 1. Condition Scope (Wraps Test + True Body)
         /* 1 */ B(Wasp::OpCode::PUSH_SCOPE),
 
         /* 2 */ B(Wasp::OpCode::LOAD_TRUE),
-        /* 3 */ B(Wasp::OpCode::JUMP_IF_FALSE), B(19), B(0), // Jump to Trampoline
+        /* 3 */ B(Wasp::OpCode::JUMP_IF_FALSE), B(19), B(0),
         /* 6 */ B(Wasp::OpCode::JUMP), B(9), B(0),
 
         // --- True Block ---
         // Note: No PUSH_SCOPE here because '25' is not a block '{...}'
-        /* 9 */ B(Wasp::OpCode::LOAD_CONST), B(10), // 25
-        /* 11*/ B(Wasp::OpCode::POP),               // ExpressionStatement cleanup
+        /* 9 */ B(Wasp::OpCode::LOAD_CONST), B(11),
+        /* 11*/ B(Wasp::OpCode::POP),
 
-        /* 12*/ B(Wasp::OpCode::POP_SCOPE), // Pop Condition Scope (Success Path)
+        /* 12*/ B(Wasp::OpCode::POP_SCOPE),
         /* 13*/ B(Wasp::OpCode::JUMP), B(16), B(0),
 
         // --- End Block ---
         /* 16*/ B(Wasp::OpCode::JUMP), B(23), B(0),
 
-        // --- Exit Trampoline (False Path) ---
+        // Exit
         // Cleans up the Condition Scope if test failed
-        /* 19*/ B(Wasp::OpCode::POP_SCOPE), // Pop Condition Scope (Failure Path)
+        /* 19*/ B(Wasp::OpCode::POP_SCOPE),
         /* 20*/ B(Wasp::OpCode::JUMP), B(16), B(0),
 
         /* 23*/ B(Wasp::OpCode::EXIT_MODULE)};
@@ -194,10 +193,10 @@ else
 
         // --- True Block ---
         // (No inner PUSH_SCOPE because '25' is an expression, not a block)
-        /* 9 */ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 9 */ B(Wasp::OpCode::LOAD_CONST), B(11),
         /* 11*/ B(Wasp::OpCode::POP),
 
-        /* 12*/ B(Wasp::OpCode::POP_SCOPE), // Pop Condition Scope
+        /* 12*/ B(Wasp::OpCode::POP_SCOPE),
         /* 13*/ B(Wasp::OpCode::JUMP), B(16), B(0),
 
         // --- End of True ---
@@ -207,7 +206,7 @@ else
         /* 19*/ B(Wasp::OpCode::POP_SCOPE), // 1. Clean up Condition Scope
 
         /* 20*/ B(Wasp::OpCode::PUSH_SCOPE), // 2. Enter Else Scope
-        /* 21*/ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 21*/ B(Wasp::OpCode::LOAD_CONST), B(11),
         /* 23*/ B(Wasp::OpCode::POP),
         /* 24*/ B(Wasp::OpCode::POP_SCOPE), // Pop Else Scope
 
@@ -239,7 +238,7 @@ else
         /* 6 */ B(Wasp::OpCode::JUMP), B(9), B(0),
 
         // Outer True
-        /* 9 */ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 9 */ B(Wasp::OpCode::LOAD_CONST), B(11),
         /* 11*/ B(Wasp::OpCode::POP),
         /* 12*/ B(Wasp::OpCode::POP_SCOPE), // Pop Scope 1
         /* 13*/ B(Wasp::OpCode::JUMP), B(16), B(0),
@@ -256,7 +255,7 @@ else
         /* 25*/ B(Wasp::OpCode::JUMP), B(28), B(0),
 
         // Elif True
-        /* 28*/ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 28*/ B(Wasp::OpCode::LOAD_CONST), B(11),
         /* 30*/ B(Wasp::OpCode::POP),
         /* 31*/ B(Wasp::OpCode::POP_SCOPE), // Pop Scope 2
         /* 32*/ B(Wasp::OpCode::JUMP), B(35), B(0),
@@ -268,7 +267,7 @@ else
 
         // --- Else ---
         /* 39*/ B(Wasp::OpCode::PUSH_SCOPE), // Scope 3 (Else)
-        /* 40*/ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 40*/ B(Wasp::OpCode::LOAD_CONST), B(11),
         /* 42*/ B(Wasp::OpCode::POP),
         /* 43*/ B(Wasp::OpCode::POP_SCOPE),         // Pop Scope 3
         /* 44*/ B(Wasp::OpCode::JUMP), B(35), B(0), // Jump to Elif End (35)
@@ -300,7 +299,7 @@ if let x = true then
         /* 9 */ B(Wasp::OpCode::JUMP), B(12), B(0),
 
         // True Block
-        /* 12*/ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 12*/ B(Wasp::OpCode::LOAD_CONST), B(11),
         /* 14*/ B(Wasp::OpCode::POP),
         /* 15*/ B(Wasp::OpCode::POP_SCOPE), // Pop Condition Scope
         /* 16*/ B(Wasp::OpCode::JUMP), B(19), B(0),

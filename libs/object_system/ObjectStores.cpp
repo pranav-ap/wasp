@@ -29,6 +29,7 @@ namespace Wasp
         objects.push_back(MAKE_OBJECT_VARIANT(BooleanLiteralType(false))); // 7
         objects.push_back(MAKE_OBJECT_VARIANT(BooleanObject(true)));       // 8
         objects.push_back(MAKE_OBJECT_VARIANT(BooleanObject(false)));      // 9
+        objects.push_back(MAKE_OBJECT_VARIANT(NoneObject()));              // 10
     }
 
     Object_ptr ConstantPool::get(int id) const
@@ -47,6 +48,8 @@ namespace Wasp
     Object_ptr ConstantPool::get_false_literal_type() const { return get(7); }
     Object_ptr ConstantPool::get_true_object() const { return get(8); }
     Object_ptr ConstantPool::get_false_object() const { return get(9); }
+
+    Object_ptr ConstantPool::get_none_object() const { return get(10); }
 
     Object_ptr ConstantPool::make_object(bool value) const
     {

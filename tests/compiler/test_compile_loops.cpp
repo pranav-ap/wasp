@@ -119,7 +119,7 @@ while true do
         // --- Body ---
         // 2. Body Scope (Wraps just the body)
         /* 12*/ B(Wasp::OpCode::PUSH_SCOPE),
-        /* 13*/ B(Wasp::OpCode::LOAD_CONST), B(10), // 25
+        /* 13*/ B(Wasp::OpCode::LOAD_CONST), B(11), // 25
         /* 15*/ B(Wasp::OpCode::POP),               // Expression cleanup
         /* 16*/ B(Wasp::OpCode::POP_SCOPE),         // Pop Body Scope
 
@@ -160,8 +160,8 @@ while true do
         /* 12*/ B(Wasp::OpCode::PUSH_SCOPE),
 
         // Expression: 25 + 25
-        /* 13*/ B(Wasp::OpCode::LOAD_CONST), B(10),
-        /* 15*/ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 13*/ B(Wasp::OpCode::LOAD_CONST), B(11),
+        /* 15*/ B(Wasp::OpCode::LOAD_CONST), B(11),
         /* 17*/ B(Wasp::OpCode::ADD),
         /* 18*/ B(Wasp::OpCode::POP),
 
@@ -195,9 +195,9 @@ for let x in [1, 2, 3] do
     std::vector<std::byte> expected_bytes = {
         /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
 
-        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(10),
-        /* 3 */ B(Wasp::OpCode::LOAD_CONST), B(11),
-        /* 5 */ B(Wasp::OpCode::LOAD_CONST), B(12),
+        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(11),
+        /* 3 */ B(Wasp::OpCode::LOAD_CONST), B(12),
+        /* 5 */ B(Wasp::OpCode::LOAD_CONST), B(13),
         /* 7 */ B(Wasp::OpCode::BUILD_LIST), B(3),
 
         /* 9 */ B(Wasp::OpCode::JUMP), B(12), B(0),
@@ -245,8 +245,8 @@ while true do
         /* 12*/ B(Wasp::OpCode::PUSH_SCOPE), // 2. Body Scope
 
         // Expression: 25 + 25
-        /* 13*/ B(Wasp::OpCode::LOAD_CONST), B(10), // 25
-        /* 15*/ B(Wasp::OpCode::LOAD_CONST), B(10), // 25
+        /* 13*/ B(Wasp::OpCode::LOAD_CONST), B(11), // 25
+        /* 15*/ B(Wasp::OpCode::LOAD_CONST), B(11), // 25
         /* 17*/ B(Wasp::OpCode::ADD),
         /* 18*/ B(Wasp::OpCode::POP), // Expression Statement Cleanup
 

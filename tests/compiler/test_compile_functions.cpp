@@ -112,7 +112,7 @@ fun add(a: int, b: int) => int
     // Verify Outer Module Bytecode
     std::vector<std::byte> expected_bytes = {
         /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
-        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(11),
         /* 3 */ B(Wasp::OpCode::MAKE_FUNCTION), B(0),
         /* 5 */ B(Wasp::OpCode::DEFINE_LOCAL), B(0),
         /* 7 */ B(Wasp::OpCode::JUMP), B(10), B(0),
@@ -121,7 +121,7 @@ fun add(a: int, b: int) => int
     EXPECT_EQ(actual_bytes, expected_bytes);
 
     // Extract Function Object
-    auto pool_obj = current_pool->get(10);
+    auto pool_obj = current_pool->get(11);
     ASSERT_TRUE(pool_obj->is<std::shared_ptr<Wasp::FunctionObject>>());
     auto func_obj = pool_obj->as<std::shared_ptr<Wasp::FunctionObject>>();
     const Wasp::CodeObject &inner_code = func_obj->code;
@@ -158,7 +158,7 @@ fun max(a: int, b: int) => int
     // Verify Outer Module Bytecode
     std::vector<std::byte> expected_bytes = {
         /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
-        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(11),
         /* 3 */ B(Wasp::OpCode::MAKE_FUNCTION), B(0),
         /* 5 */ B(Wasp::OpCode::DEFINE_LOCAL), B(0),
         /* 7 */ B(Wasp::OpCode::JUMP), B(10), B(0),
@@ -167,7 +167,7 @@ fun max(a: int, b: int) => int
     EXPECT_EQ(actual_bytes, expected_bytes);
 
     // Extract Function Object
-    auto pool_obj = current_pool->get(10);
+    auto pool_obj = current_pool->get(11);
     ASSERT_TRUE(pool_obj->is<std::shared_ptr<Wasp::FunctionObject>>());
     auto func_obj = pool_obj->as<std::shared_ptr<Wasp::FunctionObject>>();
     const Wasp::CodeObject &inner_code = func_obj->code;
@@ -226,7 +226,7 @@ fun outer(a: int) => any
     // ========================================================================
     std::vector<std::byte> expected_bytes = {
         /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
-        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(11), // 'outer' FunctionObject
+        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(12), // 'outer' FunctionObject
         /* 3 */ B(Wasp::OpCode::MAKE_FUNCTION), B(0),
         /* 5 */ B(Wasp::OpCode::DEFINE_LOCAL), B(0),
         /* 7 */ B(Wasp::OpCode::JUMP), B(10), B(0),
@@ -236,7 +236,7 @@ fun outer(a: int) => any
     // ========================================================================
     // 2. Verify Outer Function (Creates 'inner' and captures 'a')
     // ========================================================================
-    auto outer_pool_obj = current_pool->get(11);
+    auto outer_pool_obj = current_pool->get(12);
     ASSERT_TRUE(outer_pool_obj->is<std::shared_ptr<Wasp::FunctionObject>>());
     const Wasp::CodeObject &outer_code = outer_pool_obj->as<std::shared_ptr<Wasp::FunctionObject>>()->code;
 
@@ -245,7 +245,7 @@ fun outer(a: int) => any
     std::vector<std::byte> expected_outer_bytes = {
         /* 0 */ B(Wasp::OpCode::PUSH_SCOPE),
 
-        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(10), // 'inner' FunctionObject
+        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(11), // 'inner' FunctionObject
 
         // [FIXED] Now expects 1 upvalue!
         /* 3 */ B(Wasp::OpCode::MAKE_FUNCTION), B(1),

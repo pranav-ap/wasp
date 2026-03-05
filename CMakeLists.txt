@@ -16,6 +16,11 @@ FetchContent_MakeAvailable(googletest)
 
 enable_testing()
 
+# CLI11
+
+add_library(CLI11 INTERFACE)
+target_include_directories(CLI11 INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
 # Others 
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -34,6 +39,7 @@ add_subdirectory(libs/type_system)
 add_subdirectory(libs/semantic_analyzer)
 add_subdirectory(libs/bytecode_system)
 add_subdirectory(libs/compiler)
+add_subdirectory(libs/vm)
 add_subdirectory(src)
 add_subdirectory(tests)
 # add_subdirectory(benchmarks)

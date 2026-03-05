@@ -8,6 +8,12 @@ let x: int = 34
 
 # Immutable constant
 const x: int = 34
+
+# Reference
+let y: int = 5
+
+let ref x: int = &y 
+const ref x: int = &y 
 ```
 
 # Type System 
@@ -59,11 +65,12 @@ a - b  # Difference: {1, 2}
 Ranges can be defined for iterative or slice operations.
 
 ```python
-1..<10      # Exclusive range
-1..=10     # Inclusive range
-1..<10 step 2    # Range with step (2)
+# Range Syntaxes
+1..10      # Standard range
+1...10     # Inclusive range
+1..10:2    # Range with step (2)
 1..        # Open-ended range
-1.. step 2      # Open-ended with step
+1..:2      # Open-ended with step
 ```
 
 ## Maps
@@ -90,7 +97,7 @@ type names = (str, str)
 
 ```python
 type Sizes = 1 | 2 | 3 
-type Sizes = 1..=3 step 1 
+type Sizes = 1...3:1 
 type WindowStates = "open" | "closed" | "minimized"
 ```
 
@@ -150,8 +157,6 @@ let total = price + convert_to_usd(tax)
 ```
 
 ## Enums
-
-Enums can be nested, establishing clear hierarchical namespaces.
 
 ```python
 enum Animal
@@ -316,6 +321,11 @@ Constants can be passed as arguments using the `const` keyword, ensuring that th
 fun sub (a: int, b: int) => int
     return a - b
 
+fun sub const (a: int, b: int) => int
+    return a - b
+    
+const fun sub (a: int, b: int) => int
+    return a - b
     
 fun remove(a: int, b: const int) => int
     if a > b then
@@ -486,169 +496,146 @@ with Worker() as w1, Worker() as w2, Project() as p do
     # exit() is called for p, then w2, then w1 here
 ```
 
-# Composition
-
-```python
-interface Athlete
-    run: fun () => str 
-
-
-class Footballer is Athlete
-    fun run () => str
-        return 'Run!'
-
-
-class Human 
-    a: Athlete
-
-    fun initialize (a: Athlete)
-        my.a = a 
-        
-    override fun run () => str
-        return 'Override Run!'
-
-
-h = Human(Footballer())
-h.run()
-```
-
-# Interface
-
-```python
-interface Athlete
-    run: fun () => str 
-    shout: fun () => str 
-
-interface Musician
-    run: fun () => str 
-    sing: fun () => str 
-```
-# Deputy 
-
-- A deputy implements an interface
-- `ctx` is only available inside a deputy function but it is not allowed inside `default` or `initialize`
+# Inheritance
 
 ```python
 # ---------------------------------------------------------
-# 1. TRAITS
+# INTERFACES 
 # ---------------------------------------------------------
-trait Footballer requires Stadium
-    run: fun () => str 
-    shout: fun () => str 
-
-trait Referee requires Stadium
+class Human
+    name: str 
+    walk: fun () => str 
+    
+class Athlete requires Human 
+    # I only require readonly 
+    jersey: readonly int                  
+    tackle: fun () => str     
     run: fun () => str
-    whistle: fun () => str
-
-trait Musician requires Studio 
-    run: fun () => str 
-    sing: fun () => str 
-
-# ---------------------------------------------------------
-# 2. CONTEXTS
-# ---------------------------------------------------------
-context Stadium
-    crowd_size: int
-    area: float
-
-context Studio
-    crowd_size: int
-    area: float
-    has_mike: bool
-
-# ---------------------------------------------------------
-# TRAIT IMPLEMENTATINS
-# ---------------------------------------------------------
-impl Footballer
-    fun run () => str
-        if ctx.crowd_size > 1000 then 
-            return 'Sprint!'
-        return 'Jog'
     
-    fun shout () => str
-        return 'Yeah!'
+    # - internals are only accessible by default implementations
+    # - not part of public contract 
+    internal record
+        pass 
 
-impl Referee
-    fun run () => str
-        return 'Keep up with the play!'
-        
-    fun whistle () => str
-        return 'Whistle!'
+class Musician requires Human
+    instrument: str            
+    sing: fun () => str         
+    run: fun () => str        
 
-impl Musician
-    fun run () => str
-        return 'Walk'
+# ---------------------------------------------------------
+# DEFAULT IMPLEMENTATIONS
+# ---------------------------------------------------------
+impl Athlete 
+    fun tackle () => str
+        return `${me.name} tackles hard!`
     
+    fun run () => str
+        return `${me.walk()} then sprints on the pitch!`
+
+impl Musician 
     fun sing () => str
-        if ctx.has_mike then
-            return 'Loud Mememee!'
-            
-        return 'Quiet Mememee!'
+        return `${me.name} sings beautifully!`
     
-# ---------------------------------------------------------
-# 4. CLASS
-# ---------------------------------------------------------
-class Human is Footballer, Referee, Musician 
-    private record
-        _sports_fans: int
-        _music_fans: int
-        _shared_area: float
-        _mike_ready: bool
-
-impl Human
-    fun default ()
-        my._sports_fans = 50000
-        my._music_fans = 10
-        my._shared_area = 120.5
-        my._mike_ready = true
-   
-    fun initialize ()
-        pass
-
-    override fun run () => str
-        # Safely orchestrating three overlapping trait methods
-        let sport_run: str = my.Footballer.run()
-        let ref_run: str = my.Referee.run()
-        let music_run: str = my.Musician.run()
-        return sport_run + ", " + ref_run + ", and " + music_run
+    fun run () => str
+        return `${me.walk()} out onto the stage!`
 
 # ---------------------------------------------------------
-# 5. CONTEXT FULFILLMENT
+# CLASS 
 # ---------------------------------------------------------
+class MultiTalent is Athlete, Musician 
+    name: str
+    jersey: int
+    instrument: str
+    
+    fun initialize(name: str, jersey: int, instrument: str)
+        me.name = name 
+        me.jersey = jersey
+        me.instrument = instrument
+    
+    override fun walk() => str
+        return 'walking...' 
 
-# GLOBAL MAPPING: Shared between ALL traits on this class
-impl Human
-    override get area => float
-        return my._shared_area
-        
-    override get has_mike => bool
-        return my._mike_ready
-        
-# GROUPED MAPPING
-# Both sports traits share the exact same crowd state
-impl Human for Footballer, Referee 
-    override get crowd_size => int
-        return my._sports_fans
-
-# SCOPED MAPPING
-# The musician trait gets its own isolated crowd state
-impl Human for Musician 
-    override get crowd_size => int
-        return my._music_fans
+    # The compiler forces you to break the tie for 'run'.
+    override fun run() => str
+        return 'Running to the gig in my cleats!'
 
 # ---------------------------------------------------------
 # USAGE
 # ---------------------------------------------------------
-h = new Human() with Footballer(), Referee(), Musician()
+m = new MultiTalent('Sam', 10, 'Guitar')
+m.tackle()
+```
 
-# Allowed calls
-h.run()
-h.shout()     
-h.whistle()   
-h.sing()      
+# Interfaces 
 
-# Blocked by Compiler (Strict Encapsulation)
-# h.Footballer.run()
+- Contexts have to be compatible. This means the types of the variables with same names must be the same.  
+
+```python
+# ---------------------------------------------------------
+# INTERFACES 
+# ---------------------------------------------------------
+interface Human
+    name: str 
+    walk: fun () => str 
+    
+interface Athlete requires Human 
+    # I only require readonly 
+    jersey: readonly int                  
+    tackle: fun () => str     
+    run: fun () => str
+    
+    # - internals are only accessible by default implementations
+    # - not part of public contract 
+    internal record
+        pass 
+
+interface Musician requires Human
+    instrument: str            
+    sing: fun () => str         
+    run: fun () => str        
+
+# ---------------------------------------------------------
+# DEFAULT IMPLEMENTATIONS
+# ---------------------------------------------------------
+impl Athlete 
+    fun tackle () => str
+        return `${me.name} tackles hard!`
+    
+    fun run () => str
+        return `${me.walk()} then sprints on the pitch!`
+
+impl Musician 
+    fun sing () => str
+        return `${me.name} sings beautifully!`
+    
+    fun run () => str
+        return `${me.walk()} out onto the stage!`
+
+# ---------------------------------------------------------
+# CLASS 
+# ---------------------------------------------------------
+class MultiTalent is Athlete, Musician 
+    name: str
+    jersey: int
+    instrument: str
+    
+    fun initialize(name: str, jersey: int, instrument: str)
+        me.name = name 
+        me.jersey = jersey
+        me.instrument = instrument
+    
+    override fun walk() => str
+        return 'walking...' 
+
+    # The compiler forces you to break the tie for 'run'.
+    override fun run() => str
+        return 'Running to the gig in my cleats!'
+
+# ---------------------------------------------------------
+# USAGE
+# ---------------------------------------------------------
+m = new MultiTalent('Sam', 10, 'Guitar')
+m.tackle()
 ```
 
 # Annotations
@@ -724,54 +711,70 @@ export class Calculator
 '''
 workspace/
     libs/
-        calc/
-            Calculator.wasp
+        math3d/
+            Matrix.wasp
             main.wasp
             wasp.yaml
     
-    utils/
-        Utils.wasp
+    navigation/
+        Pathfinder.wasp
     
-    company/
-        Worker.wasp
+    engine/
         main.wasp
         wasp.yaml
-        hr/
-            Payroll.wasp
-        ops/
-            Payroll.wasp
+        fuel/
+            Tank.wasp
+            Pump.wasp
             utils.wasp
-            Machine.wasp
-        wasp.yaml
-        
+        thrusters/
+            MainEngine.wasp
+            RcsThruster.wasp
+            
     main.wasp
     wasp.yaml
 '''
 
-# third party packages in libs 
-import calc
-from calc import Calculator
+# ---------------------------------------------------------
+# ROOT LEVEL (workspace/main.wasp)
+# ---------------------------------------------------------
 
-# access local packages with `top`
-import top.company
-from top.company import Worker, Machine
-from top.company.hr import Payroll as hr_Payroll 
-from top.company.ops import Payroll as ops_Payroll, Machine
+# Third-party packages in libs are accessed directly by name
+import math3d
+from math3d import Matrix
 
-# my refers to the current folder 
+# Access local packages from the project root using `top`
+import top.engine
+from top.engine.fuel import Tank as FuelTank 
+from top.engine.thrusters import (
+    MainEngine as PrimaryThruster, 
+    RcsThruster
+)
 
-## company/main.wasp 
-import my.hr 
-from my.hr import Payroll
+# ---------------------------------------------------------
+# CURRENT FOLDER (`my`)
+# ---------------------------------------------------------
+# `my` refers to files or folders strictly within the current directory
 
-## company/ops/Payroll.wasp 
-from my.Machine import Machine
+## In: engine/main.wasp 
+import my.fuel 
+from my.fuel import Tank
 
-# our refers to the set of sibling folders of current folder
+## In: engine/fuel/Pump.wasp 
+from my.Tank import Tank
+from my.utils import calc_pressure
 
-## company/ops/Machine.wasp 
-import our.hr
-from our.hr import Payroll
+# ---------------------------------------------------------
+# SIBLING FOLDERS (`our`)
+# ---------------------------------------------------------
+# `our` refers to the set of sibling folders sharing the same parent
+
+## In: engine/fuel/Pump.wasp 
+import our.thrusters
+from our.thrusters import MainEngine
+
+## In: engine/thrusters/MainEngine.wasp
+import our.fuel
+from our.fuel import Pump
 ```
 
 # Operator Overloading

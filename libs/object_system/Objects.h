@@ -172,6 +172,16 @@ namespace Wasp
         FunctionObject(CodeObject code) : code(std::move(code)) {};
     };
 
+    // using BuiltinFnType = std::function<Object_ptr(const std::vector<Object_ptr> &)>;
+
+    // struct BuiltinFunctionObject : public CompositeObject
+    // {
+    //     BuiltinFnType function;
+
+    //     BuiltinFunctionObject(BuiltinFnType function)
+    //         : function(std::move(function)) {}
+    // };
+
     // Action Objects
 
     struct BreakObject : public ActionObject
@@ -340,6 +350,7 @@ namespace Wasp
             std::shared_ptr<VariantObject>,
 
             std::shared_ptr<FunctionObject>,
+            // std::shared_ptr<BuiltinFunctionObject>,
 
             std::shared_ptr<BreakObject>,
             std::shared_ptr<ContinueObject>,

@@ -9,8 +9,9 @@ clear && cmake --build build && ctest --test-dir build -L "unit"
 cmake --build build && ctest --test-dir build -L "unit" --rerun-failed --output-on-failure
 
 
-./build/src/wasp
+sudo ln -s /workspaces/wasp/build/src/wasp /usr/local/bin/wasp
 
-sudo chown -R vscode:vscode /workspaces/wasp
+wasp ./samples/main.wasp
+
 
 ```

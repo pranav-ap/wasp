@@ -39,6 +39,8 @@ namespace Wasp
         Object_ptr get_true_object() const;
         Object_ptr get_false_object() const;
 
+        Object_ptr get_none_object() const;
+
         Object_ptr make_object(bool value) const;
         Object_ptr make_object(int value) const;
         Object_ptr make_object(double value) const;

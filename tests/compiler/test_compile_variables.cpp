@@ -97,7 +97,6 @@ protected:
         }
     }
 };
-
 TEST_F(CompileVariables, DefineAndUseVariable)
 {
     auto actual_bytes = compile(R"(
@@ -107,11 +106,11 @@ x + 1
 
     std::vector<std::byte> expected_bytes = {
         /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
-        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(10),
+        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(11), // 42
         /* 3 */ B(Wasp::OpCode::DEFINE_LOCAL), B(0),
 
-        /* 5 */ B(Wasp::OpCode::GET_GLOBAL), B(0),
-        /* 7 */ B(Wasp::OpCode::LOAD_CONST), B(11),
+        /* 5 */ B(Wasp::OpCode::GET_GLOBAL), B(0),  // "x"
+        /* 7 */ B(Wasp::OpCode::LOAD_CONST), B(12), // 1
         /* 9 */ B(Wasp::OpCode::ADD),
         /* 10*/ B(Wasp::OpCode::POP),
         /* 11*/ B(Wasp::OpCode::JUMP), B(14), B(0),
@@ -119,7 +118,6 @@ x + 1
 
     EXPECT_EQ(actual_bytes, expected_bytes);
 }
-
 TEST_F(CompileVariables, DefineAndReAssignVariable)
 {
     auto actual_bytes = compile(R"(
@@ -129,13 +127,13 @@ x = x + 1
 
     std::vector<std::byte> expected_bytes = {
         /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
-        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(10),
-        /* 3 */ B(Wasp::OpCode::DEFINE_LOCAL), B(0),
+        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(11), // 42
+        /* 3 */ B(Wasp::OpCode::DEFINE_LOCAL), B(0),             // Local Slot 0 (Not a pool index!)
 
-        /* 5 */ B(Wasp::OpCode::GET_GLOBAL), B(0),
-        /* 7 */ B(Wasp::OpCode::LOAD_CONST), B(11),
+        /* 5 */ B(Wasp::OpCode::GET_GLOBAL), B(0), // "x"
+        /* 7 */ B(Wasp::OpCode::LOAD_CONST), B(12), // 1
         /* 9 */ B(Wasp::OpCode::ADD),
-        /* 10*/ B(Wasp::OpCode::SET_GLOBAL), B(0),
+        /* 10*/ B(Wasp::OpCode::SET_GLOBAL), B(0), // "x"
         /* 12*/ B(Wasp::OpCode::POP),
         /* 13*/ B(Wasp::OpCode::JUMP), B(16), B(0),
         /* 16*/ B(Wasp::OpCode::EXIT_MODULE)};
