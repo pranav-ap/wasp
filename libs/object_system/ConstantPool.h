@@ -55,22 +55,5 @@ namespace Wasp
         int allocate_function_definition(CodeObject func_code);
     };
 
-    class DefinitionStore
-    {
-    private:
-        std::vector<Object_ptr> locals;
-
-    public:
-        DefinitionStore(size_t expected_size = 0);
-        ~DefinitionStore() = default;
-
-        void create(int id, Object_ptr value);
-        void set(int id, Object_ptr value);
-        Object_ptr get(int id) const;
-        void discard(int id);
-    };
-
     using ConstantPool_ptr = std::shared_ptr<ConstantPool>;
-    using DefinitionStore_ptr = std::shared_ptr<DefinitionStore>;
-
 }

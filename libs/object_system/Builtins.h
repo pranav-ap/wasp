@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Objects.h"
-#include "ObjectStores.h"
+#include "ConstantPool.h"
 #include <unordered_map>
 #include <string>
 

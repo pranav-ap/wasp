@@ -1,4 +1,4 @@
-#include "ObjectStores.h"
+#include "ConstantPool.h"
 #include <stdexcept>
 #include <algorithm>
 
@@ -147,47 +147,4 @@ namespace Wasp
         objects.push_back(MAKE_SHARED_OBJECT_VARIANT(FunctionObject, std::move(func_code)));
         return id;
     }
-
-    // ============================================================================
-    // DefinitionStore
-    // ============================================================================
-
-    DefinitionStore::DefinitionStore(size_t expected_size)
-    {
-        locals.resize(expected_size);
-    }
-
-    void DefinitionStore::create(int id, Object_ptr value)
-    {
-        if (id >= locals.size())
-        {
-            locals.resize(id + 1);
-        }
-        ASSERT(locals[id] == nullptr, "ID already exists in DefinitionStore");
-        locals[id] = std::move(value);
-    }
-
-    void DefinitionStore::set(int id, Object_ptr value)
-    {
-        if (id >= locals.size())
-        {
-            locals.resize(id + 1);
-        }
-        locals[id] = std::move(value);
-    }
-
-    Object_ptr DefinitionStore::get(int id) const
-    {
-        ASSERT(id >= 0 && id < locals.size(), "ID out of bounds in DefinitionStore");
-        return locals[id];
-    }
-
-    void DefinitionStore::discard(int id)
-    {
-        ASSERT(id >= 0 && id < locals.size(), "ID out of bounds in DefinitionStore");
-        // Null the slot to free the shared_ptr
-        // maintains vector length to maintain other IDs
-        locals[id] = nullptr;
-    }
-
 }

@@ -76,6 +76,10 @@ namespace Wasp
 
     void InstructionPrinter::print(const CodeObject &code_object, std::ostream &out)
     {
+        out << "=========================================\n";
+        out << " INSTRUCTIONS\n";
+        out << "=========================================\n\n";
+
         int length = static_cast<int>(code_object.length());
         int index_width = std::to_string(length).size() + 2;
 

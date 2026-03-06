@@ -12,19 +12,40 @@ overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
-    void VM::print_object(Object_ptr obj)
+    bool VM::is_truthy(Object_ptr obj) const
     {
-        std::visit(overloaded{[](IntObject &i)
-                              { std::cout << i.value << std::endl; },
-                              [](FloatObject &f)
-                              { std::cout << f.value << std::endl; },
-                              [](BooleanObject &b)
-                              { std::cout << (b.value ? "true" : "false") << std::endl; },
-                              [](StringObject &s)
-                              { std::cout << s.value << std::endl; },
-                              [](auto &)
-                              { std::cout << "<object>" << std::endl; }},
-                   obj->value);
+        return std::visit(overloaded{[](std::monostate &)
+                                     { return false; },
+
+                                     [](NoneObject &)
+                                     { return false; },
+
+                                     [](BooleanObject &b)
+                                     { return b.value; },
+
+                                     [](IntObject &i)
+                                     { return i.value > 0; },
+                                     [](FloatObject &f)
+                                     { return f.value > 0.0; },
+
+                                     [](StringObject &s)
+                                     { return !s.value.empty(); },
+
+                                     [](ListObject &l)
+                                     { return !l.values.empty(); },
+                                     [](TupleObject &t)
+                                     { return !t.values.empty(); },
+                                     [](SetObject &s)
+                                     { return !s.values.empty(); },
+                                     [](MapObject &m)
+                                     { return !m.pairs.empty(); },
+
+                                     [](ErrorObject &e)
+                                     { return false; },
+
+                                     [](auto &)
+                                     { return true; }},
+                          obj->value);
     }
 
     void VM::execute()
@@ -65,7 +86,7 @@ namespace Wasp
 
             case OpCode::DUP:
             {
-                Object_ptr top = peek();
+                Object_ptr top = peek_tos();
                 push_to_stack(top);
                 break;
             }
@@ -105,7 +126,6 @@ namespace Wasp
 
             case OpCode::DEFINE_LOCAL:
             {
-                // The value is already on the stack. Just consume the slot index.
                 frame->consume_byte();
                 break;
             }
@@ -114,7 +134,13 @@ namespace Wasp
             {
                 int index = static_cast<int>(frame->consume_byte());
                 // Peek the value (assignments evaluate to the value itself)
-                Object_ptr value = peek();
+                Object_ptr value = peek_tos();
+
+                if (index >= stack.size())
+                {
+                    stack.resize(index + 1);
+                }
+
                 stack[frame->base_pointer + index] = value;
                 break;
             }
@@ -122,55 +148,68 @@ namespace Wasp
             case OpCode::GET_LOCAL:
             {
                 int index = static_cast<int>(frame->consume_byte());
+
+                if (index >= stack.size() || !stack[index])
+                {
+                    std::cerr << "VM Error: Uninitialized local variable at index " << index << std::endl;
+                    break;
+                }
+
                 push_to_stack(stack[frame->base_pointer + index]);
-                break;
-            }
-
-            case OpCode::GET_GLOBAL:
-            {
-                int name_index = static_cast<int>(frame->consume_byte());
-                Object_ptr name_obj = pool->get(name_index);
-
-                std::visit(overloaded{[&](StringObject &s)
-                                      {
-                                          auto it = globals.find(s.value);
-                                          if (it != globals.end())
-                                          {
-                                              push_to_stack(it->second);
-                                          }
-                                          else
-                                          {
-                                              std::cerr << "NameError: undefined global '" << s.value << "'" << std::endl;
-                                              // Handle halt
-                                          }
-                                      },
-                                      [](auto &)
-                                      { std::cerr << "VM Error: Global name not a string." << std::endl; }},
-                           *name_obj);
                 break;
             }
 
             case OpCode::SET_GLOBAL:
             {
-                int name_index = static_cast<int>(frame->consume_byte());
-                Object_ptr name_obj = pool->get(name_index);
-                Object_ptr value = peek(); // Don't pop, leave it for chained assignment
+                int index = static_cast<int>(frame->consume_byte());
+                // Peek the value (assignments evaluate to the value itself)
+                Object_ptr value = peek_tos();
 
-                std::visit(overloaded{[&](StringObject &s)
-                                      {
-                                          globals[s.value] = value;
-                                      },
-                                      [](auto &)
-                                      { std::cerr << "VM Error: Global name not a string." << std::endl; }},
-                           name_obj->value);
+                if (index >= globals.size())
+                {
+                    globals.resize(index + 1);
+                }
+
+                globals[index] = value;
+                break;
+            }
+
+            case OpCode::GET_GLOBAL:
+            {
+                int index = static_cast<int>(frame->consume_byte());
+
+                if (index >= globals.size() || !globals[index])
+                {
+                    std::cerr << "VM Error: Uninitialized global variable at index " << index << std::endl;
+                    break;
+                }
+
+                push_to_stack(globals[index]);
                 break;
             }
 
             case OpCode::PUSH_SCOPE:
+            {
+                frame->scope_bases.push_back(stack.size());
+                break;
+            }
+
             case OpCode::POP_SCOPE:
             {
-                // Depends on your compiler design. Often POP_SCOPE requires popping
-                // locals off the stack if blocks clean up after themselves.
+                if (frame->scope_bases.empty())
+                {
+                    std::cerr << "VM Error: POP_SCOPE called with no active scope!" << std::endl;
+                    break;
+                }
+
+                size_t base = frame->scope_bases.back();
+                frame->scope_bases.pop_back();
+
+                while (stack.size() > base)
+                {
+                    pop_from_stack();
+                }
+
                 break;
             }
 
@@ -180,7 +219,6 @@ namespace Wasp
 
             case OpCode::JUMP:
             {
-                // Read 16-bit little-endian offset
                 uint8_t low = static_cast<uint8_t>(frame->consume_byte());
                 uint8_t high = static_cast<uint8_t>(frame->consume_byte());
                 uint16_t target_ip = low | (high << 8);
@@ -197,17 +235,13 @@ namespace Wasp
 
                 Object_ptr condition = pop_from_stack();
 
-                // Check truthiness (assuming BooleanObject is the standard for now)
-                bool is_false = false;
-                std::visit(overloaded{[&](BooleanObject &b)
-                                      { is_false = !b.value; },
-                                      [&](auto &) {}},
-                           condition->value);
+                bool is_false = !is_truthy(condition);
 
                 if (is_false)
                 {
                     frame->ip = target_ip;
                 }
+
                 break;
             }
 
@@ -350,6 +384,7 @@ namespace Wasp
 
             default:
                 std::cerr << "VM Error: Unknown OpCode encountered!" << std::endl;
+                std::cerr << "Instruction: " << static_cast<int>(instruction) << std::endl;
                 return;
             }
         }

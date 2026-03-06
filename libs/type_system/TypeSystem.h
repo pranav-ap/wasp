@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Objects.h"
-#include "ObjectStores.h"
+#include "ConstantPool.h"
 #include "SymbolScope.h"
 #include "Token.h"
 #include <vector>

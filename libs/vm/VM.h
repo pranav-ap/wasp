@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Objects.h"
-#include "ObjectStores.h"
+#include "ConstantPool.h"
 #include "OpCode.h"
 
 #include <vector>
@@ -10,19 +10,14 @@
 
 namespace Wasp
 {
-    enum class OpResult
-    {
-        OK,
-        FAILURE,
-        DONE
-    };
-
     struct CallFrame
     {
         std::shared_ptr<FunctionObject> function;
         size_t ip = 0;
         // Where locals start on the VM stack
         size_t base_pointer = 0;
+
+        std::vector<size_t> scope_bases;
 
         CallFrame(std::shared_ptr<FunctionObject> func, size_t bp)
             : function(std::move(func)), base_pointer(bp) {}
@@ -40,7 +35,7 @@ namespace Wasp
         ObjectVector stack;
         std::vector<CallFrame> frames;
         ConstantPool_ptr pool;
-        std::unordered_map<std::string, Object_ptr> globals;
+        ObjectVector globals;
 
         void push_to_stack(Object_ptr value)
         {
@@ -67,7 +62,7 @@ namespace Wasp
             return values;
         }
 
-        Object_ptr peek(size_t distance = 0) const
+        Object_ptr peek_tos(size_t distance = 0) const
         {
             return stack[stack.size() - 1 - distance];
         }
@@ -104,7 +99,7 @@ namespace Wasp
 
         // Utils
 
-        void print_object(Object_ptr obj);
+        bool is_truthy(Object_ptr obj) const;
 
     public:
         VM(std::shared_ptr<ConstantPool> constant_pool) : pool(std::move(constant_pool))

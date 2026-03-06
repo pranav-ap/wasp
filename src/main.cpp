@@ -4,7 +4,7 @@
 #include "Compiler.h"
 #include "VM.h"
 #include "Objects.h"
-#include "ObjectStores.h"
+#include "ConstantPool.h"
 #include "InstructionPrinter.h"
 
 #include "CLI11.hpp"
@@ -41,8 +41,8 @@ namespace Wasp
         std::filesystem::path file_path_obj(file_path);
         string filename = file_path_obj.filename().string();
 
-        string log_dir = "/workspaces/wasp/logs";
-        string log_file_path = log_dir + "/" + filename + ".txt";
+        string log_dir = "/workspaces/wasp/logs/samples";
+        string log_file_path = log_dir + "/" + filename + ".debug";
         std::ofstream log_file(log_file_path);
 
         InstructionPrinter printer(pool);

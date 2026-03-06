@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Statement.h"
-#include "ObjectStores.h"
+#include "ConstantPool.h"
 #include "CFGraph.h"
 #include "Symbol.h"
 
