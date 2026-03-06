@@ -1,6 +1,7 @@
 #include "VM.h"
 
 #include <variant>
+#include <stdexcept>
 
 template <class... Ts>
 struct overloaded : Ts...
@@ -241,6 +242,54 @@ namespace Wasp
                 {
                     frame->ip = target_ip;
                 }
+
+                break;
+            }
+
+                // ==========================================
+                // Call
+                // ==========================================
+
+            case OpCode::CALL:
+            {
+                int arg_count = static_cast<int>(frame->consume_byte());
+                Object_ptr callee = peek_tos(arg_count);
+
+                std::visit(overloaded{[&](std::shared_ptr<FunctionObject> &func)
+                                      {
+                                          size_t new_base_pointer = stack.size() - arg_count;
+                                          frames.emplace_back(func, new_base_pointer);
+                                          // loop will start reading the new function's bytecode
+                                          // in next itreation
+                                          frame = &frames.back();
+                                      },
+
+                                      [&](NativeFunctionObject &native)
+                                      {
+                                          if (native.arity != arg_count)
+                                          {
+                                              throw std::runtime_error("Arity mismatch in native function call");
+                                          }
+
+                                          // Collect arguments from the stack
+                                          std::vector<Object_ptr> args(arg_count);
+                                          for (int i = arg_count - 1; i >= 0; i--)
+                                          {
+                                              args[i] = pop_from_stack();
+                                          }
+
+                                          // Pop the native function object itself off the stack
+                                          pop_from_stack();
+
+                                          Object_ptr result = native.function(args);
+                                          push_to_stack(result);
+                                      },
+
+                                      [](auto &)
+                                      {
+                                          throw std::runtime_error("Attempted to call a non-callable object");
+                                      }},
+                           callee->value);
 
                 break;
             }

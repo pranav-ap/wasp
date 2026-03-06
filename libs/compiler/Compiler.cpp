@@ -542,6 +542,15 @@ namespace Wasp
         emit(OpCode::RETURN);
     }
 
+    void Compiler::visit(Call &expr)
+    {
+        visit(expr.callee);
+        for (const auto &arg : expr.arguments)
+            visit(arg);
+
+        emit(OpCode::CALL, (int)expr.arguments.size());
+    }
+
     // -----------------------------------------------------------------------
     // Expressions
     // -----------------------------------------------------------------------
@@ -707,15 +716,6 @@ namespace Wasp
         default:
             break;
         }
-    }
-
-    void Compiler::visit(Call &expr)
-    {
-        visit(expr.callee);
-        for (const auto &arg : expr.arguments)
-            visit(arg);
-
-        emit(OpCode::CALL, (int)expr.arguments.size());
     }
 
     void Compiler::visit(ListLiteral &expr)

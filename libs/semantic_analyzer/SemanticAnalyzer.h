@@ -6,20 +6,23 @@
 #include "Expression.h"
 #include "TypeAnnotation.h"
 #include "SymbolScope.h"
+
 #include <memory>
 #include <tuple>
 #include <optional>
+#include <map>
 #include <vector>
 #include <string>
 
 namespace Wasp
 {
-
     class SemanticAnalyzer
     {
         TypeSystem_ptr type_system;
         SymbolScope_ptr current_scope;
         ObjectVector return_type_stack;
+
+        std::unordered_map<std::string, int> &natives;
 
         // ========================================================================
         // Statement Visitors
@@ -129,9 +132,12 @@ namespace Wasp
         void enter_scope(ScopeType scope_type);
         void leave_scope();
 
+        void register_natives();
+
     public:
-        SemanticAnalyzer()
-            : type_system(std::make_shared<TypeSystem>()) {};
+        SemanticAnalyzer(std::unordered_map<std::string, int> &natives)
+            : type_system(std::make_shared<TypeSystem>()),
+              natives(natives) {};
 
         void run(struct Module &ast);
     };

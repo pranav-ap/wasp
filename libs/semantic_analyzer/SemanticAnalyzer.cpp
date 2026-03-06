@@ -27,8 +27,19 @@ namespace Wasp
     void SemanticAnalyzer::run(struct Module &ast)
     {
         enter_scope(ScopeType::MODULE);
+        register_natives();
+
         visit(ast.statements);
         leave_scope();
+    }
+
+    void SemanticAnalyzer::register_natives()
+    {
+        for (const auto &[name, index] : natives)
+        {
+            auto symbol = std::make_shared<Symbol>(name, true);
+            current_scope->define(symbol);
+        }
     }
 
     // ============================================================================

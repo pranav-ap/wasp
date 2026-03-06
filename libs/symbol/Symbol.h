@@ -21,6 +21,9 @@ namespace Wasp
 
 		Object_ptr type;
 
+		Symbol(std::string name, bool is_builtin)
+			: id(0), name(name), type(nullptr), is_builtin(is_builtin), is_public(true), is_mutable(is_mutable), closure_depth(0), lexical_depth(0), is_captured(false) {};
+
 		Symbol(std::string name, Object_ptr type, bool is_builtin)
 			: id(0), name(name), type(type), is_builtin(is_builtin), is_public(true), is_mutable(is_mutable), closure_depth(0), lexical_depth(0), is_captured(false) {};
 
