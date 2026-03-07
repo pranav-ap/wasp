@@ -1,6 +1,7 @@
 #include "Token.h"
 #include "lexer.h"
 #include "parser.h"
+#include "NativeRegistry.h"
 #include "SemanticAnalyzer.h"
 #include "InstructionPrinter.h"
 #include "Compiler.h"
@@ -18,7 +19,7 @@ protected:
     std::string log_dir;
     bool enable_logging = true;
 
-    Wasp::ConstantPool_ptr current_pool;
+    Wasp::ConstantPool_ptr pool;
     Wasp::CodeObject current_bytecode;
     Wasp::CFGraph current_graph;
 
@@ -54,14 +55,16 @@ protected:
     {
         auto mod = parse(source);
 
-        Wasp::SemanticAnalyzer analyzer;
-        analyzer.run(mod);
+        pool = std::make_shared<Wasp::ConstantPool>();
 
-        Wasp::Compiler compiler;
-        auto result = compiler.run(mod);
+        auto native_registry = std::make_shared<Wasp::NativeRegistry>(pool);
+        native_registry->load_stdlib();
 
-        current_pool = std::get<0>(result);
-        current_bytecode = std::get<1>(result);
+        auto semantic_analyzer = Wasp::SemanticAnalyzer(native_registry);
+        semantic_analyzer.run(mod);
+
+        Wasp::Compiler compiler(pool);
+        current_bytecode = compiler.run(mod);
         current_graph = compiler.get_graph();
 
         if (enable_logging)
@@ -85,7 +88,7 @@ protected:
         std::string dot_file_path = log_dir + "/dots/" + test_name + ".dot";
         std::ofstream dot_file(dot_file_path);
 
-        Wasp::InstructionPrinter printer(current_pool);
+        Wasp::InstructionPrinter printer(pool);
 
         if (dot_file.is_open())
         {
@@ -114,14 +117,14 @@ fun add(a: int, b: int) => int
         /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
         /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(11),
         /* 3 */ B(Wasp::OpCode::MAKE_FUNCTION), B(0),
-        /* 5 */ B(Wasp::OpCode::DEFINE_LOCAL), B(0),
+        /* 5 */ B(Wasp::OpCode::DEFINE_LOCAL), B(1),
         /* 7 */ B(Wasp::OpCode::JUMP), B(10), B(0),
         /* 10*/ B(Wasp::OpCode::EXIT_MODULE)};
 
     EXPECT_EQ(actual_bytes, expected_bytes);
 
     // Extract Function Object
-    auto pool_obj = current_pool->get(11);
+    auto pool_obj = pool->get(11);
     ASSERT_TRUE(pool_obj->is<std::shared_ptr<Wasp::FunctionObject>>());
     auto func_obj = pool_obj->as<std::shared_ptr<Wasp::FunctionObject>>();
     const Wasp::CodeObject &inner_code = func_obj->code;
@@ -160,14 +163,14 @@ fun max(a: int, b: int) => int
         /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
         /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(11),
         /* 3 */ B(Wasp::OpCode::MAKE_FUNCTION), B(0),
-        /* 5 */ B(Wasp::OpCode::DEFINE_LOCAL), B(0),
+        /* 5 */ B(Wasp::OpCode::DEFINE_LOCAL), B(1),
         /* 7 */ B(Wasp::OpCode::JUMP), B(10), B(0),
         /* 10*/ B(Wasp::OpCode::EXIT_MODULE)};
 
     EXPECT_EQ(actual_bytes, expected_bytes);
 
     // Extract Function Object
-    auto pool_obj = current_pool->get(11);
+    auto pool_obj = pool->get(11);
     ASSERT_TRUE(pool_obj->is<std::shared_ptr<Wasp::FunctionObject>>());
     auto func_obj = pool_obj->as<std::shared_ptr<Wasp::FunctionObject>>();
     const Wasp::CodeObject &inner_code = func_obj->code;
@@ -228,7 +231,7 @@ fun outer(a: int) => any
         /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
         /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(12), // 'outer' FunctionObject
         /* 3 */ B(Wasp::OpCode::MAKE_FUNCTION), B(0),
-        /* 5 */ B(Wasp::OpCode::DEFINE_LOCAL), B(0),
+        /* 5 */ B(Wasp::OpCode::DEFINE_LOCAL), B(1),
         /* 7 */ B(Wasp::OpCode::JUMP), B(10), B(0),
         /* 10*/ B(Wasp::OpCode::EXIT_MODULE)};
 
@@ -236,7 +239,7 @@ fun outer(a: int) => any
     // ========================================================================
     // 2. Verify Outer Function (Creates 'inner' and captures 'a')
     // ========================================================================
-    auto outer_pool_obj = current_pool->get(12);
+    auto outer_pool_obj = pool->get(12);
     ASSERT_TRUE(outer_pool_obj->is<std::shared_ptr<Wasp::FunctionObject>>());
     const Wasp::CodeObject &outer_code = outer_pool_obj->as<std::shared_ptr<Wasp::FunctionObject>>()->code;
 
@@ -266,4 +269,22 @@ fun outer(a: int) => any
         /* 14*/ B(Wasp::OpCode::RETURN)};
 
     EXPECT_EQ(actual_outer_bytes, expected_outer_bytes);
+}
+
+TEST_F(CompileFunctions, Print)
+{
+    auto actual_bytes = compile(R"(
+print(1)
+)");
+
+    std::vector<std::byte> expected_bytes = {
+        /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
+        /* 1 */ B(Wasp::OpCode::GET_GLOBAL), B(0),
+        /* 3 */ B(Wasp::OpCode::LOAD_CONST), B(11),
+        /* 5 */ B(Wasp::OpCode::CALL), B(1),
+        /* 7 */ B(Wasp::OpCode::POP),
+        /* 8 */ B(Wasp::OpCode::JUMP), B(11), B(0),
+        /* 11 */ B(Wasp::OpCode::EXIT_MODULE)};
+
+    EXPECT_EQ(actual_bytes, expected_bytes);
 }

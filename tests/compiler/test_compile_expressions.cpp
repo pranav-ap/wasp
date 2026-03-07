@@ -1,6 +1,7 @@
 #include "Token.h"
 #include "lexer.h"
 #include "parser.h"
+#include "NativeRegistry.h"
 #include "SemanticAnalyzer.h"
 #include "InstructionPrinter.h"
 #include "Compiler.h"
@@ -18,7 +19,7 @@ protected:
     std::string log_dir;
     bool enable_logging = true;
 
-    Wasp::ConstantPool_ptr current_pool;
+    Wasp::ConstantPool_ptr pool;
     Wasp::CodeObject current_bytecode;
     Wasp::CFGraph current_graph;
 
@@ -51,14 +52,16 @@ protected:
     {
         auto mod = parse(source);
 
-        Wasp::SemanticAnalyzer analyzer;
-        analyzer.run(mod);
+        pool = std::make_shared<Wasp::ConstantPool>();
 
-        Wasp::Compiler compiler;
-        auto result = compiler.run(mod);
+        auto native_registry = std::make_shared<Wasp::NativeRegistry>(pool);
+        native_registry->load_stdlib();
 
-        current_pool = std::get<0>(result);
-        current_bytecode = std::get<1>(result);
+        auto semantic_analyzer = Wasp::SemanticAnalyzer(native_registry);
+        semantic_analyzer.run(mod);
+
+        Wasp::Compiler compiler(pool);
+        current_bytecode = compiler.run(mod);
         current_graph = compiler.get_graph();
 
         if (enable_logging)
@@ -81,7 +84,7 @@ protected:
         std::string dot_file_path = log_dir + "/dots/" + test_name + ".dot";
         std::ofstream dot_file(dot_file_path);
 
-        Wasp::InstructionPrinter printer(current_pool);
+        Wasp::InstructionPrinter printer(pool);
 
         if (dot_file.is_open())
         {

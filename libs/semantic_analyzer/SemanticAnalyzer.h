@@ -6,6 +6,7 @@
 #include "Expression.h"
 #include "TypeAnnotation.h"
 #include "SymbolScope.h"
+#include "NativeRegistry.h"
 
 #include <memory>
 #include <tuple>
@@ -19,10 +20,9 @@ namespace Wasp
     class SemanticAnalyzer
     {
         TypeSystem_ptr type_system;
+        NativeRegistry_ptr native_registry;
         SymbolScope_ptr current_scope;
         ObjectVector return_type_stack;
-
-        std::unordered_map<std::string, int> &natives;
 
         // ========================================================================
         // Statement Visitors
@@ -135,9 +135,9 @@ namespace Wasp
         void register_natives();
 
     public:
-        SemanticAnalyzer(std::unordered_map<std::string, int> &natives)
+        SemanticAnalyzer(NativeRegistry_ptr native_registry)
             : type_system(std::make_shared<TypeSystem>()),
-              natives(natives) {};
+              native_registry(native_registry) {};
 
         void run(struct Module &ast);
     };

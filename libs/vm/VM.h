@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Objects.h"
+#include "NativeRegistry.h"
 #include "ConstantPool.h"
 #include "OpCode.h"
 
@@ -35,37 +36,12 @@ namespace Wasp
         ObjectVector stack;
         std::vector<CallFrame> frames;
         ConstantPool_ptr pool;
-        ObjectVector globals;
+        NativeRegistry_ptr native_registry;
 
-        void push_to_stack(Object_ptr value)
-        {
-            stack.push_back(std::move(value));
-        }
-
-        Object_ptr pop_from_stack()
-        {
-            auto val = std::move(stack.back());
-            stack.pop_back();
-            return val;
-        }
-
-        ObjectVector pop_n_from_stack(size_t n)
-        {
-            ObjectVector values;
-            values.reserve(n);
-
-            for (size_t i = 0; i < n; i++)
-            {
-                values.push_back(pop_from_stack());
-            }
-
-            return values;
-        }
-
-        Object_ptr peek_tos(size_t distance = 0) const
-        {
-            return stack[stack.size() - 1 - distance];
-        }
+        void push_to_stack(Object_ptr value);
+        Object_ptr pop_from_stack();
+        ObjectVector pop_n_from_stack(size_t n);
+        Object_ptr peek_tos(size_t distance = 0) const;
 
         void execute();
 
@@ -102,7 +78,8 @@ namespace Wasp
         bool is_truthy(Object_ptr obj) const;
 
     public:
-        VM(std::shared_ptr<ConstantPool> constant_pool) : pool(std::move(constant_pool))
+        VM(std::shared_ptr<ConstantPool> pool, NativeRegistry_ptr native_registry)
+            : pool(std::move(pool)), native_registry(native_registry)
         {
             stack.reserve(256);
         }

@@ -60,16 +60,21 @@ namespace Wasp
         string code = read_file(file_path);
 
         Lexer lexer;
-        Parser parser;
-
         auto tokens = lexer.run(code);
+
+        Parser parser;
         auto mod = parser.run(tokens);
 
-        SemanticAnalyzer analyzer;
-        analyzer.run(mod);
+        auto pool = std::make_shared<ConstantPool>();
 
-        Compiler compiler;
-        auto [pool, bytecode] = compiler.run(mod);
+        auto native_registry = std::make_shared<NativeRegistry>(pool);
+        native_registry->load_stdlib();
+
+        SemanticAnalyzer semantic_analyzer(native_registry);
+        semantic_analyzer.run(mod);
+
+        Compiler compiler(pool);
+        auto bytecode = compiler.run(mod);
 
         log(file_path, pool, bytecode);
 

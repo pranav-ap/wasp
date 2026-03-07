@@ -89,13 +89,13 @@ namespace Wasp
 		CodeObject flatten();
 
 	public:
-		Compiler();
+		Compiler(ConstantPool_ptr pool);
 		Compiler(ConstantPool_ptr pool, Compiler *parent);
 
 		const CFGraph &get_graph() const { return graph; }
 		const std::map<int, std::string> &get_name_map() const { return debug_name_map; }
 
-		std::tuple<ConstantPool_ptr, CodeObject> run(const Module &module);
+		CodeObject run(const Module &module);
 
 		// ========================================================================
 		// Visitors

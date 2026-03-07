@@ -28,8 +28,8 @@ namespace Wasp
     // Constructors
     // ------------------------------------------------------------------------
 
-    Compiler::Compiler()
-        : constant_pool(std::make_shared<ConstantPool>()),
+    Compiler::Compiler(ConstantPool_ptr pool)
+        : constant_pool(pool),
           current_block_id(InvalidBlockId),
           parent(nullptr),
           compiler_depth(0)
@@ -831,7 +831,7 @@ namespace Wasp
         return final_bytecode;
     }
 
-    std::tuple<ConstantPool_ptr, CodeObject> Compiler::run(const Module &module)
+    CodeObject Compiler::run(const Module &module)
     {
         emit(OpCode::ENTER_MODULE);
 
@@ -847,6 +847,6 @@ namespace Wasp
 
         emit(OpCode::EXIT_MODULE);
 
-        return {constant_pool, flatten()};
+        return flatten();
     }
 }
