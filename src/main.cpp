@@ -5,6 +5,7 @@
 #include "VM.h"
 #include "Objects.h"
 #include "ConstantPool.h"
+#include "NativeRegistry.h"
 #include "InstructionPrinter.h"
 
 #include "CLI11.hpp"
@@ -80,7 +81,7 @@ namespace Wasp
 
         auto main_module = std::make_shared<FunctionObject>(std::move(bytecode));
 
-        VM vm(pool);
+        VM vm(pool, native_registry);
         vm.run(main_module);
     }
 }

@@ -772,7 +772,7 @@ namespace Wasp
     void Compiler::visit(Postfix &expr) {}
 
     // -----------------------------------------------------------------------
-    // Utils & Run
+    // Flatten
     // -----------------------------------------------------------------------
 
     std::map<BlockId, size_t> Compiler::calculate_block_offsets() const

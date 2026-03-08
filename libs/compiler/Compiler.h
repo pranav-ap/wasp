@@ -3,6 +3,7 @@
 #include "Statement.h"
 #include "ConstantPool.h"
 #include "CFGraph.h"
+#include "NativeRegistry.h"
 #include "Symbol.h"
 
 #include <memory>

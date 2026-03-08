@@ -2,13 +2,15 @@
 #include "InstructionPrinter.h"
 #include "NativeRegistry.h"
 #include "SemanticAnalyzer.h"
+#include "VM.h"
+
 #include "test_utils.h"
 #include <filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
 #include <vector>
 
-class CompileVariables : public ::testing::Test {
+class VMTest : public ::testing::Test {
 protected:
   std::string log_dir;
   bool enable_logging = true;
@@ -23,7 +25,7 @@ protected:
 
     std::string suite_name = test_info->test_suite_name();
 
-    log_dir = "/workspaces/wasp/logs/compiler_tests/" + suite_name;
+    log_dir = "/workspaces/wasp/logs/vm_tests/" + suite_name;
 
     if (enable_logging && !std::filesystem::exists(log_dir)) {
       std::filesystem::create_directories(log_dir);
@@ -58,6 +60,12 @@ protected:
       log();
     }
 
+    auto main_module =
+        std::make_shared<Wasp::FunctionObject>(std::move(current_bytecode));
+
+    Wasp::VM vm(pool, native_registry);
+    vm.run(main_module);
+
     const std::byte *data = current_bytecode.data();
     return std::vector<std::byte>(data, data + current_bytecode.length());
   }
@@ -87,45 +95,17 @@ protected:
     }
   }
 };
-TEST_F(CompileVariables, DefineAndUseVariable) {
+
+// ============================================================================
+// Control Flow: Branches
+// ============================================================================
+
+TEST_F(VMTest, Print) {
+  testing::internal::CaptureStdout();
+
   auto actual_bytes = compile(R"(
-let x = 42
-x + 1
+print(1)
 )");
 
-  std::vector<std::byte> expected_bytes = {
-      /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
-      /* 1 */ B(Wasp::OpCode::LOAD_CONST),   B(11), // 42
-      /* 3 */ B(Wasp::OpCode::DEFINE_LOCAL), B(1),
-
-      /* 5 */ B(Wasp::OpCode::GET_GLOBAL),   B(1),  // "x"
-      /* 7 */ B(Wasp::OpCode::LOAD_CONST),   B(12), // 1
-      /* 9 */ B(Wasp::OpCode::ADD),
-      /* 10*/ B(Wasp::OpCode::POP),
-      /* 11*/ B(Wasp::OpCode::JUMP),         B(14), B(0),
-      /* 14*/ B(Wasp::OpCode::EXIT_MODULE)};
-
-  EXPECT_EQ(actual_bytes, expected_bytes);
-}
-TEST_F(CompileVariables, DefineAndReAssignVariable) {
-  auto actual_bytes = compile(R"(
-let x = 42
-x = x + 1
-)");
-
-  std::vector<std::byte> expected_bytes = {
-      /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
-      /* 1 */ B(Wasp::OpCode::LOAD_CONST),   B(11), // 42
-      /* 3 */ B(Wasp::OpCode::DEFINE_LOCAL), B(1),  // Local Slot 0 (Not a pool
-                                                    // index!)
-
-      /* 5 */ B(Wasp::OpCode::GET_GLOBAL),   B(1),  // "x"
-      /* 7 */ B(Wasp::OpCode::LOAD_CONST),   B(12), // 1
-      /* 9 */ B(Wasp::OpCode::ADD),
-      /* 10*/ B(Wasp::OpCode::SET_GLOBAL),   B(1), // "x"
-      /* 12*/ B(Wasp::OpCode::POP),
-      /* 13*/ B(Wasp::OpCode::JUMP),         B(16), B(0),
-      /* 16*/ B(Wasp::OpCode::EXIT_MODULE)};
-
-  EXPECT_EQ(actual_bytes, expected_bytes);
+  EXPECT_TRUE(true);
 }

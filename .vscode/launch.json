@@ -12,7 +12,7 @@
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
-            "preLaunchTask": "Build", // This runs your task BEFORE debugging
+            "preLaunchTask": "Build",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",
@@ -25,7 +25,10 @@
             "name": "Debug Unit Tests",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/tests/unit_tests",
+            // This variables looks at the 'inputs' array at the bottom!
+            "program": "${workspaceFolder}/build/tests/${input:testTarget}",
+            // TIP: If you only want to debug one specific test, add it here!
+            // Example: ["--gtest_filter=CompileFunctions.Print"]
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
@@ -41,6 +44,21 @@
                     "ignoreFailures": true
                 }
             ]
+        }
+    ],
+    "inputs": [
+        {
+            "id": "testTarget",
+            "type": "pickString",
+            "description": "Which test suite do you want to debug?",
+            "options": [
+                "lexer_tests",
+                "parser_tests",
+                "semantics_tests",
+                "compiler_tests",
+                "vm_tests"
+            ],
+            "default": "vm_tests"
         }
     ]
 }

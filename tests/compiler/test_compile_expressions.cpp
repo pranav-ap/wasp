@@ -1,214 +1,195 @@
-#include "Token.h"
-#include "lexer.h"
-#include "parser.h"
+#include "Compiler.h"
+#include "InstructionPrinter.h"
 #include "NativeRegistry.h"
 #include "SemanticAnalyzer.h"
-#include "InstructionPrinter.h"
-#include "Compiler.h"
 #include "test_utils.h"
-#include <gtest/gtest.h>
-#include <fstream>
 #include <filesystem>
+#include <fstream>
+#include <gtest/gtest.h>
 #include <vector>
 
-namespace fs = std::filesystem;
-
-class CompileExpressions : public ::testing::Test
-{
+class CompileExpressions : public ::testing::Test {
 protected:
-    std::string log_dir;
-    bool enable_logging = true;
+  std::string log_dir;
+  bool enable_logging = true;
 
-    Wasp::ConstantPool_ptr pool;
-    Wasp::CodeObject current_bytecode;
-    Wasp::CFGraph current_graph;
+  Wasp::ConstantPool_ptr pool;
+  Wasp::CodeObject current_bytecode;
+  Wasp::CFGraph current_graph;
 
-    void SetUp() override
-    {
-        const ::testing::TestInfo *const test_info =
-            ::testing::UnitTest::GetInstance()->current_test_info();
+  void SetUp() override {
+    const ::testing::TestInfo *const test_info =
+        ::testing::UnitTest::GetInstance()->current_test_info();
 
-        std::string suite_name = test_info->test_suite_name();
+    std::string suite_name = test_info->test_suite_name();
 
-        log_dir = "/workspaces/wasp/logs/compiler_tests/" + suite_name;
+    log_dir = "/workspaces/wasp/logs/compiler_tests/" + suite_name;
 
-        if (enable_logging && !std::filesystem::exists(log_dir))
-        {
-            std::filesystem::create_directories(log_dir);
-        }
-
-        std::string dots_dir = log_dir + "/dots";
-
-        if (enable_logging && !std::filesystem::exists(dots_dir))
-        {
-            std::filesystem::create_directories(dots_dir);
-        }
+    if (enable_logging && !std::filesystem::exists(log_dir)) {
+      std::filesystem::create_directories(log_dir);
     }
 
-    static std::byte B(Wasp::OpCode op) { return static_cast<std::byte>(op); }
-    static std::byte B(int operand) { return static_cast<std::byte>(operand); }
+    std::string dots_dir = log_dir + "/dots";
 
-    std::vector<std::byte> compile(const std::string &source)
-    {
-        auto mod = parse(source);
+    if (enable_logging && !std::filesystem::exists(dots_dir)) {
+      std::filesystem::create_directories(dots_dir);
+    }
+  }
 
-        pool = std::make_shared<Wasp::ConstantPool>();
+  static std::byte B(Wasp::OpCode op) { return static_cast<std::byte>(op); }
+  static std::byte B(int operand) { return static_cast<std::byte>(operand); }
 
-        auto native_registry = std::make_shared<Wasp::NativeRegistry>(pool);
-        native_registry->load_stdlib();
+  std::vector<std::byte> compile(const std::string &source) {
+    auto mod = parse(source);
 
-        auto semantic_analyzer = Wasp::SemanticAnalyzer(native_registry);
-        semantic_analyzer.run(mod);
+    pool = std::make_shared<Wasp::ConstantPool>();
 
-        Wasp::Compiler compiler(pool);
-        current_bytecode = compiler.run(mod);
-        current_graph = compiler.get_graph();
+    auto native_registry = std::make_shared<Wasp::NativeRegistry>(pool);
+    native_registry->load_stdlib();
 
-        if (enable_logging)
-        {
-            log();
-        }
+    auto semantic_analyzer = Wasp::SemanticAnalyzer(native_registry);
+    semantic_analyzer.run(mod);
 
-        const std::byte *data = current_bytecode.data();
-        return std::vector<std::byte>(data, data + current_bytecode.length());
+    Wasp::Compiler compiler(pool);
+    current_bytecode = compiler.run(mod);
+    current_graph = compiler.get_graph();
+
+    if (enable_logging) {
+      log();
     }
 
-    void log()
-    {
-        const ::testing::TestInfo *const test_info = ::testing::UnitTest::GetInstance()->current_test_info();
-        std::string test_name = test_info->name();
+    const std::byte *data = current_bytecode.data();
+    return std::vector<std::byte>(data, data + current_bytecode.length());
+  }
 
-        std::string file_path = log_dir + "/" + test_name + ".txt";
-        std::ofstream log_file(file_path);
+  void log() {
+    const ::testing::TestInfo *const test_info =
+        ::testing::UnitTest::GetInstance()->current_test_info();
+    std::string test_name = test_info->name();
 
-        std::string dot_file_path = log_dir + "/dots/" + test_name + ".dot";
-        std::ofstream dot_file(dot_file_path);
+    std::string file_path = log_dir + "/" + test_name + ".txt";
+    std::ofstream log_file(file_path);
 
-        Wasp::InstructionPrinter printer(pool);
+    std::string dot_file_path = log_dir + "/dots/" + test_name + ".dot";
+    std::ofstream dot_file(dot_file_path);
 
-        if (dot_file.is_open())
-        {
-            printer.print(current_graph, dot_file);
-            dot_file.close();
-        }
+    Wasp::InstructionPrinter printer(pool);
 
-        if (log_file.is_open())
-        {
-            printer.print(current_bytecode, log_file);
-            printer.print_pool(log_file);
-            log_file.close();
-        }
+    if (dot_file.is_open()) {
+      printer.print(current_graph, dot_file);
+      dot_file.close();
     }
+
+    if (log_file.is_open()) {
+      printer.print(current_bytecode, log_file);
+      printer.print_pool(log_file);
+      log_file.close();
+    }
+  }
 };
 
 // ============================================================================
 // Basic Primitives
 // ============================================================================
 
-TEST_F(CompileExpressions, SimpleInteger)
-{
-    auto actual_bytes = compile("25");
+TEST_F(CompileExpressions, SimpleInteger) {
+  auto actual_bytes = compile("25");
 
-    std::vector<std::byte> expected_bytes = {
-        /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
-        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(11),
-        /* 3 */ B(Wasp::OpCode::POP),
-        /* 4 */ B(Wasp::OpCode::JUMP), B(7), B(0),
-        /* 7 */ B(Wasp::OpCode::EXIT_MODULE)};
+  std::vector<std::byte> expected_bytes = {
+      /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
+      /* 1 */ B(Wasp::OpCode::LOAD_CONST),   B(11),
+      /* 3 */ B(Wasp::OpCode::POP),
+      /* 4 */ B(Wasp::OpCode::JUMP),         B(7),  B(0),
+      /* 7 */ B(Wasp::OpCode::EXIT_MODULE)};
 
-    EXPECT_EQ(actual_bytes, expected_bytes);
+  EXPECT_EQ(actual_bytes, expected_bytes);
 }
 
-TEST_F(CompileExpressions, SimpleList)
-{
-    auto actual_bytes = compile("[1, 2, 3]");
+TEST_F(CompileExpressions, SimpleList) {
+  auto actual_bytes = compile("[1, 2, 3]");
 
-    std::vector<std::byte> expected_bytes = {
-        /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
-        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(11),
-        /* 3 */ B(Wasp::OpCode::LOAD_CONST), B(12),
-        /* 5 */ B(Wasp::OpCode::LOAD_CONST), B(13),
-        /* 7 */ B(Wasp::OpCode::BUILD_LIST), B(3),
-        /* 9 */ B(Wasp::OpCode::POP),
-        /* 10*/ B(Wasp::OpCode::JUMP), B(13), B(0),
-        /* 13*/ B(Wasp::OpCode::EXIT_MODULE)};
+  std::vector<std::byte> expected_bytes = {
+      /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
+      /* 1 */ B(Wasp::OpCode::LOAD_CONST),   B(11),
+      /* 3 */ B(Wasp::OpCode::LOAD_CONST),   B(12),
+      /* 5 */ B(Wasp::OpCode::LOAD_CONST),   B(13),
+      /* 7 */ B(Wasp::OpCode::BUILD_LIST),   B(3),
+      /* 9 */ B(Wasp::OpCode::POP),
+      /* 10*/ B(Wasp::OpCode::JUMP),         B(13), B(0),
+      /* 13*/ B(Wasp::OpCode::EXIT_MODULE)};
 
-    EXPECT_EQ(actual_bytes, expected_bytes);
+  EXPECT_EQ(actual_bytes, expected_bytes);
 }
 
 // ============================================================================
 // Arithmetic
 // ============================================================================
 
-TEST_F(CompileExpressions, NegateNumber)
-{
-    auto actual_bytes = compile("-2");
+TEST_F(CompileExpressions, NegateNumber) {
+  auto actual_bytes = compile("-2");
 
-    std::vector<std::byte> expected_bytes = {
-        /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
-        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(11),
-        /* 3 */ B(Wasp::OpCode::NEGATE),
-        /* 4 */ B(Wasp::OpCode::POP),
-        /* 5 */ B(Wasp::OpCode::JUMP), B(8), B(0),
-        /* 8 */ B(Wasp::OpCode::EXIT_MODULE)};
+  std::vector<std::byte> expected_bytes = {
+      /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
+      /* 1 */ B(Wasp::OpCode::LOAD_CONST),   B(11),
+      /* 3 */ B(Wasp::OpCode::NEGATE),
+      /* 4 */ B(Wasp::OpCode::POP),
+      /* 5 */ B(Wasp::OpCode::JUMP),         B(8),  B(0),
+      /* 8 */ B(Wasp::OpCode::EXIT_MODULE)};
 
-    EXPECT_EQ(actual_bytes, expected_bytes);
+  EXPECT_EQ(actual_bytes, expected_bytes);
 }
 
-TEST_F(CompileExpressions, SimpleAddition)
-{
-    auto actual_bytes = compile("1 + 2");
+TEST_F(CompileExpressions, SimpleAddition) {
+  auto actual_bytes = compile("1 + 2");
 
-    std::vector<std::byte> expected_bytes = {
-        /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
-        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(11),
-        /* 3 */ B(Wasp::OpCode::LOAD_CONST), B(12),
-        /* 5 */ B(Wasp::OpCode::ADD),
-        /* 6 */ B(Wasp::OpCode::POP),
-        /* 7 */ B(Wasp::OpCode::JUMP), B(10), B(0),
-        /* 10*/ B(Wasp::OpCode::EXIT_MODULE)};
+  std::vector<std::byte> expected_bytes = {
+      /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
+      /* 1 */ B(Wasp::OpCode::LOAD_CONST),   B(11),
+      /* 3 */ B(Wasp::OpCode::LOAD_CONST),   B(12),
+      /* 5 */ B(Wasp::OpCode::ADD),
+      /* 6 */ B(Wasp::OpCode::POP),
+      /* 7 */ B(Wasp::OpCode::JUMP),         B(10), B(0),
+      /* 10*/ B(Wasp::OpCode::EXIT_MODULE)};
 
-    EXPECT_EQ(actual_bytes, expected_bytes);
+  EXPECT_EQ(actual_bytes, expected_bytes);
 }
 
 // ============================================================================
 // Ranges
 // ============================================================================
 
-TEST_F(CompileExpressions, RangeExclusiveFull)
-{
-    auto actual_bytes = compile(R"(
+TEST_F(CompileExpressions, RangeExclusiveFull) {
+  auto actual_bytes = compile(R"(
 1..<10 step 2
 )");
 
-    std::vector<std::byte> expected_bytes = {
-        /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
-        /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(11),
-        /* 3 */ B(Wasp::OpCode::LOAD_CONST), B(12),
-        /* 5 */ B(Wasp::OpCode::LOAD_CONST), B(13),
-        /* 7 */ B(Wasp::OpCode::BUILD_RANGE), B(0), // 0 = Exclusive
-        /* 9 */ B(Wasp::OpCode::POP),
-        /* 10*/ B(Wasp::OpCode::JUMP), B(13), B(0),
-        /* 13*/ B(Wasp::OpCode::EXIT_MODULE)};
+  std::vector<std::byte> expected_bytes = {
+      /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
+      /* 1 */ B(Wasp::OpCode::LOAD_CONST),   B(11),
+      /* 3 */ B(Wasp::OpCode::LOAD_CONST),   B(12),
+      /* 5 */ B(Wasp::OpCode::LOAD_CONST),   B(13),
+      /* 7 */ B(Wasp::OpCode::BUILD_RANGE),  B(0), // 0 = Exclusive
+      /* 9 */ B(Wasp::OpCode::POP),
+      /* 10*/ B(Wasp::OpCode::JUMP),         B(13), B(0),
+      /* 13*/ B(Wasp::OpCode::EXIT_MODULE)};
 
-    EXPECT_EQ(actual_bytes, expected_bytes);
+  EXPECT_EQ(actual_bytes, expected_bytes);
 }
 
-TEST_F(CompileExpressions, RangeInclusivePartial)
-{
-    auto actual_bytes = compile(R"(
+TEST_F(CompileExpressions, RangeInclusivePartial) {
+  auto actual_bytes = compile(R"(
 ..<100
 )");
 
-    std::vector<std::byte> expected_bytes = {
-        /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
-        /* 1 */ B(Wasp::OpCode::LOAD_NONE),
-        /* 2 */ B(Wasp::OpCode::LOAD_CONST), B(11),
-        /* 4 */ B(Wasp::OpCode::LOAD_NONE),
-        /* 5 */ B(Wasp::OpCode::BUILD_RANGE), B(0),
-        /* 7 */ B(Wasp::OpCode::POP),
-        /* 8 */ B(Wasp::OpCode::JUMP), B(11), B(0),
-        /* 11*/ B(Wasp::OpCode::EXIT_MODULE)};
+  std::vector<std::byte> expected_bytes = {
+      /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
+      /* 1 */ B(Wasp::OpCode::LOAD_NONE),
+      /* 2 */ B(Wasp::OpCode::LOAD_CONST),   B(11),
+      /* 4 */ B(Wasp::OpCode::LOAD_NONE),
+      /* 5 */ B(Wasp::OpCode::BUILD_RANGE),  B(0),
+      /* 7 */ B(Wasp::OpCode::POP),
+      /* 8 */ B(Wasp::OpCode::JUMP),         B(11), B(0),
+      /* 11*/ B(Wasp::OpCode::EXIT_MODULE)};
 
-    EXPECT_EQ(actual_bytes, expected_bytes);
+  EXPECT_EQ(actual_bytes, expected_bytes);
 }
