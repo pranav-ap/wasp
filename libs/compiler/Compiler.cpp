@@ -28,8 +28,8 @@ namespace Wasp
     // Constructors
     // ------------------------------------------------------------------------
 
-    Compiler::Compiler()
-        : constant_pool(std::make_shared<ConstantPool>()),
+    Compiler::Compiler(ConstantPool_ptr pool)
+        : constant_pool(pool),
           current_block_id(InvalidBlockId),
           parent(nullptr),
           compiler_depth(0)
@@ -542,6 +542,15 @@ namespace Wasp
         emit(OpCode::RETURN);
     }
 
+    void Compiler::visit(Call &expr)
+    {
+        visit(expr.callee);
+        for (const auto &arg : expr.arguments)
+            visit(arg);
+
+        emit(OpCode::CALL, (int)expr.arguments.size());
+    }
+
     // -----------------------------------------------------------------------
     // Expressions
     // -----------------------------------------------------------------------
@@ -709,15 +718,6 @@ namespace Wasp
         }
     }
 
-    void Compiler::visit(Call &expr)
-    {
-        visit(expr.callee);
-        for (const auto &arg : expr.arguments)
-            visit(arg);
-
-        emit(OpCode::CALL, (int)expr.arguments.size());
-    }
-
     void Compiler::visit(ListLiteral &expr)
     {
         visit(expr.expressions);
@@ -772,7 +772,7 @@ namespace Wasp
     void Compiler::visit(Postfix &expr) {}
 
     // -----------------------------------------------------------------------
-    // Utils & Run
+    // Flatten
     // -----------------------------------------------------------------------
 
     std::map<BlockId, size_t> Compiler::calculate_block_offsets() const
@@ -831,7 +831,7 @@ namespace Wasp
         return final_bytecode;
     }
 
-    std::tuple<ConstantPool_ptr, CodeObject> Compiler::run(const Module &module)
+    CodeObject Compiler::run(const Module &module)
     {
         emit(OpCode::ENTER_MODULE);
 
@@ -847,6 +847,6 @@ namespace Wasp
 
         emit(OpCode::EXIT_MODULE);
 
-        return {constant_pool, flatten()};
+        return flatten();
     }
 }

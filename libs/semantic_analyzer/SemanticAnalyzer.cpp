@@ -27,8 +27,22 @@ namespace Wasp
     void SemanticAnalyzer::run(struct Module &ast)
     {
         enter_scope(ScopeType::MODULE);
+        register_natives();
+
         visit(ast.statements);
         leave_scope();
+    }
+
+    void SemanticAnalyzer::register_natives()
+    {
+        std::unordered_map<std::string, int> native_names = native_registry->get_all_native_names();
+
+        for (const auto &[name, index] : native_names)
+        {
+            auto symbol_type = native_registry->get_native_object_type(index);
+            auto symbol = std::make_shared<Symbol>(name, symbol_type, true);
+            current_scope->define(symbol);
+        }
     }
 
     // ============================================================================
@@ -610,7 +624,7 @@ namespace Wasp
             FATAL("Semantic Error: Undefined variable '" + expr.name + "'");
         }
 
-        if (symbol->should_be_captured(current_scope->get_closure_depth()))
+        if (!symbol->is_captured && symbol->should_be_captured(current_scope->get_closure_depth()))
         {
             symbol->is_captured = true;
         }

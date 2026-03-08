@@ -5,6 +5,7 @@
 #include "VM.h"
 #include "Objects.h"
 #include "ConstantPool.h"
+#include "NativeRegistry.h"
 #include "InstructionPrinter.h"
 
 #include "CLI11.hpp"
@@ -60,22 +61,27 @@ namespace Wasp
         string code = read_file(file_path);
 
         Lexer lexer;
-        Parser parser;
-
         auto tokens = lexer.run(code);
+
+        Parser parser;
         auto mod = parser.run(tokens);
 
-        SemanticAnalyzer analyzer;
-        analyzer.run(mod);
+        auto pool = std::make_shared<ConstantPool>();
 
-        Compiler compiler;
-        auto [pool, bytecode] = compiler.run(mod);
+        auto native_registry = std::make_shared<NativeRegistry>(pool);
+        native_registry->load_stdlib();
+
+        SemanticAnalyzer semantic_analyzer(native_registry);
+        semantic_analyzer.run(mod);
+
+        Compiler compiler(pool);
+        auto bytecode = compiler.run(mod);
 
         log(file_path, pool, bytecode);
 
         auto main_module = std::make_shared<FunctionObject>(std::move(bytecode));
 
-        VM vm(pool);
+        VM vm(pool, native_registry);
         vm.run(main_module);
     }
 }

@@ -76,14 +76,9 @@ namespace Wasp
 
     void InstructionPrinter::print(const CodeObject &code_object, std::ostream &out)
     {
-        out << "=========================================\n";
-        out << " INSTRUCTIONS\n";
-        out << "=========================================\n\n";
-
         int length = static_cast<int>(code_object.length());
         int index_width = std::to_string(length).size() + 2;
 
-        // Grab direct access to the raw bytes to handle variable-length payloads
         const byte *data = code_object.data();
 
         for (int index = 0; index < length;)
@@ -93,7 +88,6 @@ namespace Wasp
 
             out << std::right << setw(index_width) << index << ": ";
 
-            // --- SPECIAL CASE: Variable length MAKE_FUNCTION ---
             if (op == OpCode::MAKE_FUNCTION)
             {
                 int upvalue_count = std::to_integer<int>(data[index + 1]);
@@ -128,6 +122,31 @@ namespace Wasp
                 out << stringify_instruction(opcode, instruction[1], instruction[2], code_object.local_names) << "\n";
 
             index += static_cast<int>(instruction.size());
+        }
+    }
+
+    void InstructionPrinter::print_pool(std::ostream &out)
+    {
+        if (!constant_pool)
+            return;
+
+        out << "\n=========================================\n";
+        out << " CONSTANT POOL FUNCTIONS\n";
+        out << "=========================================\n\n";
+
+        for (size_t i = 0; i < constant_pool->get_size(); i++)
+        {
+            auto obj = constant_pool->get(i);
+            if (obj && obj->is<std::shared_ptr<FunctionObject>>())
+            {
+                auto func_obj = obj->as<std::shared_ptr<FunctionObject>>();
+
+                out << "--- Pool Index " << i << " (" << func_obj->code.name << ") ---\n";
+
+                print(func_obj->code, out);
+
+                out << "\n";
+            }
         }
     }
 
@@ -177,28 +196,4 @@ namespace Wasp
         out << "}\n";
     }
 
-    void InstructionPrinter::print_pool(std::ostream &out)
-    {
-        if (!constant_pool)
-            return;
-
-        out << "\n=========================================\n";
-        out << " CONSTANT POOL FUNCTIONS\n";
-        out << "=========================================\n\n";
-
-        for (size_t i = 0; i < constant_pool->get_size(); i++)
-        {
-            auto obj = constant_pool->get(i);
-            if (obj && obj->is<std::shared_ptr<FunctionObject>>())
-            {
-                auto func_obj = obj->as<std::shared_ptr<FunctionObject>>();
-
-                out << "--- Pool Index " << i << " (" << func_obj->code.name << ") ---\n";
-
-                print(func_obj->code, out);
-
-                out << "\n";
-            }
-        }
-    }
 }
