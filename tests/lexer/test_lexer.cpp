@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "lexer.h" 
+#include "Lexer.h" 
 
 
 TEST(LexerTestSuite, SanityTest) {

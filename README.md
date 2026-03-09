@@ -16,3 +16,12 @@ wasp ./samples/main.wasp
 
 
 ```
+
+# Linux Setup
+
+```bash
+sudo apt update
+
+sudo apt install lld
+ld.lld --version
+```

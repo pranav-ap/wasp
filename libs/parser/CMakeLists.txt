@@ -1,6 +1,6 @@
 add_library(
     ParserLib 
-    parser.cpp 
+    Parser.cpp 
     ExpressionParselets.cpp 
     ParserExpression.cpp
     ParserStatement.cpp

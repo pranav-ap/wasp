@@ -101,8 +101,6 @@ protected:
 // ============================================================================
 
 TEST_F(VMTest, Print) {
-  testing::internal::CaptureStdout();
-
   auto actual_bytes = compile(R"(
 print(1)
 )");

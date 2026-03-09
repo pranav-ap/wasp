@@ -2,7 +2,7 @@
 
 #include <string>
 #include <gtest/gtest.h>
-#include "parser.h" 
+#include "Parser.h" 
 
 
 Wasp::Module parse(const std::string& code);

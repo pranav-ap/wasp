@@ -1,4 +1,4 @@
-#include "lexer.h"
+#include "Lexer.h"
 #include <cwctype>
 
 #define LINE_NUM token_position.get_line_num()

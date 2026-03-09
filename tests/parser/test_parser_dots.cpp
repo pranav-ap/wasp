@@ -1,6 +1,6 @@
 #include "Token.h"
-#include "lexer.h"
-#include "parser.h"
+#include "Lexer.h"
+#include "Parser.h"
 #include "test_utils.h"
 #include <gtest/gtest.h>
 

@@ -5,8 +5,8 @@
 #include "Objects.h"
 #include "SemanticAnalyzer.h"
 #include "VM.h"
-#include "lexer.h"
-#include "parser.h"
+#include "Lexer.h"
+#include "Parser.h"
 
 
 #include "CLI11.hpp"

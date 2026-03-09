@@ -13,9 +13,6 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build." FORCE)
 endif()
 
-# The crucial fix for slow link times: Build as DLLs/Shared Objects
-# set(BUILD_SHARED_LIBS ON CACHE BOOL "Build shared libraries by default" FORCE)
-
 # Enable strict warnings to catch bugs early!
 # add_compile_options(-Wall -Wextra -Wpedantic)
 

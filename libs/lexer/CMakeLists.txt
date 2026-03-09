@@ -1,4 +1,4 @@
-add_library(LexerLib lexer.cpp)
+add_library(LexerLib Lexer.cpp)
 
 target_link_libraries(LexerLib PUBLIC TokenLib)
 

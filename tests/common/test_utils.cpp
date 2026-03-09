@@ -1,6 +1,6 @@
 #include "test_utils.h"
-#include "lexer.h"
-#include "parser.h"
+#include "Lexer.h"
+#include "Parser.h"
 
 Wasp::Module parse(const std::string& code) {
     Wasp::Lexer lexer;
