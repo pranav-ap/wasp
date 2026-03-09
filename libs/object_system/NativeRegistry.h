@@ -28,6 +28,8 @@ public:
     return native_names;
   }
 
+  int get_size() const { return static_cast<int>(native_objects.size()); }
+
   void add_native(const std::string &name, int arity, NativeFnType function,
                   ObjectVector input_types, Object_ptr return_type);
 

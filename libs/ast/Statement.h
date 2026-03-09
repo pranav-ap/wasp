@@ -2,283 +2,245 @@
 
 #include "Expression.h"
 #include "Resolvable.h"
+#include "Token.h"
 #include <memory>
-#include <variant>
+#include <optional>
 #include <utility>
+#include <variant>
 
-namespace Wasp
-{
-
-	struct Statement;
-	struct ExpressionStatement;
-
-	using Statement_ptr = std::shared_ptr<Statement>;
-	using Block = std::vector<Statement_ptr>;
-
-	struct Module
-	{
-		std::vector<Statement_ptr> statements;
-	};
-
-	struct ExpressionStatement
-	{
-		Expression_ptr expression;
-
-		ExpressionStatement() = default;
-		explicit ExpressionStatement(Expression_ptr expr)
-			: expression(std::move(expr)) {}
-	};
-
-	// Definitions
-
-	struct Definition : public Resolvable
-	{
-	};
-
-	struct VariableDefinition : public Definition
-	{
-		Expression_ptr expression;
-		bool is_mutable;
-
-		VariableDefinition() = default;
-
-		VariableDefinition(Expression_ptr expression, bool is_mutable)
-			: expression(std::move(expression)), is_mutable(is_mutable) {};
-	};
-
-	struct AliasDefinition : public Definition
-	{
-		std::string name;
-		TypeAnnotation_ptr ref_type;
-
-		AliasDefinition() = default;
-
-		AliasDefinition(std::string name, TypeAnnotation_ptr ref_type)
-			: name(name), ref_type(ref_type) {};
-	};
-
-	struct EnumDefinition : public Definition
-	{
-		std::string name;
-		std::map<std::string, int> members;
-
-		EnumDefinition() = default;
-
-		EnumDefinition(std::string name, std::vector<std::string> member_list)
-			: name(std::move(name))
-		{
-			int index = 0;
-			for (const auto &member : member_list)
-			{
-				members.emplace(member, index++);
-			}
-		}
-	};
-
-	struct FunctionDefinition : public Definition
-	{
-		std::string name;
-		std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters;
-		TypeAnnotation_ptr return_type;
-		Block body;
-
-		FunctionDefinition() = default;
-
-		FunctionDefinition(std::string name,
-						   std::vector<std::pair<std::string, TypeAnnotation_ptr>> params,
-						   TypeAnnotation_ptr ret_type,
-						   Block body)
-			: name(std::move(name)),
-			  parameters(std::move(params)),
-			  return_type(std::move(ret_type)),
-			  body(std::move(body)) {};
-	};
-
-	struct AnnotationDefinition : public Definition
-	{
-		std::string name;
-		ExpressionVector anno_values;
-
-		AnnotationDefinition() = default;
-
-		AnnotationDefinition(std::string name, ExpressionVector anno_values)
-			: name(std::move(name)), anno_values(std::move(anno_values)) {};
-	};
-
-	struct ClassDefinition : public Definition
-	{
-		std::string name;
-		std::map<std::string, TypeAnnotation_ptr> members;
-		std::vector<std::string> traits;
-
-		ClassDefinition() = default;
-
-		ClassDefinition(std::string name, std::map<std::string, TypeAnnotation_ptr> members, std::vector<std::string> traits)
-			: name(name), members(std::move(members)), traits(std::move(traits)) {};
-	};
-
-	struct TraitDefinition : public Definition
-	{
-		std::string name;
-		std::map<std::string, TypeAnnotation_ptr> members;
 
-		TraitDefinition() = default;
+namespace Wasp {
 
-		TraitDefinition(std::string name, std::map<std::string, TypeAnnotation_ptr> members)
-			: name(name), members(std::move(members)) {};
-	};
-
-	struct ImplDefinition : public Definition
-	{
-		std::string class_name;
-		std::optional<std::string> trait_name;
-		std::vector<Statement_ptr> methods;
+struct Statement;
+struct ExpressionStatement;
 
-		ImplDefinition() = default;
+using Statement_ptr = std::shared_ptr<Statement>;
+using Block = std::vector<Statement_ptr>;
 
-		ImplDefinition(std::string class_name,
-					   std::optional<std::string> trait_name,
-					   std::vector<Statement_ptr> methods)
-			: class_name(std::move(class_name)),
-			  trait_name(std::move(trait_name)),
-			  methods(std::move(methods)) {}
-	};
+struct Module {
+  std::vector<Statement_ptr> statements;
+};
 
-	// Branching
+struct ExpressionStatement {
+  Expression_ptr expression;
 
-	struct Branch
-	{
-		Block body;
-	};
+  ExpressionStatement() = default;
+  explicit ExpressionStatement(Expression_ptr expr)
+      : expression(std::move(expr)) {}
+};
 
-	struct IfBranch : Branch
-	{
-		Expression_ptr test;
-		std::optional<Statement_ptr> alternative;
+// Definitions
 
-		IfBranch() = default;
+struct Definition : public Resolvable {};
 
-		IfBranch(Expression_ptr test, Block body)
-			: Branch(body), test(test), alternative(std::nullopt) {};
+struct VariableDefinition : public Definition {
+  Expression_ptr expression;
+  bool is_mutable;
 
-		IfBranch(Expression_ptr test, Block body, Statement_ptr alternative)
-			: Branch(body), test(test), alternative(std::make_optional(alternative)) {};
-	};
+  VariableDefinition() = default;
 
-	struct ElseBranch : Branch
-	{
-		ElseBranch() = default;
-		ElseBranch(Block body) : Branch(body) {};
-	};
+  VariableDefinition(Expression_ptr expression, bool is_mutable)
+      : expression(std::move(expression)), is_mutable(is_mutable) {};
+};
 
-	// Looping
+struct AliasDefinition : public Definition {
+  std::string name;
+  TypeAnnotation_ptr ref_type;
 
-	struct Loop
-	{
-		Block body;
-	};
+  AliasDefinition() = default;
 
-	struct SimpleLoop : public Loop
-	{
-		Expression_ptr condition;
-		TokenType style;
+  AliasDefinition(std::string name, TypeAnnotation_ptr ref_type)
+      : name(name), ref_type(ref_type) {};
+};
 
-		SimpleLoop() = default;
+struct EnumDefinition : public Definition {
+  std::string name;
+  std::map<std::string, int> members;
 
-		SimpleLoop(Block body, Expression_ptr condition, TokenType style)
-			: Loop(body), condition(std::move(condition)), style(style) {};
-	};
+  EnumDefinition() = default;
 
-	struct ForInLoop : public Loop
-	{
-		bool lhs_is_mutable;
-		Expression_ptr lhs;
-		Expression_ptr iterable_expression;
+  EnumDefinition(std::string name, std::vector<std::string> member_list)
+      : name(std::move(name)) {
+    int index = 0;
+    for (const auto &member : member_list) {
+      members.emplace(member, index++);
+    }
+  }
+};
 
-		ForInLoop() = default;
+struct FunctionDefinition : public Definition {
+  std::string name;
+  std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters;
+  TypeAnnotation_ptr return_type;
+  Block body;
 
-		ForInLoop(Block body, Expression_ptr lhs, Expression_ptr iterable_expression, bool lhs_is_mutable)
-			: Loop(body),
-			  lhs(std::move(lhs)),
-			  iterable_expression(std::move(iterable_expression)),
-			  lhs_is_mutable(lhs_is_mutable) {};
-	};
+  FunctionDefinition() = default;
 
-	// Other
+  FunctionDefinition(
+      std::string name,
+      std::vector<std::pair<std::string, TypeAnnotation_ptr>> params,
+      TypeAnnotation_ptr ret_type, Block body)
+      : name(std::move(name)), parameters(std::move(params)),
+        return_type(std::move(ret_type)), body(std::move(body)) {};
+};
 
-	struct Pass
-	{
-	};
+struct AnnotationDefinition : public Definition {
+  std::string name;
+  ExpressionVector anno_values;
 
-	struct Return
-	{
-		std::optional<Expression_ptr> expression;
+  AnnotationDefinition() = default;
 
-		Return()
-			: expression(std::nullopt) {};
+  AnnotationDefinition(std::string name, ExpressionVector anno_values)
+      : name(std::move(name)), anno_values(std::move(anno_values)) {};
+};
 
-		Return(Expression_ptr expression)
-			: expression(std::make_optional(std::move(expression))) {};
-	};
+struct ClassDefinition : public Definition {
+  std::string name;
+  std::map<std::string, TypeAnnotation_ptr> members;
+  std::vector<std::string> traits;
 
-	// Loop Controls
+  ClassDefinition() = default;
 
-	struct LoopControl
-	{
-		TokenType type;
-		std::string label;
+  ClassDefinition(std::string name,
+                  std::map<std::string, TypeAnnotation_ptr> members,
+                  std::vector<std::string> traits)
+      : name(name), members(std::move(members)), traits(std::move(traits)) {};
+};
 
-		LoopControl() = default;
+struct TraitDefinition : public Definition {
+  std::string name;
+  std::map<std::string, TypeAnnotation_ptr> members;
 
-		LoopControl(TokenType type, std::string label = "")
-			: type(type), label(label) {}
-	};
+  TraitDefinition() = default;
 
-	// Statement Variant
+  TraitDefinition(std::string name,
+                  std::map<std::string, TypeAnnotation_ptr> members)
+      : name(name), members(std::move(members)) {};
+};
 
-	struct Statement
-	{
-		using StatementData = std::variant<
-			std::monostate,
-			ExpressionStatement,
+struct ImplDefinition : public Definition {
+  std::string class_name;
+  std::optional<std::string> trait_name;
+  std::vector<Statement_ptr> methods;
 
-			VariableDefinition, AliasDefinition,
-			EnumDefinition, FunctionDefinition,
-			ClassDefinition, TraitDefinition,
-			ImplDefinition,
+  ImplDefinition() = default;
 
-			AnnotationDefinition,
+  ImplDefinition(std::string class_name, std::optional<std::string> trait_name,
+                 std::vector<Statement_ptr> methods)
+      : class_name(std::move(class_name)), trait_name(std::move(trait_name)),
+        methods(std::move(methods)) {}
+};
 
-			IfBranch, ElseBranch,
-			SimpleLoop, ForInLoop,
-			LoopControl,
+// Branching
 
-			Pass, Return>;
+struct Branch {
+  Block body;
+};
 
-		StatementData data;
+struct IfBranch : Branch {
+  Expression_ptr test;
+  std::optional<Statement_ptr> alternative;
 
-		Statement() = default;
+  IfBranch() = default;
 
-		template <typename T>
-		Statement(T &&val) : data(std::forward<T>(val)) {}
+  IfBranch(Expression_ptr test, Block body)
+      : Branch(body), test(test), alternative(std::nullopt) {};
 
-		template <typename T>
-		bool is() const
-		{
-			return std::holds_alternative<T>(data);
-		}
+  IfBranch(Expression_ptr test, Block body, Statement_ptr alternative)
+      : Branch(body), test(test),
+        alternative(std::make_optional(alternative)) {};
+};
 
-		template <typename T>
-		const T &as() const
-		{
-			return std::get<T>(data);
-		}
+struct ElseBranch : Branch {
+  ElseBranch() = default;
+  ElseBranch(Block body) : Branch(body) {};
+};
 
-		template <typename T>
-		const T *try_as() const
-		{
-			return std::get_if<T>(&data);
-		}
-	};
+// Looping
 
-}
+struct Loop {
+  Block body;
+};
+
+struct SimpleLoop : public Loop {
+  Expression_ptr condition;
+  TokenType style;
+
+  SimpleLoop() = default;
+
+  SimpleLoop(Block body, Expression_ptr condition, TokenType style)
+      : Loop(body), condition(std::move(condition)), style(style) {};
+};
+
+struct ForInLoop : public Loop {
+  bool lhs_is_mutable;
+  Expression_ptr lhs;
+  Expression_ptr iterable_expression;
+
+  ForInLoop() = default;
+
+  ForInLoop(Block body, Expression_ptr lhs, Expression_ptr iterable_expression,
+            bool lhs_is_mutable)
+      : Loop(body), lhs_is_mutable(lhs_is_mutable), lhs(std::move(lhs)),
+        iterable_expression(std::move(iterable_expression)) {};
+};
+
+// Other
+
+struct Pass {};
+
+struct Return {
+  std::optional<Expression_ptr> expression;
+
+  Return() : expression(std::nullopt) {};
+
+  Return(Expression_ptr expression)
+      : expression(std::make_optional(std::move(expression))) {};
+};
+
+// Loop Controls
+
+struct LoopControl {
+  TokenType type;
+  std::string label;
+
+  LoopControl() = default;
+
+  LoopControl(TokenType type, std::string label = "")
+      : type(type), label(label) {}
+};
+
+// Statement Variant
+
+struct Statement {
+  using StatementData =
+      std::variant<std::monostate, ExpressionStatement,
+
+                   VariableDefinition, AliasDefinition, EnumDefinition,
+                   FunctionDefinition, ClassDefinition, TraitDefinition,
+                   ImplDefinition,
+
+                   AnnotationDefinition,
+
+                   IfBranch, ElseBranch, SimpleLoop, ForInLoop, LoopControl,
+
+                   Pass, Return>;
+
+  StatementData data;
+
+  Statement() = default;
+
+  template <typename T> Statement(T &&val) : data(std::forward<T>(val)) {}
+
+  template <typename T> bool is() const {
+    return std::holds_alternative<T>(data);
+  }
+
+  template <typename T> const T &as() const { return std::get<T>(data); }
+
+  template <typename T> const T *try_as() const {
+    return std::get_if<T>(&data);
+  }
+};
+
+} // namespace Wasp

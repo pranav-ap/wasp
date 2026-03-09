@@ -2,10 +2,9 @@
 
 #include "OpCode.h"
 #include <cstddef>
-#include <cstdint>
+#include <map>
 #include <memory>
 #include <vector>
-#include <map>
 
 namespace Wasp
 {

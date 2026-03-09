@@ -1,8 +1,9 @@
 #pragma once
 
-#include <vector>
-#include <string>
 #include <cstddef>
+#include <cstdint>
+#include <string>
+#include <vector>
 
 using ByteVector = std::vector<std::byte>;
 
@@ -73,12 +74,11 @@ using ByteVector = std::vector<std::byte>;
 namespace Wasp
 {
 
-    enum class OpCode : uint8_t
-    {
+enum class OpCode : uint8_t {
 #define AS_ENUM(name, arity) name,
-        OPCODE_LIST(AS_ENUM)
+  OPCODE_LIST(AS_ENUM)
 #undef AS_ENUM
-    };
+};
 
     constexpr int get_opcode_arity(OpCode opcode)
     {

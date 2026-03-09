@@ -3,6 +3,7 @@
 #include "NativeRegistry.h"
 #include "SemanticAnalyzer.h"
 #include "test_utils.h"
+
 #include <filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
@@ -98,28 +99,26 @@ if false then 25 else 10
 )");
 
   std::vector<std::byte> expected_bytes = {
-      /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
-      /* 1 */ B(Wasp::OpCode::PUSH_SCOPE), // Scope 1 (Test Scope)
-      /* 2 */ B(Wasp::OpCode::LOAD_FALSE),
-      /* 3 */ B(Wasp::OpCode::JUMP_IF_FALSE), B(15), B(0),
-      /* 6 */ B(Wasp::OpCode::JUMP), B(9), B(0),
+      B(Wasp::OpCode::ENTER_MODULE),
+      B(Wasp::OpCode::PUSH_SCOPE), // Scope 1 (Test Scope)
+      B(Wasp::OpCode::LOAD_FALSE), B(Wasp::OpCode::JUMP_IF_FALSE), B(15), B(0),
+      B(Wasp::OpCode::JUMP), B(9), B(0),
 
       // True Expression
-      /* 9 */ B(Wasp::OpCode::LOAD_CONST), B(11), // Value: 25
-      /* 11*/ B(Wasp::OpCode::POP_SCOPE),         // Pop Scope 1
-      /* 12*/ B(Wasp::OpCode::JUMP), B(23), B(0), // Jump to Converge
+      B(Wasp::OpCode::LOAD_CONST), B(11), // Value: 25
+      B(Wasp::OpCode::POP_SCOPE),         // Pop Scope 1
+      B(Wasp::OpCode::JUMP), B(23), B(0), // Jump to Converge
 
       // False Expression
-      /* 15*/ B(Wasp::OpCode::POP_SCOPE),  // Pop Scope 1 (Clean up Test Scope)
-      /* 16*/ B(Wasp::OpCode::PUSH_SCOPE), // Scope 2 (Else Branch Scope)
-      /* 17*/ B(Wasp::OpCode::LOAD_CONST), B(12), // Value: 10
-      /* 19*/ B(Wasp::OpCode::POP_SCOPE),         // Pop Scope 2
-      /* 20*/ B(Wasp::OpCode::JUMP), B(23), B(0), // Jump to Converge
+      B(Wasp::OpCode::POP_SCOPE),         // Pop Scope 1 (Clean up Test Scope)
+      B(Wasp::OpCode::PUSH_SCOPE),        // Scope 2 (Else Branch Scope)
+      B(Wasp::OpCode::LOAD_CONST), B(12), // Value: 10
+      B(Wasp::OpCode::POP_SCOPE),         // Pop Scope 2
+      B(Wasp::OpCode::JUMP), B(23), B(0), // Jump to Converge
 
       // Converge (End of Statement)
-      /* 23*/ B(Wasp::OpCode::POP), // Pop the result (Expression Statement)
-      /* 24*/ B(Wasp::OpCode::JUMP), B(27), B(0),
-      /* 27*/ B(Wasp::OpCode::EXIT_MODULE)};
+      B(Wasp::OpCode::POP), // Pop the result (Expression Statement)
+      B(Wasp::OpCode::JUMP), B(27), B(0), B(Wasp::OpCode::EXIT_MODULE)};
 
   EXPECT_EQ(actual_bytes, expected_bytes);
 }

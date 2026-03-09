@@ -8,11 +8,9 @@
 #include "TypeAnnotation.h"
 #include "TypeSystem.h"
 
-
 #include <memory>
 #include <string>
 #include <vector>
-
 
 namespace Wasp {
 class SemanticAnalyzer {

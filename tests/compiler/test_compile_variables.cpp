@@ -17,6 +17,9 @@ protected:
   Wasp::CodeObject current_bytecode;
   Wasp::CFGraph current_graph;
 
+  int pool_size;
+  int globals_size;
+
   void SetUp() override {
     const ::testing::TestInfo *const test_info =
         ::testing::UnitTest::GetInstance()->current_test_info();
@@ -58,6 +61,9 @@ protected:
       log();
     }
 
+    pool_size = pool->get_size();
+    globals_size = native_registry->get_size();
+
     const std::byte *data = current_bytecode.data();
     return std::vector<std::byte>(data, data + current_bytecode.length());
   }
@@ -93,16 +99,21 @@ let x = 42
 x + 1
 )");
 
+  int val_42 = pool_size++;
+  int val_1 = pool_size++;
+
+  int var_x = globals_size++;
+
   std::vector<std::byte> expected_bytes = {
       /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
-      /* 1 */ B(Wasp::OpCode::LOAD_CONST),   B(11), // 42
+      /* 1 */ B(Wasp::OpCode::LOAD_CONST),   B(val_42), // 42
       /* 3 */ B(Wasp::OpCode::DEFINE_LOCAL), B(1),
 
-      /* 5 */ B(Wasp::OpCode::GET_GLOBAL),   B(1),  // "x"
-      /* 7 */ B(Wasp::OpCode::LOAD_CONST),   B(12), // 1
+      /* 5 */ B(Wasp::OpCode::GET_GLOBAL),   B(var_x), // "x"
+      /* 7 */ B(Wasp::OpCode::LOAD_CONST),   B(val_1), // 1
       /* 9 */ B(Wasp::OpCode::ADD),
       /* 10*/ B(Wasp::OpCode::POP),
-      /* 11*/ B(Wasp::OpCode::JUMP),         B(14), B(0),
+      /* 11*/ B(Wasp::OpCode::JUMP),         B(14),     B(0),
       /* 14*/ B(Wasp::OpCode::EXIT_MODULE)};
 
   EXPECT_EQ(actual_bytes, expected_bytes);
@@ -115,16 +126,16 @@ x = x + 1
 
   std::vector<std::byte> expected_bytes = {
       /* 0 */ B(Wasp::OpCode::ENTER_MODULE),
-      /* 1 */ B(Wasp::OpCode::LOAD_CONST),   B(11), // 42
-      /* 3 */ B(Wasp::OpCode::DEFINE_LOCAL), B(1),  // Local Slot 0 (Not a pool
-                                                    // index!)
+      /* 1 */ B(Wasp::OpCode::LOAD_CONST), B(11),  // 42
+      /* 3 */ B(Wasp::OpCode::DEFINE_LOCAL), B(1), // Local Slot 0 (Not a pool
+                                                   // index!)
 
-      /* 5 */ B(Wasp::OpCode::GET_GLOBAL),   B(1),  // "x"
-      /* 7 */ B(Wasp::OpCode::LOAD_CONST),   B(12), // 1
+      /* 5 */ B(Wasp::OpCode::GET_GLOBAL), B(1),  // "x"
+      /* 7 */ B(Wasp::OpCode::LOAD_CONST), B(12), // 1
       /* 9 */ B(Wasp::OpCode::ADD),
-      /* 10*/ B(Wasp::OpCode::SET_GLOBAL),   B(1), // "x"
+      /* 10*/ B(Wasp::OpCode::SET_GLOBAL), B(1), // "x"
       /* 12*/ B(Wasp::OpCode::POP),
-      /* 13*/ B(Wasp::OpCode::JUMP),         B(16), B(0),
+      /* 13*/ B(Wasp::OpCode::JUMP), B(16), B(0),
       /* 16*/ B(Wasp::OpCode::EXIT_MODULE)};
 
   EXPECT_EQ(actual_bytes, expected_bytes);

@@ -1,8 +1,8 @@
 #include "CFGraph.h"
+#include "OpCode.h"
+#include <algorithm>
 #include <stdexcept>
 #include <utility>
-#include <memory>
-#include <algorithm>
 
 #ifndef ASSERT
 #include <cassert>
