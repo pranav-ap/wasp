@@ -174,7 +174,7 @@ void Compiler::compile_variable_definition(const Expression_ptr &assignment,
     FATAL("Left-hand side of definition must be an Identifier.");
   }
 
-  auto symbol = lhs->as<Identifier>().resolution;
+  auto symbol = lhs->as<Identifier>().symbol;
 
   if (!symbol) {
     FATAL("Compiler Error: Unresolved definition");
@@ -324,7 +324,7 @@ void Compiler::visit(ForInLoop &statement) {
   enter_scope();
 
   if (statement.lhs->is<Identifier>()) {
-    auto symbol = statement.lhs->as<Identifier>().resolution;
+    auto symbol = statement.lhs->as<Identifier>().symbol;
     if (symbol) {
       debug_name_map[symbol->id] = symbol->name;
       emit(OpCode::DEFINE_LOCAL, symbol->id);
@@ -468,9 +468,9 @@ void Compiler::visit(FunctionDefinition &statement) {
     emit_raw_byte(static_cast<std::byte>(uv.index));
   }
 
-  if (statement.resolution) {
-    debug_name_map[statement.resolution->id] = statement.name;
-    emit(OpCode::DEFINE_LOCAL, statement.resolution->id);
+  if (statement.symbol) {
+    debug_name_map[statement.symbol->id] = statement.name;
+    emit(OpCode::DEFINE_LOCAL, statement.symbol->id);
   }
 }
 
@@ -538,7 +538,7 @@ void Compiler::visit(bool expr) {
 }
 
 void Compiler::visit(Identifier &expr) {
-  auto symbol = expr.resolution;
+  auto symbol = expr.symbol;
 
   if (!symbol) {
     FATAL("Unresolved identifier");
@@ -561,7 +561,7 @@ void Compiler::compile_assignment(const Expression_ptr &lhs,
   if (!lhs->is<Identifier>())
     FATAL("Only ID assignment supported");
 
-  auto symbol = lhs->as<Identifier>().resolution;
+  auto symbol = lhs->as<Identifier>().symbol;
   if (!symbol)
     FATAL("Unresolved assignment");
 

@@ -103,24 +103,19 @@ fun add(a: int, b: int) => int
     return a + b
 )");
 
-  int add_func_const_id = pool_size;
+  int add_func_pool_id = 11;
   int add_func_var_id = globals_size;
 
   std::vector<std::byte> expected_bytes = {B(Wasp::OpCode::ENTER_MODULE),
-                                           B(Wasp::OpCode::LOAD_CONST),
-                                           B(add_func_const_id),
-                                           B(Wasp::OpCode::MAKE_FUNCTION),
-                                           B(0),
-                                           B(Wasp::OpCode::DEFINE_LOCAL),
-                                           B(add_func_var_id),
-                                           B(Wasp::OpCode::JUMP),
-                                           B(10),
-                                           B(0),
+                                           B(Wasp::OpCode::LOAD_CONST), B(add_func_pool_id),
+                                           B(Wasp::OpCode::MAKE_FUNCTION), B(0),
+                                           B(Wasp::OpCode::DEFINE_LOCAL), B(add_func_var_id),
+                                           B(Wasp::OpCode::JUMP), B(10), B(0),
                                            B(Wasp::OpCode::EXIT_MODULE)};
 
   EXPECT_EQ(actual_bytes, expected_bytes);
 
-  auto pool_obj = pool->get(add_func_const_id);
+  auto pool_obj = pool->get(add_func_pool_id);
   ASSERT_TRUE(pool_obj->is<std::shared_ptr<Wasp::FunctionObject>>());
   auto func_obj = pool_obj->as<std::shared_ptr<Wasp::FunctionObject>>();
   const Wasp::CodeObject &inner_code = func_obj->code;
@@ -151,12 +146,12 @@ fun max(a: int, b: int) => int
         return b
 )");
 
-  int max_func_const_id = pool_size;
+  int max_func_pool_id = 11;
   int max_func_var_id = globals_size;
 
   std::vector<std::byte> expected_bytes = {B(Wasp::OpCode::ENTER_MODULE),
                                            B(Wasp::OpCode::LOAD_CONST),
-                                           B(max_func_const_id),
+                                           B(max_func_pool_id),
                                            B(Wasp::OpCode::MAKE_FUNCTION),
                                            B(0),
                                            B(Wasp::OpCode::DEFINE_LOCAL),
@@ -168,7 +163,7 @@ fun max(a: int, b: int) => int
 
   EXPECT_EQ(actual_bytes, expected_bytes);
 
-  auto pool_obj = pool->get(max_func_const_id);
+  auto pool_obj = pool->get(max_func_pool_id);
   ASSERT_TRUE(pool_obj->is<std::shared_ptr<Wasp::FunctionObject>>());
   auto func_obj = pool_obj->as<std::shared_ptr<Wasp::FunctionObject>>();
   const Wasp::CodeObject &inner_code = func_obj->code;
@@ -219,13 +214,13 @@ fun outer(a: int) => any
     return inner
 )");
 
-  int inner_func_const_id = pool_size;
-  int outer_func_const_id = pool_size + 1;
+  int inner_func_pool_id = pool_size;
+  int outer_func_pool_id = pool_size + 1;
   int outer_func_var_id = globals_size;
 
   std::vector<std::byte> expected_bytes = {B(Wasp::OpCode::ENTER_MODULE),
                                            B(Wasp::OpCode::LOAD_CONST),
-                                           B(outer_func_const_id),
+                                           B(outer_func_pool_id),
                                            B(Wasp::OpCode::MAKE_FUNCTION),
                                            B(0),
                                            B(Wasp::OpCode::DEFINE_LOCAL),
@@ -237,7 +232,7 @@ fun outer(a: int) => any
 
   EXPECT_EQ(actual_bytes, expected_bytes);
 
-  auto outer_pool_obj = pool->get(outer_func_const_id);
+  auto outer_pool_obj = pool->get(outer_func_pool_id);
   ASSERT_TRUE(outer_pool_obj->is<std::shared_ptr<Wasp::FunctionObject>>());
   const Wasp::CodeObject &outer_code =
       outer_pool_obj->as<std::shared_ptr<Wasp::FunctionObject>>()->code;
@@ -247,7 +242,7 @@ fun outer(a: int) => any
 
   std::vector<std::byte> expected_outer_bytes = {B(Wasp::OpCode::PUSH_SCOPE),
                                                  B(Wasp::OpCode::LOAD_CONST),
-                                                 B(inner_func_const_id),
+                                                 B(inner_func_pool_id),
                                                  B(Wasp::OpCode::MAKE_FUNCTION),
                                                  B(1),
                                                  B(1),
@@ -269,7 +264,7 @@ TEST_F(CompileFunctions, Print) {
 print(1)
 )");
 
-  int print_func_var_id = 0; // Assuming 'print' is registered first
+  int print_func_var_id = 0; 
   int const_one_id = pool_size;
 
   std::vector<std::byte> expected_bytes = {B(Wasp::OpCode::ENTER_MODULE),

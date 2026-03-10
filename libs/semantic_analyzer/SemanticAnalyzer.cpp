@@ -301,7 +301,7 @@ namespace Wasp
                 current_scope->get_lexical_depth());
 
             current_scope->define(symbol);
-            identifier_ast_node.resolution = symbol;
+            identifier_ast_node.symbol = symbol;
         }
         else
         {
@@ -422,7 +422,7 @@ namespace Wasp
             current_scope->get_lexical_depth());
 
         current_scope->define(symbol);
-        lhs_expr->as<Identifier>().resolution = symbol;
+        lhs_expr->as<Identifier>().symbol = symbol;
 
         return final_type;
     }
@@ -454,7 +454,7 @@ namespace Wasp
             symbol->is_captured = true;
         }
 
-        identifier_ast_node.resolution = symbol;
+        identifier_ast_node.symbol = symbol;
 
         // Type Checking
         Object_ptr rhs_type = visit(rhs_expr);
@@ -507,7 +507,7 @@ namespace Wasp
             current_scope->get_lexical_depth());
 
         current_scope->define(func_symbol);
-        statement.resolution = func_symbol;
+        statement.symbol = func_symbol;
 
         enter_scope(ScopeType::FUNCTION);
         return_type_stack.push_back(return_type);
@@ -566,7 +566,7 @@ namespace Wasp
 
         if (expr.callee->is<Identifier>())
         {
-            expr.resolution = expr.callee->as<Identifier>().resolution;
+            expr.symbol = expr.callee->as<Identifier>().symbol;
         }
 
         const auto &func = callee_type->as<FunctionType>();
@@ -629,7 +629,7 @@ namespace Wasp
             symbol->is_captured = true;
         }
 
-        expr.resolution = symbol;
+        expr.symbol = symbol;
 
         return symbol->type;
     }
