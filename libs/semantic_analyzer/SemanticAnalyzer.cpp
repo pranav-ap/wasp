@@ -1,7 +1,17 @@
 #include "SemanticAnalyzer.h"
+#include "Expression.h"
+#include "Objects.h"
+#include "Statement.h"
 #include "Symbol.h"
+#include "SymbolScope.h"
 
+#include <cstddef>
+#include <memory>
 #include <stdexcept>
+#include <string>
+#include <unordered_map>
+#include <variant>
+#include <vector>
 
 #ifndef ASSERT
 #include <cassert>
@@ -45,7 +55,18 @@ namespace Wasp
         for (const auto &[name, index] : native_names)
         {
             auto symbol_type = native_registry->get_native_object_type(index);
-            auto symbol = std::make_shared<Symbol>(name, symbol_type, true);
+
+            auto symbol = std::make_shared<Symbol>(
+                name,
+                symbol_type,
+                false, // is_public
+                false, // is_mutable
+                true,  // is_builtin
+                false, // is_captured
+                0,     // closure_depth
+                0      // lexical_depth
+            );
+
             current_scope->define(symbol);
         }
     }
@@ -300,10 +321,13 @@ namespace Wasp
             auto symbol = std::make_shared<Symbol>(
                 name,
                 nullptr,
-                false,                    // is_public
-                statement.lhs_is_mutable, // is_mutable
-                current_scope->get_closure_depth(),
-                current_scope->get_lexical_depth());
+                false,                              // is_public
+                statement.lhs_is_mutable,           // is_mutable
+                false,                              // is_builtin
+                false,                              // is_captured
+                current_scope->get_closure_depth(), // closure_depth
+                current_scope->get_lexical_depth()  // lexical_depth
+            );
 
             current_scope->define(symbol);
             identifier_ast_node.symbol = symbol;
@@ -421,10 +445,13 @@ namespace Wasp
         auto symbol = std::make_shared<Symbol>(
             var_name,
             final_type,
-            false,
+            false, // is_public
             is_mutable,
+            false, // is_builtin
+            false, // is_captured
             current_scope->get_closure_depth(),
-            current_scope->get_lexical_depth());
+            current_scope->get_lexical_depth()
+        );
 
         current_scope->define(symbol);
         lhs_expr->as<Identifier>().symbol = symbol;
@@ -506,10 +533,13 @@ namespace Wasp
         auto func_symbol = std::make_shared<Symbol>(
             statement.name,
             func_type,
-            false,
-            false,
+            false, // is_public
+            false, // is_mutable
+            false, // is_builtin
+            false, // is_captured
             current_scope->get_closure_depth(),
-            current_scope->get_lexical_depth());
+            current_scope->get_lexical_depth()
+        );
 
         current_scope->define(func_symbol);
         statement.symbol = func_symbol;
@@ -524,10 +554,14 @@ namespace Wasp
                 std::make_shared<Symbol>(
                     param_names[i],
                     param_types[i],
-                    false,
-                    false,
+                    false, // is_public
+                    false, // is_mutable
+                    false, // is_builtin
+                    false, // is_captured
                     current_scope->get_closure_depth(),
-                    current_scope->get_lexical_depth()));
+                    current_scope->get_lexical_depth()
+                )
+            );
         }
 
         visit(statement.body);

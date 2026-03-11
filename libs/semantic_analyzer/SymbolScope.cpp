@@ -1,6 +1,9 @@
 #include "SymbolScope.h"
-#include <algorithm>
+#include "Symbol.h"
 #include <stdexcept>
+#include <string>
+#include <utility>
+#include <vector>
 
 #ifndef ASSERT
 #include <cassert>
