@@ -28,7 +28,6 @@ class VM {
   ObjectVector stack;
   std::vector<CallFrame> frames;
   ConstantPool_ptr pool;
-  ObjectVector globals;
   NativeRegistry_ptr native_registry;
 
   void push_to_stack(Object_ptr value);
@@ -74,15 +73,6 @@ public:
   VM(std::shared_ptr<ConstantPool> pool, NativeRegistry_ptr native_registry)
       : pool(std::move(pool)), native_registry(native_registry) {
     stack.reserve(256);
-
-    auto natives = native_registry->get_all_native_names();
-    for (const auto &[name, index] : natives) {
-      if (index >= globals.size()) {
-        globals.resize(index + 1);
-      }
-
-      globals[index] = native_registry->get_native_object(index);
-    }
   }
 
   void run(std::shared_ptr<FunctionObject> main_module) {

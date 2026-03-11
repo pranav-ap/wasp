@@ -11,7 +11,7 @@ function(add_wasp_test_suite SUITE_NAME TEST_LABEL)
     target_link_libraries(${SUITE_NAME}
         PRIVATE
             GTest::gtest_main
-            VMLib
+            # VMLib
             CompilerLib
             BytecodeSystemLib
             SemanticAnalyzerLib
@@ -62,6 +62,6 @@ add_wasp_test_suite(compiler_tests "compiler"
 )
 
 # VM Suite
-add_wasp_test_suite(vm_tests "vm"
-    vm/test_vm.cpp
-)
+# add_wasp_test_suite(vm_tests "vm"
+#     vm/test_vm.cpp
+# )

@@ -1,6 +1,13 @@
 #include "ConstantPool.h"
-#include <stdexcept>
+#include "CFGraph.h"
+#include "Objects.h"
 #include <algorithm>
+#include <iterator>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <utility>
+
 
 #ifndef ASSERT
 #include <cassert>

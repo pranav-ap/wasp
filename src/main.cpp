@@ -70,7 +70,7 @@ void run(string file_path) {
   SemanticAnalyzer semantic_analyzer(native_registry);
   semantic_analyzer.run(mod);
 
-  Compiler compiler(pool);
+  Compiler compiler(pool, native_registry);
   auto bytecode = compiler.run(mod);
 
   log(file_path, pool, bytecode);

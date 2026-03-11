@@ -72,12 +72,18 @@ void VM::execute() {
 
     case OpCode::HALT:
       return;
+    
+    case OpCode::ENTER_WORKSPACE:
+      break;
+    
+    case OpCode::EXIT_WORKSPACE:
+      return;
 
     case OpCode::ENTER_MODULE:
       break;
 
     case OpCode::EXIT_MODULE:
-      return;
+      break;
 
       // ==========================================
       // --- Stack Manipulation ---
@@ -151,32 +157,16 @@ void VM::execute() {
       }
 
       push_to_stack(stack[frame->base_pointer + index]);
+      
       break;
     }
-
-    case OpCode::SET_GLOBAL: {
-      int index = static_cast<int>(frame->consume_byte());
-      // Peek the value (assignments evaluate to the value itself)
-      Object_ptr value = peek_tos();
-
-      if (index >= globals.size()) {
-        globals.resize(index + 1);
-      }
-
-      globals[index] = value;
-      break;
-    }
-
-    case OpCode::GET_GLOBAL: {
+    
+    case OpCode::GET_NATIVE: {
       int index = static_cast<int>(frame->consume_byte());
 
-      if (index >= globals.size() || !globals[index]) {
-        std::cerr << "VM Error: Uninitialized global variable at index "
-                  << index << std::endl;
-        break;
-      }
+      auto native_obj = native_registry->get_native_object(index);
+      push_to_stack(native_obj);
 
-      push_to_stack(globals[index]);
       break;
     }
 

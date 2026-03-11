@@ -29,6 +29,7 @@ namespace Wasp
 	{
 	private:
 		ConstantPool_ptr constant_pool;
+		NativeRegistry_ptr native_registry;
 
 		// ------------------------------------------------------------------------
 		// Closure Support
@@ -37,7 +38,6 @@ namespace Wasp
 		Compiler *parent;
 		std::vector<Upvalue> upvalues;
 
-		// Tracks nesting closure_depth: 0 = Global/Module, 1 = Main Function, 2 = Inner Function
 		int compiler_depth = 0;
 		int current_lexical_scope_depth = 0;
 
@@ -90,7 +90,7 @@ namespace Wasp
 		CodeObject flatten();
 
 	public:
-		Compiler(ConstantPool_ptr pool);
+		Compiler(ConstantPool_ptr pool, NativeRegistry_ptr native_registry);
 		Compiler(ConstantPool_ptr pool, Compiler *parent);
 
 		const CFGraph &get_graph() const { return graph; }

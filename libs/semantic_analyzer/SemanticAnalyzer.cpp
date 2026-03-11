@@ -1,4 +1,6 @@
 #include "SemanticAnalyzer.h"
+#include "Symbol.h"
+
 #include <stdexcept>
 
 #ifndef ASSERT
@@ -25,11 +27,14 @@ namespace Wasp
     // ============================================================================
 
     void SemanticAnalyzer::run(struct Module &ast)
-    {
-        enter_scope(ScopeType::MODULE);
+    { 
+        enter_scope(ScopeType::WORKSPACE);
         register_natives();
 
+        enter_scope(ScopeType::MODULE);
         visit(ast.statements);
+        leave_scope();
+        
         leave_scope();
     }
 
@@ -624,7 +629,11 @@ namespace Wasp
             FATAL("Semantic Error: Undefined variable '" + expr.name + "'");
         }
 
-        if (!symbol->is_captured && symbol->should_be_captured(current_scope->get_closure_depth()))
+        if (symbol->is_builtin)
+        {
+            // type checking later
+        }
+        else if (!symbol->is_captured && symbol->should_be_captured(current_scope->get_closure_depth()))
         {
             symbol->is_captured = true;
         }

@@ -23,9 +23,9 @@ namespace Wasp {
 // Constructors
 // ------------------------------------------------------------------------
 
-Compiler::Compiler(ConstantPool_ptr pool)
+Compiler::Compiler(ConstantPool_ptr pool, NativeRegistry_ptr native_registry)
     : constant_pool(pool), current_block_id(InvalidBlockId), parent(nullptr),
-      compiler_depth(0) {
+      compiler_depth(0), native_registry(native_registry) {
   current_block_id = graph.create_block();
   graph.set_entry_block(current_block_id);
 }
@@ -33,6 +33,7 @@ Compiler::Compiler(ConstantPool_ptr pool)
 Compiler::Compiler(ConstantPool_ptr pool, Compiler *parent)
     : constant_pool(std::move(pool)), parent(parent),
       compiler_depth(parent->compiler_depth + 1) {
+	native_registry = parent->native_registry;
   current_block_id = graph.create_block();
   graph.set_entry_block(current_block_id);
 }
@@ -75,8 +76,8 @@ int Compiler::resolve_upvalue(Compiler *current_compiler, Symbol_ptr symbol) {
     return current_compiler->add_upvalue(symbol->id, true);
   }
 
-  int upvalue_index_in_parent =
-      resolve_upvalue(current_compiler->parent, symbol);
+  int upvalue_index_in_parent = resolve_upvalue(current_compiler->parent, symbol);
+
   return current_compiler->add_upvalue(upvalue_index_in_parent, false);
 }
 
@@ -538,20 +539,26 @@ void Compiler::visit(bool expr) {
 }
 
 void Compiler::visit(Identifier &expr) {
-  auto symbol = expr.symbol;
+  	auto symbol = expr.symbol;
 
-  if (!symbol) {
-    FATAL("Unresolved identifier");
-  }
+	if (!symbol) {
+		FATAL("Unresolved identifier");
+	}
 
-  if (symbol->lexical_depth == 0) {
-    emit(OpCode::GET_GLOBAL, symbol->id);
-  } else if (symbol->is_captured) {
-    int upval_index = resolve_upvalue(this, symbol);
-    emit(OpCode::GET_UPVALUE, upval_index);
-  } else {
-    emit(OpCode::GET_LOCAL, symbol->id);
-  }
+	if (symbol->is_captured)
+	{
+		int upval_index = resolve_upvalue(this, symbol);
+    	emit(OpCode::GET_UPVALUE, upval_index);
+  	}
+	else if (symbol->is_builtin)
+	{
+		auto native_registry_id = native_registry->get_native_index(symbol->name);
+		emit(OpCode::GET_NATIVE, native_registry_id);
+	}
+	else
+	{
+    	emit(OpCode::GET_LOCAL, symbol->id);
+  	}
 }
 
 void Compiler::compile_assignment(const Expression_ptr &lhs,
@@ -568,8 +575,6 @@ void Compiler::compile_assignment(const Expression_ptr &lhs,
   if (symbol->is_captured) {
     int idx = resolve_upvalue(this, symbol);
     emit(OpCode::SET_UPVALUE, idx);
-  } else if (symbol->closure_depth == 0) {
-    emit(OpCode::SET_GLOBAL, symbol->id);
   } else {
     emit(OpCode::SET_LOCAL, symbol->id);
   }

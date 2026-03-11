@@ -8,7 +8,7 @@
 
 
 namespace Wasp {
-enum class ScopeType { NONE, MODULE, EXPRESSION, LOOP, BRANCH, FUNCTION };
+enum class ScopeType { NONE, WORKSPACE, MODULE, EXPRESSION, LOOP, BRANCH, FUNCTION };
 
 class SymbolScope;
 using SymbolScope_ptr = std::shared_ptr<SymbolScope>;

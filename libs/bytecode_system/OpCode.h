@@ -13,6 +13,8 @@ using ByteVector = std::vector<std::byte>;
     X(HALT, 0)         /* Stop execution */                                          \
     X(ENTER_MODULE, 0) /* Initialize module state */                                 \
     X(EXIT_MODULE, 0)  /* Cleanup module state */                                    \
+    X(ENTER_WORKSPACE, 0) /* Initialize workspace state */                           \
+    X(EXIT_WORKSPACE, 0)  /* Cleanup workspace state */                              \
     /* --- Stack Manipulation --- */                                                 \
     X(POP, 0) /* [val] -> [] | Discard top of stack */                               \
     X(DUP, 0) /* [val] -> [val, val] | Duplicate top of stack */                     \
@@ -25,6 +27,7 @@ using ByteVector = std::vector<std::byte>;
     X(DEFINE_LOCAL, 1) /* [val] -> [] | Create local variable in current slot */     \
     X(SET_LOCAL, 1)    /* [val] -> [] | Assign value to existing local slot */       \
     X(GET_LOCAL, 1)    /* [] -> [val] | Read value from local slot onto stack */     \
+    X(GET_NATIVE, 1)   /* [] -> [val] | Read value from native registry onto stack */     \
     X(PUSH_SCOPE, 0)   /* Enter new lexical block scope */                           \
     X(POP_SCOPE, 0)                                                                  \
     /* Exit current lexical block scope */ /* --- Arithmetic --- */                  \
@@ -63,8 +66,6 @@ using ByteVector = std::vector<std::byte>;
     X(CALL, 1)          /* [func, args...] -> [result] | Invoke top of stack */      \
     X(RETURN, 0)        /* Exit function with value on top of stack */               \
     X(YIELD, 0)         /* Suspend generator with value on top of stack */           \
-    X(GET_GLOBAL, 1)    /* [ ] -> [val] | Get global variable */                     \
-    X(SET_GLOBAL, 1)    /* [val] -> [ ] | Set global variable */                     \
     X(GET_UPVALUE, 1)   /* [ ] -> [val] | Get captured variable from closure */      \
     X(SET_UPVALUE, 1)   /* [val] -> [ ] | Set captured variable in closure */        \
     X(CLOSE_UPVALUE, 0) /* Move a local variable from stack to heap */               \
