@@ -1,7 +1,6 @@
 # Building
 
 ```bash
-
 clear && rm -rf build && cmake -B build -G Ninja && cmake --build build && ctest --test-dir build -L "unit"
 
 clear && cmake --build build && ctest --test-dir build -L "unit"
@@ -12,8 +11,7 @@ ccache -s
 
 sudo ln -s /workspaces/wasp/build/src/wasp /usr/local/bin/wasp
 
-wasp ./workspace/main.wasp
-
+wasp run ./workspace/main.wasp
 
 ```
 
@@ -24,4 +22,6 @@ sudo apt update
 
 sudo apt install lld
 ld.lld --version
+
+sudo apt-get install libfmt-dev
 ```

@@ -1,145 +1,146 @@
+#include "Doctor.h"
 #include "Parser.h"
+#include "Statement.h"
+#include "Token.h"
 
-#include <iostream>
+#include <cstdlib>
 #include <memory>
+#include <optional>
+#include <string>
 #include <utility>
-
-
-#define RETURN_IF_NULLOPT(token)                                               \
-  if (!token.has_value())                                                      \
-    return nullptr;
-#define EXIT_IF_NULLOPT(token)                                                 \
-  if (!token.has_value())                                                      \
-    exit(1);
-#define RETURN_IF_NULLPTR(token)                                               \
-  if (!token)                                                                  \
-    return nullptr;
-#define EXIT_IF_NULLPTR(token)                                                 \
-  if (!token)                                                                  \
-    exit(1);
-#define CASE(token_type, call)                                                 \
-  case token_type: {                                                           \
-    return call;                                                               \
-  }
-#define MAKE_STATEMENT(x) std::make_shared<Statement>(Statement(x))
-#define MAKE_EXPRESSION(x) std::make_shared<Expression>(Expression(x))
-
-using std::cout;
-using std::endl;
-using std::make_pair;
-using std::make_shared;
-using std::move;
-using std::optional;
 
 namespace Wasp {
 Statement_ptr Parser::parse_statement(int expected_indent_level) {
-  token_pipe.ignore_empty_lines();
-  token_pipe.expect_n_indents(expected_indent_level);
+    token_pipe.ignore_empty_lines();
+    token_pipe.expect_n_indents(expected_indent_level);
 
-  const auto token = token_pipe.current();
-  RETURN_IF_NULLOPT(token);
+    const auto token = token_pipe.current();
+    if (!token)
+        return nullptr;
 
-  if (token.value().type == TokenType::END_OF_FILE) {
-    token_pipe.advance_pointer();
-    return nullptr;
-  }
+    if (token->type == TokenType::END_OF_FILE) {
+        token_pipe.advance_pointer();
+        return nullptr;
+    }
 
-  switch (token->type) {
-    CASE(TokenType::LET, parse_variable_definition(true));
-    CASE(TokenType::CONST_KEYWORD, parse_variable_definition(false));
-    CASE(TokenType::TYPE, parse_alias_definition());
-    CASE(TokenType::ENUM, parse_enum_definition());
+    switch (token->type) {
+    case TokenType::LET:
+        return parse_variable_definition(true);
+    case TokenType::CONST_KEYWORD:
+        return parse_variable_definition(false);
+    case TokenType::TYPE:
+        return parse_alias_definition();
+    case TokenType::ENUM:
+        return parse_enum_definition();
 
-    CASE(TokenType::IF,
-         parse_branching(token.value().type, expected_indent_level));
+    case TokenType::IF:
+        return parse_branching(token->type, expected_indent_level);
 
-    CASE(TokenType::WHILE,
-         parse_simple_loop(TokenType::WHILE, expected_indent_level));
-    CASE(TokenType::UNLESS,
-         parse_simple_loop(TokenType::UNLESS, expected_indent_level));
-    CASE(TokenType::UNTIL,
-         parse_simple_loop(TokenType::UNTIL, expected_indent_level));
-    CASE(TokenType::FOR, parse_for_in_loop(expected_indent_level));
+    case TokenType::WHILE:
+        return parse_simple_loop(TokenType::WHILE, expected_indent_level);
+    case TokenType::UNLESS:
+        return parse_simple_loop(TokenType::UNLESS, expected_indent_level);
+    case TokenType::UNTIL:
+        return parse_simple_loop(TokenType::UNTIL, expected_indent_level);
+    case TokenType::FOR:
+        return parse_for_in_loop(expected_indent_level);
 
-    CASE(TokenType::PASS, parse_pass_statement());
+    case TokenType::PASS:
+        return parse_pass_statement();
 
-    CASE(TokenType::BREAK, parse_loop_control_statement(TokenType::BREAK));
-    CASE(TokenType::CONTINUE,
-         parse_loop_control_statement(TokenType::CONTINUE));
-    CASE(TokenType::REDO, parse_loop_control_statement(TokenType::REDO));
+    case TokenType::BREAK:
+        return parse_loop_control_statement(TokenType::BREAK);
+    case TokenType::CONTINUE:
+        return parse_loop_control_statement(TokenType::CONTINUE);
+    case TokenType::REDO:
+        return parse_loop_control_statement(TokenType::REDO);
 
-    CASE(TokenType::FUN, parse_function_definition(expected_indent_level));
-    CASE(TokenType::RETURN_KEYWORD, parse_return_statement());
+    case TokenType::FUN:
+        return parse_function_definition(expected_indent_level);
+    case TokenType::RETURN_KEYWORD:
+        return parse_return_statement();
 
-    CASE(TokenType::AT_SIGN, parse_annotation_definition());
+    case TokenType::AT_SIGN:
+        return parse_annotation_definition();
 
-    CASE(TokenType::CLASS, parse_class_definition(expected_indent_level));
-    CASE(TokenType::TRAIT, parse_trait_definition(expected_indent_level));
-    CASE(TokenType::IMPL, parse_impl_definition(expected_indent_level));
+    case TokenType::CLASS:
+        return parse_class_definition(expected_indent_level);
+    case TokenType::TRAIT:
+        return parse_trait_definition(expected_indent_level);
+    case TokenType::IMPL:
+        return parse_impl_definition(expected_indent_level);
 
-  default:
-    return parse_expression_statement();
-  }
+    default:
+        return parse_expression_statement();
+    }
 }
 
 Block Parser::parse_statements_block(int expected_indent_level) {
-  token_pipe.ignore_empty_lines();
-
-  auto s = parse_statement(expected_indent_level);
-  EXIT_IF_NULLPTR(s);
-
-  Block statements{move(s)};
-
-  while (true) {
     token_pipe.ignore_empty_lines();
-    int actual_indent_level = token_pipe.lookahead_indents();
 
-    if (actual_indent_level > expected_indent_level) {
-      cout << "Unexpected indent level. Expected " << expected_indent_level
-           << " but got " << actual_indent_level << endl;
-      exit(1);
-    }
+    auto s = parse_statement(expected_indent_level);
+    Doctor::get().fatal_if_nullptr(s, WaspStage::Parser);
 
-    if (actual_indent_level == expected_indent_level) {
-      auto s = parse_statement(expected_indent_level);
-      if (!s)
+    Block statements{std::move(s)};
+
+    while (true) {
+        token_pipe.ignore_empty_lines();
+        int actual_indent_level = token_pipe.lookahead_indents();
+
+        if (actual_indent_level > expected_indent_level) {
+            auto current_token = token_pipe.current();
+            int line = current_token ? current_token->line : 0;
+            int col = current_token ? current_token->column : 0;
+
+            Doctor::get().fatal(
+                WaspStage::Parser,
+                "Unexpected indent level. Expected " + std::to_string(expected_indent_level) +
+                    " but got " + std::to_string(actual_indent_level),
+                line,
+                col
+            );
+        }
+
+        if (actual_indent_level == expected_indent_level) {
+            auto parsed_stmt = parse_statement(expected_indent_level);
+            if (!parsed_stmt)
+                break;
+
+            statements.push_back(std::move(parsed_stmt));
+            continue;
+        }
+
         break;
-
-      statements.push_back(move(s));
-      continue;
     }
 
-    break;
-  }
-
-  return statements;
+    return statements;
 }
 
 Statement_ptr Parser::parse_expression_statement() {
-  const auto expression = parse_expression();
-  token_pipe.require_in_line(TokenType::EOL);
+    const auto expression = parse_expression();
+    token_pipe.require_in_line(TokenType::EOL);
 
-  return MAKE_STATEMENT((ExpressionStatement{expression}));
+    return std::make_shared<Statement>(ExpressionStatement{expression});
 }
 
 Statement_ptr Parser::parse_pass_statement() {
-  token_pipe.advance_pointer();
-  token_pipe.require_in_line(TokenType::EOL);
+    token_pipe.advance_pointer();
+    token_pipe.require_in_line(TokenType::EOL);
 
-  return MAKE_STATEMENT((Pass{}));
+    return std::make_shared<Statement>(Pass{});
 }
 
 Statement_ptr Parser::parse_return_statement() {
-  token_pipe.advance_pointer();
+    token_pipe.advance_pointer();
 
-  if (token_pipe.consume_optional_in_line(TokenType::EOL)) {
-    return MAKE_STATEMENT((Return{}));
-  }
+    if (token_pipe.consume_optional_in_line(TokenType::EOL)) {
+        return std::make_shared<Statement>(Return{});
+    }
 
-  token_pipe.ignore_spaces_tabs();
+    token_pipe.ignore_spaces_tabs();
 
-  auto expression = parse_expression();
-  token_pipe.require_in_line(TokenType::EOL);
-  return MAKE_STATEMENT((Return{expression}));
+    auto expression = parse_expression();
+    token_pipe.require_in_line(TokenType::EOL);
+    return std::make_shared<Statement>(Return{expression});
 }
 } // namespace Wasp

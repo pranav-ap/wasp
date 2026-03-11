@@ -1,4 +1,7 @@
+#include "ExpressionParselets.h"
 #include "Parser.h"
+#include "Precedence.h"
+#include "Token.h"
 
 #include <memory>
 #include <utility>

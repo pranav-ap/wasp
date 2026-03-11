@@ -1,8 +1,10 @@
 #pragma once
 
 #include "Token.h"
-#include <vector>
+#include <cstddef>
 #include <optional>
+#include <vector>
+
 
 namespace Wasp {
     class TokenPipe {

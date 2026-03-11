@@ -216,9 +216,8 @@ namespace Wasp
 
     // Type Objects
 
-    struct AnyType : virtual public AbstractObject
-    {
-    };
+    struct AnyType : virtual public AbstractObject {};
+
     struct NoneType : public AnyType
     {
     };
@@ -343,7 +342,10 @@ namespace Wasp
             std::monostate,
 
             NoneObject,
-            IntObject, FloatObject, StringObject, BooleanObject,
+            IntObject,
+            FloatObject,
+            StringObject,
+            BooleanObject,
 
             std::shared_ptr<IteratorObject>,
 
@@ -365,9 +367,21 @@ namespace Wasp
             AnyType,
             NoneType,
             NamedDefinitionType,
-            IntType, FloatType, StringType, BooleanType,
-            IntLiteralType, FloatLiteralType, StringLiteralType, BooleanLiteralType,
-            ListType, TupleType, SetType, MapType, VariantType, FunctionType, RecordType>;
+            IntType,
+            FloatType,
+            StringType,
+            BooleanType,
+            IntLiteralType,
+            FloatLiteralType,
+            StringLiteralType,
+            BooleanLiteralType,
+            ListType,
+            TupleType,
+            SetType,
+            MapType,
+            VariantType,
+            FunctionType,
+            RecordType>;
 
         UnderlyingVariant value;
 

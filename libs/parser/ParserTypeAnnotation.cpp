@@ -1,162 +1,163 @@
+#include "Doctor.h"
 #include "Parser.h"
+#include "Token.h"
+#include "TypeAnnotation.h"
 
 #include <cmath>
-#include <iostream>
+#include <cstdlib>
+#include <memory>
+#include <string>
 #include <utility>
 #include <vector>
-
-#define RETURN_IF_NULLOPT(token)                                               \
-  if (!token.has_value())                                                      \
-    return nullptr;
-#define EXIT_IF_NULLOPT(token)                                                 \
-  if (!token.has_value())                                                      \
-    exit(1);
-#define RETURN_IF_NULLPTR(token)                                               \
-  if (!token)                                                                  \
-    return nullptr;
-#define EXIT_IF_NULLPTR(token)                                                 \
-  if (!token)                                                                  \
-    exit(1);
-#define MAKE_TYPE(x) std::make_shared<TypeAnnotation>(TypeAnnotation{x})
-#define MAKE_RECURSIVE_TYPE(T, ...)                                            \
-  std::make_shared<TypeAnnotation>(                                            \
-      TypeAnnotation{std::make_shared<T>(__VA_ARGS__)})
 
 using std::vector;
 
 namespace Wasp {
 
 TypeAnnotation_ptr Parser::parse_type() {
-  vector<TypeAnnotation_ptr> types;
+    vector<TypeAnnotation_ptr> types;
 
-  while (true) {
-    TypeAnnotation_ptr type;
+    while (true) {
+        TypeAnnotation_ptr type;
 
-    if (token_pipe.consume_optional_in_line(TokenType::OPEN_SQUARE_BRACKET)) {
-      type = parse_list_type();
-    } else if (token_pipe.consume_optional_in_line(
-                   TokenType::OPEN_CURLY_BRACE)) {
-      type = parse_set_or_map_type();
-    } else if (token_pipe.consume_optional_in_line(
-                   TokenType::OPEN_PARENTHESIS)) {
-      type = parse_tuple_or_fun_type();
-    } else {
-      type = consume_datatype_word();
+        if (token_pipe.consume_optional_in_line(TokenType::OPEN_SQUARE_BRACKET)) {
+            type = parse_list_type();
+        } else if (token_pipe.consume_optional_in_line(TokenType::OPEN_CURLY_BRACE)) {
+            type = parse_set_or_map_type();
+        } else if (token_pipe.consume_optional_in_line(TokenType::OPEN_PARENTHESIS)) {
+            type = parse_tuple_or_fun_type();
+        } else {
+            type = consume_datatype_word();
+        }
+
+        types.push_back(type);
+
+        if (token_pipe.consume_optional_in_line(TokenType::VERTICAL_BAR)) {
+            continue;
+        }
+
+        break;
     }
 
-    types.push_back(type);
-
-    if (token_pipe.consume_optional_in_line(TokenType::VERTICAL_BAR)) {
-      continue;
+    if (types.size() > 1) {
+        return std::make_shared<TypeAnnotation>(
+            TypeAnnotation{std::make_shared<VariantTypeNode>(std::move(types))}
+        );
     }
 
-    break;
-  }
-
-  if (types.size() > 1) {
-    return MAKE_RECURSIVE_TYPE(VariantTypeNode, move(types));
-  }
-
-  return move(types.front());
+    return std::move(types.front());
 }
 
 TypeAnnotationVector Parser::parse_types() {
-  TypeAnnotationVector types;
+    TypeAnnotationVector types;
 
-  do {
-    auto type = parse_type();
-    types.push_back(type);
-  } while (token_pipe.consume_optional_in_line(TokenType::COMMA));
+    do {
+        auto type = parse_type();
+        types.push_back(type);
+    } while (token_pipe.consume_optional_in_line(TokenType::COMMA));
 
-  return types;
+    return types;
 }
 
 TypeAnnotation_ptr Parser::consume_datatype_word() {
-  auto token = token_pipe.current_in_line();
-  EXIT_IF_NULLOPT(token);
+    auto token = token_pipe.current_in_line();
+    Doctor::get().fatal_if_nullopt(token, WaspStage::Parser);
 
-  switch (token.value().type) {
-  case TokenType::NUMBER_LITERAL: {
-    token_pipe.advance_pointer();
-    auto value = std::stod(token.value().value);
-    if (std::fmod(value, 1.0) == 0.0) {
-      return MAKE_TYPE(IntLiteralTypeNode(static_cast<int>(value)));
+    switch (token->type) {
+    case TokenType::NUMBER_LITERAL: {
+        token_pipe.advance_pointer();
+        auto value = std::stod(token->value);
+        if (std::fmod(value, 1.0) == 0.0) {
+            return std::make_shared<TypeAnnotation>(
+                TypeAnnotation{IntLiteralTypeNode(static_cast<int>(value))}
+            );
+        }
+        return std::make_shared<TypeAnnotation>(TypeAnnotation{FloatLiteralTypeNode(value)});
     }
-    return MAKE_TYPE(FloatLiteralTypeNode(value));
-  }
-  case TokenType::STRING_LITERAL: {
-    token_pipe.advance_pointer();
-    return MAKE_TYPE(StringLiteralTypeNode(token.value().value));
-  }
-  case TokenType::TRUE_KEYWORD: {
-    token_pipe.advance_pointer();
-    return MAKE_TYPE(BoolLiteralTypeNode(true));
-  }
-  case TokenType::FALSE_KEYWORD: {
-    token_pipe.advance_pointer();
-    return MAKE_TYPE(BoolLiteralTypeNode(false));
-  }
-  case TokenType::INT: {
-    token_pipe.advance_pointer();
-    return MAKE_TYPE(IntTypeNode());
-  }
-  case TokenType::FLOAT: {
-    token_pipe.advance_pointer();
-    return MAKE_TYPE(FloatTypeNode());
-  }
-  case TokenType::STR: {
-    token_pipe.advance_pointer();
-    return MAKE_TYPE(StringTypeNode());
-  }
-  case TokenType::BOOL: {
-    token_pipe.advance_pointer();
-    return MAKE_TYPE(BoolTypeNode());
-  }
-  case TokenType::ANY: {
-    token_pipe.advance_pointer();
-    return MAKE_TYPE(AnyTypeNode());
-  }
-  case TokenType::IDENTIFIER: {
-    token_pipe.advance_pointer();
-    return MAKE_TYPE(TypeIdentifierNode(token.value().value));
-  }
-  default: {
-    std::cerr << "Unexpected token in datatype: "
-              << to_string(token.value().type) << std::endl;
-    exit(1);
-  }
-  }
+    case TokenType::STRING_LITERAL: {
+        token_pipe.advance_pointer();
+        return std::make_shared<TypeAnnotation>(
+            TypeAnnotation{StringLiteralTypeNode(token->value)}
+        );
+    }
+    case TokenType::TRUE_KEYWORD: {
+        token_pipe.advance_pointer();
+        return std::make_shared<TypeAnnotation>(TypeAnnotation{BoolLiteralTypeNode(true)});
+    }
+    case TokenType::FALSE_KEYWORD: {
+        token_pipe.advance_pointer();
+        return std::make_shared<TypeAnnotation>(TypeAnnotation{BoolLiteralTypeNode(false)});
+    }
+    case TokenType::INT: {
+        token_pipe.advance_pointer();
+        return std::make_shared<TypeAnnotation>(TypeAnnotation{IntTypeNode()});
+    }
+    case TokenType::FLOAT: {
+        token_pipe.advance_pointer();
+        return std::make_shared<TypeAnnotation>(TypeAnnotation{FloatTypeNode()});
+    }
+    case TokenType::STR: {
+        token_pipe.advance_pointer();
+        return std::make_shared<TypeAnnotation>(TypeAnnotation{StringTypeNode()});
+    }
+    case TokenType::BOOL: {
+        token_pipe.advance_pointer();
+        return std::make_shared<TypeAnnotation>(TypeAnnotation{BoolTypeNode()});
+    }
+    case TokenType::ANY: {
+        token_pipe.advance_pointer();
+        return std::make_shared<TypeAnnotation>(TypeAnnotation{AnyTypeNode()});
+    }
+    case TokenType::IDENTIFIER: {
+        token_pipe.advance_pointer();
+        return std::make_shared<TypeAnnotation>(TypeAnnotation{TypeIdentifierNode(token->value)});
+    }
+    default: {
+        Doctor::get().fatal(
+            WaspStage::Parser,
+            "Unexpected token in datatype: " + to_string(token->type),
+            token->line,
+            token->column
+        );
+    }
+    }
 }
 
 TypeAnnotation_ptr Parser::parse_list_type() {
-  auto type = parse_type();
-  token_pipe.require_later(TokenType::CLOSE_SQUARE_BRACKET);
-  return MAKE_RECURSIVE_TYPE(ListTypeNode, type);
+    auto type = parse_type();
+    token_pipe.require_later(TokenType::CLOSE_SQUARE_BRACKET);
+    return std::make_shared<TypeAnnotation>(TypeAnnotation{std::make_shared<ListTypeNode>(type)});
 }
 
 TypeAnnotation_ptr Parser::parse_tuple_or_fun_type() {
-  auto types = parse_types();
-  token_pipe.require_later(TokenType::CLOSE_PARENTHESIS);
+    auto types = parse_types();
+    token_pipe.require_later(TokenType::CLOSE_PARENTHESIS);
 
-  if (token_pipe.consume_optional_in_line(TokenType::ARROW)) {
-    auto return_type = parse_type();
-    return MAKE_RECURSIVE_TYPE(FunctionTypeNode, types, return_type);
-  }
+    if (token_pipe.consume_optional_in_line(TokenType::ARROW)) {
+        auto return_type = parse_type();
+        return std::make_shared<TypeAnnotation>(
+            TypeAnnotation{std::make_shared<FunctionTypeNode>(types, return_type)}
+        );
+    }
 
-  return MAKE_RECURSIVE_TYPE(TupleTypeNode, types);
+    return std::make_shared<TypeAnnotation>(TypeAnnotation{std::make_shared<TupleTypeNode>(types)});
 }
 
 TypeAnnotation_ptr Parser::parse_set_or_map_type() {
-  auto key_type = parse_type();
+    auto key_type = parse_type();
 
-  if (token_pipe.consume_optional_later(TokenType::ARROW)) {
-    auto value_type = parse_type();
+    if (token_pipe.consume_optional_later(TokenType::ARROW)) {
+        auto value_type = parse_type();
+        token_pipe.require_later(TokenType::CLOSE_CURLY_BRACE);
+        return std::make_shared<TypeAnnotation>(
+            TypeAnnotation{std::make_shared<MapTypeNode>(key_type, value_type)}
+        );
+    }
+
     token_pipe.require_later(TokenType::CLOSE_CURLY_BRACE);
-    return MAKE_RECURSIVE_TYPE(MapTypeNode, key_type, value_type);
-  }
-
-  token_pipe.require_later(TokenType::CLOSE_CURLY_BRACE);
-  return MAKE_RECURSIVE_TYPE(SetTypeNode, key_type);
+    return std::make_shared<TypeAnnotation>(
+        TypeAnnotation{std::make_shared<SetTypeNode>(key_type)}
+    );
 }
 
 } // namespace Wasp

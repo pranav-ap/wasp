@@ -1,5 +1,11 @@
 #include "Lexer.h"
+#include "Token.h"
+
+#include <cctype>
+#include <cstddef>
 #include <cwctype>
+#include <string>
+#include <vector>
 
 #define LINE_NUM token_position.get_line_num()
 #define COL_NUM token_position.get_column_num()

@@ -2,8 +2,11 @@
 #include "Objects.h"
 
 #include <iostream>
+#include <memory>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -93,25 +96,25 @@ void NativeRegistry::load_stdlib() {
 
   add_native(
       "input",
-      // 0 or 1 expected
-      -1,
-      [&](const std::vector<Object_ptr> &args) -> Object_ptr {
-        // If the user provided a prompt, print it out first
-        if (!args.empty()) {
+      1,
+      [&](const std::vector<Object_ptr>& args) -> Object_ptr {
           std::visit(
-              overloaded{[](const StringObject &s) { std::cout << s.value; },
-                         [](const auto &) { std::cout << "<prompt>"; }},
-              args[0]->value);
-        }
+              overloaded{
+                  [](const StringObject& s) { std::cout << s.value << " "; },
+                  [](const auto&) { std::cout << "<prompt>"; }
+              },
+              args[0]->value
+          );
 
-        std::string input_line;
-        std::getline(std::cin, input_line);
+          std::string input_line;
+          std::getline(std::cin, input_line);
 
-        return MAKE_OBJECT_VARIANT(StringObject(input_line));
+          return MAKE_OBJECT_VARIANT(StringObject(input_line));
       },
-      // Input Types (The optional prompt)
-      {pool->get_any_type()},
-      // Return Type (Input always returns a string!)
-      pool->get_string_type());
+      // Input Types
+      {pool->get_string_type()},
+      // Return Type
+      pool->get_string_type()
+  );
 }
 } // namespace Wasp

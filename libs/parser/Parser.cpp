@@ -1,28 +1,10 @@
 #include "Parser.h"
+#include "Statement.h"
+#include "Token.h"
+#include "TokenPipe.h"
 
-#include <iostream>
-#include <memory>
 #include <utility>
 #include <vector>
-
-#define RETURN_IF_NULLOPT(token)                                               \
-  if (!token.has_value())                                                      \
-    return nullptr;
-#define EXIT_IF_NULLOPT(token)                                                 \
-  if (!token.has_value())                                                      \
-    exit(1);
-#define RETURN_IF_NULLPTR(token)                                               \
-  if (!token)                                                                  \
-    return nullptr;
-#define EXIT_IF_NULLPTR(token)                                                 \
-  if (!token)                                                                  \
-    exit(1);
-#define CASE(token_type, call)                                                 \
-  case token_type: {                                                           \
-    return call;                                                               \
-  }
-#define MAKE_STATEMENT(x) std::make_shared<Statement>(Statement(x))
-#define MAKE_EXPRESSION(x) std::make_shared<Expression>(Expression(x))
 
 namespace Wasp {
 Parser::Parser() { register_all_parselets(); }

@@ -1,3 +1,6 @@
+CompileFlags:
+  Add: [-Wunused-macros]
+  
 Diagnostics:
   UnusedIncludes: Strict
   MissingIncludes: Strict

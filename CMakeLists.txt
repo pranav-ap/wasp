@@ -4,7 +4,7 @@ project(wasp_root)
 # ==========================================
 # Global Settings
 # ==========================================
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -48,7 +48,7 @@ target_include_directories(CLI11 INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 # Wasp Modules
 # ==========================================
 
-add_subdirectory(libs/workbook)
+add_subdirectory(libs/diagnostics)
 add_subdirectory(libs/token)
 add_subdirectory(libs/lexer)
 add_subdirectory(libs/ast)

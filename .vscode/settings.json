@@ -1,6 +1,11 @@
 {
     "github.copilot.enable": {
-        "*": false
+        "*": false,
+        "plaintext": false,
+        "markdown": true,
+        "scminput": false,
+        "python": true,
+        "cpp": true
     },
     
     "C_Cpp.intelliSenseEngine": "disabled",

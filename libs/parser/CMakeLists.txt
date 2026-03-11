@@ -12,6 +12,6 @@ add_library(
     register_parselets.cpp
 )
 
-target_link_libraries(ParserLib PUBLIC ASTLib TokenLib)
+target_link_libraries(ParserLib PUBLIC ASTLib TokenLib DoctorLib)
 
 target_include_directories(ParserLib PUBLIC .)

@@ -1,21 +1,17 @@
 #include "ExpressionParselets.h"
+#include "Doctor.h"
+#include "Expression.h"
 #include "Parser.h"
-#include <cmath>
-#include <iostream>
-#include <map>
+#include "Precedence.h"
+#include "Token.h"
+#include "TypeAnnotation.h"
 
-#define RETURN_IF_NULLOPT(token) \
-    if (!token.has_value())      \
-        return nullptr;
-#define EXIT_IF_NULLOPT(token) \
-    if (!token.has_value())    \
-        exit(1);
-#define RETURN_IF_NULLPTR(token) \
-    if (!token)                  \
-        return nullptr;
-#define EXIT_IF_NULLPTR(token) \
-    if (!token)                \
-        exit(1);
+#include <cmath>
+#include <cstdlib>
+#include <map>
+#include <memory>
+#include <string>
+
 #define MAKE_STATEMENT(x) std::make_shared<Statement>(Statement(x))
 #define MAKE_EXPRESSION(x) std::make_shared<Expression>(Expression(x))
 
@@ -51,10 +47,8 @@ namespace Wasp
             }
             return MAKE_EXPRESSION(value);
         }
-        default:
-        {
-            std::cerr << "Error: Expected a literal value" << std::endl;
-            exit(1);
+        default: {
+            Doctor::get().fatal(WaspStage::Parser, "Expected a literal value");
         }
         }
     }
@@ -125,7 +119,7 @@ namespace Wasp
         parser.token_pipe.ignore_spaces();
 
         auto first_expr = parser.parse_expression();
-        EXIT_IF_NULLPTR(first_expr);
+        Doctor::get().fatal_if_nullptr(first_expr, WaspStage::Parser);
 
         parser.token_pipe.ignore_spaces();
 
@@ -183,7 +177,7 @@ namespace Wasp
         parser.token_pipe.advance_pointer();
 
         Expression_ptr right = parser.parse_expression(static_cast<int>(Precedence::ASSIGNMENT) - 1);
-        EXIT_IF_NULLPTR(right);
+        Doctor::get().fatal_if_nullptr(right, WaspStage::Parser);
 
         if (left->is<TypePattern>())
         {
@@ -217,11 +211,11 @@ namespace Wasp
             is_valid_callee = true;
         }
 
-        if (!is_valid_callee)
-        {
-            std::cerr << "Error: Call requires an identifier or member access (dot) expression" << std::endl;
-            exit(1);
-        }
+        Doctor::get().assert_true(
+            is_valid_callee,
+            WaspStage::Parser,
+            "Call requires an identifier or member access expression"
+        );
 
         ExpressionVector arguments;
 

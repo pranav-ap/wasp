@@ -1,115 +1,104 @@
+#include "Doctor.h"
+#include "Expression.h"
 #include "Parser.h"
+#include "Statement.h"
+#include "Token.h"
 
-#include <iostream>
 #include <memory>
+#include <optional>
+#include <string>
 #include <utility>
 
-#define RETURN_IF_NULLOPT(token)                                               \
-  if (!token.has_value())                                                      \
-    return nullptr;
-#define EXIT_IF_NULLOPT(token)                                                 \
-  if (!token.has_value())                                                      \
-    exit(1);
-#define RETURN_IF_NULLPTR(token)                                               \
-  if (!token)                                                                  \
-    return nullptr;
-#define EXIT_IF_NULLPTR(token)                                                 \
-  if (!token)                                                                  \
-    exit(1);
-#define CASE(token_type, call)                                                 \
-  case token_type: {                                                           \
-    return call;                                                               \
-  }
-#define MAKE_STATEMENT(x) std::make_shared<Statement>(Statement(x))
-#define MAKE_EXPRESSION(x) std::make_shared<Expression>(Expression(x))
-
-using std::cout;
-using std::endl;
-using std::make_pair;
 using std::make_shared;
 using std::move;
 using std::optional;
 
 namespace Wasp {
-Statement_ptr Parser::parse_simple_loop(TokenType loop_style,
-                                        int loop_indent_level) {
-  token_pipe.advance_pointer();
 
-  auto condition = parse_expression();
-  EXIT_IF_NULLPTR(condition);
+Statement_ptr Parser::parse_simple_loop(TokenType loop_style, int loop_indent_level) {
+    token_pipe.advance_pointer();
 
-  token_pipe.require_in_line(TokenType::DO);
+    auto condition = parse_expression();
+    Doctor::get().fatal_if_nullptr(condition, WaspStage::Parser);
 
-  if (token_pipe.consume_optional_in_line(TokenType::EOL)) {
-    auto body = parse_statements_block(loop_indent_level + 1);
-    return MAKE_STATEMENT(SimpleLoop(body, condition, loop_style));
-  }
+    token_pipe.require_in_line(TokenType::DO);
 
-  auto statement = parse_expression_statement();
-  auto body = {statement};
-  return MAKE_STATEMENT(SimpleLoop(body, condition, loop_style));
+    if (token_pipe.consume_optional_in_line(TokenType::EOL)) {
+        auto body = parse_statements_block(loop_indent_level + 1);
+        return std::make_shared<Statement>(SimpleLoop(body, condition, loop_style));
+    }
+
+    auto statement = parse_expression_statement();
+    auto body = {statement};
+    return std::make_shared<Statement>(SimpleLoop(body, condition, loop_style));
 }
 
 Statement_ptr Parser::parse_for_in_loop(int loop_indent_level) {
-  // Consume the 'for' keyword
-  token_pipe.advance_pointer();
+    // Consume the 'for' keyword
+    token_pipe.advance_pointer();
 
-  // Parse the 'let x in y' or 'x in y' part as an expression
-  auto expression = parse_expression();
-  EXIT_IF_NULLPTR(expression);
+    // Parse the 'let x in y' or 'x in y' part as an expression
+    auto expression = parse_expression();
+    Doctor::get().fatal_if_nullptr(expression, WaspStage::Parser);
 
-  Expression_ptr infix_expr = expression;
-  bool is_mutable = false;
+    Expression_ptr infix_expr = expression;
+    bool is_mutable = false;
 
-  if (expression->is<VariableDefinitionExpression>()) {
-    auto &var_def_expr = expression->as<VariableDefinitionExpression>();
-    is_mutable = var_def_expr.is_mutable;
-    infix_expr = var_def_expr.assignment;
-  }
+    if (expression->is<VariableDefinitionExpression>()) {
+        auto& var_def_expr = expression->as<VariableDefinitionExpression>();
+        is_mutable = var_def_expr.is_mutable;
+        infix_expr = var_def_expr.assignment;
+    }
 
-  if (!infix_expr->is<Infix>()) {
-    std::cerr << "Error: Expected 'EXPR in ITERABLE' after for" << std::endl;
-    exit(1);
-  }
+    if (!infix_expr->is<Infix>()) {
+        // We can pull the line/column from the current token pipe state for better diagnostics
+        auto current_token = token_pipe.current();
+        int line = current_token ? current_token->line : 0;
+        int col = current_token ? current_token->column : 0;
 
-  const auto &infix = infix_expr->as<Infix>();
+        Doctor::get().fatal(WaspStage::Parser, "Expected 'EXPR in ITERABLE' after for", line, col);
+    }
 
-  if (infix.op.type != TokenType::IN_KEYWORD) {
-    std::cerr << "Error: Expected 'in' keyword in for loop, but got "
-              << to_string(infix.op.type) << std::endl;
-    exit(1);
-  }
+    const auto& infix = infix_expr->as<Infix>();
 
-  Expression_ptr lhs = infix.left;
-  Expression_ptr iterable_expression = infix.right;
+    if (infix.op.type != TokenType::IN_KEYWORD) {
+        Doctor::get().fatal(
+            WaspStage::Parser,
+            "Expected 'in' keyword in for loop, but got " + to_string(infix.op.type),
+            infix.op.line,
+            infix.op.column
+        );
+    }
 
-  token_pipe.require_in_line(TokenType::DO);
+    Expression_ptr lhs = infix.left;
+    Expression_ptr iterable_expression = infix.right;
 
-  if (token_pipe.consume_optional_in_line(TokenType::EOL)) {
-    auto body = parse_statements_block(loop_indent_level + 1);
-    return MAKE_STATEMENT(
-        ForInLoop(body, lhs, iterable_expression, is_mutable));
-  }
+    token_pipe.require_in_line(TokenType::DO);
 
-  auto statement = parse_expression_statement();
-  EXIT_IF_NULLPTR(statement);
+    if (token_pipe.consume_optional_in_line(TokenType::EOL)) {
+        auto body = parse_statements_block(loop_indent_level + 1);
+        return std::make_shared<Statement>(ForInLoop(body, lhs, iterable_expression, is_mutable));
+    }
 
-  Block body = {statement};
-  return MAKE_STATEMENT(ForInLoop(body, lhs, iterable_expression, is_mutable));
+    auto statement = parse_expression_statement();
+    Doctor::get().fatal_if_nullptr(statement, WaspStage::Parser);
+
+    Block body = {statement};
+    return std::make_shared<Statement>(ForInLoop(body, lhs, iterable_expression, is_mutable));
 }
 
 Statement_ptr Parser::parse_loop_control_statement(TokenType control_type) {
-  token_pipe.advance_pointer();
+    token_pipe.advance_pointer();
 
-  auto token = token_pipe.consume_optional_in_line(TokenType::IDENTIFIER);
+    auto token = token_pipe.consume_optional_in_line(TokenType::IDENTIFIER);
 
-  if (token.has_value() && token.value().type == TokenType::IDENTIFIER) {
-    std::string label = token.value().value;
+    if (token.has_value() && token.value().type == TokenType::IDENTIFIER) {
+        std::string label = token.value().value;
+        token_pipe.require_in_line(TokenType::EOL);
+        return std::make_shared<Statement>(LoopControl{control_type, label});
+    }
+
     token_pipe.require_in_line(TokenType::EOL);
-    return MAKE_STATEMENT((LoopControl{control_type, label}));
-  }
-
-  token_pipe.require_in_line(TokenType::EOL);
-  return MAKE_STATEMENT((LoopControl{control_type}));
+    return std::make_shared<Statement>(LoopControl{control_type});
 }
 } // namespace Wasp

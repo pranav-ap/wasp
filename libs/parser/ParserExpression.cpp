@@ -1,105 +1,112 @@
+#include "Doctor.h"
+#include "Expression.h"
 #include "Parser.h"
+#include "Token.h"
 
 #include <map>
+#include <memory>
 #include <utility>
 
-#define RETURN_IF_NULLOPT(token)                                               \
-  if (!token.has_value())                                                      \
-    return nullptr;
-#define EXIT_IF_NULLOPT(token)                                                 \
-  if (!token.has_value())                                                      \
-    exit(1);
-#define RETURN_IF_NULLPTR(token)                                               \
-  if (!token)                                                                  \
-    return nullptr;
-#define EXIT_IF_NULLPTR(token)                                                 \
-  if (!token)                                                                  \
-    exit(1);
-#define CASE(token_type, call)                                                 \
-  case token_type: {                                                           \
-    return call;                                                               \
-  }
-#define MAKE_STATEMENT(x) std::make_shared<Statement>(Statement(x))
-#define MAKE_EXPRESSION(x) std::make_shared<Expression>(Expression(x))
-
-using std::move;
-
 namespace Wasp {
+
 Expression_ptr Parser::parse_expression() { return parse_expression(0); }
 
 Expression_ptr Parser::parse_expression(const int precedence) {
-  auto token = token_pipe.current_in_line();
-  RETURN_IF_NULLOPT(token);
+    auto token = token_pipe.current_in_line();
 
-  auto token_type = token.value().type;
+    // Backtracking is a valid state here, so we use a native 'if'
+    if (!token)
+        return nullptr;
 
-  if (token_type == TokenType::LET) {
-    token_pipe.advance_pointer();
-    Expression_ptr expr = parse_expression();
-    return MAKE_EXPRESSION(VariableDefinitionExpression(expr, true));
-  }
+    auto token_type = token->type;
 
-  if (token_type == TokenType::CONST_KEYWORD) {
-    token_pipe.advance_pointer();
-    Expression_ptr expr = parse_expression();
-    return MAKE_EXPRESSION(VariableDefinitionExpression(expr, false));
-  }
+    if (token_type == TokenType::LET) {
+        token_pipe.advance_pointer();
+        Expression_ptr expr = parse_expression();
+        // Replaced macro with direct, zero-copy instantiation
+        return std::make_shared<Expression>(VariableDefinitionExpression(expr, true));
+    }
 
-  // ------------------------------------------------------------------
-  // Prefix Parsing
-  // ------------------------------------------------------------------
+    if (token_type == TokenType::CONST_KEYWORD) {
+        token_pipe.advance_pointer();
+        Expression_ptr expr = parse_expression();
+        return std::make_shared<Expression>(VariableDefinitionExpression(expr, false));
+    }
 
-  const IPrefixParselet_ptr prefix_parselet = prefix_parselets.at(token_type);
-  EXIT_IF_NULLPTR(prefix_parselet);
-  Expression_ptr left = prefix_parselet->parse(*this, token.value());
-  EXIT_IF_NULLPTR(left);
+    // ------------------------------------------------------------------
+    // Prefix Parsing
+    // ------------------------------------------------------------------
 
-  // ------------------------------------------------------------------
-  // Infix Parsing
-  // ------------------------------------------------------------------
+    auto prefix_it = prefix_parselets.find(token_type);
+    if (prefix_it == prefix_parselets.end()) {
+        Doctor::get().fatal(
+            WaspStage::Parser,
+            "Unexpected token or missing prefix parselet",
+            token->line,
+            token->column
+        );
+    }
 
-  while (precedence < get_next_operator_precedence()) {
-    token = token_pipe.current_in_line();
-    EXIT_IF_NULLOPT(token);
+    Expression_ptr left = prefix_it->second->parse(*this, *token);
+    Doctor::get().fatal_if_nullptr(left, WaspStage::Parser, token->line, token->column);
 
-    token_pipe.advance_pointer();
+    // ------------------------------------------------------------------
+    // Infix Parsing
+    // ------------------------------------------------------------------
 
-    const IInfixParselet_ptr infix_parselet =
-        infix_parselets.at(token.value().type);
-    left = infix_parselet->parse(*this, left, token.value());
-  }
+    while (precedence < get_next_operator_precedence()) {
+        token = token_pipe.current_in_line();
+        Doctor::get().fatal_if_nullopt(token, WaspStage::Parser);
 
-  return left;
+        token_pipe.advance_pointer();
+
+        auto infix_it = infix_parselets.find(token->type);
+
+        // This should never realistically trigger because get_next_operator_precedence
+        // already checks if it exists, but it's great internal documentation/safety.
+        Doctor::get().assert_true(
+            infix_it != infix_parselets.end(),
+            WaspStage::Parser,
+            "Missing infix parselet during loop",
+            token->line,
+            token->column
+        );
+
+        left = infix_it->second->parse(*this, left, *token);
+    }
+
+    return left;
 }
 
 ExpressionVector Parser::parse_expressions() {
-  ExpressionVector elements;
+    ExpressionVector elements;
 
-  while (auto element = parse_expression()) {
-    elements.push_back(move(element));
+    while (auto element = parse_expression()) {
+        elements.push_back(std::move(element));
 
-    // If there's a comma, consume it and continue the loop
-    if (const auto token = token_pipe.later();
-        token.has_value() && token->type == TokenType::COMMA) {
-      token_pipe.advance_pointer();
-      continue;
+        // If there's a comma, consume it and continue the loop
+        if (const auto token = token_pipe.later();
+            token.has_value() && token->type == TokenType::COMMA) {
+            token_pipe.advance_pointer();
+            continue;
+        }
+
+        // No comma? We're done with the list.
+        break;
     }
 
-    // No comma? We're done with the list.
-    break;
-  }
-
-  return elements;
+    return elements;
 }
 
 int Parser::get_next_operator_precedence() {
-  if (const auto token = token_pipe.current_in_line();
-      token.has_value() && infix_parselets.contains(token.value().type)) {
-    const IInfixParselet_ptr infix_parselet =
-        infix_parselets.at(token.value().type);
-    return infix_parselet->get_precedence();
-  }
+    if (const auto token = token_pipe.current_in_line()) {
+        auto it = infix_parselets.find(token->type);
+        if (it != infix_parselets.end()) {
+            return it->second->get_precedence();
+        }
+    }
 
-  return 0;
+    return 0;
 }
+
 } // namespace Wasp

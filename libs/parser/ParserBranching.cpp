@@ -1,34 +1,13 @@
+#include "Expression.h"
 #include "Parser.h"
+#include "Statement.h"
+#include "Token.h"
 
-#include <iostream>
 #include <memory>
 #include <utility>
 
-#define RETURN_IF_NULLOPT(token)                                               \
-  if (!token.has_value())                                                      \
-    return nullptr;
-#define EXIT_IF_NULLOPT(token)                                                 \
-  if (!token.has_value())                                                      \
-    exit(1);
-#define RETURN_IF_NULLPTR(token)                                               \
-  if (!token)                                                                  \
-    return nullptr;
-#define EXIT_IF_NULLPTR(token)                                                 \
-  if (!token)                                                                  \
-    exit(1);
-#define CASE(token_type, call)                                                 \
-  case token_type: {                                                           \
-    return call;                                                               \
-  }
 #define MAKE_STATEMENT(x) std::make_shared<Statement>(Statement(x))
 #define MAKE_EXPRESSION(x) std::make_shared<Expression>(Expression(x))
-
-using std::cout;
-using std::endl;
-using std::make_pair;
-using std::make_shared;
-using std::move;
-using std::optional;
 
 namespace Wasp {
 
@@ -46,7 +25,7 @@ Statement_ptr Parser::parse_branching(TokenType token_type,
     Expression_ptr ternary = parse_ternary_condition(TokenType::IF, condition);
     token_pipe.require_in_line(TokenType::EOL);
 
-    return MAKE_STATEMENT(ExpressionStatement(move(ternary)));
+    return MAKE_STATEMENT(ExpressionStatement(std::move(ternary)));
   }
 
   // If Block

@@ -1,7 +1,14 @@
 #include "TypeSystem.h"
-#include <memory>
+#include "Objects.h"
+#include "SymbolScope.h"
+#include "Token.h"
+
 #include <algorithm>
+#include <cstddef>
+#include <memory>
 #include <stdexcept>
+#include <variant>
+#include <vector>
 
 #define MAKE_OBJECT_VARIANT(x) std::make_shared<Object>(x)
 #define FATAL(message) throw std::runtime_error(message)
