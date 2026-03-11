@@ -12,7 +12,7 @@ ccache -s
 
 sudo ln -s /workspaces/wasp/build/src/wasp /usr/local/bin/wasp
 
-wasp ./samples/main.wasp
+wasp ./workspace/main.wasp
 
 
 ```

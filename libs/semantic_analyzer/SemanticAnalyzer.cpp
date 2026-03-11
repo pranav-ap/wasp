@@ -61,7 +61,7 @@ namespace Wasp
                 symbol_type,
                 false, // is_public
                 false, // is_mutable
-                true,  // is_builtin
+                true,  // is_native
                 false, // is_captured
                 0,     // closure_depth
                 0      // lexical_depth
@@ -323,7 +323,7 @@ namespace Wasp
                 nullptr,
                 false,                              // is_public
                 statement.lhs_is_mutable,           // is_mutable
-                false,                              // is_builtin
+                false,                              // is_native
                 false,                              // is_captured
                 current_scope->get_closure_depth(), // closure_depth
                 current_scope->get_lexical_depth()  // lexical_depth
@@ -447,7 +447,7 @@ namespace Wasp
             final_type,
             false, // is_public
             is_mutable,
-            false, // is_builtin
+            false, // is_native
             false, // is_captured
             current_scope->get_closure_depth(),
             current_scope->get_lexical_depth()
@@ -535,7 +535,7 @@ namespace Wasp
             func_type,
             false, // is_public
             false, // is_mutable
-            false, // is_builtin
+            false, // is_native
             false, // is_captured
             current_scope->get_closure_depth(),
             current_scope->get_lexical_depth()
@@ -556,7 +556,7 @@ namespace Wasp
                     param_types[i],
                     false, // is_public
                     false, // is_mutable
-                    false, // is_builtin
+                    false, // is_native
                     false, // is_captured
                     current_scope->get_closure_depth(),
                     current_scope->get_lexical_depth()
@@ -663,12 +663,10 @@ namespace Wasp
             FATAL("Semantic Error: Undefined variable '" + expr.name + "'");
         }
 
-        if (symbol->is_builtin)
-        {
+        if (symbol->is_native) {
             // type checking later
-        }
-        else if (!symbol->is_captured && symbol->should_be_captured(current_scope->get_closure_depth()))
-        {
+        } else if (!symbol->is_captured &&
+                   symbol->should_be_captured(current_scope->get_closure_depth())) {
             symbol->is_captured = true;
         }
 

@@ -1,9 +1,12 @@
 #pragma once
 
 #include "OpCode.h"
+
 #include <cstddef>
 #include <map>
 #include <memory>
+#include <string>
+#include <utility>
 #include <vector>
 
 namespace Wasp
@@ -24,8 +27,8 @@ namespace Wasp
         std::string name;
         std::map<int, std::string> local_names;
 
-        // Default to <main> for the top-level module
-        CodeObject() : name("<main>") {};
+        // Default to <module> for the top-level module
+        CodeObject() : name("<module>") {};
 
         // Flexible constructor for sub-compilers to pass everything at once
         CodeObject(ByteVector instrs,

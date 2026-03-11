@@ -557,7 +557,7 @@ void Compiler::visit(Identifier& expr) {
     if (symbol->is_captured) {
         int upval_index = resolve_upvalue(this, symbol);
         emit(OpCode::GET_UPVALUE, upval_index);
-    } else if (symbol->is_builtin) {
+    } else if (symbol->is_native) {
         auto native_registry_id = native_registry->get_native_index(symbol->name);
         emit(OpCode::GET_NATIVE, native_registry_id);
     } else {
