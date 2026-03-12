@@ -51,7 +51,6 @@ void SemanticAnalyzer::run(Block& block) {
             auto symbol = std::make_shared<Symbol>(
                 name,
                 symbol_type,
-                false, // is_public
                 false, // is_mutable
                 true,  // is_native
                 false, // is_captured
@@ -287,7 +286,6 @@ void SemanticAnalyzer::run(Block& block) {
             auto symbol = std::make_shared<Symbol>(
                 name,
                 nullptr,
-                false,                              // is_public
                 statement.lhs_is_mutable,           // is_mutable
                 false,                              // is_native
                 false,                              // is_captured
@@ -430,7 +428,6 @@ void SemanticAnalyzer::run(Block& block) {
         auto symbol = std::make_shared<Symbol>(
             var_name,
             final_type,
-            false, // is_public
             is_mutable,
             false, // is_native
             false, // is_captured
@@ -530,7 +527,6 @@ void SemanticAnalyzer::run(Block& block) {
         auto func_symbol = std::make_shared<Symbol>(
             statement.name,
             func_type,
-            false, // is_public
             false, // is_mutable
             false, // is_native
             false, // is_captured
@@ -551,7 +547,6 @@ void SemanticAnalyzer::run(Block& block) {
                 std::make_shared<Symbol>(
                     param_names[i],
                     param_types[i],
-                    false, // is_public
                     false, // is_mutable
                     false, // is_native
                     false, // is_captured

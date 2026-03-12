@@ -9,7 +9,6 @@
 #include "Parser.h"
 #include "SemanticAnalyzer.h"
 #include "VM.h"
-#include "Workspace.h"
 
 #include "CLI11.hpp"
 
