@@ -1,36 +1,22 @@
 #include "Objects.h"
-#include <string>
-#include <vector>
-#include <exception>
-#include <variant>
-#include <optional>
-#include <stdexcept>
+#include "Doctor.h"
 
-#ifndef ASSERT
-#include <cassert>
-#define ASSERT(condition, message) assert((condition) && message)
-#endif
+#include <cstddef>
+#include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+#include <variant>
+#include <vector>
 
 #define MAKE_OBJECT_VARIANT(x) std::make_shared<Object>(x)
 #define MAKE_SHARED_OBJECT_VARIANT(Type, ...) std::make_shared<Object>(std::make_shared<Type>(__VA_ARGS__))
 #define VOID std::make_shared<Object>(std::make_shared<ReturnObject>())
-#define NULL_CHECK(x) ASSERT(x != nullptr, "Oh shit! A nullptr")
 #define THROW(message) return std::make_shared<Object>(std::make_shared<ErrorObject>(message));
-#define THROW_IF(condition, message)                                             \
-    if (condition)                                                               \
-    {                                                                            \
-        return std::make_shared<Object>(std::make_shared<ErrorObject>(message)); \
+#define THROW_IF(condition, message)                                                               \
+    if (condition) {                                                                               \
+        return std::make_shared<Object>(std::make_shared<ErrorObject>(message));                   \
     }
-#define FATAL_IF(condition, message)       \
-    if (condition)                         \
-    {                                      \
-        throw std::runtime_error(message); \
-    }
-#define STR(x) to_string(x)
-
-using std::string;
-using std::to_string;
-using std::vector;
 
 namespace Wasp
 {
@@ -68,10 +54,8 @@ namespace Wasp
     // ListObject
     // ============================================================================
 
-    Object_ptr ListObject::append(Object_ptr value)
-    {
-        NULL_CHECK(value);
-        // FIXED: Replaced index() == 0 with idiomatic is<std::monostate>()
+    Object_ptr ListObject::append(Object_ptr value) {
+        Doctor::get().fatal_if_nullptr(value, WaspStage::VM);
         THROW_IF(value->is<std::monostate>(), "Cannot append monostate to a List");
         values.push_back(value);
         return VOID;
@@ -79,7 +63,7 @@ namespace Wasp
 
     Object_ptr ListObject::prepend(Object_ptr value)
     {
-        NULL_CHECK(value);
+        Doctor::get().fatal_if_nullptr(value, WaspStage::VM);
         THROW_IF(value->is<std::monostate>(), "Cannot prepend monostate to a List");
         values.insert(values.begin(), value);
         return VOID;
@@ -111,7 +95,7 @@ namespace Wasp
 
     Object_ptr ListObject::get(Object_ptr index_object)
     {
-        NULL_CHECK(index_object);
+        Doctor::get().fatal_if_nullptr(index_object, WaspStage::VM);
         THROW_IF(!index_object->is<IntObject>(), "List indices must be integers");
         int index = index_object->as<IntObject>().value;
         THROW_IF(index < 0 || static_cast<size_t>(index) >= values.size(), "List index out of range");
@@ -121,8 +105,8 @@ namespace Wasp
 
     Object_ptr ListObject::set(Object_ptr index_object, Object_ptr value)
     {
-        NULL_CHECK(index_object);
-        NULL_CHECK(value);
+        Doctor::get().fatal_if_nullptr(index_object, WaspStage::VM);
+        Doctor::get().fatal_if_nullptr(value, WaspStage::VM);
         THROW_IF(!index_object->is<IntObject>(), "List indices must be integers");
         THROW_IF(value->is<std::monostate>(), "Cannot set a List element to monostate");
         int index = index_object->as<IntObject>().value;
@@ -157,8 +141,13 @@ namespace Wasp
     {
         for (const auto &value : values)
         {
-            NULL_CHECK(value);
-            FATAL_IF(value->is<std::monostate>(), "Cannot initialize a List with monostate");
+            Doctor::get().fatal_if_nullptr(value, WaspStage::VM);
+            Doctor::get().assert_true(
+                !value->is<std::monostate>(),
+                WaspStage::VM,
+                "Cannot initialize a List with monostate"
+            );
+
             this->values.push_back(value);
         }
     }
@@ -169,8 +158,8 @@ namespace Wasp
 
     Object_ptr MapObject::insert(Object_ptr key, Object_ptr value)
     {
-        NULL_CHECK(key);
-        NULL_CHECK(value);
+        Doctor::get().fatal_if_nullptr(key, WaspStage::VM);
+        Doctor::get().fatal_if_nullptr(value, WaspStage::VM);
         THROW_IF(key->is<std::monostate>(), "Cannot use monostate as a Map key");
         THROW_IF(value->is<std::monostate>(), "Cannot use monostate as a Map value");
 
@@ -182,8 +171,8 @@ namespace Wasp
 
     Object_ptr MapObject::set(Object_ptr key, Object_ptr value)
     {
-        NULL_CHECK(key);
-        NULL_CHECK(value);
+        Doctor::get().fatal_if_nullptr(key, WaspStage::VM);
+        Doctor::get().fatal_if_nullptr(value, WaspStage::VM);
         THROW_IF(key->is<std::monostate>(), "Cannot use monostate as a Map key");
         THROW_IF(value->is<std::monostate>(), "Cannot use monostate as a Map value");
 
@@ -201,7 +190,7 @@ namespace Wasp
 
     Object_ptr MapObject::get_pair(Object_ptr key)
     {
-        NULL_CHECK(key);
+        Doctor::get().fatal_if_nullptr(key, WaspStage::VM);
         THROW_IF(key->is<std::monostate>(), "Cannot use monostate as a Map key");
 
         auto it = pairs.find(key);
@@ -212,7 +201,7 @@ namespace Wasp
 
     Object_ptr MapObject::get(Object_ptr key)
     {
-        NULL_CHECK(key);
+        Doctor::get().fatal_if_nullptr(key, WaspStage::VM);
         THROW_IF(key->is<std::monostate>(), "Cannot use monostate as a Map key");
 
         auto it = pairs.find(key);
@@ -237,7 +226,8 @@ namespace Wasp
 
     Object_ptr TupleObject::get(Object_ptr index_object)
     {
-        NULL_CHECK(index_object);
+        Doctor::get().fatal_if_nullptr(index_object, WaspStage::VM);
+
         THROW_IF(!index_object->is<IntObject>(), "Tuple indices must be integers");
         int index = index_object->as<IntObject>().value;
         THROW_IF(index < 0 || static_cast<size_t>(index) >= values.size(), "Tuple index out of range");
@@ -247,10 +237,12 @@ namespace Wasp
 
     Object_ptr TupleObject::set(Object_ptr index_object, Object_ptr value)
     {
-        NULL_CHECK(index_object);
-        NULL_CHECK(value);
+        Doctor::get().fatal_if_nullptr(index_object, WaspStage::VM);
+        Doctor::get().fatal_if_nullptr(value, WaspStage::VM);
+
         THROW_IF(!index_object->is<IntObject>(), "Tuple indices must be integers");
         THROW_IF(value->is<std::monostate>(), "Cannot set a Tuple element to monostate");
+
         int index = index_object->as<IntObject>().value;
         THROW_IF(index < 0 || static_cast<size_t>(index) >= values.size(), "Tuple index out of range");
 
@@ -262,8 +254,12 @@ namespace Wasp
     {
         for (const auto &value : values)
         {
-            NULL_CHECK(value);
-            FATAL_IF(value->is<std::monostate>(), "Cannot set a Tuple element to monostate");
+            Doctor::get().fatal_if_nullptr(value, WaspStage::VM);
+            Doctor::get().assert_true(
+                !value->is<std::monostate>(),
+                WaspStage::VM,
+                "Cannot set a Tuple element to monostate"
+            );
         }
 
         this->values = values;
@@ -288,8 +284,10 @@ namespace Wasp
     {
         for (const auto &value : values)
         {
-            NULL_CHECK(value);
-            FATAL_IF(value->is<std::monostate>(), "Cannot set a Set element to monostate");
+            Doctor::get().fatal_if_nullptr(value, WaspStage::VM);
+            Doctor::get().assert_true(
+                !value->is<std::monostate>(), WaspStage::VM, "Cannot set a Set element to monostate"
+            );
         }
 
         this->values = values;

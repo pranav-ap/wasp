@@ -1,18 +1,13 @@
 #include "ConstantPool.h"
 #include "CFGraph.h"
+#include "Doctor.h"
 #include "Objects.h"
+
 #include <algorithm>
 #include <iterator>
 #include <memory>
-#include <stdexcept>
 #include <string>
 #include <utility>
-
-
-#ifndef ASSERT
-#include <cassert>
-#define ASSERT(condition, message) assert((condition) && message)
-#endif
 
 #define MAKE_OBJECT_VARIANT(x) std::make_shared<Object>(x)
 #define MAKE_SHARED_OBJECT_VARIANT(Type, ...) std::make_shared<Object>(std::make_shared<Type>(__VA_ARGS__))
@@ -39,9 +34,11 @@ namespace Wasp
         objects.push_back(MAKE_OBJECT_VARIANT(NoneObject()));              // 10
     }
 
-    Object_ptr ConstantPool::get(int id) const
-    {
-        ASSERT(id >= 0 && id < objects.size(), "ID out of bounds in ConstantPool");
+    Object_ptr ConstantPool::get(int id) const {
+        Doctor::get().assert_true(
+            id >= 0 && id < objects.size(), WaspStage::VM, "ID out of bounds in ConstantPool", 0, 0
+        );
+
         return objects[id];
     }
 

@@ -1,14 +1,15 @@
+#include "Doctor.h"
+#include "Objects.h"
 #include "SemanticAnalyzer.h"
-#include <stdexcept>
+#include "TypeAnnotation.h"
 
-#ifndef ASSERT
-#include <cassert>
-#define ASSERT(condition, message) assert((condition) && message)
-#endif
+#include <map>
+#include <memory>
+#include <string>
+#include <variant>
+#include <vector>
 
 #define MAKE_OBJECT_VARIANT(x) std::make_shared<Object>(x)
-#define FATAL(message) throw std::runtime_error(message)
-#define NULL_CHECK(x) ASSERT(x != nullptr, "Oh shit! A nullptr")
 
 template <class... Ts>
 struct overloaded : Ts...
@@ -20,66 +21,50 @@ overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
-    ObjectVector SemanticAnalyzer::visit(std::vector<TypeAnnotation_ptr> &type_nodes)
-    {
-        ObjectVector resolved_types;
-        resolved_types.reserve(type_nodes.size());
+ObjectVector SemanticAnalyzer::visit(std::vector<TypeAnnotation_ptr>& type_nodes) {
+    ObjectVector resolved_types;
+    resolved_types.reserve(type_nodes.size());
 
-        for (const auto &node : type_nodes)
-            resolved_types.push_back(visit(node));
+    for (const auto& node : type_nodes)
+        resolved_types.push_back(visit(node));
 
-        return resolved_types;
-    }
+    return resolved_types;
+}
 
-    Object_ptr SemanticAnalyzer::visit(const TypeAnnotation_ptr type_node)
-    {
-        NULL_CHECK(type_node);
+Object_ptr SemanticAnalyzer::visit(const TypeAnnotation_ptr type_node) {
+    Doctor::get().fatal_if_nullptr(type_node, WaspStage::Semantics);
 
-        return std::visit(overloaded{[&](AnyTypeNode &node) -> Object_ptr
-                                     { return visit(node); },
-                                     [&](NoneTypeNode &node) -> Object_ptr
-                                     { return visit(node); },
-                                     [&](IntTypeNode &node) -> Object_ptr
-                                     { return visit(node); },
-                                     [&](FloatTypeNode &node) -> Object_ptr
-                                     { return visit(node); },
-                                     [&](StringTypeNode &node) -> Object_ptr
-                                     { return visit(node); },
-                                     [&](BoolTypeNode &node) -> Object_ptr
-                                     { return visit(node); },
-                                     [&](IntLiteralTypeNode &node) -> Object_ptr
-                                     { return visit(node); },
-                                     [&](FloatLiteralTypeNode &node) -> Object_ptr
-                                     { return visit(node); },
-                                     [&](StringLiteralTypeNode &node) -> Object_ptr
-                                     { return visit(node); },
-                                     [&](BoolLiteralTypeNode &node) -> Object_ptr
-                                     { return visit(node); },
-                                     [&](TypeIdentifierNode &node) -> Object_ptr
-                                     { return visit(node); },
+    return std::visit(
+        overloaded{
+            [&](AnyTypeNode& node) -> Object_ptr { return visit(node); },
+            [&](NoneTypeNode& node) -> Object_ptr { return visit(node); },
+            [&](IntTypeNode& node) -> Object_ptr { return visit(node); },
+            [&](FloatTypeNode& node) -> Object_ptr { return visit(node); },
+            [&](StringTypeNode& node) -> Object_ptr { return visit(node); },
+            [&](BoolTypeNode& node) -> Object_ptr { return visit(node); },
+            [&](IntLiteralTypeNode& node) -> Object_ptr { return visit(node); },
+            [&](FloatLiteralTypeNode& node) -> Object_ptr { return visit(node); },
+            [&](StringLiteralTypeNode& node) -> Object_ptr { return visit(node); },
+            [&](BoolLiteralTypeNode& node) -> Object_ptr { return visit(node); },
+            [&](TypeIdentifierNode& node) -> Object_ptr { return visit(node); },
 
-                                     [&](std::shared_ptr<ListTypeNode> &node) -> Object_ptr
-                                     { return visit(*node); },
-                                     [&](std::shared_ptr<TupleTypeNode> &node) -> Object_ptr
-                                     { return visit(*node); },
-                                     [&](std::shared_ptr<SetTypeNode> &node) -> Object_ptr
-                                     { return visit(*node); },
-                                     [&](std::shared_ptr<MapTypeNode> &node) -> Object_ptr
-                                     { return visit(*node); },
-                                     [&](std::shared_ptr<VariantTypeNode> &node) -> Object_ptr
-                                     { return visit(*node); },
-                                     [&](std::shared_ptr<FunctionTypeNode> &node) -> Object_ptr
-                                     { return visit(*node); },
-                                     [&](std::shared_ptr<RecordTypeNode> &node) -> Object_ptr
-                                     { return visit(*node); },
+            [&](std::shared_ptr<ListTypeNode>& node) -> Object_ptr { return visit(*node); },
+            [&](std::shared_ptr<TupleTypeNode>& node) -> Object_ptr { return visit(*node); },
+            [&](std::shared_ptr<SetTypeNode>& node) -> Object_ptr { return visit(*node); },
+            [&](std::shared_ptr<MapTypeNode>& node) -> Object_ptr { return visit(*node); },
+            [&](std::shared_ptr<VariantTypeNode>& node) -> Object_ptr { return visit(*node); },
+            [&](std::shared_ptr<FunctionTypeNode>& node) -> Object_ptr { return visit(*node); },
+            [&](std::shared_ptr<RecordTypeNode>& node) -> Object_ptr { return visit(*node); },
 
-                                     [](auto &) -> Object_ptr
-                                     {
-                                         FATAL("Semantic Error: Unhandled TypeAnnotation node in visitor.");
-                                         return nullptr;
-                                     }},
-                          type_node->data);
-    }
+            [](auto&) -> Object_ptr {
+                Doctor::get().fatal(
+                    WaspStage::Semantics, "Unhandled TypeAnnotation node in visitor"
+                );
+            }
+        },
+        type_node->data
+    );
+}
 
     Object_ptr SemanticAnalyzer::visit(AnyTypeNode &expr) { return MAKE_OBJECT_VARIANT(AnyType()); }
 
@@ -104,8 +89,7 @@ namespace Wasp
     Object_ptr SemanticAnalyzer::visit(TypeIdentifierNode &expr)
     {
         auto symbol = current_scope->lookup(expr.name);
-        if (!symbol)
-            FATAL("Semantic Error: Unknown type '" + expr.name + "'.");
+        Doctor::get().fatal_if_nullptr(symbol, WaspStage::Semantics);
         return symbol->type;
     }
 

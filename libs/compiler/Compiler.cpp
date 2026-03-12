@@ -1,30 +1,23 @@
 #include "Compiler.h"
 #include "CFGraph.h"
 #include "ConstantPool.h"
+#include "Doctor.h"
 #include "Expression.h"
 #include "NativeRegistry.h"
 #include "OpCode.h"
 #include "Statement.h"
 #include "Symbol.h"
 #include "Token.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <map>
 #include <memory>
 #include <optional>
-#include <stdexcept>
 #include <string>
 #include <utility>
 #include <variant>
 #include <vector>
-
-#ifndef ASSERT
-#include <cassert>
-#define ASSERT(condition, message) assert((condition) && message)
-#endif
-
-#define FATAL(message) throw std::runtime_error(message)
-#define NULL_CHECK(x) ASSERT(x != nullptr, "Oh shit! A nullptr")
 
 template <class... Ts> struct overloaded : Ts... {
     using Ts::operator()...;
@@ -80,9 +73,7 @@ int Compiler::add_upvalue(int index, bool is_local) {
 }
 
 int Compiler::resolve_upvalue(Compiler* current_compiler, Symbol_ptr symbol) {
-    if (current_compiler->parent == nullptr) {
-        FATAL("Compiler Error: Reached global scope while resolving upvalue.");
-    }
+    Doctor::get().fatal_if_nullptr(current_compiler->parent, WaspStage::Compiler);
 
     if (symbol->closure_depth == current_compiler->parent->compiler_depth) {
         return current_compiler->add_upvalue(symbol->id, true);
@@ -122,7 +113,8 @@ void Compiler::visit(std::vector<Statement_ptr>& statements) {
 }
 
 void Compiler::visit(const Statement_ptr statement) {
-    NULL_CHECK(statement);
+    Doctor::get().fatal_if_nullptr(statement, WaspStage::Compiler);
+
     std::visit(
         overloaded{
             [&](ExpressionStatement& stat) { visit(stat); },
@@ -135,7 +127,7 @@ void Compiler::visit(const Statement_ptr statement) {
             [&](LoopControl& stat) { visit(stat); },
             [&](FunctionDefinition& stat) { visit(stat); },
             [&](Return& stat) { visit(stat); },
-            [](auto) { FATAL("Unknown Statement"); }
+            [](auto) { Doctor::get().fatal(WaspStage::Compiler, "Unknown Statement"); }
         },
         statement->data
     );
@@ -159,7 +151,7 @@ void Compiler::visit(VariableDefinitionExpression& expr) {
 }
 
 void Compiler::compile_variable_definition(const Expression_ptr& assignment, bool as_expression) {
-    NULL_CHECK(assignment);
+    Doctor::get().fatal_if_nullptr(assignment, WaspStage::Compiler);
 
     Expression_ptr lhs = nullptr;
     Expression_ptr rhs = nullptr;
@@ -173,7 +165,7 @@ void Compiler::compile_variable_definition(const Expression_ptr& assignment, boo
         lhs = assign.lhs_expression;
         rhs = assign.rhs_expression;
     } else {
-        FATAL("Invalid definition assignment type.");
+        Doctor::get().fatal(WaspStage::Compiler, "Invalid definition assignment type");
     }
 
     visit(rhs);
@@ -182,15 +174,14 @@ void Compiler::compile_variable_definition(const Expression_ptr& assignment, boo
         emit(OpCode::DUP);
     }
 
-    if (!lhs->is<Identifier>()) {
-        FATAL("Left-hand side of definition must be an Identifier.");
-    }
+    Doctor::get().assert_true(
+        lhs->is<Identifier>(),
+        WaspStage::Compiler,
+        "Left-hand side of definition must be an Identifier"
+    );
 
     auto symbol = lhs->as<Identifier>().symbol;
-
-    if (!symbol) {
-        FATAL("Compiler Error: Unresolved definition");
-    }
+    Doctor::get().fatal_if_nullptr(symbol, WaspStage::Compiler);
 
     debug_name_map[symbol->id] = symbol->name;
 
@@ -342,7 +333,7 @@ void Compiler::visit(ForInLoop& statement) {
             emit(OpCode::DEFINE_LOCAL, symbol->id);
         }
     } else {
-        FATAL("For-in loop LHS must be a simple Identifier.");
+        Doctor::get().fatal(WaspStage::Compiler, "For-in loop LHS must be a simple Identifier");
     }
 
     visit(statement.body);
@@ -409,9 +400,9 @@ void Compiler::visit(SimpleLoop& statement) {
 }
 
 void Compiler::visit(LoopControl& statement) {
-    if (loop_tracking_stack.empty()) {
-        FATAL("Loop control outside loop");
-    }
+    Doctor::get().assert_true(
+        !loop_tracking_stack.empty(), WaspStage::Compiler, "Loop control outside loop"
+    );
 
     auto [header, body, end, entry_depth, body_depth] = loop_tracking_stack.back();
 
@@ -427,10 +418,10 @@ void Compiler::visit(LoopControl& statement) {
     }
 
     int scopes_to_pop = current_lexical_scope_depth - target_depth;
-    ASSERT(
+    Doctor::get().assert_true(
         scopes_to_pop >= 0,
-        "Compiler Error: Current lexical scope depth is "
-        "less than loop entry depth!"
+        WaspStage::Compiler,
+        "Compiler Error: Current lexical scope depth is less than loop entry depth!"
     );
 
     for (int i = 0; i < scopes_to_pop; ++i) {
@@ -512,7 +503,8 @@ void Compiler::visit(std::vector<Expression_ptr>& expressions) {
 }
 
 void Compiler::visit(const Expression_ptr expr) {
-    NULL_CHECK(expr);
+    Doctor::get().fatal_if_nullptr(expr, WaspStage::Compiler);
+
     std::visit(
         overloaded{
             [&](int val) { visit(val); },
@@ -549,10 +541,7 @@ void Compiler::visit(bool expr) { emit(expr ? OpCode::LOAD_TRUE : OpCode::LOAD_F
 
 void Compiler::visit(Identifier& expr) {
     auto symbol = expr.symbol;
-
-    if (!symbol) {
-        FATAL("Unresolved identifier");
-    }
+    Doctor::get().fatal_if_nullptr(symbol, WaspStage::Compiler);
 
     if (symbol->is_captured) {
         int upval_index = resolve_upvalue(this, symbol);
@@ -568,12 +557,12 @@ void Compiler::visit(Identifier& expr) {
 void Compiler::compile_assignment(const Expression_ptr& lhs, const Expression_ptr& rhs) {
     visit(rhs);
 
-    if (!lhs->is<Identifier>())
-        FATAL("Only ID assignment supported");
+    Doctor::get().assert_true(
+        lhs->is<Identifier>(), WaspStage::Compiler, "Only ID assignment supported"
+    );
 
     auto symbol = lhs->as<Identifier>().symbol;
-    if (!symbol)
-        FATAL("Unresolved assignment");
+    Doctor::get().fatal_if_nullptr(symbol, WaspStage::Compiler);
 
     if (symbol->is_captured) {
         int idx = resolve_upvalue(this, symbol);

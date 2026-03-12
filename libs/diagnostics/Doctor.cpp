@@ -12,7 +12,7 @@ std::string to_string(WaspStage stage) {
         return "Lexer Error";
     case WaspStage::Parser:
         return "Parser Error";
-    case WaspStage::Semantic:
+    case WaspStage::Semantics:
         return "Semantic Error";
     case WaspStage::Compiler:
         return "Compiler Error";

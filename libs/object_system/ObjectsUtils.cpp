@@ -1,18 +1,14 @@
 #include "Objects.h"
-#include <string>
-#include <vector>
-#include <exception>
-#include <variant>
 #include <algorithm>
+#include <cstddef>
+#include <memory>
+#include <string>
+#include <variant>
+#include <vector>
 
-#ifndef ASSERT
-#include <cassert>
-#define ASSERT(condition, message) assert((condition) && message)
-#endif
 
 #define MAKE_OBJECT_VARIANT(x) std::make_shared<Object>(x)
 #define VOID std::make_shared<Object>(std::make_shared<ReturnObject>())
-#define NULL_CHECK(x) ASSERT(x != nullptr, "Oh shit! A nullptr")
 #define THROW(message) return std::make_shared<Object>(std::make_shared<ErrorObject>(message));
 #define THROW_IF(condition, message)                                             \
     if (!(condition))                                                            \
@@ -27,11 +23,6 @@ struct overloaded : Ts...
 };
 template <class... Ts>
 overloaded(Ts...) -> overloaded<Ts...>;
-
-using std::get;
-using std::get_if;
-using std::string;
-using std::vector;
 
 namespace Wasp
 {

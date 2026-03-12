@@ -1,16 +1,11 @@
 #include "CFGraph.h"
+#include "Doctor.h"
 #include "OpCode.h"
+
 #include <algorithm>
+#include <cstddef>
 #include <stdexcept>
 #include <utility>
-
-#ifndef ASSERT
-#include <cassert>
-#define ASSERT(condition, message) assert((condition) && message)
-#endif
-
-#define FATAL(message) throw std::runtime_error(message)
-#define NULL_CHECK(x) ASSERT(x != nullptr, "Oh shit! A nullptr")
 
 namespace Wasp
 {
@@ -55,7 +50,11 @@ namespace Wasp
             opcode == OpCode::LOOP_ITER)
         {
             // Expand the assertion to allow up to 65,535
-            ASSERT(operand >= 0 && operand <= 65535, "Operand out of range for 16-bit jump encoding");
+            Doctor::get().assert_true(
+                operand >= 0 && operand <= 65535,
+                WaspStage::Compiler,
+                "Operand out of range for jump instruction (must be between 0 and 65535)"
+            );
 
             // Write 16-bit payload in Little Endian (Low byte, then High byte)
             instructions.push_back(static_cast<std::byte>(operand & 0xFF));
@@ -64,15 +63,27 @@ namespace Wasp
         else
         {
             // Standard 8-bit operand
-            ASSERT(operand >= 0 && operand <= 255, "Operand out of range for 8-bit encoding");
+            Doctor::get().assert_true(
+                operand >= 0 && operand <= 255,
+                WaspStage::Compiler,
+                "Operand out of range for 8-bit instruction (must be between 0 and 255)"
+            );
+
             instructions.push_back(static_cast<std::byte>(operand));
         }
     }
 
-    void CodeObject::emit(OpCode opcode, int operand_1, int operand_2)
-    {
-        ASSERT(operand_1 >= 0 && operand_1 <= 255, "Operand 1 out of range for 8-bit encoding");
-        ASSERT(operand_2 >= 0 && operand_2 <= 255, "Operand 2 out of range for 8-bit encoding");
+    void CodeObject::emit(OpCode opcode, int operand_1, int operand_2) {
+        Doctor::get().assert_true(
+            operand_1 >= 0 && operand_1 <= 255,
+            WaspStage::Compiler,
+            "Operand 1 out of range for 8-bit encoding"
+        );
+        Doctor::get().assert_true(
+            operand_2 >= 0 && operand_2 <= 255,
+            WaspStage::Compiler,
+            "Operand 2 out of range for 8-bit encoding"
+        );
 
         instructions.push_back(static_cast<std::byte>(opcode));
         instructions.push_back(static_cast<std::byte>(operand_1));
@@ -118,21 +129,21 @@ namespace Wasp
         return new_id;
     }
 
-    void CFGraph::set_entry_block(BlockId id)
-    {
-        if (id >= blocks.size())
-        {
-            throw std::out_of_range("Invalid entry block ID");
-        }
+    void CFGraph::set_entry_block(BlockId id) {
+        Doctor::get().assert_true(
+            id < blocks.size(), WaspStage::Compiler, "Invalid entry block ID"
+        );
+
         entry_block_id = id;
     }
 
     void CFGraph::add_edge(BlockId from_id, BlockId to_id)
     {
-        if (from_id >= blocks.size() || to_id >= blocks.size())
-        {
-            throw std::out_of_range("Invalid block ID for edge");
-        }
+        Doctor::get().assert_true(
+            from_id < blocks.size() && to_id < blocks.size(),
+            WaspStage::Compiler,
+            "Invalid block ID for edge"
+        );
 
         auto &successors = blocks[from_id].successors;
         auto &predecessors = blocks[to_id].predecessors;
@@ -147,19 +158,15 @@ namespace Wasp
 
     BasicBlock &CFGraph::get_block(BlockId id)
     {
-        if (id >= blocks.size())
-        {
-            throw std::out_of_range("Invalid block ID");
-        }
+        Doctor::get().assert_true(id < blocks.size(), WaspStage::Compiler, "Invalid block ID");
+
         return blocks[id];
     }
 
     const BasicBlock &CFGraph::get_block(BlockId id) const
     {
-        if (id >= blocks.size())
-        {
-            throw std::out_of_range("Invalid block ID");
-        }
+        Doctor::get().assert_true(id < blocks.size(), WaspStage::Compiler, "Invalid block ID");
+
         return blocks[id];
     }
 }

@@ -1,4 +1,5 @@
 #include "SemanticAnalyzer.h"
+#include "Doctor.h"
 #include "Expression.h"
 #include "Objects.h"
 #include "Statement.h"
@@ -7,20 +8,12 @@
 
 #include <cstddef>
 #include <memory>
-#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <variant>
 #include <vector>
 
-#ifndef ASSERT
-#include <cassert>
-#define ASSERT(condition, message) assert((condition) && message)
-#endif
-
 #define MAKE_OBJECT_VARIANT(x) std::make_shared<Object>(x)
-#define FATAL(message) throw std::runtime_error(message)
-#define NULL_CHECK(x) ASSERT(x != nullptr, "Oh shit! A nullptr")
 
 template <class... Ts>
 struct overloaded : Ts...
@@ -102,43 +95,34 @@ namespace Wasp
 
     void SemanticAnalyzer::visit(const Statement_ptr statement)
     {
-        NULL_CHECK(statement);
+        Doctor::get().fatal_if_nullptr(statement, WaspStage::Semantics);
 
-        std::visit(overloaded{[&](ExpressionStatement &stat)
-                              { visit(stat); },
-                              [&](VariableDefinition &stat)
-                              { visit(stat); },
-                              [&](AliasDefinition &stat)
-                              { visit(stat); },
-                              [&](EnumDefinition &stat)
-                              { visit(stat); },
-                              [&](FunctionDefinition &stat)
-                              { visit(stat); },
-                              [&](ClassDefinition &stat)
-                              { visit(stat); },
-                              [&](TraitDefinition &stat)
-                              { visit(stat); },
-                              [&](ImplDefinition &stat)
-                              { visit(stat); },
-                              [&](AnnotationDefinition &stat)
-                              { visit(stat); },
-                              [&](IfBranch &stat)
-                              { visit(stat); },
-                              [&](ElseBranch &stat)
-                              { visit(stat); },
-                              [&](SimpleLoop &stat)
-                              { visit(stat); },
-                              [&](ForInLoop &stat)
-                              { visit(stat); },
-                              [&](LoopControl &stat)
-                              { visit(stat); },
-                              [&](Pass &stat)
-                              { visit(stat); },
-                              [&](Return &stat)
-                              { visit(stat); },
-                              [](auto)
-                              { FATAL("Unhandled Statement type in Semantic Analyzer!"); }},
-                   statement->data);
+        std::visit(
+            overloaded{
+                [&](ExpressionStatement& stat) { visit(stat); },
+                [&](VariableDefinition& stat) { visit(stat); },
+                [&](AliasDefinition& stat) { visit(stat); },
+                [&](EnumDefinition& stat) { visit(stat); },
+                [&](FunctionDefinition& stat) { visit(stat); },
+                [&](ClassDefinition& stat) { visit(stat); },
+                [&](TraitDefinition& stat) { visit(stat); },
+                [&](ImplDefinition& stat) { visit(stat); },
+                [&](AnnotationDefinition& stat) { visit(stat); },
+                [&](IfBranch& stat) { visit(stat); },
+                [&](ElseBranch& stat) { visit(stat); },
+                [&](SimpleLoop& stat) { visit(stat); },
+                [&](ForInLoop& stat) { visit(stat); },
+                [&](LoopControl& stat) { visit(stat); },
+                [&](Pass& stat) { visit(stat); },
+                [&](Return& stat) { visit(stat); },
+                [](auto) {
+                    Doctor::get().Doctor::get().fatal(
+                        WaspStage::Semantics, "Unhandled Statement in Semantic Analyzer!"
+                    );
+                }
+            },
+            statement->data
+        );
     }
 
     void SemanticAnalyzer::visit(ExpressionStatement &statement)
@@ -161,69 +145,52 @@ namespace Wasp
 
     Object_ptr SemanticAnalyzer::visit(const Expression_ptr expr)
     {
-        NULL_CHECK(expr);
+        Doctor::get().fatal_if_nullptr(expr, WaspStage::Semantics);
 
-        return std::visit(overloaded{// Primitives
-                                     [&](int &node) -> Object_ptr
-                                     { return visit(node); },
-                                     [&](double &node) -> Object_ptr
-                                     { return visit(node); },
-                                     [&](std::string &node) -> Object_ptr
-                                     { return visit(node); },
-                                     [&](bool &node) -> Object_ptr
-                                     { return visit(node); },
+        return std::visit(
+            overloaded{
+                // Primitives
+                [&](int& node) -> Object_ptr { return visit(node); },
+                [&](double& node) -> Object_ptr { return visit(node); },
+                [&](std::string& node) -> Object_ptr { return visit(node); },
+                [&](bool& node) -> Object_ptr { return visit(node); },
 
-                                     // Identifiers & Access
-                                     [&](Identifier &node) -> Object_ptr
-                                     { return visit(node); },
-                                     [&](DotLiteral &node) -> Object_ptr
-                                     { return visit(node); },
+                // Identifiers & Access
+                [&](Identifier& node) -> Object_ptr { return visit(node); },
+                [&](DotLiteral& node) -> Object_ptr { return visit(node); },
 
-                                     // Operators
-                                     [&](Prefix &node) -> Object_ptr
-                                     { return visit(node); },
-                                     [&](Infix &node) -> Object_ptr
-                                     { return visit(node); },
-                                     [&](Postfix &node) -> Object_ptr
-                                     { return visit(node); },
+                // Operators
+                [&](Prefix& node) -> Object_ptr { return visit(node); },
+                [&](Infix& node) -> Object_ptr { return visit(node); },
+                [&](Postfix& node) -> Object_ptr { return visit(node); },
 
-                                     // Collections
-                                     [&](ListLiteral &node) -> Object_ptr
-                                     { return visit(node); },
-                                     [&](TupleLiteral &node) -> Object_ptr
-                                     { return visit(node); },
-                                     [&](MapLiteral &node) -> Object_ptr
-                                     { return visit(node); },
-                                     [&](SetLiteral &node) -> Object_ptr
-                                     { return visit(node); },
-                                     [&](RangeLiteral &node) -> Object_ptr
-                                     { return visit(node); },
+                // Collections
+                [&](ListLiteral& node) -> Object_ptr { return visit(node); },
+                [&](TupleLiteral& node) -> Object_ptr { return visit(node); },
+                [&](MapLiteral& node) -> Object_ptr { return visit(node); },
+                [&](SetLiteral& node) -> Object_ptr { return visit(node); },
+                [&](RangeLiteral& node) -> Object_ptr { return visit(node); },
 
-                                     // Variables & Assignments
-                                     [&](VariableDefinitionExpression &node) -> Object_ptr
-                                     { return visit(node); },
-                                     [&](UntypedAssignment &node) -> Object_ptr
-                                     { return visit(node); },
-                                     [&](TypedAssignment &node) -> Object_ptr
-                                     { return visit(node); },
-                                     [&](TypePattern &node) -> Object_ptr
-                                     { return visit(node); },
+                // Variables & Assignments
+                [&](VariableDefinitionExpression& node) -> Object_ptr { return visit(node); },
+                [&](UntypedAssignment& node) -> Object_ptr { return visit(node); },
+                [&](TypedAssignment& node) -> Object_ptr { return visit(node); },
+                [&](TypePattern& node) -> Object_ptr { return visit(node); },
 
-                                     // Control Flow
-                                     [&](IfTernaryBranch &node) -> Object_ptr
-                                     { return visit(node); },
-                                     [&](ElseTernaryBranch &node) -> Object_ptr
-                                     { return visit(node); },
-                                     [&](Call &node) -> Object_ptr
-                                     { return visit(node); },
+                // Control Flow
+                [&](IfTernaryBranch& node) -> Object_ptr { return visit(node); },
+                [&](ElseTernaryBranch& node) -> Object_ptr { return visit(node); },
+                [&](Call& node) -> Object_ptr { return visit(node); },
 
-                                     // Fallback
-                                     [](auto &) -> Object_ptr
-                                     {
-                                         FATAL("Semantic Error: Unhandled Expression node in visitor.");
-                                         return nullptr;
-                                     }},
-                          expr->data);
+                // Fallback
+                [](auto&) -> Object_ptr {
+                    Doctor::get().Doctor::get().fatal(
+                        WaspStage::Semantics, "Unhandled Expression in Semantic Analyzer!"
+                    );
+                }
+            },
+            expr->data
+        );
     }
 
     // ============================================================================
@@ -334,7 +301,9 @@ namespace Wasp
         }
         else
         {
-            FATAL("Semantic Error: For-in loop variable must be an identifier.");
+            Doctor::get().fatal(
+                WaspStage::Semantics, "Semantic Error: For-in loop variable must be an identifier."
+            );
         }
 
         visit(statement.body);
@@ -347,7 +316,11 @@ namespace Wasp
 
         if (!scope->enclosed_in(ScopeType::LOOP))
         {
-            FATAL("Semantic Error: Loop control statement ('break', 'continue', 'redo') must be inside a loop.");
+            Doctor::get().fatal(
+                WaspStage::Semantics,
+                "Semantic Error: Loop control statement ('break', 'continue', 'redo') must be "
+                "inside a loop."
+            );
         }
     }
 
@@ -388,7 +361,9 @@ namespace Wasp
 
     Object_ptr SemanticAnalyzer::visit(TypedAssignment &expr)
     {
-        FATAL("Internal Semantic Error: TypedAssignment visited directly.");
+        Doctor::get().fatal(
+            WaspStage::Semantics, "Internal Semantic Error: TypedAssignment visited directly."
+        );
         return nullptr;
     }
 
@@ -413,19 +388,27 @@ namespace Wasp
         }
         else
         {
-            FATAL("Semantic Error: Invalid variable definition expression.");
+            Doctor::get().fatal(
+                WaspStage::Semantics, "Semantic Error: Invalid variable definition expression."
+            );
         }
 
         if (!lhs_expr->is<Identifier>())
         {
-            FATAL("Semantic Error: Left-hand side of definition must be an Identifier.");
+            Doctor::get().fatal(
+                WaspStage::Semantics,
+                "Semantic Error: Left-hand side of definition must be an Identifier."
+            );
         }
 
         std::string var_name = lhs_expr->as<Identifier>().name;
 
         if (current_scope->contains_in_current_scope(var_name))
         {
-            FATAL("Semantic Error: Variable '" + var_name + "' is already defined in this scope.");
+            Doctor::get().fatal(
+                WaspStage::Semantics,
+                "Semantic Error: Variable '" + var_name + "' is already defined in this scope."
+            );
         }
 
         // Resolve RHS Type
@@ -436,7 +419,10 @@ namespace Wasp
         {
             if (!type_system->assignable(current_scope, expected_type, actual_type))
             {
-                FATAL("Semantic Error: Type mismatch in variable definition for '" + var_name + "'.");
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Semantic Error: Type mismatch in variable definition for '" + var_name + "'."
+                );
             }
 
             final_type = expected_type;
@@ -463,7 +449,10 @@ namespace Wasp
     {
         if (!lhs_expr->is<Identifier>())
         {
-            FATAL("Semantic Error: Left-hand side of assignment must be an Identifier.");
+            Doctor::get().fatal(
+                WaspStage::Semantics,
+                "Semantic Error: Left-hand side of assignment must be an Identifier."
+            );
         }
 
         auto &identifier_ast_node = lhs_expr->as<Identifier>();
@@ -473,12 +462,18 @@ namespace Wasp
 
         if (!symbol)
         {
-            FATAL("Semantic Error: Cannot assign to undefined variable '" + var_name + "'.");
+            Doctor::get().fatal(
+                WaspStage::Semantics,
+                "Semantic Error: Cannot assign to undefined variable '" + var_name + "'."
+            );
         }
 
         if (!symbol->is_mutable)
         {
-            FATAL("Semantic Error: Cannot reassign immutable variable '" + var_name + "'.");
+            Doctor::get().fatal(
+                WaspStage::Semantics,
+                "Semantic Error: Cannot reassign immutable variable '" + var_name + "'."
+            );
         }
 
         if (symbol->should_be_captured(current_scope->get_closure_depth()))
@@ -493,7 +488,10 @@ namespace Wasp
 
         if (!type_system->assignable(current_scope, symbol->type, rhs_type))
         {
-            FATAL("Semantic Error: Type mismatch in assignment to '" + var_name + "'.");
+            Doctor::get().fatal(
+                WaspStage::Semantics,
+                "Semantic Error: Type mismatch in assignment to '" + var_name + "'."
+            );
         }
 
         return rhs_type;
@@ -574,7 +572,10 @@ namespace Wasp
     {
         if (return_type_stack.empty())
         {
-            FATAL("Semantic Error: 'return' statement used outside of a function.");
+            Doctor::get().fatal(
+                WaspStage::Semantics,
+                "Semantic Error: 'return' statement used outside of a function."
+            );
         }
 
         Object_ptr expected_type = return_type_stack.back();
@@ -588,9 +589,12 @@ namespace Wasp
 
         if (!type_system->assignable(current_scope, expected_type, actual_type))
         {
-            FATAL("Semantic Error: Return type mismatch. Expected " +
-                  Wasp::stringify_object(expected_type) + ", got " +
-                  Wasp::stringify_object(actual_type));
+            Doctor::get().fatal(
+                WaspStage::Semantics,
+                "Semantic Error: Return type mismatch. Expected " +
+                    Wasp::stringify_object(expected_type) + ", got " +
+                    Wasp::stringify_object(actual_type)
+            );
         }
     }
 
@@ -600,7 +604,11 @@ namespace Wasp
 
         if (!callee_type->is<FunctionType>())
         {
-            FATAL("Semantic Error: Expression is not callable. Type is: " + Wasp::stringify_object(callee_type));
+            Doctor::get().fatal(
+                WaspStage::Semantics,
+                "Semantic Error: Expression is not callable. Type is: " +
+                    Wasp::stringify_object(callee_type)
+            );
         }
 
         if (expr.callee->is<Identifier>())
@@ -613,9 +621,12 @@ namespace Wasp
         //  Check Argument Count
         if (expr.arguments.size() != func.input_types.size())
         {
-            FATAL("Semantic Error: Incorrect number of arguments. Expected " +
-                  std::to_string(func.input_types.size()) + ", got " +
-                  std::to_string(expr.arguments.size()));
+            Doctor::get().fatal(
+                WaspStage::Semantics,
+                "Semantic Error: Incorrect number of arguments. Expected " +
+                    std::to_string(func.input_types.size()) + ", got " +
+                    std::to_string(expr.arguments.size())
+            );
         }
 
         // Check Argument Types
@@ -626,9 +637,12 @@ namespace Wasp
 
             if (!type_system->assignable(current_scope, param_type, arg_type))
             {
-                FATAL("Semantic Error: Argument mismatch at index " + std::to_string(i) +
-                      ". Expected " + Wasp::stringify_object(param_type) +
-                      ", got " + Wasp::stringify_object(arg_type));
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Semantic Error: Argument mismatch at index " + std::to_string(i) +
+                        ". Expected " + Wasp::stringify_object(param_type) + ", got " +
+                        Wasp::stringify_object(arg_type)
+                );
             }
         }
 
@@ -660,7 +674,9 @@ namespace Wasp
 
         if (!symbol)
         {
-            FATAL("Semantic Error: Undefined variable '" + expr.name + "'");
+            Doctor::get().fatal(
+                WaspStage::Semantics, "Semantic Error: Undefined variable '" + expr.name + "'"
+            );
         }
 
         if (symbol->is_native) {

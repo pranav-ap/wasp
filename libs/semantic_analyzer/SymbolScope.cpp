@@ -1,44 +1,35 @@
 #include "SymbolScope.h"
+#include "Doctor.h"
 #include "Symbol.h"
+
 #include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
-
-#ifndef ASSERT
-#include <cassert>
-#define ASSERT(condition, message) assert((condition) && message)
-#endif
 
 namespace Wasp
 {
 	SymbolScope::SymbolScope(ScopeType type, SymbolScope_ptr enclosing)
 		: type(type), enclosing_scope(std::move(enclosing)), closure_depth(0), lexical_depth(0)
 	{
-		if (enclosing_scope)
-		{
-			closure_depth = enclosing_scope->closure_depth + (type == ScopeType::FUNCTION ? 1 : 0);
-			lexical_depth = enclosing_scope->lexical_depth + 1;
-		}
-	}
+        if (enclosing_scope) {
+            closure_depth = enclosing_scope->closure_depth + (type == ScopeType::FUNCTION ? 1 : 0);
+            lexical_depth = enclosing_scope->lexical_depth + 1;
+        }
+    }
 
-	Symbol_ptr SymbolScope::define(Symbol_ptr symbol)
-	{
-		ASSERT(symbol != nullptr, "Cannot define a null symbol");
-
-		if (symbols.find(std::string(symbol->name)) != symbols.end())
-		{
-			throw std::runtime_error("Variable '" + std::string(symbol->name) + "' already declared in this scope.");
-		}
+    Symbol_ptr SymbolScope::define(Symbol_ptr symbol) {
+        Doctor::get().fatal_if_nullptr(symbol, WaspStage::Semantics);
+        Doctor::get().assert_true(symbols.find(std::string(symbol->name)) == symbols.end(), WaspStage::Semantics, "Variable '" + std::string(symbol->name) + "' already declared in this scope");
 
 		int id = static_cast<int>(symbols.size());
 		symbol->id = id;
 
 		symbols.emplace(std::string(symbol->name), symbol);
 		return symbol;
-	}
+    }
 
-	Symbol_ptr SymbolScope::lookup(std::string name) const
+    Symbol_ptr SymbolScope::lookup(std::string name) const
 	{
 		const SymbolScope *current = this;
 

@@ -1,12 +1,12 @@
 #include "VM.h"
+#include "Doctor.h"
 #include "Objects.h"
 #include "OpCode.h"
 
 #include <cstddef>
 #include <cstdint>
-#include <iostream>
 #include <memory>
-#include <stdexcept>
+#include <string>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -159,11 +159,11 @@ void VM::execute() {
         case OpCode::GET_LOCAL: {
             int index = static_cast<int>(frame->consume_byte());
 
-            if (index >= stack.size() || !stack[index]) {
-                std::cerr << "VM Error: Uninitialized local variable at index " << index
-                          << std::endl;
-                break;
-            }
+            Doctor::get().assert_true(
+                index < stack.size() && stack[index],
+                WaspStage::VM,
+                "Uninitialized local variable at index " + std::to_string(index)
+            );
 
             push_to_stack(stack[frame->base_pointer + index]);
 
@@ -185,10 +185,9 @@ void VM::execute() {
         }
 
         case OpCode::POP_SCOPE: {
-            if (frame->scope_bases.empty()) {
-                std::cerr << "VM Error: POP_SCOPE called with no active scope!" << std::endl;
-                break;
-            }
+            Doctor::get().assert_true(
+                !frame->scope_bases.empty(), WaspStage::VM, "POP_SCOPE called with no active scope"
+            );
 
             size_t base = frame->scope_bases.back();
             frame->scope_bases.pop_back();
@@ -248,9 +247,11 @@ void VM::execute() {
                     },
 
                     [&](std::shared_ptr<NativeFunctionObject>& native) {
-                        if (native->arity != -1 && native->arity != arg_count) {
-                            throw std::runtime_error("Arity mismatch in native function call");
-                        }
+                        Doctor::get().assert_true(
+                            native->arity == -1 || native->arity == arg_count,
+                            WaspStage::VM,
+                            "Arity mismatch in native function call"
+                        );
 
                         // Collect arguments from the stack
                         std::vector<Object_ptr> args(arg_count);
@@ -266,7 +267,9 @@ void VM::execute() {
                     },
 
                     [](auto&) {
-                        throw std::runtime_error("Attempted to call a non-callable object");
+                        Doctor::get().fatal(
+                            WaspStage::VM, "Attempted to call a non-callable object"
+                        );
                     }
                 },
                 callee->value
@@ -396,10 +399,9 @@ void VM::execute() {
             break;
         }
 
-        default:
-            std::cerr << "VM Error: Unknown OpCode encountered!" << std::endl;
-            std::cerr << "Instruction: " << static_cast<int>(instruction) << std::endl;
-            return;
+        default: {
+            Doctor::get().fatal(WaspStage::VM, "Unknown OpCode encountered");
+        }
         }
     }
 }

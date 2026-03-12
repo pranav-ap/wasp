@@ -5,7 +5,7 @@
 
 namespace Wasp {
 
-enum class WaspStage { Lexer, Parser, Semantic, Compiler, VM, Native };
+enum class WaspStage { Lexer, Parser, Semantics, Compiler, VM, Native };
 
 std::string to_string(WaspStage stage);
 
