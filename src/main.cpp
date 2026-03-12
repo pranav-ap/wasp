@@ -9,6 +9,7 @@
 #include "Parser.h"
 #include "SemanticAnalyzer.h"
 #include "VM.h"
+#include "Workspace.h"
 
 #include "CLI11.hpp"
 
@@ -77,7 +78,7 @@ void run(string file_path) {
     auto tokens = lexer.run(code);
 
     Parser parser;
-    auto mod = parser.run(tokens);
+    auto block = parser.run(tokens);
 
     auto pool = std::make_shared<ConstantPool>();
 
@@ -85,10 +86,10 @@ void run(string file_path) {
     native_registry->load_stdlib();
 
     SemanticAnalyzer semantic_analyzer(native_registry);
-    semantic_analyzer.run(mod);
+    semantic_analyzer.run(block);
 
     Compiler compiler(pool, native_registry);
-    auto bytecode = compiler.run(mod);
+    auto bytecode = compiler.run(block);
 
     dump_build_artifacts(file_path, pool, bytecode);
 

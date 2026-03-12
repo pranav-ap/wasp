@@ -6,10 +6,10 @@
 
 
 TEST(ParseStarExpressions, Star) {
-    auto mod = parse("*b");
-    ASSERT_EQ(mod.statements.size(), 1);
+    auto block = parse("*b");
+    ASSERT_EQ(block.size(), 1);
 
-    auto& stmt = check<Wasp::ExpressionStatement>(mod.statements[0]);
+    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
     auto& star = check<Wasp::Prefix>(stmt.expression);
     EXPECT_EQ(star.op.type, Wasp::TokenType::STAR);
 
@@ -18,10 +18,10 @@ TEST(ParseStarExpressions, Star) {
 }
 
 TEST(ParseStarExpressions, StarGather) {
-    auto mod = parse("[a, *b, c] = [1, 2, 3, 4, 5]");
-    ASSERT_EQ(mod.statements.size(), 1);
+    auto block = parse("[a, *b, c] = [1, 2, 3, 4, 5]");
+    ASSERT_EQ(block.size(), 1);
 
-    auto& stmt = check<Wasp::ExpressionStatement>(mod.statements[0]);
+    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
     auto& assign = check<Wasp::UntypedAssignment>(stmt.expression);
     {
         auto& lhs = check<Wasp::ListLiteral>(assign.lhs_expression);
@@ -43,10 +43,10 @@ TEST(ParseStarExpressions, StarGather) {
 
 
 TEST(ParseStarExpressions, StarGatherAndSpread) {
-    auto mod = parse("[a, *b, c] = *five_nums");
-    ASSERT_EQ(mod.statements.size(), 1);
+    auto block = parse("[a, *b, c] = *five_nums");
+    ASSERT_EQ(block.size(), 1);
 
-    auto& stmt = check<Wasp::ExpressionStatement>(mod.statements[0]);
+    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
     auto& assign = check<Wasp::UntypedAssignment>(stmt.expression);
     
     {

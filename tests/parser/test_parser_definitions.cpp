@@ -1,15 +1,15 @@
-#include "Token.h"
-#include "Lexer.h"
-#include "Parser.h"
+#include "Expression.h"
+#include "Statement.h"
+#include "TypeAnnotation.h"
 #include "test_utils.h"
 #include <gtest/gtest.h>
-
+#include <memory>
 
 TEST(ParseDefinitions, AliasDefinition) {
-    auto mod = parse("type int_list = [int]");
-    ASSERT_EQ(mod.statements.size(), 1);
+    auto block = parse("type int_list = [int]");
+    ASSERT_EQ(block.size(), 1);
 
-    auto& alias_def = check<Wasp::AliasDefinition>(mod.statements[0]);
+    auto& alias_def = check<Wasp::AliasDefinition>(block[0]);
     EXPECT_EQ(alias_def.name, "int_list");
 
     auto& list_type_ptr = check<std::shared_ptr<Wasp::ListTypeNode>>(alias_def.ref_type);
@@ -17,7 +17,7 @@ TEST(ParseDefinitions, AliasDefinition) {
 }
 
 TEST(ParseDefinitions, EnumNestedDefinition) {
-    auto mod = parse(R"(
+    auto block = parse(R"(
 enum Animal
     Dog
 
@@ -26,15 +26,15 @@ enum Animal
         Pigeon
 )");
 
-    ASSERT_EQ(mod.statements.size(), 1);
+    ASSERT_EQ(block.size(), 1);
 
-    auto& enum_def = check<Wasp::EnumDefinition>(mod.statements[0]);
+    auto& enum_def = check<Wasp::EnumDefinition>(block[0]);
     EXPECT_EQ(enum_def.name, "Animal");
     EXPECT_EQ(enum_def.members.size(), 3);
 }
  
 TEST(ParseDefinitions, FunctionDefinitionWithIfElifElse) {
-    auto mod = parse(R"(
+    auto block = parse(R"(
 fun add(a: int, b: int) => int
     if a > b then
         x = a + b
@@ -45,9 +45,9 @@ fun add(a: int, b: int) => int
     return x
 )");
 
-    ASSERT_EQ(mod.statements.size(), 1);
+    ASSERT_EQ(block.size(), 1);
 
-    auto& func_def = check<Wasp::FunctionDefinition>(mod.statements[0]);
+    auto& func_def = check<Wasp::FunctionDefinition>(block[0]);
     ASSERT_EQ(func_def.body.size(), 2);
 
     // IF ELSE NESTING
@@ -70,7 +70,7 @@ fun add(a: int, b: int) => int
 }
  
 TEST(ParseDefinitions, FunctionDefinitionWithWhile) {
-    auto mod = parse(R"(
+    auto block = parse(R"(
 fun add(a: int, b: int) => int
     while a < b do
         a = a + 1
@@ -78,9 +78,9 @@ fun add(a: int, b: int) => int
     return x
 )");
 
-    ASSERT_EQ(mod.statements.size(), 1);
+    ASSERT_EQ(block.size(), 1);
 
-    auto& func_def = check<Wasp::FunctionDefinition>(mod.statements[0]);
+    auto& func_def = check<Wasp::FunctionDefinition>(block[0]);
     ASSERT_EQ(func_def.body.size(), 2);
 
     auto& loop = check<Wasp::SimpleLoop>(func_def.body[0]);
@@ -93,7 +93,7 @@ fun add(a: int, b: int) => int
 // CLASS 
 
 TEST(ParseDefinitions, ClassDefinitionWithNestedRecord) {
-    auto mod = parse(R"(
+    auto block = parse(R"(
 class Person
     name: str
     address record
@@ -109,9 +109,9 @@ class Person
             field: str
 )");
 
-    ASSERT_EQ(mod.statements.size(), 1);
+    ASSERT_EQ(block.size(), 1);
 
-    auto& class_def = check<Wasp::ClassDefinition>(mod.statements[0]);
+    auto& class_def = check<Wasp::ClassDefinition>(block[0]);
 
     ASSERT_EQ(class_def.members.count("job"), 1);
     auto& job_record = check<std::shared_ptr<Wasp::RecordTypeNode>>(class_def.members.at("job"));
@@ -130,21 +130,21 @@ class Person
 }
 
 TEST(ParseDefinitions, ClassDefinitionWithManyTraits) {
-    auto mod = parse(R"(
+    auto block = parse(R"(
 class Person is Fortifiable, Movable, Serializable
     name: str
     _age: int
 )");
 
-    ASSERT_EQ(mod.statements.size(), 1);
+    ASSERT_EQ(block.size(), 1);
 
-    auto& class_def = check<Wasp::ClassDefinition>(mod.statements[0]);
+    auto& class_def = check<Wasp::ClassDefinition>(block[0]);
     EXPECT_EQ(class_def.name, "Person");
     ASSERT_EQ(class_def.traits.size(), 3);
 }
 
 TEST(ParseDefinitions, ClassImplMultipleFunctions) {
-    auto mod = parse(R"(
+    auto block = parse(R"(
 impl Person is Fortifiable
     fun fortify()
         if my.age > 30 then
@@ -159,9 +159,9 @@ impl Person is Fortifiable
             my.defense = 0
 )");
 
-    ASSERT_EQ(mod.statements.size(), 1);
+    ASSERT_EQ(block.size(), 1);
 
-    auto& impl_def = check<Wasp::ImplDefinition>(mod.statements[0]);
+    auto& impl_def = check<Wasp::ImplDefinition>(block[0]);
     EXPECT_EQ(impl_def.class_name, "Person");
     ASSERT_EQ(impl_def.methods.size(), 2);
 

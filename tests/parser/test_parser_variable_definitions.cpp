@@ -1,14 +1,16 @@
-#include "Token.h"
-#include "Lexer.h"
-#include "Parser.h"
+#include "Expression.h"
+#include "Statement.h"
+#include "TypeAnnotation.h"
 #include "test_utils.h"
+
 #include <gtest/gtest.h>
+#include <memory>
 
 TEST(ParseDefinitions, IntDefinition) {
-    auto mod = parse("let x: int = 5");
-    ASSERT_EQ(mod.statements.size(), 1);
+    auto block = parse("let x: int = 5");
+    ASSERT_EQ(block.size(), 1);
 
-    auto& var_def = check<Wasp::VariableDefinition>(mod.statements[0]);
+    auto& var_def = check<Wasp::VariableDefinition>(block[0]);
     EXPECT_TRUE(var_def.is_mutable); 
 
     auto& assignment = check<Wasp::TypedAssignment>(var_def.expression);
@@ -23,10 +25,10 @@ TEST(ParseDefinitions, IntDefinition) {
 }
 
 TEST(ParseDefinitions, ListDefinition) {
-    auto mod = parse("let x : [int] = [1, 2, 3]");
-    ASSERT_EQ(mod.statements.size(), 1);
+    auto block = parse("let x : [int] = [1, 2, 3]");
+    ASSERT_EQ(block.size(), 1);
 
-    auto& var_def = check<Wasp::VariableDefinition>(mod.statements[0]);
+    auto& var_def = check<Wasp::VariableDefinition>(block[0]);
     EXPECT_TRUE(var_def.is_mutable); 
 
     auto& assignment = check<Wasp::TypedAssignment>(var_def.expression);
@@ -42,10 +44,10 @@ TEST(ParseDefinitions, ListDefinition) {
 }
 
 TEST(ParseDefinitions, MapDefinition) {
-    auto mod = parse("let x : { int => int } = {1 => 1, 2 => 2, 3 => 3}");
-    ASSERT_EQ(mod.statements.size(), 1);
+    auto block = parse("let x : { int => int } = {1 => 1, 2 => 2, 3 => 3}");
+    ASSERT_EQ(block.size(), 1);
 
-    auto& var_def = check<Wasp::VariableDefinition>(mod.statements[0]);
+    auto& var_def = check<Wasp::VariableDefinition>(block[0]);
     EXPECT_TRUE(var_def.is_mutable);
 
     auto& assignment = check<Wasp::TypedAssignment>(var_def.expression);
@@ -62,10 +64,10 @@ TEST(ParseDefinitions, MapDefinition) {
 }
 
 TEST(ParseDefinitions, FunTypeDefinition) {
-    auto mod = parse("let x : (int) => int = function_name");
-    ASSERT_EQ(mod.statements.size(), 1);
+    auto block = parse("let x : (int) => int = function_name");
+    ASSERT_EQ(block.size(), 1);
 
-    auto& var_def = check<Wasp::VariableDefinition>(mod.statements[0]);
+    auto& var_def = check<Wasp::VariableDefinition>(block[0]);
     auto& assignment = check<Wasp::TypedAssignment>(var_def.expression);
 
     // Check (int) => int 
@@ -82,10 +84,10 @@ TEST(ParseDefinitions, FunTypeDefinition) {
 }
 
 TEST(ParseDefinitions, VariantDefinition) {
-    auto mod = parse("let x : int | float = 5");
-    ASSERT_EQ(mod.statements.size(), 1);
+    auto block = parse("let x : int | float = 5");
+    ASSERT_EQ(block.size(), 1);
 
-    auto& var_def = check<Wasp::VariableDefinition>(mod.statements[0]);
+    auto& var_def = check<Wasp::VariableDefinition>(block[0]);
     auto& assignment = check<Wasp::TypedAssignment>(var_def.expression);
     
     // Check int | float 

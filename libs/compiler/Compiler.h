@@ -1,16 +1,21 @@
 #pragma once
 
-#include "Statement.h"
-#include "ConstantPool.h"
 #include "CFGraph.h"
+#include "ConstantPool.h"
+#include "Expression.h"
 #include "NativeRegistry.h"
+#include "OpCode.h"
+#include "Statement.h"
 #include "Symbol.h"
 
-#include <memory>
-#include <vector>
-#include <tuple>
-#include <string>
+
+#include <cstddef>
 #include <map>
+#include <memory>
+#include <string>
+#include <tuple>
+#include <vector>
+
 
 namespace Wasp
 {
@@ -96,13 +101,13 @@ namespace Wasp
 		const CFGraph &get_graph() const { return graph; }
 		const std::map<int, std::string> &get_name_map() const { return debug_name_map; }
 
-		CodeObject run(const Module &module);
+        CodeObject run(const Block& block);
 
-		// ========================================================================
-		// Visitors
-		// ========================================================================
+        // ========================================================================
+        // Visitors
+        // ========================================================================
 
-		void visit(const Statement_ptr statement);
+        void visit(const Statement_ptr statement);
 		void visit(std::vector<Statement_ptr> &statements);
 
 		void visit(ExpressionStatement &statement);

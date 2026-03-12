@@ -6,11 +6,11 @@
 
 TEST(ParseExpressions, MemberAccessNested)
 {
-    auto mod = parse(R"(Animal.Dog.GermanShepherd)");
-    ASSERT_EQ(mod.statements.size(), 1);
+    auto block = parse(R"(Animal.Dog.GermanShepherd)");
+    ASSERT_EQ(block.size(), 1);
 
     // FIX: Renamed stmt_wrapper to expr_stmt to match the usage below
-    auto &expr_stmt = check<Wasp::ExpressionStatement>(mod.statements[0]);
+    auto& expr_stmt = check<Wasp::ExpressionStatement>(block[0]);
 
     // Top Level: [Left] . GermanShepherd
     {
@@ -36,10 +36,10 @@ TEST(ParseExpressions, MemberAccessNested)
 
 TEST(ParseExpressions, MemberAccessWithString)
 {
-    auto mod = parse(R"(Animal.'Dog'.GermanShepherd)");
-    ASSERT_EQ(mod.statements.size(), 1);
+    auto block = parse(R"(Animal.'Dog'.GermanShepherd)");
+    ASSERT_EQ(block.size(), 1);
 
-    auto &expr_stmt = check<Wasp::ExpressionStatement>(mod.statements[0]);
+    auto& expr_stmt = check<Wasp::ExpressionStatement>(block[0]);
 
     // Top Level: [Left] . GermanShepherd
     {
@@ -66,10 +66,10 @@ TEST(ParseExpressions, MemberAccessWithString)
 
 TEST(ParseExpressions, FunctionCallWithoutArguments)
 {
-    auto mod = parse("get_worker()");
-    ASSERT_EQ(mod.statements.size(), 1);
+    auto block = parse("get_worker()");
+    ASSERT_EQ(block.size(), 1);
 
-    auto &stmt = check<Wasp::ExpressionStatement>(mod.statements[0]);
+    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
     auto &call = check<Wasp::Call>(stmt.expression);
 
     auto &id = check<Wasp::Identifier>(call.callee);
@@ -79,10 +79,10 @@ TEST(ParseExpressions, FunctionCallWithoutArguments)
 
 TEST(ParseExpressions, FunctionCallWithMultipleArguments)
 {
-    auto mod = parse("get_worker(1, 'John', true)");
-    ASSERT_EQ(mod.statements.size(), 1);
+    auto block = parse("get_worker(1, 'John', true)");
+    ASSERT_EQ(block.size(), 1);
 
-    auto &stmt = check<Wasp::ExpressionStatement>(mod.statements[0]);
+    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
     ASSERT_NE(stmt.expression, nullptr);
 
     auto &call = check<Wasp::Call>(stmt.expression);
@@ -91,10 +91,10 @@ TEST(ParseExpressions, FunctionCallWithMultipleArguments)
 
 TEST(ParseExpressions, MethodCallWithArguments)
 {
-    auto mod = parse("company.get_worker(1, 'John', true)");
-    ASSERT_EQ(mod.statements.size(), 1);
+    auto block = parse("company.get_worker(1, 'John', true)");
+    ASSERT_EQ(block.size(), 1);
 
-    auto &stmt = check<Wasp::ExpressionStatement>(mod.statements[0]);
+    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
 
     auto &call = check<Wasp::Call>(stmt.expression);
     EXPECT_EQ(call.arguments.size(), 3);
@@ -111,10 +111,10 @@ TEST(ParseExpressions, MethodCallWithArguments)
 
 TEST(ParseExpressions, MethodCallWithArgumentsThenMemberAccess)
 {
-    auto mod = parse("company.get_worker(1, 'John', true).name");
-    ASSERT_EQ(mod.statements.size(), 1);
+    auto block = parse("company.get_worker(1, 'John', true).name");
+    ASSERT_EQ(block.size(), 1);
 
-    auto &stmt = check<Wasp::ExpressionStatement>(mod.statements[0]);
+    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
 
     // Top Level: [company.get_worker(1, 'John', true)] . [name]
     auto &root_infix = check<Wasp::Infix>(stmt.expression);
@@ -145,10 +145,10 @@ TEST(ParseExpressions, MethodCallWithArgumentsThenMemberAccess)
 
 TEST(ParseExpressions, PipeOutput)
 {
-    auto mod = parse("foo() ~ bar(., 35) ~ boom(*.)");
-    ASSERT_EQ(mod.statements.size(), 1);
+    auto block = parse("foo() ~ bar(., 35) ~ boom(*.)");
+    ASSERT_EQ(block.size(), 1);
 
-    auto &stmt = check<Wasp::ExpressionStatement>(mod.statements[0]);
+    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
 
     // Top Level: [foo() ~ bar(., 35)] ~ [boom(*.)]
     auto &root_infix = check<Wasp::Infix>(stmt.expression);

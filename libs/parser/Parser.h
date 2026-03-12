@@ -8,7 +8,6 @@
 #include "TokenPipe.h"
 #include "TypeAnnotation.h"
 
-
 #include <map>
 #include <memory>
 #include <string>
@@ -99,7 +98,7 @@ public:
   TypeAnnotation_ptr parse_type();
   TypeAnnotationVector parse_types();
 
-  Module run(const std::vector<Token> &tokens);
+  Block run(const std::vector<Token>& tokens);
 };
 
 using ParserPtr = std::shared_ptr<Parser>;

@@ -722,11 +722,11 @@ CodeObject Compiler::flatten() {
     return final_bytecode;
 }
 
-CodeObject Compiler::run(const Module& module) {
+CodeObject Compiler::run(const Block& block) {
     emit(OpCode::ENTER_MODULE);
 
-    for (const auto& stmt : module.statements) {
-        visit(stmt);
+    for (const auto& s : block) {
+        visit(s);
     }
 
     BlockId exit = graph.create_block();

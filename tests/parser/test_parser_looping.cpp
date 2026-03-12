@@ -6,10 +6,10 @@
 
 
 TEST(ParseLooping, WhileSingle) {
-    auto mod = parse(R"(while x < 10 do x = x + 1)");
-    
-    auto& stmt = check<Wasp::SimpleLoop>(mod.statements[0]);
-    
+    auto block = parse(R"(while x < 10 do x = x + 1)");
+
+    auto& stmt = check<Wasp::SimpleLoop>(block[0]);
+
     {
         auto& condInfix = check<Wasp::Infix>(stmt.condition);
         auto& left = check<Wasp::Identifier>(condInfix.left);
@@ -44,15 +44,15 @@ TEST(ParseLooping, WhileSingle) {
 }
 
 TEST(ParseLooping, WhileBlock) {
-    auto mod = parse(R"(
+    auto block = parse(R"(
 while x < 10 do 
     x = x + 1
     y = 1
 )");
 
-    ASSERT_EQ(mod.statements.size(), 1);
+    ASSERT_EQ(block.size(), 1);
 
-    auto& stmt = check<Wasp::SimpleLoop>(mod.statements[0]);
+    auto& stmt = check<Wasp::SimpleLoop>(block[0]);
     auto& body = stmt.body;
     ASSERT_EQ(body.size(), 2);
 
@@ -68,13 +68,13 @@ while x < 10 do
 }
 
 TEST(ParseLooping, Continue) {
-    auto mod = parse(R"(
+    auto block = parse(R"(
 while x < 10 do 
     x = x + 1
     continue
 )");
 
-    auto& stmt = check<Wasp::SimpleLoop>(mod.statements[0]);
+    auto& stmt = check<Wasp::SimpleLoop>(block[0]);
     auto& body = stmt.body;
     ASSERT_EQ(body.size(), 2);
 
@@ -86,13 +86,13 @@ while x < 10 do
 }
 
 TEST(ParseLooping, ContinueWithExpression) {
-    auto mod = parse(R"(
+    auto block = parse(R"(
 while x < 10 do 
     x = x + 1
     continue x
-)"); 
+)");
 
-    auto& stmt = check<Wasp::SimpleLoop>(mod.statements[0]);
+    auto& stmt = check<Wasp::SimpleLoop>(block[0]);
     auto& body = stmt.body;
     ASSERT_EQ(body.size(), 2);
 

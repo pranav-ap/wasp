@@ -4,7 +4,6 @@
 #include "NativeRegistry.h"
 #include "Objects.h"
 #include "Statement.h"
-#include "Symbol.h"
 #include "SymbolScope.h"
 #include "TypeAnnotation.h"
 #include "TypeSystem.h"
@@ -135,7 +134,7 @@ public:
       : type_system(std::make_shared<TypeSystem>()),
         native_registry(native_registry) {};
 
-  void run(struct Module &ast);
+  void run(Block& block);
 };
 
 using SemanticAnalyzer_ptr = std::unique_ptr<SemanticAnalyzer>;

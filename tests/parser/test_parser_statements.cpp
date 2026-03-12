@@ -1,17 +1,18 @@
+#include "Expression.h"
+#include "Statement.h"
 #include "Token.h"
-#include "Lexer.h"
-#include "Parser.h"
 #include "test_utils.h"
-#include <gtest/gtest.h>
 
+#include <gtest/gtest.h>
+#include <string>
 
 TEST(ParseExpressions, ReturnStatementExpression) {
-    auto mod = parse(R"(
+    auto block = parse(R"(
 return 5 + 23
 )");
-    ASSERT_EQ(mod.statements.size(), 1);
+    ASSERT_EQ(block.size(), 1);
 
-    auto& stmt = check<Wasp::Return>(mod.statements[0]);
+    auto& stmt = check<Wasp::Return>(block[0]);
     ASSERT_TRUE(stmt.expression.has_value()) << "Expected an expression in return statement";
 
     auto& return_expr = stmt.expression.value();
@@ -23,21 +24,21 @@ return 5 + 23
 }
 
 TEST(ParseExpressions, ReturnStatementEmpty) {
-    auto mod = parse(R"(
+    auto block = parse(R"(
 return
     )");
 
-    ASSERT_EQ(mod.statements.size(), 1);
+    ASSERT_EQ(block.size(), 1);
 
-    auto& stmt = check<Wasp::Return>(mod.statements[0]);
+    auto& stmt = check<Wasp::Return>(block[0]);
     EXPECT_FALSE(stmt.expression.has_value()) << "Expected no expression in return statement";
 }
 
 TEST(ParseOthers, AnnotationDefinitionSimple) {
-    auto mod = parse("@tag('smoke', 'unit')");
-    ASSERT_EQ(mod.statements.size(), 1);
+    auto block = parse("@tag('smoke', 'unit')");
+    ASSERT_EQ(block.size(), 1);
 
-    auto& stmt = check<Wasp::AnnotationDefinition>(mod.statements[0]);
+    auto& stmt = check<Wasp::AnnotationDefinition>(block[0]);
     EXPECT_EQ(stmt.name, "tag");
     ASSERT_EQ(stmt.anno_values.size(), 2);
     

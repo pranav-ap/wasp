@@ -5,7 +5,7 @@ clear && rm -rf build && cmake -B build -G Ninja && cmake --build build && ctest
 
 clear && cmake --build build && ctest --test-dir build -L "unit"
 
-cmake --build build && ctest --test-dir build -L "unit" --rerun-failed --output-on-failure
+clear && cmake --build build && ctest --test-dir build -L "unit" --rerun-failed --output-on-failure
 
 ccache -s
 
@@ -20,8 +20,6 @@ wasp run ./workspace/main.wasp
 ```bash
 sudo apt update
 
+sudo apt install ccache -y
 sudo apt install lld
-ld.lld --version
-
-sudo apt-get install libfmt-dev
 ```

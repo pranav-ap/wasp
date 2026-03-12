@@ -9,21 +9,21 @@
 namespace Wasp {
 Parser::Parser() { register_all_parselets(); }
 
-Module Parser::run(const std::vector<Token> &tokens) {
-  token_pipe = TokenPipe(tokens);
-  Module mod;
+Block Parser::run(const std::vector<Token>& tokens) {
+    token_pipe = TokenPipe(tokens);
+    Block block;
 
-  const auto tokens_count = token_pipe.get_size();
-  auto current_index = token_pipe.get_current_index();
+    const auto tokens_count = token_pipe.get_size();
+    auto current_index = token_pipe.get_current_index();
 
-  while (current_index < tokens_count) {
-    if (auto s = parse_statement(0)) {
-      mod.statements.push_back(std::move(s));
+    while (current_index < tokens_count) {
+        if (auto s = parse_statement(0)) {
+            block.push_back(std::move(s));
+        }
+
+        current_index = token_pipe.get_current_index();
     }
 
-    current_index = token_pipe.get_current_index();
-  }
-
-  return mod;
+    return block;
 }
 } // namespace Wasp

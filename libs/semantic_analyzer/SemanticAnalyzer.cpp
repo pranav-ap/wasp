@@ -29,17 +29,16 @@ namespace Wasp
     // ENTRY POINT
     // ============================================================================
 
-    void SemanticAnalyzer::run(struct Module &ast)
-    { 
-        enter_scope(ScopeType::WORKSPACE);
-        register_natives();
+void SemanticAnalyzer::run(Block& block) {
+    enter_scope(ScopeType::WORKSPACE);
+    register_natives();
 
-        enter_scope(ScopeType::MODULE);
-        visit(ast.statements);
-        leave_scope();
-        
-        leave_scope();
-    }
+    enter_scope(ScopeType::MODULE);
+    visit(block);
+    leave_scope();
+
+    leave_scope();
+}
 
     void SemanticAnalyzer::register_natives()
     {

@@ -1,11 +1,15 @@
 #pragma once
 
-#include <string>
+#include "Expression.h"
+#include "Statement.h"
+#include <cstddef>
+#include <functional>
 #include <gtest/gtest.h>
-#include "Parser.h" 
+#include <initializer_list>
+#include <string>
+#include <vector>
 
-
-Wasp::Module parse(const std::string& code);
+Wasp::Block parse(const std::string& code);
 
 template<typename T>
 const T& check(const Wasp::Expression_ptr& ptr) {

@@ -52,7 +52,7 @@ protected:
     static std::byte B(int operand) { return static_cast<std::byte>(operand); }
 
     std::vector<std::byte> compile(const std::string& source) {
-        auto mod = parse(source);
+        auto block = parse(source);
 
         pool = std::make_shared<Wasp::ConstantPool>();
         pool_size = pool->get_size();
@@ -61,10 +61,10 @@ protected:
         native_registry->load_stdlib();
 
         auto semantic_analyzer = Wasp::SemanticAnalyzer(native_registry);
-        semantic_analyzer.run(mod);
+        semantic_analyzer.run(block);
 
         Wasp::Compiler compiler(pool, native_registry);
-        current_bytecode = compiler.run(mod);
+        current_bytecode = compiler.run(block);
         current_graph = compiler.get_graph();
 
         if (enable_logging) {

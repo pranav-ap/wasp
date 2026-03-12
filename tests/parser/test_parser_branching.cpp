@@ -1,14 +1,14 @@
+#include "Expression.h"
+#include "Statement.h"
 #include "Token.h"
-#include "Lexer.h"
-#include "Parser.h"
 #include "test_utils.h"
 #include <gtest/gtest.h>
 
 TEST(ParseBranching, TernaryExpression)
 {
-    auto mod = parse("if true then 1 else 2");
+    auto block = parse("if true then 1 else 2");
 
-    auto &stmt = check<Wasp::ExpressionStatement>(mod.statements[0]);
+    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
 
     auto &ternary = check<Wasp::IfTernaryBranch>(stmt.expression);
     ASSERT_NE(ternary.test, nullptr) << "Ternary test condition is null";
@@ -30,9 +30,9 @@ TEST(ParseBranching, TernaryExpression)
 
 TEST(ParseBranching, TernaryLetExpression)
 {
-    auto mod = parse("if let x = 1 then 1 else 2");
+    auto block = parse("if let x = 1 then 1 else 2");
 
-    auto &stmt = check<Wasp::ExpressionStatement>(mod.statements[0]);
+    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
     auto &ternary = check<Wasp::IfTernaryBranch>(stmt.expression);
 
     // Test Condition
@@ -55,11 +55,11 @@ TEST(ParseBranching, TernaryLetExpression)
 
 TEST(ParseBranching, IfBlock)
 {
-    auto mod = parse(R"(
+    auto block = parse(R"(
 if true then
     1 
 )");
-    auto &stmt = check<Wasp::IfBranch>(mod.statements[0]);
+    auto& stmt = check<Wasp::IfBranch>(block[0]);
 
     auto &body = stmt.body;
     ASSERT_EQ(body.size(), 1);
@@ -74,7 +74,7 @@ if true then
 
 TEST(ParseBranching, IfElifElseBlock)
 {
-    auto mod = parse(R"(
+    auto block = parse(R"(
 if x == 25 then
     pass
 elif x == 30 then
@@ -84,7 +84,7 @@ else
 )");
 
     // 1. Check the main 'if' branch
-    auto &stmt = check<Wasp::IfBranch>(mod.statements[0]);
+    auto& stmt = check<Wasp::IfBranch>(block[0]);
     auto &test = check<Wasp::Infix>(stmt.test);
 
     {

@@ -1,15 +1,14 @@
-#include "Token.h"
-#include "Lexer.h"
-#include "Parser.h"
+#include "Expression.h"
+#include "Statement.h"
 #include "test_utils.h"
 #include <gtest/gtest.h>
 
 TEST(ParseExpressions, Dot)
 {
-    auto mod = parse(".");
-    ASSERT_EQ(mod.statements.size(), 1);
+    auto block = parse(".");
+    ASSERT_EQ(block.size(), 1);
 
-    auto &stmt = check<Wasp::ExpressionStatement>(mod.statements[0]);
+    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
     ASSERT_NE(stmt.expression, nullptr);
 
     // This will successfully verify the node is a DotLiteral
@@ -18,9 +17,9 @@ TEST(ParseExpressions, Dot)
 
 TEST(ParseExpressions, RangeSimpleExclusive)
 {
-    auto mod = parse("1..<10");
+    auto block = parse("1..<10");
 
-    auto &stmt = check<Wasp::ExpressionStatement>(mod.statements[0]);
+    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
     auto &range = check<Wasp::RangeLiteral>(stmt.expression);
     EXPECT_FALSE(range.is_inclusive); // ..< is exclusive
 
@@ -35,9 +34,9 @@ TEST(ParseExpressions, RangeSimpleExclusive)
 
 TEST(ParseExpressions, RangeWithStep)
 {
-    auto mod = parse("1..<10 step 2");
+    auto block = parse("1..<10 step 2");
 
-    auto &stmt = check<Wasp::ExpressionStatement>(mod.statements[0]);
+    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
     auto &range = check<Wasp::RangeLiteral>(stmt.expression);
     EXPECT_FALSE(range.is_inclusive); // ..< is exclusive
 
@@ -53,9 +52,9 @@ TEST(ParseExpressions, RangeWithStep)
 
 TEST(ParseExpressions, RangeWithoutEnd)
 {
-    auto mod = parse("1..<");
+    auto block = parse("1..<");
 
-    auto &stmt = check<Wasp::ExpressionStatement>(mod.statements[0]);
+    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
     auto &range = check<Wasp::RangeLiteral>(stmt.expression);
     EXPECT_FALSE(range.is_inclusive); // FIXED: ..< is exclusive
 
@@ -68,9 +67,9 @@ TEST(ParseExpressions, RangeWithoutEnd)
 
 TEST(ParseExpressions, RangeWithoutEndWithStep)
 {
-    auto mod = parse("1..= step 2");
+    auto block = parse("1..= step 2");
 
-    auto &stmt = check<Wasp::ExpressionStatement>(mod.statements[0]);
+    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
     auto &range = check<Wasp::RangeLiteral>(stmt.expression);
     EXPECT_TRUE(range.is_inclusive);
 
