@@ -6,7 +6,7 @@
 #include "Statement.h"
 #include "SymbolScope.h"
 #include "TypeAnnotation.h"
-#include "TypeSystem.h"
+#include "TypeChecker.h"
 
 #include <memory>
 #include <string>
@@ -45,6 +45,13 @@ class SemanticAnalyzer {
 
   void visit(Pass &statement);
   void visit(Return &statement);
+
+  // ========================================================================
+  // Imports Visitors
+  // ========================================================================
+
+  void visit(SimpleImport& statement);
+  void visit(FromImport& statement);
 
   // ------------------------------------------------------------------------
   // Variables & Assignments
@@ -130,11 +137,10 @@ class SemanticAnalyzer {
   void register_natives();
 
 public:
-  SemanticAnalyzer(NativeRegistry_ptr native_registry)
-      : type_system(std::make_shared<TypeSystem>()),
-        native_registry(native_registry) {};
+    SemanticAnalyzer(NativeRegistry_ptr native_registry)
+        : type_system(std::make_shared<TypeChecker>()), native_registry(native_registry) {};
 
-  void run(Block& block);
+    void run(Block& block);
 };
 
 using SemanticAnalyzer_ptr = std::unique_ptr<SemanticAnalyzer>;

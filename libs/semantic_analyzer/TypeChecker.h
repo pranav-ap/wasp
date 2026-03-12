@@ -8,11 +8,11 @@
 #include <memory>
 
 namespace Wasp {
-class TypeSystem {
+class TypeChecker {
 public:
   ConstantPool_ptr type_pool;
 
-  TypeSystem() : type_pool(std::make_shared<ConstantPool>()) {};
+  TypeChecker() : type_pool(std::make_shared<ConstantPool>()) {};
 
   bool equal(SymbolScope_ptr scope, const Object_ptr type_1,
              const Object_ptr type_2) const;
@@ -67,5 +67,5 @@ public:
                                  const ObjectVector vec) const;
 };
 
-using TypeSystem_ptr = std::shared_ptr<TypeSystem>;
+using TypeSystem_ptr = std::shared_ptr<TypeChecker>;
 } // namespace Wasp

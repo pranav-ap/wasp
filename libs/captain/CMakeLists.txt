@@ -1,9 +1,10 @@
-add_library(CaptainLib Captain.cpp)
+add_library(CaptainLib Captain.cpp CaptainUtils.cpp)
 
 target_link_libraries(CaptainLib 
     PUBLIC 
         DoctorLib
         TokenLib 
+        WorkspaceLib
         CompilerLib 
         LexerLib 
         ASTLib  

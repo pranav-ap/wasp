@@ -49,6 +49,7 @@ target_include_directories(CLI11 INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 # ==========================================
 
 add_subdirectory(libs/doctor)
+add_subdirectory(libs/workspace)
 add_subdirectory(libs/token)
 add_subdirectory(libs/lexer)
 add_subdirectory(libs/ast)
