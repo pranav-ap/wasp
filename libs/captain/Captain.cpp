@@ -9,6 +9,7 @@
 #include "Objects.h"
 #include "Parser.h"
 #include "SemanticAnalyzer.h"
+#include "SymbolHoister.h"
 #include "VM.h"
 #include "Workspace.h"
 
@@ -72,21 +73,25 @@ std::vector<Module_ptr> Captain::calculate_build_order() {
     return build_order;
 };
 
-void Captain::hoist_symbols() {};
+void Captain::hoist_symbols(const std::vector<Module_ptr>& build_order) {
+    SymbolHoister hoister(workspace);
+    hoister.run(build_order);
+}
 
-void Captain::type_check_and_link() {
-
+void Captain::type_check_and_link(const std::vector<Module_ptr>& build_order) {
+    SemanticAnalyzer sa(workspace->native_registry);
+    sa.run(build_order, workspace);
 };
 
-void Captain::compile() {
+void Captain::compile(const std::vector<Module_ptr>& build_order) {
     Compiler compiler(workspace->pool, workspace->native_registry);
 
-    for (const auto& [path, module] : workspace->get_all_modules()) {
+    for (const auto& module : build_order) {
         module->code = compiler.run(module->block);
 
-        dump_build_artifacts(workspace, path, module->code);
+        dump_build_artifacts(workspace, module->file_path, module->code);
     }
-};
+}
 
 std::shared_ptr<Workspace> Captain::build() {
     for (const auto& entry : std::filesystem::recursive_directory_iterator(workspace->root_path)) {
@@ -96,9 +101,9 @@ std::shared_ptr<Workspace> Captain::build() {
     }
 
     auto build_order = calculate_build_order();
-    hoist_symbols();
-    type_check_and_link();
-    compile();
+    hoist_symbols(build_order);
+    type_check_and_link(build_order);
+    compile(build_order);
 
     return workspace;
 }

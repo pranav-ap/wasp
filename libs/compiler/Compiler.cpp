@@ -127,6 +127,8 @@ void Compiler::visit(const Statement_ptr statement) {
             [&](LoopControl& stat) { visit(stat); },
             [&](FunctionDefinition& stat) { visit(stat); },
             [&](Return& stat) { visit(stat); },
+            [&](SimpleImport& stat) { visit(stat); },
+            [&](FromImport& stat) { visit(stat); },
             [](auto) { Doctor::get().fatal(WaspStage::Compiler, "Unknown Statement"); }
         },
         statement->data
@@ -491,6 +493,14 @@ void Compiler::visit(Call& expr) {
 
     emit(OpCode::CALL, static_cast<int>(expr.arguments.size()));
 }
+
+// -----------------------------------------------------------------------
+// Imports
+// -----------------------------------------------------------------------
+
+void Compiler::visit(SimpleImport& statement) {}
+
+void Compiler::visit(FromImport& statement) {}
 
 // -----------------------------------------------------------------------
 // Expressions

@@ -17,7 +17,7 @@ struct Module {
     std::filesystem::path file_path;
 
     Block block;
-    std::map<int, Symbol_ptr> exports;
+    std::map<std::string, Symbol_ptr> exports;
 
     CFGraph graph;
     CodeObject code;

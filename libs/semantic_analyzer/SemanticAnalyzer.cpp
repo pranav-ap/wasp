@@ -5,8 +5,10 @@
 #include "Statement.h"
 #include "Symbol.h"
 #include "SymbolScope.h"
+#include "Workspace.h"
 
 #include <cstddef>
+#include <ctime>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -29,13 +31,24 @@ namespace Wasp
     // ENTRY POINT
     // ============================================================================
 
-void SemanticAnalyzer::run(Block& block) {
+void SemanticAnalyzer::run(
+    const std::vector<Module_ptr>& build_order, std::shared_ptr<Workspace> workspace
+) {
     enter_scope(ScopeType::WORKSPACE);
     register_natives();
 
-    enter_scope(ScopeType::MODULE);
-    visit(block);
-    leave_scope();
+    for (const auto& module : build_order) {
+        enter_scope(ScopeType::MODULE);
+
+        // Push the hoisted exports into this module's scope
+        for (const auto& [name, symbol] : module->exports) {
+            current_scope->define(symbol);
+        }
+
+        visit(module->block);
+
+        leave_scope();
+    }
 
     leave_scope();
 }
@@ -113,6 +126,8 @@ void SemanticAnalyzer::run(Block& block) {
                 [&](LoopControl& stat) { visit(stat); },
                 [&](Pass& stat) { visit(stat); },
                 [&](Return& stat) { visit(stat); },
+                [&](SimpleImport& stat) { visit(stat); },
+                [&](FromImport& stat) { visit(stat); },
                 [](auto) {
                     Doctor::get().Doctor::get().fatal(
                         WaspStage::Semantics, "Unhandled Statement in Semantic Analyzer!"
@@ -336,6 +351,30 @@ void SemanticAnalyzer::run(Block& block) {
     void SemanticAnalyzer::visit(ImplDefinition &statement) {}
 
     void SemanticAnalyzer::visit(AnnotationDefinition &statement) {}
+
+    // ========================================================================
+    // Imports Visitors
+    // ========================================================================
+
+    void SemanticAnalyzer::visit(SimpleImport& statement) {
+        // 1. Resolve the path (You can use the same resolve_import_path logic from the crawler)
+        std::filesystem::path target_path = workspace->resolve_import_path(
+            statement.access_token_type, statement.path, current_module->file_path
+        );
+
+        // 2. Get the dependency module
+        auto dep_module = workspace->get_module(target_path);
+        Doctor::get().fatal_if_nullptr(dep_module, WaspStage::Semantics);
+
+        // 3. Inject its hoisted exports into our CURRENT scope!
+        for (const auto& [name, symbol] : dep_module->exports) {
+            // If they imported `import math`, maybe you nest this in a "math" namespace symbol.
+            // If they used `from math import *`, you dump them directly into
+            // current_scope->define(symbol).
+        }
+    }
+
+    void SemanticAnalyzer::visit(FromImport& statement) {}
 
     // ---------------------------------------------------------------------------
     // Variable Definitions & Assignments

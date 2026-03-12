@@ -5,7 +5,7 @@
         "markdown": true,
         "scminput": false,
         "python": true,
-        "cpp": false
+        "cpp": true
     },
     
     "C_Cpp.intelliSenseEngine": "disabled",

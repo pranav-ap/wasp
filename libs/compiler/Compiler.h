@@ -125,8 +125,11 @@ namespace Wasp
 		void visit(FunctionDefinition &statement);
 		void visit(Return &statement);
 
-		// Expressions
-		void visit(const Expression_ptr expr);
+        void visit(SimpleImport& statement);
+        void visit(FromImport& statement);
+
+        // Expressions
+        void visit(const Expression_ptr expr);
 		void visit(std::vector<Expression_ptr> &expressions);
 
 		void visit(int expr);

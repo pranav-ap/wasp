@@ -7,6 +7,7 @@
 #include "SymbolScope.h"
 #include "TypeAnnotation.h"
 #include "TypeChecker.h"
+#include "Workspace.h"
 
 #include <memory>
 #include <string>
@@ -140,7 +141,7 @@ public:
     SemanticAnalyzer(NativeRegistry_ptr native_registry)
         : type_system(std::make_shared<TypeChecker>()), native_registry(native_registry) {};
 
-    void run(Block& block);
+    void run(const std::vector<Module_ptr>& build_order, std::shared_ptr<Workspace> workspace);
 };
 
 using SemanticAnalyzer_ptr = std::unique_ptr<SemanticAnalyzer>;
