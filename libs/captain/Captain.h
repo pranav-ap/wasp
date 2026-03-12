@@ -67,14 +67,16 @@ public:
 };
 
 // -----------------------------------------------------------------------------------------
-// Captain: The Build Orchestrator
+// The Build Orchestrator
 // -----------------------------------------------------------------------------------------
 
 class Captain {
 private:
     std::shared_ptr<Workspace> workspace;
     std::vector<Module_ptr> build_order;
+
     std::set<std::filesystem::path> currently_parsing;
+    std::filesystem::path entry_file;
 
     void parse_workspace(const std::filesystem::path& file_path);
 
@@ -83,9 +85,9 @@ private:
     void compile();
 
 public:
-    explicit Captain(const std::filesystem::path& workspace_root);
-
+    explicit Captain(const std::filesystem::path& target_path);
     std::shared_ptr<Workspace> build();
+    void execute();
 };
 
 } // namespace Wasp

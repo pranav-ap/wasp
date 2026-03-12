@@ -11,6 +11,7 @@ target_link_libraries(CaptainLib
         SemanticAnalyzerLib 
         BytecodeSystemLib 
         ObjectSystemLib
+        VMLib
 )
 
 target_include_directories(CaptainLib PUBLIC .)

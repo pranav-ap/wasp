@@ -6,8 +6,10 @@
 #include "InstructionPrinter.h"
 #include "Lexer.h"
 #include "NativeRegistry.h"
+#include "Objects.h"
 #include "Parser.h"
 #include "SemanticAnalyzer.h"
+#include "VM.h"
 
 #include <filesystem>
 #include <fstream>
@@ -60,8 +62,21 @@ void dump_build_artifacts(
     printer.print_pool(debug_file);
 }
 
-Captain::Captain(const std::filesystem::path& workspace_root)
-    : workspace(std::make_shared<Workspace>(workspace_root)) {}
+Captain::Captain(const std::filesystem::path& target_path) {
+    std::filesystem::path workspace_root =
+        std::filesystem::is_directory(target_path) ? target_path : target_path.parent_path();
+
+    if (workspace_root.empty()) {
+        workspace_root = std::filesystem::current_path();
+    }
+
+    workspace = std::make_shared<Workspace>(workspace_root);
+
+    // 2. Resolve the specific file to execute
+    entry_file = std::filesystem::is_regular_file(target_path)
+                     ? std::filesystem::absolute(target_path)
+                     : std::filesystem::absolute(workspace_root / "main.wasp");
+}
 
 void Captain::parse_workspace(const std::filesystem::path& file_path) {
     auto abs_path = std::filesystem::absolute(file_path);
@@ -125,6 +140,22 @@ std::shared_ptr<Workspace> Captain::build() {
     compile();
 
     return workspace;
+}
+
+void Captain::execute() {
+    Doctor::get().assert_true(
+        std::filesystem::exists(entry_file),
+        WaspStage::Captain,
+        "Entry file not found: " + entry_file.string()
+    );
+
+    auto main_module = workspace->get_module(entry_file);
+    Doctor::get().fatal_if_nullptr(main_module, WaspStage::Captain);
+
+    auto main_function = std::make_shared<FunctionObject>(main_module->code);
+
+    VM vm(workspace->pool, workspace->native_registry);
+    vm.run(main_function);
 }
 
 } // namespace Wasp
