@@ -48,7 +48,7 @@ target_include_directories(CLI11 INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 # Wasp Modules
 # ==========================================
 
-add_subdirectory(libs/diagnostics)
+add_subdirectory(libs/doctor)
 add_subdirectory(libs/token)
 add_subdirectory(libs/lexer)
 add_subdirectory(libs/ast)
@@ -56,6 +56,7 @@ add_subdirectory(libs/parser)
 add_subdirectory(libs/object_system)
 add_subdirectory(libs/symbol)
 add_subdirectory(libs/semantic_analyzer)
+add_subdirectory(libs/captain)
 add_subdirectory(libs/bytecode_system)
 add_subdirectory(libs/compiler)
 add_subdirectory(libs/vm)

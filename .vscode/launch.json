@@ -3,27 +3,20 @@
     "configurations": [
         {
             "name": "Debug Wasp",
-            "type": "cppdbg",
+            "type": "lldb-dap",
             "request": "launch",
             "program": "${workspaceFolder}/build/src/wasp",
-            "args": [],
-            "stopAtEntry": false,
+            "args": [
+                "run",
+                "${workspaceFolder}/workspace" 
+            ],
             "cwd": "${workspaceFolder}",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "gdb",
             "preLaunchTask": "Build",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                }
-            ]
+            "console": "integratedTerminal"
         },
         {
             "name": "Debug Unit Tests",
-            "type": "cppdbg",
+            "type": "lldb",
             "request": "launch",
             // This variables looks at the 'inputs' array at the bottom!
             "program": "${workspaceFolder}/build/tests/${input:testTarget}",
@@ -50,15 +43,14 @@
         {
             "id": "testTarget",
             "type": "pickString",
-            "description": "Which test suite do you want to debug?",
+            "description": "Which Test Suite do you want to debug?",
             "options": [
                 "lexer_tests",
                 "parser_tests",
                 "semantics_tests",
                 "compiler_tests",
-                "vm_tests"
             ],
-            "default": "vm_tests"
+            "default": "compiler_tests"
         }
     ]
 }

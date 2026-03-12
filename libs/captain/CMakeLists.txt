@@ -1,3 +1,16 @@
-add_library(CaptainLib)
-target_link_libraries(CaptainLib PUBLIC SemanticAnalyserLib CompilerLib ObjectSystemLib BytecodeSystemLib ASTLib TokenLib DoctorLib)
+add_library(CaptainLib Captain.cpp)
+
+target_link_libraries(CaptainLib 
+    PUBLIC 
+        DoctorLib
+        TokenLib 
+        CompilerLib 
+        LexerLib 
+        ASTLib  
+        ParserLib 
+        SemanticAnalyzerLib 
+        BytecodeSystemLib 
+        ObjectSystemLib
+)
+
 target_include_directories(CaptainLib PUBLIC .)

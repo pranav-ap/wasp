@@ -8,11 +8,11 @@
 
 TEST(Semantics, Simple)
 {
-    auto mod = parse("25");
+    auto block = parse("25");
 
     auto pool = std::make_shared<Wasp::ConstantPool>();
     auto native_registry = std::make_shared<Wasp::NativeRegistry>(pool);
 
     auto semantic_analyzer = Wasp::SemanticAnalyzer(native_registry);
-    semantic_analyzer.run(mod);
+    semantic_analyzer.run(block);
 }
