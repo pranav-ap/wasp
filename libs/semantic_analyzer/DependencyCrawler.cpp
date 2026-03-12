@@ -52,15 +52,19 @@ void DependencyCrawler::traverse_edges(const std::filesystem::path& file_path) {
 
     for (const auto& stmt_ptr : mod->block) {
         if (stmt_ptr->is<SimpleImport>()) {
-            const auto& import_stmt = stmt_ptr->as<SimpleImport>();
-            traverse_edges(
-                resolve_import_path(import_stmt.access_token_type, import_stmt.path, abs_path)
-            );
+            auto import_stmt = stmt_ptr->as<SimpleImport>();
+
+            import_stmt.resolved_path =
+                resolve_import_path(import_stmt.access_token_type, import_stmt.path, abs_path);
+
+            traverse_edges(import_stmt.resolved_path);
         } else if (stmt_ptr->is<FromImport>()) {
-            const auto& import_stmt = stmt_ptr->as<FromImport>();
-            traverse_edges(
-                resolve_import_path(import_stmt.access_token_type, import_stmt.path, abs_path)
-            );
+            auto import_stmt = stmt_ptr->as<FromImport>();
+
+            import_stmt.resolved_path =
+                resolve_import_path(import_stmt.access_token_type, import_stmt.path, abs_path);
+
+            traverse_edges(import_stmt.resolved_path);
         }
     }
 

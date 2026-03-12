@@ -68,4 +68,6 @@ public:
     }
 };
 
+using Workspace_ptr = std::shared_ptr<Workspace>;
+
 } // namespace Wasp

@@ -31,9 +31,7 @@ namespace Wasp
     // ENTRY POINT
     // ============================================================================
 
-void SemanticAnalyzer::run(
-    const std::vector<Module_ptr>& build_order, std::shared_ptr<Workspace> workspace
-) {
+void SemanticAnalyzer::run(const std::vector<Module_ptr>& build_order) {
     enter_scope(ScopeType::WORKSPACE);
     register_natives();
 
@@ -357,24 +355,51 @@ void SemanticAnalyzer::run(
     // ========================================================================
 
     void SemanticAnalyzer::visit(SimpleImport& statement) {
-        // 1. Resolve the path (You can use the same resolve_import_path logic from the crawler)
-        std::filesystem::path target_path = workspace->resolve_import_path(
-            statement.access_token_type, statement.path, current_module->file_path
-        );
-
-        // 2. Get the dependency module
-        auto dep_module = workspace->get_module(target_path);
+        auto dep_module = workspace->get_module(statement.resolved_path);
         Doctor::get().fatal_if_nullptr(dep_module, WaspStage::Semantics);
 
-        // 3. Inject its hoisted exports into our CURRENT scope!
-        for (const auto& [name, symbol] : dep_module->exports) {
-            // If they imported `import math`, maybe you nest this in a "math" namespace symbol.
-            // If they used `from math import *`, you dump them directly into
-            // current_scope->define(symbol).
-        }
+        // 2. Extract the base name of the module (e.g., "math" from "libs/math.wasp")
+        std::string module_name = statement.resolved_path.stem().string();
+
+        // 3. Create a Module Symbol in the current scope to act as a namespace.
+        // This allows the user to do: math.sqrt()
+        auto namespace_symbol = std::make_shared<Symbol>(
+            module_name,
+            nullptr, // You might want to create a special ModuleType for this later!
+            false,
+            false,
+            false,
+            0,
+            0
+        );
+
+        // 4. (Optional) If your Symbol struct supports it, attach the dep_module's
+        // exports to this namespace_symbol so the DotLiteral visitor can look them up later.
+
+        current_scope->define(namespace_symbol);
     }
 
-    void SemanticAnalyzer::visit(FromImport& statement) {}
+    void SemanticAnalyzer::visit(FromImport& statement) {
+        auto dep_module = workspace->get_module(statement.resolved_path);
+        Doctor::get().fatal_if_nullptr(dep_module, WaspStage::Semantics);
+
+        // `from math import sqrt, pi`
+        // We want to dump these SPECIFIC symbols directly into the current scope!
+        for (const auto& target_name : statement.imported_names) {
+
+            // 1. Check if the dependency actually exports this name
+            auto it = dep_module->exports.find(target_name);
+
+            Doctor::get().assert_true(
+                it != dep_module->exports.end(),
+                WaspStage::Semantics,
+                "Import Error: Module does not export '" + target_name + "'"
+            );
+
+            // 2. Define it in our current scope
+            current_scope->define(it->second);
+        }
+    }
 
     // ---------------------------------------------------------------------------
     // Variable Definitions & Assignments

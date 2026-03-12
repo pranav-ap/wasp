@@ -5,6 +5,7 @@
 #include "Token.h"
 #include "TypeAnnotation.h"
 
+#include <filesystem>
 #include <map>
 #include <memory>
 #include <optional>
@@ -221,6 +222,8 @@ struct AbstractImport {
 
     // ["engine", "fuel"]
     std::vector<std::string> path;
+
+    std::filesystem::path resolved_path;
 
     AbstractImport() = default;
 

@@ -62,9 +62,6 @@ void Captain::parse_module(const std::filesystem::path& file_path) {
     module->block = std::move(block);
 
     workspace->add_module(abs_path, module);
-
-    auto semantic_analyzer = Wasp::SemanticAnalyzer(workspace->native_registry);
-    semantic_analyzer.run(module->block);
 }
 
 std::vector<Module_ptr> Captain::calculate_build_order() {
@@ -79,8 +76,8 @@ void Captain::hoist_symbols(const std::vector<Module_ptr>& build_order) {
 }
 
 void Captain::type_check_and_link(const std::vector<Module_ptr>& build_order) {
-    SemanticAnalyzer sa(workspace->native_registry);
-    sa.run(build_order, workspace);
+    SemanticAnalyzer sa(workspace->native_registry, workspace);
+    sa.run(build_order);
 };
 
 void Captain::compile(const std::vector<Module_ptr>& build_order) {
