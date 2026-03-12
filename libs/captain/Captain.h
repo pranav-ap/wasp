@@ -1,1 +1,4 @@
-class Captain {};
+class Captain {
+public:
+    void run();
+};

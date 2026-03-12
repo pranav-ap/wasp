@@ -3,6 +3,7 @@
 #include "CFGraph.h"
 #include "ConstantPool.h"
 #include "NativeRegistry.h"
+#include "Statement.h"
 
 #include <filesystem>
 #include <map>
@@ -12,6 +13,8 @@
 namespace Wasp {
 
 struct Module {
+    Block statements;
+
     CFGraph graph;
     CodeObject code;
 };
