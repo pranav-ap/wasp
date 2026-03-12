@@ -81,9 +81,7 @@ void run(string file_path) {
     auto block = parser.run(tokens);
 
     auto pool = std::make_shared<ConstantPool>();
-
     auto native_registry = std::make_shared<NativeRegistry>(pool);
-    native_registry->load_stdlib();
 
     SemanticAnalyzer semantic_analyzer(native_registry);
     semantic_analyzer.run(block);

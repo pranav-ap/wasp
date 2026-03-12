@@ -8,6 +8,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace Wasp {
 Statement_ptr Parser::parse_statement(int expected_indent_level) {
@@ -69,6 +70,11 @@ Statement_ptr Parser::parse_statement(int expected_indent_level) {
         return parse_trait_definition(expected_indent_level);
     case TokenType::IMPL:
         return parse_impl_definition(expected_indent_level);
+
+    case TokenType::IMPORT:
+        return parse_import();
+    case TokenType::FROM:
+        return parse_from_import();
 
     default:
         return parse_expression_statement();
@@ -142,5 +148,125 @@ Statement_ptr Parser::parse_return_statement() {
     auto expression = parse_expression();
     token_pipe.require_in_line(TokenType::EOL);
     return std::make_shared<Statement>(Return{expression});
+}
+
+// Imports
+
+std::pair<std::optional<TokenType>, std::vector<std::string>> Parser::parse_module_path() {
+    std::optional<TokenType> access_token = std::nullopt;
+    std::vector<std::string> path;
+
+    auto token = token_pipe.current_in_line();
+    Doctor::get().fatal_if_nullopt(token, WaspStage::Parser);
+
+    bool is_access_modifier = false;
+
+    switch (token->type) {
+    case TokenType::TOP:
+    case TokenType::PKG:
+    case TokenType::MY:
+    case TokenType::OUR:
+    case TokenType::UP:
+        access_token = token->type;
+        is_access_modifier = true;
+        break;
+    default:
+        is_access_modifier = false;
+        break;
+    }
+
+    if (is_access_modifier) {
+        token_pipe.advance_pointer();
+
+        // Handle parameterized jumps like up(2) or pkg(3)
+        if (access_token == TokenType::UP || access_token == TokenType::PKG) {
+            if (token_pipe.consume_optional_in_line(TokenType::OPEN_PARENTHESIS)) {
+                auto num = token_pipe.require_in_line(TokenType::NUMBER_LITERAL);
+                // Store depth as the first path element
+                path.push_back(num.value);
+                token_pipe.require_in_line(TokenType::CLOSE_PARENTHESIS);
+            } else {
+                // Default depth
+                path.push_back("0");
+            }
+        }
+
+        // If a dot follows, consume it and continue.
+        if (!token_pipe.consume_optional_in_line(TokenType::DOT)) {
+            return {access_token, path};
+        }
+    }
+
+    // Parse the rest of the dot-separated path
+    while (true) {
+        auto part = token_pipe.require_in_line(TokenType::IDENTIFIER);
+        path.push_back(part.value);
+
+        if (!token_pipe.consume_optional_in_line(TokenType::DOT)) {
+            break;
+        }
+    }
+
+    return {access_token, path};
+}
+
+Statement_ptr Parser::parse_import() {
+    token_pipe.advance_pointer();
+
+    auto [access_token, path] = parse_module_path();
+    std::optional<std::string> alias = std::nullopt;
+
+    if (token_pipe.consume_optional_in_line(TokenType::AS)) {
+        alias = token_pipe.require_in_line(TokenType::IDENTIFIER).value;
+    }
+
+    token_pipe.require_in_line(TokenType::EOL);
+
+    return std::make_shared<Statement>(
+        SimpleImport(access_token, std::move(path), std::move(alias))
+    );
+}
+
+ImportedSymbol Parser::parse_imported_symbol() {
+    auto sym_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
+    std::optional<std::string> alias = std::nullopt;
+
+    if (token_pipe.consume_optional_in_line(TokenType::AS)) {
+        alias = token_pipe.require_in_line(TokenType::IDENTIFIER).value;
+    }
+
+    return {sym_token.value, std::move(alias)};
+}
+
+Statement_ptr Parser::parse_from_import() {
+    token_pipe.advance_pointer();
+
+    auto [access_token, path] = parse_module_path();
+
+    token_pipe.require_in_line(TokenType::IMPORT);
+
+    std::vector<ImportedSymbol> symbols;
+
+    //  from top.engine import (Tank, Pump as FuelPump)
+    if (token_pipe.consume_optional_in_line(TokenType::OPEN_PARENTHESIS)) {
+        do {
+            token_pipe.ignore_spaces_tabs_eols();
+            symbols.push_back(parse_imported_symbol());
+
+        } while (token_pipe.consume_optional_in_line(TokenType::COMMA));
+
+        token_pipe.ignore_empty_lines();
+        token_pipe.require(TokenType::CLOSE_PARENTHESIS);
+    }
+    // from my.fuel import Tank as T
+    else {
+        symbols.push_back(parse_imported_symbol());
+    }
+
+    token_pipe.require_in_line(TokenType::EOL);
+
+    return std::make_shared<Statement>(
+        FromImport(access_token, std::move(path), std::move(symbols))
+    );
 }
 } // namespace Wasp

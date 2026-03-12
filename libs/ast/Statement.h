@@ -212,6 +212,58 @@ struct LoopControl {
     LoopControl(TokenType type, std::string label = "") : type(type), label(label) {}
 };
 
+// Imports
+
+struct AbstractImport {
+    // std::nullopt means it's a 3rd party lib (like 'math3d')
+    // Otherwise it holds the keyword: my, our, pkg, top, or up
+    std::optional<TokenType> access_token_type;
+
+    // ["engine", "fuel"]
+    std::vector<std::string> path;
+
+    AbstractImport() = default;
+
+    AbstractImport(std::optional<TokenType> access_token_type, std::vector<std::string> path)
+        : access_token_type(access_token_type), path(std::move(path)) {}
+
+    virtual ~AbstractImport() = default;
+};
+
+// import top.engine.fuel as f
+struct SimpleImport : public AbstractImport {
+    std::optional<std::string> alias;
+
+    SimpleImport() = default;
+
+    SimpleImport(
+        std::optional<TokenType> access_token_type,
+        std::vector<std::string> path,
+        std::optional<std::string> alias = std::nullopt
+    )
+        : AbstractImport(access_token_type, std::move(path)), alias(std::move(alias)) {}
+};
+
+// Tank as FuelTank
+struct ImportedSymbol {
+    std::string name;
+    std::optional<std::string> alias;
+};
+
+// from top.engine import Tank, Pump
+struct FromImport : public AbstractImport {
+    std::vector<ImportedSymbol> symbols;
+
+    FromImport() = default;
+
+    FromImport(
+        std::optional<TokenType> access_token_type,
+        std::vector<std::string> path,
+        std::vector<ImportedSymbol> symbols
+    )
+        : AbstractImport(access_token_type, std::move(path)), symbols(std::move(symbols)) {}
+};
+
 // Statement Variant
 
 struct Statement {
@@ -228,6 +280,9 @@ struct Statement {
         ImplDefinition,
 
         AnnotationDefinition,
+
+        SimpleImport,
+        FromImport,
 
         IfBranch,
         ElseBranch,

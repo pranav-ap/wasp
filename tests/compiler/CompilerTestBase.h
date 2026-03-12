@@ -58,7 +58,6 @@ protected:
         pool_size = pool->get_size();
 
         auto native_registry = std::make_shared<Wasp::NativeRegistry>(pool);
-        native_registry->load_stdlib();
 
         auto semantic_analyzer = Wasp::SemanticAnalyzer(native_registry);
         semantic_analyzer.run(block);

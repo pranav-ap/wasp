@@ -21,5 +21,5 @@ wasp run ./workspace/main.wasp
 sudo apt update
 
 sudo apt install ccache -y
-sudo apt install lld
+sudo apt install lld -y
 ```

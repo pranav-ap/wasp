@@ -11,7 +11,6 @@ function(add_wasp_test_suite SUITE_NAME TEST_LABEL)
     target_link_libraries(${SUITE_NAME}
         PRIVATE
             GTest::gtest_main
-            # VMLib
             CompilerLib
             BytecodeSystemLib
             SemanticAnalyzerLib
@@ -40,6 +39,7 @@ add_wasp_test_suite(parser_tests "parser"
     parser/test_parser_branching.cpp
     parser/test_parser_definitions.cpp
     parser/test_parser_dots.cpp
+    parser/test_parser_imports.cpp
     parser/test_parser_literals.cpp
     parser/test_parser_looping.cpp
     parser/test_parser_stars.cpp
@@ -61,7 +61,3 @@ add_wasp_test_suite(compiler_tests "compiler"
     compiler/test_compile_variables.cpp
 )
 
-# VM Suite
-# add_wasp_test_suite(vm_tests "vm"
-#     vm/test_vm.cpp
-# )

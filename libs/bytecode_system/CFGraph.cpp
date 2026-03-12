@@ -4,7 +4,6 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <stdexcept>
 #include <utility>
 
 namespace Wasp
