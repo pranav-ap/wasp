@@ -159,7 +159,7 @@ void VM::execute() {
         case OpCode::GET_LOCAL: {
             int index = static_cast<int>(frame->consume_byte());
 
-            Doctor::get().assert_true(
+            Doctor::get().assert(
                 index < stack.size() && stack[index],
                 WaspStage::VM,
                 "Uninitialized local variable at index " + std::to_string(index)
@@ -185,7 +185,7 @@ void VM::execute() {
         }
 
         case OpCode::POP_SCOPE: {
-            Doctor::get().assert_true(
+            Doctor::get().assert(
                 !frame->scope_bases.empty(), WaspStage::VM, "POP_SCOPE called with no active scope"
             );
 
@@ -247,7 +247,7 @@ void VM::execute() {
                     },
 
                     [&](std::shared_ptr<NativeFunctionObject>& native) {
-                        Doctor::get().assert_true(
+                        Doctor::get().assert(
                             native->arity == -1 || native->arity == arg_count,
                             WaspStage::VM,
                             "Arity mismatch in native function call"

@@ -142,7 +142,7 @@ namespace Wasp
         for (const auto &value : values)
         {
             Doctor::get().fatal_if_nullptr(value, WaspStage::VM);
-            Doctor::get().assert_true(
+            Doctor::get().assert(
                 !value->is<std::monostate>(),
                 WaspStage::VM,
                 "Cannot initialize a List with monostate"
@@ -255,7 +255,7 @@ namespace Wasp
         for (const auto &value : values)
         {
             Doctor::get().fatal_if_nullptr(value, WaspStage::VM);
-            Doctor::get().assert_true(
+            Doctor::get().assert(
                 !value->is<std::monostate>(),
                 WaspStage::VM,
                 "Cannot set a Tuple element to monostate"
@@ -285,7 +285,7 @@ namespace Wasp
         for (const auto &value : values)
         {
             Doctor::get().fatal_if_nullptr(value, WaspStage::VM);
-            Doctor::get().assert_true(
+            Doctor::get().assert(
                 !value->is<std::monostate>(), WaspStage::VM, "Cannot set a Set element to monostate"
             );
         }

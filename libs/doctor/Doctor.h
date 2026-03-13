@@ -36,7 +36,7 @@ public:
     [[noreturn]] void
     fatal(WaspStage stage, const std::string& message, int line = 0, int column = 0) const;
 
-    void assert_true(
+    void assert(
         bool condition, WaspStage stage, const std::string& message, int line = 0, int column = 0
     ) const;
 

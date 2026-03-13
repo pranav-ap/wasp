@@ -1,5 +1,5 @@
-add_library(SymbolLib INTERFACE)
+add_library(SymbolLib PUBLIC Symbol.cpp)
 
-target_link_libraries(SymbolLib INTERFACE ObjectSystemLib)
+target_link_libraries(SymbolLib PUBLIC ObjectSystemLib)
 
-target_include_directories(SymbolLib INTERFACE .)
+target_include_directories(SymbolLib PUBLIC .)

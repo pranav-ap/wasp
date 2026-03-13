@@ -35,7 +35,7 @@ namespace Wasp
     }
 
     Object_ptr ConstantPool::get(int id) const {
-        Doctor::get().assert_true(
+        Doctor::get().assert(
             id >= 0 && id < objects.size(), WaspStage::VM, "ID out of bounds in ConstantPool", 0, 0
         );
 

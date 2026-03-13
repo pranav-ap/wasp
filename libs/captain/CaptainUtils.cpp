@@ -15,7 +15,7 @@ namespace Wasp {
 std::string Captain::read_file(const std::filesystem::path& file_path) {
     std::ifstream file(file_path);
 
-    Doctor::get().assert_true(
+    Doctor::get().assert(
         file.is_open(), WaspStage::Captain, "Failed to open file: " + file_path.string()
     );
 
@@ -39,7 +39,7 @@ void Captain::dump_build_artifacts(
 
     std::ofstream debug_file(debug_log_path);
 
-    Doctor::get().assert_true(
+    Doctor::get().assert(
         debug_file.is_open(),
         WaspStage::Captain,
         "Failed to open debug file for writing: " + debug_log_path.string()

@@ -211,7 +211,7 @@ namespace Wasp
             is_valid_callee = true;
         }
 
-        Doctor::get().assert_true(
+        Doctor::get().assert(
             is_valid_callee,
             WaspStage::Parser,
             "Call requires an identifier or member access expression"

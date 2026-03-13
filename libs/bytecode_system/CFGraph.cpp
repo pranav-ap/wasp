@@ -49,7 +49,7 @@ namespace Wasp
             opcode == OpCode::LOOP_ITER)
         {
             // Expand the assertion to allow up to 65,535
-            Doctor::get().assert_true(
+            Doctor::get().assert(
                 operand >= 0 && operand <= 65535,
                 WaspStage::Compiler,
                 "Operand out of range for jump instruction (must be between 0 and 65535)"
@@ -62,7 +62,7 @@ namespace Wasp
         else
         {
             // Standard 8-bit operand
-            Doctor::get().assert_true(
+            Doctor::get().assert(
                 operand >= 0 && operand <= 255,
                 WaspStage::Compiler,
                 "Operand out of range for 8-bit instruction (must be between 0 and 255)"
@@ -73,12 +73,12 @@ namespace Wasp
     }
 
     void CodeObject::emit(OpCode opcode, int operand_1, int operand_2) {
-        Doctor::get().assert_true(
+        Doctor::get().assert(
             operand_1 >= 0 && operand_1 <= 255,
             WaspStage::Compiler,
             "Operand 1 out of range for 8-bit encoding"
         );
-        Doctor::get().assert_true(
+        Doctor::get().assert(
             operand_2 >= 0 && operand_2 <= 255,
             WaspStage::Compiler,
             "Operand 2 out of range for 8-bit encoding"
@@ -129,16 +129,14 @@ namespace Wasp
     }
 
     void CFGraph::set_entry_block(BlockId id) {
-        Doctor::get().assert_true(
-            id < blocks.size(), WaspStage::Compiler, "Invalid entry block ID"
-        );
+        Doctor::get().assert(id < blocks.size(), WaspStage::Compiler, "Invalid entry block ID");
 
         entry_block_id = id;
     }
 
     void CFGraph::add_edge(BlockId from_id, BlockId to_id)
     {
-        Doctor::get().assert_true(
+        Doctor::get().assert(
             from_id < blocks.size() && to_id < blocks.size(),
             WaspStage::Compiler,
             "Invalid block ID for edge"
@@ -157,14 +155,14 @@ namespace Wasp
 
     BasicBlock &CFGraph::get_block(BlockId id)
     {
-        Doctor::get().assert_true(id < blocks.size(), WaspStage::Compiler, "Invalid block ID");
+        Doctor::get().assert(id < blocks.size(), WaspStage::Compiler, "Invalid block ID");
 
         return blocks[id];
     }
 
     const BasicBlock &CFGraph::get_block(BlockId id) const
     {
-        Doctor::get().assert_true(id < blocks.size(), WaspStage::Compiler, "Invalid block ID");
+        Doctor::get().assert(id < blocks.size(), WaspStage::Compiler, "Invalid block ID");
 
         return blocks[id];
     }

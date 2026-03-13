@@ -64,7 +64,7 @@ Expression_ptr Parser::parse_expression(const int precedence) {
 
         // This should never realistically trigger because get_next_operator_precedence
         // already checks if it exists, but it's great internal documentation/safety.
-        Doctor::get().assert_true(
+        Doctor::get().assert(
             infix_it != infix_parselets.end(),
             WaspStage::Parser,
             "Missing infix parselet during loop",

@@ -48,7 +48,7 @@ void Doctor::fatal(WaspStage stage, const std::string& message, int line, int co
     std::exit(EXIT_FAILURE);
 }
 
-void Doctor::assert_true(
+void Doctor::assert(
     bool condition, WaspStage stage, const std::string& message, int line, int column
 ) const {
     if (!condition) {

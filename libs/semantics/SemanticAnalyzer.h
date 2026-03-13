@@ -15,7 +15,7 @@
 
 namespace Wasp {
 class SemanticAnalyzer {
-    TypeSystem_ptr type_system;
+    TypeChecker_ptr type_system;
     NativeRegistry_ptr native_registry;
     SymbolScope_ptr current_scope;
     ObjectVector return_type_stack;
@@ -61,7 +61,9 @@ class SemanticAnalyzer {
 
     Object_ptr define_variable(Expression_ptr assignment_expr, bool is_mutable);
     Object_ptr mutate_variable(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
+
     void visit(VariableDefinition& statement);
+
     Object_ptr visit(VariableDefinitionExpression& expr);
     Object_ptr visit(UntypedAssignment& expr);
     Object_ptr visit(TypedAssignment& expr);

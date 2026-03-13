@@ -176,7 +176,7 @@ void Compiler::compile_variable_definition(const Expression_ptr& assignment, boo
         emit(OpCode::DUP);
     }
 
-    Doctor::get().assert_true(
+    Doctor::get().assert(
         lhs->is<Identifier>(),
         WaspStage::Compiler,
         "Left-hand side of definition must be an Identifier"
@@ -402,7 +402,7 @@ void Compiler::visit(SimpleLoop& statement) {
 }
 
 void Compiler::visit(LoopControl& statement) {
-    Doctor::get().assert_true(
+    Doctor::get().assert(
         !loop_tracking_stack.empty(), WaspStage::Compiler, "Loop control outside loop"
     );
 
@@ -420,7 +420,7 @@ void Compiler::visit(LoopControl& statement) {
     }
 
     int scopes_to_pop = current_lexical_scope_depth - target_depth;
-    Doctor::get().assert_true(
+    Doctor::get().assert(
         scopes_to_pop >= 0,
         WaspStage::Compiler,
         "Compiler Error: Current lexical scope depth is less than loop entry depth!"
@@ -567,7 +567,7 @@ void Compiler::visit(Identifier& expr) {
 void Compiler::compile_assignment(const Expression_ptr& lhs, const Expression_ptr& rhs) {
     visit(rhs);
 
-    Doctor::get().assert_true(
+    Doctor::get().assert(
         lhs->is<Identifier>(), WaspStage::Compiler, "Only ID assignment supported"
     );
 

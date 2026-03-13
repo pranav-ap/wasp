@@ -21,7 +21,7 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp {
 Object_ptr NativeRegistry::get_native_object(int index) const {
-    Doctor::get().assert_true(
+    Doctor::get().assert(
         index >= 0 && index < static_cast<int>(native_objects.size()),
         WaspStage::VM,
         "Native function index out of bounds"
@@ -31,7 +31,7 @@ Object_ptr NativeRegistry::get_native_object(int index) const {
 }
 
 Object_ptr NativeRegistry::get_native_object_type(int index) const {
-    Doctor::get().assert_true(
+    Doctor::get().assert(
         index >= 0 && index < static_cast<int>(native_object_types.size()),
         WaspStage::VM,
         "Native function index out of bounds"
@@ -43,7 +43,7 @@ Object_ptr NativeRegistry::get_native_object_type(int index) const {
 int NativeRegistry::get_native_index(const std::string& name) const {
     auto it = native_names.find(name);
 
-    Doctor::get().assert_true(
+    Doctor::get().assert(
         it != native_names.end(), WaspStage::VM, "Native function not found" + name
     );
 
