@@ -253,46 +253,48 @@ void SemanticAnalyzer::visit(SimpleLoop& statement) {
     leave_scope();
 }
 
-void SemanticAnalyzer::visit(ForInLoop& statement) {
-    visit(statement.iterable_expression);
+void SemanticAnalyzer::visit(ForInLoop& loop_stmt) {
+    Object_ptr iterable_type = visit(loop_stmt.iterable_expression);
+    type_system->expect_iterable_type(current_scope, iterable_type);
+
+    Object_ptr element_type = MAKE_OBJECT_VARIANT(AnyType());
+
     enter_scope(ScopeType::LOOP);
 
-    if (statement.lhs->is<Identifier>()) {
-        auto& identifier_ast_node = statement.lhs->as<Identifier>();
-        std::string name = identifier_ast_node.name;
+    Doctor::get().assert(
+        loop_stmt.lhs->is<Identifier>(),
+        WaspStage::Semantics,
+        "For-in loop variable must be an identifier."
+    );
 
-        auto symbol = std::make_shared<Symbol>(
-            name,
-            nullptr,
-            statement.lhs_is_mutable,           // is_mutable
-            false,                              // is_native
-            false,                              // is_captured
-            current_scope->get_closure_depth(), // closure_depth
-            current_scope->get_lexical_depth()  // lexical_depth
-        );
+    auto& identifier_node = loop_stmt.lhs->as<Identifier>();
+    std::string symbol_name = identifier_node.name;
 
-        current_scope->define(symbol);
-        identifier_ast_node.symbol = symbol;
-    } else {
-        Doctor::get().fatal(
-            WaspStage::Semantics, "Semantic Error: For-in loop variable must be an identifier."
-        );
-    }
+    auto loop_variable_symbol = SymbolFactory::create_variable(
+        symbol_name,
+        element_type,
+        loop_stmt.lhs_is_mutable,
+        false, // is_captured
+        current_scope->get_closure_depth(),
+        current_scope->get_lexical_depth()
+    );
 
-    visit(statement.body);
+    current_scope->define(loop_variable_symbol);
+    identifier_node.symbol = loop_variable_symbol;
+
+    visit(loop_stmt.body);
+
     leave_scope();
 }
 
 void SemanticAnalyzer::visit(LoopControl& statement) {
     SymbolScope_ptr scope = current_scope;
 
-    if (!scope->enclosed_in(ScopeType::LOOP)) {
-        Doctor::get().fatal(
-            WaspStage::Semantics,
-            "Semantic Error: Loop control statement ('break', 'continue', 'redo') must be "
-            "inside a loop."
-        );
-    }
+    Doctor::get().assert(
+        scope->enclosed_in(ScopeType::LOOP),
+        WaspStage::Semantics,
+        "Loop control statement ('break', 'continue', 'redo') must be inside a loop."
+    );
 }
 
 // --------------------------------------------------------------------------
@@ -315,33 +317,50 @@ void SemanticAnalyzer::visit(AnnotationDefinition& statement) {}
 // Imports Visitors
 // ========================================================================
 
-void SemanticAnalyzer::visit(SimpleImport& statement) {
-    auto dep_module = workspace->get_module(statement.resolved_path);
-    Doctor::get().fatal_if_nullptr(dep_module, WaspStage::Semantics);
+void SemanticAnalyzer::visit(SimpleImport& import_stmt) {
+    auto mod = workspace->get_module(import_stmt.resolved_path);
+    Doctor::get().fatal_if_nullptr(mod, WaspStage::Semantics);
 
     // Extract "math" from stuff.math
-    std::string module_name = statement.resolved_path.stem().string();
+    std::string module_name = import_stmt.resolved_path.stem().string();
 
-    if (statement.alias.has_value()) {
-        module_name = statement.alias.value();
+    // If the user provided an alias, use that instead
+    if (import_stmt.alias.has_value()) {
+        module_name = import_stmt.alias.value();
     }
 
-    // 3. Create a Module Symbol in the current scope to act as a namespace.
-    // This allows the user to do: math.sqrt()
-    auto namespace_symbol = std::make_shared<Symbol>(
-        module_name,
-        nullptr, // You might want to create a special ModuleType for this later!
-        false,
-        false,
-        false,
-        0,
-        0
-    );
-
+    auto namespace_symbol = SymbolFactory::create_module(module_name);
     current_scope->define(namespace_symbol);
 }
 
-void SemanticAnalyzer::visit(FromImport& statement) {}
+void SemanticAnalyzer::visit(FromImport& import_stmt) {
+    auto mod = workspace->get_module(import_stmt.resolved_path);
+    Doctor::get().fatal_if_nullptr(mod, WaspStage::Semantics);
+
+    // `from math import sqrt, pi as pie`
+
+    for (const auto& sym : import_stmt.symbols) {
+
+        // 1. Check if the dependency actually exports the requested name
+        auto it = mod->exports.find(sym.name);
+
+        Doctor::get().assert(
+            it != mod->exports.end(),
+            WaspStage::Semantics,
+            "Import Error: Module '" + import_stmt.resolved_path.stem().string() +
+                "' does not export '" + sym.name + "'."
+        );
+
+        Symbol_ptr symbol_to_define = it->second;
+
+        if (sym.alias.has_value()) {
+            symbol_to_define = std::make_shared<Symbol>(*it->second);
+            symbol_to_define->name = sym.alias.value();
+        }
+
+        current_scope->define(symbol_to_define);
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Variable Definitions & Assignments
@@ -497,11 +516,9 @@ SemanticAnalyzer::mutate_variable(Expression_ptr identifier_expr, Expression_ptr
     return target_symbol->get_type();
 }
 
-// --- Access ---
-
 Object_ptr SemanticAnalyzer::visit(Identifier& expr) {
     Symbol_ptr target_symbol = current_scope->lookup(expr.name);
-    Doctor::get().fatal_if_nullptr(target_symbol != nullptr, WaspStage::Semantics);
+    Doctor::get().fatal_if_nullptr(target_symbol, WaspStage::Semantics);
 
     // Only variables need to be captured by closures
     if (target_symbol->is<VariableData>()) {
@@ -601,14 +618,14 @@ Object_ptr SemanticAnalyzer::visit(Call& call_expr) {
         "Expression is not callable. Type is: " + Wasp::stringify_object(callee_type)
     );
 
-    // Link the symbol to the AST node for Phase 4 (Code Generation)
     if (call_expr.callee->is<Identifier>()) {
         call_expr.symbol = call_expr.callee->as<Identifier>().symbol;
     }
 
     const auto& function_signature = callee_type->as<FunctionType>();
 
-    // 2. Check Argument Count
+    // Check Argument Types
+
     Doctor::get().assert(
         call_expr.arguments.size() == function_signature.input_types.size(),
         WaspStage::Semantics,
@@ -617,7 +634,6 @@ Object_ptr SemanticAnalyzer::visit(Call& call_expr) {
             std::to_string(call_expr.arguments.size()) + "."
     );
 
-    // 3. Check Argument Types
     for (size_t i = 0; i < call_expr.arguments.size(); ++i) {
         Object_ptr argument_type = visit(call_expr.arguments[i]);
         Object_ptr parameter_type = function_signature.input_types[i];
@@ -631,7 +647,6 @@ Object_ptr SemanticAnalyzer::visit(Call& call_expr) {
         );
     }
 
-    // 4. Return the resolved Return Type
     if (function_signature.return_type.has_value()) {
         return function_signature.return_type.value();
     }
@@ -641,7 +656,7 @@ Object_ptr SemanticAnalyzer::visit(Call& call_expr) {
 
 void SemanticAnalyzer::visit(Return& statement) {
     Doctor::get().assert(
-        return_type_stack.empty(),
+        !return_type_stack.empty(),
         WaspStage::Semantics,
         "'return' statement used outside of a function."
     );

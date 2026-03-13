@@ -201,7 +201,7 @@ Object_ptr TypeChecker::infer(
     case TokenType::PLUS:
         // String Concatenation
         if (is_string_type(left_type)) {
-            Doctor::get().assert_true(
+            Doctor::get().assert(
                 is_string_type(right_type) && is_number_type(right_type),
                 WaspStage::Semantics,
                 "Cannot concatenate string with this type"
@@ -278,7 +278,7 @@ Object_ptr TypeChecker::infer(SymbolScope_ptr scope, Object_ptr operand_type, To
 }
 
 // ============================================================================
-// Spread Type
+// Utils
 // ============================================================================
 
 Object_ptr TypeChecker::spread_type(Object_ptr type) {
@@ -298,6 +298,55 @@ Object_ptr TypeChecker::spread_type(Object_ptr type) {
                 Doctor::get().fatal(WaspStage::Semantics, "Cannot spread a non-iterable type");
                 return type_pool->get_none_type();
             }
+        },
+        type->value
+    );
+}
+
+Object_ptr
+TypeChecker::extract_iterable_element(SymbolScope_ptr scope, const Object_ptr type) const {
+    if (!type) {
+        return MAKE_OBJECT_VARIANT(AnyType());
+    }
+
+    if (type->is<VariantType>()) {
+        auto& variant = type->as<VariantType>();
+        ObjectVector extracted_elements;
+
+        for (const auto& t : variant.types) {
+            extracted_elements.push_back(extract_iterable_element(scope, t));
+        }
+
+        ObjectVector unique_elements = remove_duplicates(scope, extracted_elements);
+
+        if (unique_elements.size() == 1) {
+            return unique_elements[0];
+        }
+
+        return MAKE_OBJECT_VARIANT(VariantType(unique_elements));
+    }
+
+    return std::visit(
+        overloaded{
+            [](ListType const& t) -> Object_ptr { return t.element_type; },
+
+            [](SetType const& t) -> Object_ptr { return t.element_type; },
+
+            [](MapType const& t) -> Object_ptr {
+                return MAKE_OBJECT_VARIANT(TupleType({t.key_type, t.value_type}));
+            },
+
+            [&](TupleType const& t) -> Object_ptr {
+                // Iterating over a Tuple means the loop variable could be ANY of its elements
+                ObjectVector unique_elements = remove_duplicates(scope, t.element_types);
+                if (unique_elements.size() == 1)
+                    return unique_elements[0];
+                return MAKE_OBJECT_VARIANT(VariantType(unique_elements));
+            },
+
+            [&](StringType const&) -> Object_ptr { return type_pool->get_string_type(); },
+
+            [&](const auto&) -> Object_ptr { return type_pool->get_any_type(); }
         },
         type->value
     );
@@ -402,33 +451,31 @@ bool TypeChecker::is_key_type(SymbolScope_ptr scope, const Object_ptr key_type) 
 // ============================================================================
 
 void TypeChecker::expect_boolean_type(const Object_ptr type) const {
-    Doctor::get().assert_true(
-        is_boolean_type(type), WaspStage::Semantics, "Expected a boolean type"
-    );
+    Doctor::get().assert(is_boolean_type(type), WaspStage::Semantics, "Expected a boolean type");
 }
 
 void TypeChecker::expect_number_type(const Object_ptr type) const {
-    Doctor::get().assert_true(is_number_type(type), WaspStage::Semantics, "Expected a number type");
+    Doctor::get().assert(is_number_type(type), WaspStage::Semantics, "Expected a number type");
 }
 
 void TypeChecker::expect_int_type(const Object_ptr type) const {
-    Doctor::get().assert_true(is_int_type(type), WaspStage::Semantics, "Expected a integer type");
+    Doctor::get().assert(is_int_type(type), WaspStage::Semantics, "Expected a integer type");
 }
 
 void TypeChecker::expect_float_type(const Object_ptr type) const {
-    Doctor::get().assert_true(is_float_type(type), WaspStage::Semantics, "Expected a float type");
+    Doctor::get().assert(is_float_type(type), WaspStage::Semantics, "Expected a float type");
 }
 
 void TypeChecker::expect_string_type(const Object_ptr type) const {
-    Doctor::get().assert_true(is_string_type(type), WaspStage::Semantics, "Expected a string type");
+    Doctor::get().assert(is_string_type(type), WaspStage::Semantics, "Expected a string type");
 }
 
 void TypeChecker::expect_none_type(const Object_ptr type) const {
-    Doctor::get().assert_true(is_none_type(type), WaspStage::Semantics, "Expected a None type");
+    Doctor::get().assert(is_none_type(type), WaspStage::Semantics, "Expected a None type");
 }
 
 void TypeChecker::expect_condition_type(SymbolScope_ptr scope, const Object_ptr type) const {
-    Doctor::get().assert_true(
+    Doctor::get().assert(
         is_condition_type(scope, type),
         WaspStage::Semantics,
         "Expected a valid condition type (boolean)"
@@ -436,7 +483,7 @@ void TypeChecker::expect_condition_type(SymbolScope_ptr scope, const Object_ptr 
 }
 
 void TypeChecker::expect_spreadable_type(SymbolScope_ptr scope, const Object_ptr type) const {
-    Doctor::get().assert_true(
+    Doctor::get().assert(
         is_spreadable_type(scope, type),
         WaspStage::Semantics,
         "Expected a spreadable collection type"
@@ -444,13 +491,13 @@ void TypeChecker::expect_spreadable_type(SymbolScope_ptr scope, const Object_ptr
 }
 
 void TypeChecker::expect_iterable_type(SymbolScope_ptr scope, const Object_ptr type) const {
-    Doctor::get().assert_true(
+    Doctor::get().assert(
         is_iterable_type(scope, type), WaspStage::Semantics, "Expected an iterable type"
     );
 }
 
 void TypeChecker::expect_key_type(SymbolScope_ptr scope, const Object_ptr type) const {
-    Doctor::get().assert_true(
+    Doctor::get().assert(
         is_key_type(scope, type),
         WaspStage::Semantics,
         "Type cannot be used as a Dictionary/Map key"

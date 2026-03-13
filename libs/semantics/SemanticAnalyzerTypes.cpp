@@ -90,7 +90,7 @@ Object_ptr SemanticAnalyzer::visit(const TypeAnnotation_ptr type_node) {
     {
         auto symbol = current_scope->lookup(expr.name);
         Doctor::get().fatal_if_nullptr(symbol, WaspStage::Semantics);
-        return symbol->type;
+        return symbol->get_type();
     }
 
     Object_ptr SemanticAnalyzer::visit(ListTypeNode &expr) { return MAKE_OBJECT_VARIANT(ListType(visit(expr.element_type))); }

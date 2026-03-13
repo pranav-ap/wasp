@@ -1,5 +1,3 @@
-#pragma once
-
 #include "Symbol.h"
 #include "Objects.h"
 

@@ -5,10 +5,12 @@
             "name": "Debug Wasp",
             "type": "lldb-dap",
             "request": "launch",
+            // POINT TO YOUR LOCAL BINARY
+            "lldb-dap": "/usr/bin/lldb-vscode-14",
             "program": "${workspaceFolder}/build/src/wasp",
             "args": [
                 "run",
-                "${workspaceFolder}/workspace" 
+                "${workspaceFolder}/workspace"
             ],
             "cwd": "${workspaceFolder}",
             "preLaunchTask": "Build",
@@ -16,27 +18,18 @@
         },
         {
             "name": "Debug Unit Tests",
-            "type": "lldb",
+            "type": "lldb-dap",
             "request": "launch",
-            // This variables looks at the 'inputs' array at the bottom!
+            // POINT TO YOUR LOCAL BINARY
+            "lldb-dap": "/usr/bin/lldb-vscode-14",
             "program": "${workspaceFolder}/build/tests/${input:testTarget}",
-            // TIP: If you only want to debug one specific test, add it here!
-            // Example: ["--gtest_filter=CompileFunctions.Print"]
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
-            "MIMode": "gdb",
             "preLaunchTask": "Build",
             "sourceFileMap": {
                 "/workspaces/wasp": "${workspaceFolder}"
-            },
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                }
-            ]
+            }
         }
     ],
     "inputs": [
@@ -48,7 +41,7 @@
                 "lexer_tests",
                 "parser_tests",
                 "semantics_tests",
-                "compiler_tests",
+                "compiler_tests"
             ],
             "default": "compiler_tests"
         }

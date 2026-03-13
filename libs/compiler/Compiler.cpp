@@ -553,10 +553,10 @@ void Compiler::visit(Identifier& expr) {
     auto symbol = expr.symbol;
     Doctor::get().fatal_if_nullptr(symbol, WaspStage::Compiler);
 
-    if (symbol->is_captured) {
+    if (symbol->is<VariableData>() && symbol->as<VariableData>().is_captured) {
         int upval_index = resolve_upvalue(this, symbol);
         emit(OpCode::GET_UPVALUE, upval_index);
-    } else if (symbol->is_native) {
+    } else if (symbol->is<FunctionData>() && symbol->as<FunctionData>().is_native) {
         auto native_registry_id = native_registry->get_native_index(symbol->name);
         emit(OpCode::GET_NATIVE, native_registry_id);
     } else {
@@ -568,13 +568,20 @@ void Compiler::compile_assignment(const Expression_ptr& lhs, const Expression_pt
     visit(rhs);
 
     Doctor::get().assert(
-        lhs->is<Identifier>(), WaspStage::Compiler, "Only ID assignment supported"
+        lhs->is<Identifier>(),
+        WaspStage::Compiler,
+        "Left-hand side of assignment must be an Identifier."
     );
 
     auto symbol = lhs->as<Identifier>().symbol;
     Doctor::get().fatal_if_nullptr(symbol, WaspStage::Compiler);
 
-    if (symbol->is_captured) {
+    bool is_captured = false;
+    if (symbol->is<VariableData>()) {
+        is_captured = symbol->as<VariableData>().is_captured;
+    }
+
+    if (is_captured) {
         int idx = resolve_upvalue(this, symbol);
         emit(OpCode::SET_UPVALUE, idx);
     } else {

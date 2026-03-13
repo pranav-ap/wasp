@@ -7,6 +7,8 @@
 #include "NativeRegistry.h"
 #include "OpCode.h"
 #include "SemanticAnalyzer.h"
+#include "SymbolHoister.h"
+#include "Workspace.h"
 #include "test_utils.h"
 
 #include <cstddef>
@@ -15,6 +17,7 @@
 #include <gtest/gtest.h>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 class CompilerTestBase : public ::testing::Test {
@@ -22,6 +25,7 @@ protected:
     std::string log_dir;
     bool enable_logging = true;
 
+    std::shared_ptr<Wasp::Workspace> workspace;
     Wasp::ConstantPool_ptr pool;
     Wasp::CodeObject current_bytecode;
     Wasp::CFGraph current_graph;
@@ -52,18 +56,39 @@ protected:
     static std::byte B(int operand) { return static_cast<std::byte>(operand); }
 
     std::vector<std::byte> compile(const std::string& source) {
-        auto block = parse(source);
+        // 1. Setup the Workspace just like Captain does
+        // Using a dummy path for the in-memory test workspace
+        workspace = std::make_shared<Wasp::Workspace>(std::filesystem::current_path());
 
-        pool = std::make_shared<Wasp::ConstantPool>();
+        // Grab the pool from the workspace so the test assertions still work
+        pool = workspace->pool;
         pool_size = pool->get_size();
 
-        auto native_registry = std::make_shared<Wasp::NativeRegistry>(pool);
+        // 2. Parse the code
+        auto block = parse(source);
 
-        auto semantic_analyzer = Wasp::SemanticAnalyzer(native_registry);
-        semantic_analyzer.run(block);
+        // 3. Wrap it in a Mock Module
+        auto module = std::make_shared<Wasp::Module>();
+        module->file_path = "test_module.wasp";
+        module->block = std::move(block);
 
-        Wasp::Compiler compiler(pool, native_registry);
-        current_bytecode = compiler.run(block);
+        workspace->add_module(module->file_path, module);
+        std::vector<Wasp::Module_ptr> build_order = {module};
+
+        // 4. Phase 2: Hoist Symbols (Crucial for the Semantic Analyzer Handshake!)
+        Wasp::SymbolHoister hoister(workspace);
+        hoister.run(build_order);
+
+        // 5. Phase 3: Semantic Analysis
+        Wasp::SemanticAnalyzer semantic_analyzer(workspace->native_registry, workspace);
+        semantic_analyzer.run(build_order);
+
+        // 6. Phase 4: Bytecode Compilation
+        Wasp::Compiler compiler(pool, workspace->native_registry);
+
+        // Note: Depending on how your AST handles moves, you might need to compile module->block
+        // instead of the raw block if std::move(block) emptied the original pointer.
+        current_bytecode = compiler.run(module->block);
         current_graph = compiler.get_graph();
 
         if (enable_logging) {

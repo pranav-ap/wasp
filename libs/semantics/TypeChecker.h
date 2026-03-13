@@ -33,6 +33,7 @@ public:
     Object_ptr infer(SymbolScope_ptr scope, Object_ptr left_type, TokenType op);
 
     Object_ptr spread_type(Object_ptr type);
+    Object_ptr extract_iterable_element(SymbolScope_ptr scope, const Object_ptr type) const;
 
     // Is _ type?
     bool is_boolean_type(const Object_ptr type) const;
