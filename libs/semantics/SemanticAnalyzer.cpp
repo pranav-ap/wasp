@@ -341,7 +341,7 @@ void SemanticAnalyzer::visit(FromImport& import_stmt) {
 
     for (const auto& sym : import_stmt.symbols) {
 
-        // 1. Check if the dependency actually exports the requested name
+        // Check if the dependency actually exports the requested name
         auto it = mod->exports.find(sym.name);
 
         Doctor::get().assert(
