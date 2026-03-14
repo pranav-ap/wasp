@@ -19,6 +19,17 @@ TEST(ParseImports, SimpleImportLibrary) {
     EXPECT_FALSE(stmt.alias.has_value());
 }
 
+TEST(ParseImports, SimpleMyImportLibrary) {
+    auto block = parse("import my.math3d");
+
+    auto& stmt = check<Wasp::SimpleImport>(block[0]);
+
+    EXPECT_TRUE(stmt.access_token_type.has_value());
+    ASSERT_EQ(stmt.path.size(), 1);
+    EXPECT_EQ(stmt.path[0], "math3d");
+    EXPECT_FALSE(stmt.alias.has_value());
+}
+
 TEST(ParseImports, SimpleImportWithAliasAndDepth) {
     auto block = parse("import up(2).navigation as nav");
 

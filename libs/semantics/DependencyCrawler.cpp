@@ -83,7 +83,6 @@ std::filesystem::path DependencyCrawler::resolve_import_path(
     std::filesystem::path base =
         get_base_path(access_token_modifier, path_segments, current_file, start_idx);
 
-    // 2. Walk the dot-separated path
     for (size_t i = start_idx; i < path_segments.size(); ++i) {
         base /= path_segments[i];
     }

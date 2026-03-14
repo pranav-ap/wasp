@@ -10,7 +10,7 @@
             "program": "${workspaceFolder}/build/src/wasp",
             "args": [
                 "run",
-                "${workspaceFolder}/workspace"
+                "./code/main.wasp"
             ],
             "cwd": "${workspaceFolder}",
             "preLaunchTask": "Build",
