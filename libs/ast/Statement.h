@@ -298,6 +298,8 @@ struct Statement {
 
     StatementData data;
 
+    int statement_number; // For error reporting and debugging
+
     Statement() = default;
 
     template <typename T> Statement(T&& val) : data(std::forward<T>(val)) {}
@@ -310,5 +312,11 @@ struct Statement {
     template <typename T> T& as() { return std::get<T>(data); }
     template <typename T> T* try_as() { return std::get_if<T>(&data); }
 };
+
+template <typename T> Statement_ptr make_statement(T&& data, int current_line_number) {
+    auto stmt = std::make_shared<Statement>(std::forward<T>(data));
+    stmt->statement_number = current_line_number;
+    return stmt;
+}
 
 } // namespace Wasp

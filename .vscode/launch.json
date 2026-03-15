@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug Wasp",
+            "name": "Wasp",
             "type": "lldb-dap",
             "request": "launch",
             // POINT TO YOUR LOCAL BINARY
@@ -17,7 +17,7 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Debug Unit Tests",
+            "name": "Unit Tests",
             "type": "lldb-dap",
             "request": "launch",
             // POINT TO YOUR LOCAL BINARY

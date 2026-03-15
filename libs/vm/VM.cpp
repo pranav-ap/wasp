@@ -246,6 +246,64 @@ void VM::execute_call(CallFrame* frame) {
     );
 }
 
+void VM::execute_member(OpCode op, CallFrame* frame) {
+    // 1. Get the property name from the constant pool
+    int name_index = static_cast<int>(frame->consume_byte());
+    Object_ptr name_obj = pool->get(name_index);
+
+    Doctor::get().assert(
+        std::holds_alternative<StringObject>(name_obj->value),
+        WaspStage::VM,
+        "Member name in constant pool must be a string."
+    );
+    std::string member_name = std::get<StringObject>(name_obj->value).value;
+
+    // 2. Perform the operation
+    if (op == OpCode::GET_MEMBER) {
+        Object_ptr obj = pop_from_stack();
+        push_to_stack(perform_get_member(obj, member_name));
+    } else if (op == OpCode::SET_MEMBER) {
+        Object_ptr val = pop_from_stack(); // Pushed second
+        Object_ptr obj = pop_from_stack(); // Pushed first
+        perform_set_member(obj, member_name, val);
+    }
+}
+
+Object_ptr VM::perform_get_member(Object_ptr obj, const std::string& name) {
+    return std::visit(
+        overloaded{
+            // TODO: Add your exact runtime types here when ready!
+            /*
+            [&](NamespaceObject& ns) {
+                return ns.members.at(name);
+            },
+            */
+            [&](auto&) -> Object_ptr {
+                Doctor::get().fatal(WaspStage::VM, "Object does not support reading properties.");
+                return nullptr;
+            }
+        },
+        obj->value
+    );
+}
+
+void VM::perform_set_member(Object_ptr obj, const std::string& name, Object_ptr value) {
+    std::visit(
+        overloaded{
+            // TODO: Add your exact runtime types here when ready!
+            /*
+            [&](NamespaceObject& ns) {
+                ns.members[name] = value;
+            },
+            */
+            [&](auto&) {
+                Doctor::get().fatal(WaspStage::VM, "Object does not support setting properties.");
+            }
+        },
+        obj->value
+    );
+}
+
 void VM::execute() {
     while (true) {
         CallFrame* frame = &frames.back();
@@ -290,6 +348,12 @@ void VM::execute() {
         case OpCode::PUSH_SCOPE:
         case OpCode::POP_SCOPE:
             execute_variable(instruction, frame);
+            break;
+
+        // Members
+        case OpCode::GET_MEMBER:
+        case OpCode::SET_MEMBER:
+            execute_member(instruction, frame);
             break;
 
             // Control Flow
