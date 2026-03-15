@@ -32,6 +32,7 @@ using ByteVector = std::vector<std::byte>;
     X(GET_MEMBER, 1)   /* [obj] -> [val] | Read object property onto stack (name index in pool) */ \
     X(PUSH_SCOPE, 0)   /* Enter new lexical block scope */                                         \
     X(POP_SCOPE, 0)                                                                                \
+    X(IMPORT, 1) /* [] -> [ModuleObject] | Executes a module by ID and pushes it to the stack */   \
     /* Exit current lexical block scope */ /* --- Arithmetic --- */                                \
     X(NEGATE, 0)                           /* [a] -> [-a] */                                       \
     X(ADD, 0)                              /* [a, b] -> [a+b] */                                   \

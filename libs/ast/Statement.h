@@ -234,7 +234,7 @@ struct AbstractImport {
 };
 
 // import top.engine.fuel as f
-struct SimpleImport : public AbstractImport {
+struct SimpleImport : public AbstractImport, Resolvable {
     std::optional<std::string> alias;
 
     SimpleImport() = default;
@@ -254,7 +254,7 @@ struct ImportedSymbol {
 };
 
 // from top.engine import Tank, Pump
-struct FromImport : public AbstractImport {
+struct FromImport : public AbstractImport, Resolvable {
     std::vector<ImportedSymbol> symbols;
 
     FromImport() = default;

@@ -500,7 +500,18 @@ void Compiler::visit(Call& expr) {
 // -----------------------------------------------------------------------
 
 void Compiler::visit(SimpleImport& statement) {
-    // No Op
+    std::string unique_module_path = statement.resolved_path.string();
+    int path_index = constant_pool->allocate(unique_module_path);
+
+    // Tell the VM to execute this module and push a ModuleObject onto the stack
+    emit(OpCode::IMPORT, path_index);
+
+    Doctor::get().fatal_if_nullptr(
+        statement.symbol, WaspStage::Compiler, "SimpleImport must have a resolved symbol."
+    );
+
+    debug_name_map[statement.symbol->id] = statement.symbol->name;
+    emit(OpCode::DEFINE_LOCAL, statement.symbol->id);
 }
 
 void Compiler::visit(FromImport& statement) {
