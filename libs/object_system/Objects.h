@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CFGraph.h"
+
 #include <cstddef>
 #include <functional>
 #include <map>
@@ -334,6 +335,11 @@ namespace Wasp
             : members(std::move(members)) {};
     };
 
+    struct NamespaceType : public CompositeType {
+        std::map<std::string, Object_ptr> members;
+        NamespaceType(std::map<std::string, Object_ptr> members) : members(std::move(members)) {}
+    };
+
     // Object STRUCT
 
     struct Object
@@ -381,7 +387,8 @@ namespace Wasp
             MapType,
             VariantType,
             FunctionType,
-            RecordType>;
+            RecordType,
+            NamespaceType>;
 
         UnderlyingVariant value;
 

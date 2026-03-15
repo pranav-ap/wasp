@@ -498,9 +498,13 @@ void Compiler::visit(Call& expr) {
 // Imports
 // -----------------------------------------------------------------------
 
-void Compiler::visit(SimpleImport& statement) {}
+void Compiler::visit(SimpleImport& statement) {
+    // No Op
+}
 
-void Compiler::visit(FromImport& statement) {}
+void Compiler::visit(FromImport& statement) {
+    // No Op
+}
 
 // -----------------------------------------------------------------------
 // Expressions

@@ -1,6 +1,7 @@
 #include "Symbol.h"
 #include "Objects.h"
 
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
@@ -20,7 +21,8 @@ Object_ptr Symbol::get_type() {
             [](const FunctionData& d) { return d.type; },
             [](const ClassData& d) { return d.type; },
             [](const EnumData& d) { return d.type; },
-            [](const ModuleData& d) -> Object_ptr { return nullptr; }
+            [](const ModuleData& d) -> Object_ptr { return d.type; },
+            [](const AliasData& d) { return d.target->get_type(); }
         },
         payload
     );
@@ -33,7 +35,8 @@ void Symbol::set_type(Object_ptr new_type) {
             [&](FunctionData& d) { d.type = std::move(new_type); },
             [&](ClassData& d) { d.type = std::move(new_type); },
             [&](EnumData& d) { d.type = std::move(new_type); },
-            [](ModuleData& d) { /* Modules don't have a type */ }
+            [&](ModuleData& d) { d.type = std::move(new_type); },
+            [&](AliasData& d) { d.target->set_type(std::move(new_type)); }
         },
         payload
     );
@@ -72,8 +75,21 @@ Symbol_ptr SymbolFactory::create_enum(
     return std::make_shared<Symbol>(std::move(name), closure_depth, lexical_depth, EnumData{type});
 }
 
-Symbol_ptr SymbolFactory::create_module(std::string name) {
-    return std::make_shared<Symbol>(std::move(name), 0, 0, ModuleData{});
+Symbol_ptr SymbolFactory::create_module(
+    std::string name, Object_ptr type, std::map<std::string, Symbol_ptr> exports
+) {
+    int closure_depth, lexical_depth = 0;
+
+    return std::make_shared<Symbol>(
+        std::move(name), closure_depth, lexical_depth, ModuleData{type}
+    );
 }
 
+static Symbol_ptr create_alias(std::string name, Symbol_ptr target) {
+    int closure_depth, lexical_depth = 0;
+
+    return std::make_shared<Symbol>(
+        std::move(name), closure_depth, lexical_depth, AliasData{target}
+    );
+}
 } // namespace Wasp

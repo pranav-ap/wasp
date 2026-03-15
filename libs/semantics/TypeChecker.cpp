@@ -207,7 +207,7 @@ Object_ptr TypeChecker::infer(
                 "Cannot concatenate string with this type"
             );
 
-            return type_pool->get_string_type();
+            return pool->get_string_type();
         }
     case TokenType::STAR:
     case TokenType::POWER:
@@ -218,9 +218,9 @@ Object_ptr TypeChecker::infer(
         expect_number_type(right_type);
 
         if (is_float_type(left_type) || is_float_type(right_type)) {
-            return type_pool->get_float_type();
+            return pool->get_float_type();
         }
-        return type_pool->get_int_type();
+        return pool->get_int_type();
     }
     case TokenType::LESSER_THAN:
     case TokenType::LESSER_THAN_EQUAL:
@@ -228,7 +228,7 @@ Object_ptr TypeChecker::infer(
     case TokenType::GREATER_THAN_EQUAL: {
         expect_number_type(left_type);
         expect_number_type(right_type);
-        return type_pool->get_boolean_type();
+        return pool->get_boolean_type();
     }
     case TokenType::EQUAL_EQUAL:
     case TokenType::BANG_EQUAL: {
@@ -242,19 +242,19 @@ Object_ptr TypeChecker::infer(
             Doctor::get().fatal(WaspStage::Semantics, "Unsupported types for equality comparison");
         }
 
-        return type_pool->get_boolean_type();
+        return pool->get_boolean_type();
     }
     case TokenType::AND:
     case TokenType::OR: {
         expect_boolean_type(left_type);
         expect_boolean_type(right_type);
-        return type_pool->get_boolean_type();
+        return pool->get_boolean_type();
     }
     default: {
         Doctor::get().fatal(WaspStage::Semantics, "Unknown binary operator");
     }
     }
-    return type_pool->get_none_type();
+    return pool->get_none_type();
 }
 
 Object_ptr TypeChecker::infer(SymbolScope_ptr scope, Object_ptr operand_type, TokenType op) {
@@ -263,18 +263,18 @@ Object_ptr TypeChecker::infer(SymbolScope_ptr scope, Object_ptr operand_type, To
     case TokenType::MINUS: {
 
         expect_number_type(operand_type);
-        return is_int_type(operand_type) ? type_pool->get_int_type() : type_pool->get_float_type();
+        return is_int_type(operand_type) ? pool->get_int_type() : pool->get_float_type();
     }
     case TokenType::NOT: {
 
         expect_boolean_type(operand_type);
-        return type_pool->get_boolean_type();
+        return pool->get_boolean_type();
     }
     default: {
         Doctor::get().fatal(WaspStage::Semantics, "Unknown unary operator");
     }
     }
-    return type_pool->get_none_type();
+    return pool->get_none_type();
 }
 
 // ============================================================================
@@ -296,7 +296,7 @@ Object_ptr TypeChecker::spread_type(Object_ptr type) {
             },
             [&](const auto&) {
                 Doctor::get().fatal(WaspStage::Semantics, "Cannot spread a non-iterable type");
-                return type_pool->get_none_type();
+                return pool->get_none_type();
             }
         },
         type->value
@@ -344,9 +344,9 @@ TypeChecker::extract_iterable_element(SymbolScope_ptr scope, const Object_ptr ty
                 return MAKE_OBJECT_VARIANT(VariantType(unique_elements));
             },
 
-            [&](StringType const&) -> Object_ptr { return type_pool->get_string_type(); },
+            [&](StringType const&) -> Object_ptr { return pool->get_string_type(); },
 
-            [&](const auto&) -> Object_ptr { return type_pool->get_any_type(); }
+            [&](const auto&) -> Object_ptr { return pool->get_any_type(); }
         },
         type->value
     );

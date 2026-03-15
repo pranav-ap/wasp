@@ -10,9 +10,9 @@
 namespace Wasp {
 class TypeChecker {
 public:
-    ConstantPool_ptr type_pool;
+    ConstantPool_ptr pool;
 
-    TypeChecker() : type_pool(std::make_shared<ConstantPool>()) {};
+    TypeChecker(ConstantPool_ptr pool) : pool(pool) {};
 
     bool equal(SymbolScope_ptr scope, const Object_ptr type_1, const Object_ptr type_2) const;
     bool equal(

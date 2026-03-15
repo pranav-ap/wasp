@@ -68,7 +68,7 @@ std::vector<Module_ptr> Captain::calculate_build_order() {
     DependencyCrawler crawler(workspace);
     auto build_order = crawler.calculate_build_order(entry_file);
     return build_order;
-};
+}
 
 void Captain::hoist_symbols(const std::vector<Module_ptr>& build_order) {
     SymbolHoister hoister(workspace);
@@ -78,12 +78,11 @@ void Captain::hoist_symbols(const std::vector<Module_ptr>& build_order) {
 void Captain::type_check_and_link(const std::vector<Module_ptr>& build_order) {
     SemanticAnalyzer sa(workspace->native_registry, workspace);
     sa.run(build_order);
-};
+}
 
 void Captain::compile(const std::vector<Module_ptr>& build_order) {
-    Compiler compiler(workspace->pool, workspace->native_registry);
-
     for (const auto& module : build_order) {
+        Compiler compiler(workspace->pool, workspace->native_registry);
         module->code = compiler.run(module->block);
 
         dump_build_artifacts(workspace, module->file_path, module->code);

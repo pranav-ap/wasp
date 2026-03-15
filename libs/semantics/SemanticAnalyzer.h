@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ConstantPool.h"
 #include "Expression.h"
 #include "NativeRegistry.h"
 #include "Objects.h"
@@ -15,6 +16,7 @@
 
 namespace Wasp {
 class SemanticAnalyzer {
+    ConstantPool_ptr pool;
     TypeChecker_ptr type_system;
     NativeRegistry_ptr native_registry;
     SymbolScope_ptr current_scope;
@@ -83,6 +85,8 @@ class SemanticAnalyzer {
     Object_ptr visit(Identifier& expr);
     Object_ptr visit(DotLiteral& expr);
 
+    Object_ptr visit_member_access(Infix& expr);
+
     Object_ptr visit(Prefix& expr);
     Object_ptr visit(Infix& expr);
     Object_ptr visit(Postfix& expr);
@@ -141,9 +145,11 @@ class SemanticAnalyzer {
     void register_natives();
 
 public:
-    SemanticAnalyzer(NativeRegistry_ptr native_registry, Workspace_ptr workspace)
-        : type_system(std::make_shared<TypeChecker>()), native_registry(native_registry),
-          workspace(workspace) {};
+    SemanticAnalyzer(
+        ConstantPool_ptr pool, NativeRegistry_ptr native_registry, Workspace_ptr workspace
+    )
+        : pool(pool), type_system(std::make_shared<TypeChecker>(pool)),
+          native_registry(native_registry), workspace(workspace) {};
 
     void run(const std::vector<Module_ptr>& build_order);
 };

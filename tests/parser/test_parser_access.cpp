@@ -1,15 +1,15 @@
+#include "Expression.h"
+#include "Statement.h"
 #include "Token.h"
-#include "Lexer.h"
-#include "Parser.h"
 #include "test_utils.h"
 #include <gtest/gtest.h>
+#include <string>
 
 TEST(ParseExpressions, MemberAccessNested)
 {
     auto block = parse(R"(Animal.Dog.GermanShepherd)");
     ASSERT_EQ(block.size(), 1);
 
-    // FIX: Renamed stmt_wrapper to expr_stmt to match the usage below
     auto& expr_stmt = check<Wasp::ExpressionStatement>(block[0]);
 
     // Top Level: [Left] . GermanShepherd

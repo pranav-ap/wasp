@@ -1,3 +1,4 @@
 import my.cats 
 
 print('hello')
+print_cats()

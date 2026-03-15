@@ -5,13 +5,17 @@
 #include "Statement.h"
 #include "Symbol.h"
 #include "SymbolScope.h"
+#include "Token.h"
+#include "TypeAnnotation.h"
 #include "Workspace.h"
 
 #include <cstddef>
 #include <ctime>
+#include <map>
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -319,17 +323,19 @@ void SemanticAnalyzer::visit(AnnotationDefinition& statement) {}
 
 void SemanticAnalyzer::visit(SimpleImport& import_stmt) {
     auto mod = workspace->get_module(import_stmt.resolved_path);
-    Doctor::get().fatal_if_nullptr(mod, WaspStage::Semantics);
+    Doctor::get().assert(mod != nullptr, WaspStage::Semantics, "Failed to load module");
 
-    // Extract "math" from stuff.math
-    std::string module_name = import_stmt.resolved_path.stem().string();
+    std::string module_name = import_stmt.alias.value_or(import_stmt.resolved_path.stem().string());
 
-    // If the user provided an alias, use that instead
-    if (import_stmt.alias.has_value()) {
-        module_name = import_stmt.alias.value();
+    std::map<std::string, Object_ptr> namespace_member_types;
+    for (const auto& [name, exported_symbol] : mod->exports) {
+        namespace_member_types[name] = exported_symbol->get_type();
     }
 
-    auto namespace_symbol = SymbolFactory::create_module(module_name);
+    auto namespace_type =
+        std::make_shared<Object>(NamespaceType(std::move(namespace_member_types)));
+
+    auto namespace_symbol = SymbolFactory::create_module(module_name, namespace_type, mod->exports);
     current_scope->define(namespace_symbol);
 }
 
@@ -338,9 +344,7 @@ void SemanticAnalyzer::visit(FromImport& import_stmt) {
     Doctor::get().fatal_if_nullptr(mod, WaspStage::Semantics);
 
     // `from math import sqrt, pi as pie`
-
     for (const auto& sym : import_stmt.symbols) {
-
         // Check if the dependency actually exports the requested name
         auto it = mod->exports.find(sym.name);
 
@@ -353,9 +357,10 @@ void SemanticAnalyzer::visit(FromImport& import_stmt) {
 
         Symbol_ptr symbol_to_define = it->second;
 
+        // If aliased, we must safely clone it using the SymbolFactory
         if (sym.alias.has_value()) {
-            symbol_to_define = std::make_shared<Symbol>(*it->second);
-            symbol_to_define->name = sym.alias.value();
+            std::string alias_name = sym.alias.value();
+            symbol_to_define = SymbolFactory::create_alias(alias_name, it->second);
         }
 
         current_scope->define(symbol_to_define);
@@ -692,7 +697,100 @@ Object_ptr SemanticAnalyzer::visit(Prefix& expr) {
     return type_system->infer(current_scope, right_type, expr.op.type);
 }
 
+Object_ptr SemanticAnalyzer::visit_member_access(Infix& expr) {
+    Object_ptr left_type = visit(expr.left);
+
+    // -----------------------------------------------------------------------
+    // SCENARIO A: Module Access (e.g., math.sqrt, Animal.Dog)
+    // -----------------------------------------------------------------------
+    if (expr.right->is<Identifier>()) {
+        auto& right_id = expr.right->as<Identifier>();
+        std::string member_name = right_id.name;
+
+        // Step A1: Try to extract the Symbol from the left-hand side.
+        // If left is an Identifier ('math'), it's directly attached.
+        // If left is an Infix ('Animal.Dog'), we want the symbol attached to 'Dog'.
+        Symbol_ptr left_symbol = nullptr;
+
+        if (expr.left->is<Identifier>()) {
+            left_symbol = expr.left->as<Identifier>().symbol;
+        } else if (expr.left->is<Infix>()) {
+            auto& left_infix = expr.left->as<Infix>();
+            if (left_infix.right->is<Identifier>()) {
+                left_symbol = left_infix.right->as<Identifier>().symbol;
+            }
+        }
+
+        // Step A2: If we successfully found a static Symbol on the left, we can resolve the right!
+        if (left_symbol != nullptr) {
+            Symbol_ptr resolved_left = left_symbol->resolve();
+
+            // Handle Module/Namespace Access
+            if (resolved_left->is<ModuleData>()) {
+                auto& mod_data = resolved_left->as<ModuleData>();
+                auto it = mod_data.exports.find(member_name);
+
+                Doctor::get().assert(
+                    it != mod_data.exports.end(),
+                    WaspStage::Semantics,
+                    "Module/Namespace '" + resolved_left->name + "' has no member named '" +
+                        member_name + "'."
+                );
+
+                // **CRITICAL FOR PHASE 4**: Bind the resolved symbol to the right-hand identifier!
+                Symbol_ptr member_symbol = it->second;
+                right_id.symbol = member_symbol;
+
+                return member_symbol->get_type();
+            }
+
+            // TODO: You can add `else if (resolved_left->is<ClassData>())` here later!
+        }
+
+        // Step A3: Fallback. What if it's not a static Symbol, but a dynamic runtime Object?
+        // (For instance, if `left_type` is a RecordType or a dynamic Map where members are
+        // identifiers)
+        if (left_type->is<RecordType>()) {
+            auto& record = left_type->as<RecordType>();
+            auto it = record.members.find(member_name);
+
+            Doctor::get().assert(
+                it != record.members.end(),
+                WaspStage::Semantics,
+                "Record type has no member named '" + member_name + "'."
+            );
+            return it->second;
+        }
+
+        Doctor::get().fatal(
+            WaspStage::Semantics,
+            "Cannot access member '" + member_name +
+                "' on type: " + Wasp::stringify_object(left_type)
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // SCENARIO B: Map value access - config.'host'
+    // -----------------------------------------------------------------------
+    else if (expr.right->is<std::string>()) {
+        Doctor::get().assert(
+            left_type->is<MapType>(),
+            WaspStage::Semantics,
+            "String member access requires a Map type. Got: " + Wasp::stringify_object(left_type)
+        );
+
+        return left_type->as<MapType>().value_type;
+    }
+
+    Doctor::get().fatal(WaspStage::Semantics, "Invalid right-hand side of '.' operator.");
+    return pool->get_none_type();
+}
+
 Object_ptr SemanticAnalyzer::visit(Infix& expr) {
+    if (expr.op.type == TokenType::DOT) {
+        return visit_member_access(expr);
+    }
+
     Object_ptr left_type = visit(expr.left);
     Object_ptr right_type = visit(expr.right);
     return type_system->infer(current_scope, left_type, expr.op.type, right_type);
