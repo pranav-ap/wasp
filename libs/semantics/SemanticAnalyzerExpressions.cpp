@@ -104,7 +104,7 @@ Object_ptr SemanticAnalyzer::visit(Identifier& expr) {
 }
 
 Object_ptr SemanticAnalyzer::access_member(
-    const NamespaceType& left_type, const Identifier& right_identifier
+    const ModuleType& left_type, const Identifier& right_identifier
 ) {
     std::string member_name = right_identifier.name;
     auto it = left_type.members.find(member_name);
@@ -118,7 +118,7 @@ Object_ptr SemanticAnalyzer::access_member(
     return it->second;
 }
 
-Object_ptr SemanticAnalyzer::access_member(const NamespaceType& left_type, const Call& right_call) {
+Object_ptr SemanticAnalyzer::access_member(const ModuleType& left_type, const Call& right_call) {
     Doctor::get().assert(
         right_call.callable->is<Identifier>(),
         WaspStage::Semantics,
@@ -129,9 +129,7 @@ Object_ptr SemanticAnalyzer::access_member(const NamespaceType& left_type, const
     return access_member(left_type, right_idenitifer);
 }
 
-Object_ptr SemanticAnalyzer::access_member(
-    const NamespaceType& left_type, Expression_ptr right_expr
-) {
+Object_ptr SemanticAnalyzer::access_member(const ModuleType& left_type, Expression_ptr right_expr) {
     return std::visit(
         overloaded{
             [&](Identifier& id) { return access_member(left_type, id); },
@@ -152,12 +150,12 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr) {
     Object_ptr left_type = visit(expr.left);
 
     Doctor::get().assert(
-        left_type->is<NamespaceType>(),
+        left_type->is<ModuleType>(),
         WaspStage::Semantics,
         "Incorrect type for LHS of member access."
     );
 
-    return access_member(left_type->as<NamespaceType>(), expr.right);
+    return access_member(left_type->as<ModuleType>(), expr.right);
 }
 
 Object_ptr SemanticAnalyzer::visit(Call& call_expr) {

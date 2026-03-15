@@ -174,6 +174,19 @@ namespace Wasp
             : function(std::move(function)), arity(arity), name(name) {}
     };
 
+    struct ModuleObject : public CompositeObject {
+        std::string name;
+        std::map<std::string, Object_ptr> members;
+
+        ModuleObject(std::string name) : name(std::move(name)) {}
+
+        ModuleObject(std::string name, std::map<std::string, Object_ptr> members)
+            : name(std::move(name)), members(std::move(members)) {}
+
+        Object_ptr get_member(const std::string& member_name);
+        void set_member(const std::string& member_name, Object_ptr value);
+    };
+
     // Action Objects
 
     struct BreakObject : public ActionObject
@@ -338,9 +351,8 @@ namespace Wasp
         RecordType(std::map<std::string, Object_ptr> members) : MemberedType(std::move(members)) {};
     };
 
-    struct NamespaceType : public MemberedType {
-        NamespaceType(std::map<std::string, Object_ptr> members)
-            : MemberedType(std::move(members)) {}
+    struct ModuleType : public MemberedType {
+        ModuleType(std::map<std::string, Object_ptr> members) : MemberedType(std::move(members)) {}
     };
 
     // Object STRUCT
@@ -366,6 +378,7 @@ namespace Wasp
 
             std::shared_ptr<FunctionObject>,
             std::shared_ptr<NativeFunctionObject>,
+            std::shared_ptr<ModuleObject>,
 
             std::shared_ptr<BreakObject>,
             std::shared_ptr<ContinueObject>,
@@ -391,7 +404,7 @@ namespace Wasp
             VariantType,
             FunctionType,
             RecordType,
-            NamespaceType>;
+            ModuleType>;
 
         UnderlyingVariant value;
 

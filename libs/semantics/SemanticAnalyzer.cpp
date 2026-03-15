@@ -270,8 +270,7 @@ void SemanticAnalyzer::visit(SimpleImport& import_stmt) {
         namespace_member_types[name] = exported_symbol->get_type();
     }
 
-    auto namespace_type =
-        std::make_shared<Object>(NamespaceType(std::move(namespace_member_types)));
+    auto namespace_type = std::make_shared<Object>(ModuleType(std::move(namespace_member_types)));
 
     auto namespace_symbol = SymbolFactory::create_module(module_name, namespace_type, mod->exports);
     current_scope->define(namespace_symbol);
