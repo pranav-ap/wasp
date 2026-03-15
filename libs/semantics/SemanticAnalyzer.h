@@ -148,6 +148,7 @@ class SemanticAnalyzer {
     void leave_scope();
 
     void register_natives();
+    void extract_module_type(Module_ptr module);
 
 public:
     SemanticAnalyzer(Workspace_ptr workspace)

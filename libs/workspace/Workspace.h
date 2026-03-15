@@ -3,6 +3,7 @@
 #include "CFGraph.h"
 #include "ConstantPool.h"
 #include "NativeRegistry.h"
+#include "Objects.h"
 #include "Statement.h"
 #include "Symbol.h"
 
@@ -18,6 +19,7 @@ struct Module {
 
     Block block;
     std::map<std::string, Symbol_ptr> exports;
+    Object_ptr type;
 
     CFGraph graph;
     CodeObject code;
