@@ -19,10 +19,12 @@ struct Module {
 
     Block block;
     std::map<std::string, Symbol_ptr> exports;
+
     Object_ptr type;
 
     CFGraph graph;
     CodeObject code;
+    Object_ptr instance;
 };
 
 using Module_ptr = std::shared_ptr<Module>;

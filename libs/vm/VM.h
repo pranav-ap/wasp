@@ -1,9 +1,9 @@
 #pragma once
 
-#include "ConstantPool.h"
-#include "NativeRegistry.h"
+#include "CFGraph.h"
 #include "Objects.h"
 #include "OpCode.h"
+#include "Workspace.h"
 
 #include <cstddef>
 #include <memory>
@@ -31,8 +31,7 @@ using CallFrame_ptr = std::shared_ptr<CallFrame>;
 class VM {
     ObjectVector stack;
     std::vector<CallFrame> frames;
-    ConstantPool_ptr pool;
-    NativeRegistry_ptr native_registry;
+    Workspace_ptr workspace;
 
     void push_to_stack(Object_ptr value);
     Object_ptr pop_from_stack();
@@ -87,10 +86,7 @@ class VM {
     bool is_truthy(Object_ptr obj) const;
 
 public:
-    VM(std::shared_ptr<ConstantPool> pool, NativeRegistry_ptr native_registry)
-        : pool(std::move(pool)), native_registry(native_registry) {
-        stack.reserve(256);
-    }
+    VM(Workspace_ptr workspace) : workspace(workspace) { stack.reserve(256); }
 
     void run(std::shared_ptr<FunctionObject> main_module) {
         // Push the initial frame for the entry point

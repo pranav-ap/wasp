@@ -135,16 +135,16 @@ void VM::execute_unary_op(OpCode op) {
 void VM::execute_constant(OpCode op, CallFrame* frame) {
     switch (op) {
     case OpCode::LOAD_CONST:
-        push_to_stack(pool->get(static_cast<int>(frame->consume_byte())));
+        push_to_stack(workspace->pool->get(static_cast<int>(frame->consume_byte())));
         break;
     case OpCode::LOAD_TRUE:
-        push_to_stack(pool->get_true_object());
+        push_to_stack(workspace->pool->get_true_object());
         break;
     case OpCode::LOAD_FALSE:
-        push_to_stack(pool->get_false_object());
+        push_to_stack(workspace->pool->get_false_object());
         break;
     case OpCode::LOAD_NONE:
-        push_to_stack(pool->get_none_object());
+        push_to_stack(workspace->pool->get_none_object());
         break;
     default:
         break;
@@ -170,7 +170,7 @@ void VM::execute_variable(OpCode op, CallFrame* frame) {
     }
     case OpCode::GET_NATIVE: {
         int index = static_cast<int>(frame->consume_byte());
-        push_to_stack(native_registry->get_native_object(index));
+        push_to_stack(workspace->native_registry->get_native_object(index));
         break;
     }
     case OpCode::PUSH_SCOPE:
@@ -249,7 +249,7 @@ void VM::execute_call(CallFrame* frame) {
 void VM::execute_member(OpCode op, CallFrame* frame) {
     //  Get the property name from the constant pool
     int name_index = static_cast<int>(frame->consume_byte());
-    Object_ptr name_obj = pool->get(name_index);
+    Object_ptr name_obj = workspace->pool->get(name_index);
 
     Doctor::get().assert(
         std::holds_alternative<StringObject>(name_obj->value),

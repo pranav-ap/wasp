@@ -110,7 +110,7 @@ void Captain::execute() {
 
     auto main_function = std::make_shared<FunctionObject>(main_module->code);
 
-    VM vm(workspace->pool, workspace->native_registry);
+    VM vm(workspace);
     vm.run(main_function);
 }
 

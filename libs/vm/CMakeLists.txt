@@ -1,3 +1,3 @@
 add_library(VMLib VM.cpp VMMath.cpp)
-target_link_libraries(VMLib PUBLIC ObjectSystemLib BytecodeSystemLib SymbolLib DoctorLib)
+target_link_libraries(VMLib PUBLIC ObjectSystemLib BytecodeSystemLib SymbolLib DoctorLib WorkspaceLib)
 target_include_directories(VMLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
