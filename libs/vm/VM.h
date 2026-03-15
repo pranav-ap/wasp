@@ -3,6 +3,7 @@
 #include "ConstantPool.h"
 #include "NativeRegistry.h"
 #include "Objects.h"
+#include "OpCode.h"
 
 #include <cstddef>
 #include <memory>
@@ -36,6 +37,15 @@ class VM {
     Object_ptr pop_from_stack();
     ObjectVector pop_n_from_stack(size_t n);
     Object_ptr peek_tos(size_t distance = 0) const;
+
+    void execute_binary_op(OpCode op);
+    void execute_unary_op(OpCode op);
+    void execute_stack_op(OpCode op);
+
+    void execute_constant(OpCode op, CallFrame* frame);
+    void execute_variable(OpCode op, CallFrame* frame);
+    void execute_control_flow(OpCode op, CallFrame* frame);
+    void execute_call(CallFrame* frame);
 
     void execute();
 

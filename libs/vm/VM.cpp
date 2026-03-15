@@ -65,343 +65,233 @@ bool VM::is_truthy(Object_ptr obj) const {
     );
 }
 
-void VM::execute() {
-    CallFrame* frame = &frames.back();
+void VM::execute_binary_op(OpCode op) {
+    Object_ptr right = pop_from_stack();
+    Object_ptr left = pop_from_stack();
+    Object_ptr result = nullptr;
 
+    switch (op) {
+    // Math
+    case OpCode::ADD:
+        result = perform_add(left, right);
+        break;
+    case OpCode::SUB:
+        result = perform_subtract(left, right);
+        break;
+    case OpCode::MUL:
+        result = perform_multiply(left, right);
+        break;
+    case OpCode::DIV:
+        result = perform_divide(left, right);
+        break;
+    case OpCode::MOD:
+        result = perform_reminder(left, right);
+        break;
+    case OpCode::POW:
+        result = perform_power(left, right);
+        break;
+    // Comparisons
+    case OpCode::EQ:
+        result = perform_equal(left, right);
+        break;
+    case OpCode::NE:
+        result = perform_not_equal(left, right);
+        break;
+    case OpCode::LT:
+        result = perform_lesser_than(left, right);
+        break;
+    case OpCode::LE:
+        result = perform_lesser_than_equal(left, right);
+        break;
+    case OpCode::GT:
+        result = perform_greater_than(left, right);
+        break;
+    case OpCode::GE:
+        result = perform_greater_than_equal(left, right);
+        break;
+    // Logic
+    case OpCode::LOGICAL_AND:
+        result = perform_logical_and(left, right);
+        break;
+    case OpCode::LOGICAL_OR:
+        result = perform_logical_or(left, right);
+        break;
+    default:
+        Doctor::get().fatal(WaspStage::VM, "Invalid binary opcode");
+    }
+
+    push_to_stack(result);
+}
+
+void VM::execute_unary_op(OpCode op) {
+    Object_ptr top = pop_from_stack();
+
+    if (op == OpCode::NEGATE)
+        push_to_stack(perform_unary_negative(top));
+    else if (op == OpCode::NOT)
+        push_to_stack(perform_unary_not(top));
+}
+
+void VM::execute_constant(OpCode op, CallFrame* frame) {
+    switch (op) {
+    case OpCode::LOAD_CONST:
+        push_to_stack(pool->get(static_cast<int>(frame->consume_byte())));
+        break;
+    case OpCode::LOAD_TRUE:
+        push_to_stack(pool->get_true_object());
+        break;
+    case OpCode::LOAD_FALSE:
+        push_to_stack(pool->get_false_object());
+        break;
+    case OpCode::LOAD_NONE:
+        push_to_stack(pool->get_none_object());
+        break;
+    default:
+        break;
+    }
+}
+
+void VM::execute_variable(OpCode op, CallFrame* frame) {
+    switch (op) {
+    case OpCode::DEFINE_LOCAL:
+        frame->consume_byte();
+        break;
+    case OpCode::SET_LOCAL: {
+        int index = static_cast<int>(frame->consume_byte());
+        if (index >= stack.size())
+            stack.resize(index + 1);
+        stack[frame->base_pointer + index] = peek_tos();
+        break;
+    }
+    case OpCode::GET_LOCAL: {
+        int index = static_cast<int>(frame->consume_byte());
+        push_to_stack(stack[frame->base_pointer + index]);
+        break;
+    }
+    case OpCode::GET_NATIVE: {
+        int index = static_cast<int>(frame->consume_byte());
+        push_to_stack(native_registry->get_native_object(index));
+        break;
+    }
+    case OpCode::PUSH_SCOPE:
+        frame->scope_bases.push_back(stack.size());
+        break;
+    case OpCode::POP_SCOPE: {
+        size_t base = frame->scope_bases.back();
+        frame->scope_bases.pop_back();
+        while (stack.size() > base)
+            pop_from_stack();
+        break;
+    }
+    default:
+        break;
+    }
+}
+
+void VM::execute_control_flow(OpCode op, CallFrame* frame) {
+    uint8_t low = static_cast<uint8_t>(frame->consume_byte());
+    uint8_t high = static_cast<uint8_t>(frame->consume_byte());
+    uint16_t target_ip = low | (high << 8);
+
+    if (op == OpCode::JUMP || (op == OpCode::JUMP_IF_FALSE && !is_truthy(peek_tos()))) {
+        frame->ip = target_ip;
+    }
+}
+
+void VM::execute_stack_op(OpCode op) {
+    if (op == OpCode::POP)
+        pop_from_stack();
+    else if (op == OpCode::DUP)
+        push_to_stack(peek_tos());
+}
+
+void VM::execute() {
     while (true) {
+        CallFrame* frame = &frames.back();
         OpCode instruction = static_cast<OpCode>(frame->consume_byte());
 
         switch (instruction) {
-            // ==========================================
             // Lifecycle
-            // ==========================================
 
         case OpCode::NO_OP:
             break;
-
+        case OpCode::ENTER_WORKSPACE:
+            break;
+        case OpCode::ENTER_MODULE:
+            break;
+        case OpCode::EXIT_WORKSPACE:
+        case OpCode::EXIT_MODULE:
         case OpCode::HALT:
             return;
 
-        case OpCode::ENTER_WORKSPACE:
+            // Stack Manipulations
+
+        case OpCode::POP:
+        case OpCode::DUP:
+            execute_stack_op(instruction);
             break;
 
-        case OpCode::EXIT_WORKSPACE:
-            return;
+            // Constants
 
-        case OpCode::ENTER_MODULE:
+        case OpCode::LOAD_CONST:
+        case OpCode::LOAD_TRUE:
+        case OpCode::LOAD_FALSE:
+        case OpCode::LOAD_NONE:
+            execute_constant(instruction, frame);
             break;
 
-        case OpCode::EXIT_MODULE:
-            return;
+            // Variables & Scope
 
-            // ==========================================
-            // --- Stack Manipulation ---
-            // ==========================================
-
-        case OpCode::POP: {
-            pop_from_stack();
+        case OpCode::DEFINE_LOCAL:
+        case OpCode::SET_LOCAL:
+        case OpCode::GET_LOCAL:
+        case OpCode::GET_NATIVE:
+        case OpCode::PUSH_SCOPE:
+        case OpCode::POP_SCOPE:
+            execute_variable(instruction, frame);
             break;
-        }
 
-        case OpCode::DUP: {
-            Object_ptr top = peek_tos();
-            push_to_stack(top);
-            break;
-        }
-
-            // ==========================================
-            // --- Constants ---
-            // ==========================================
-
-        case OpCode::LOAD_CONST: {
-            int index = static_cast<int>(frame->consume_byte());
-            push_to_stack(pool->get(index));
-            break;
-        }
-
-        case OpCode::LOAD_TRUE: {
-            push_to_stack(pool->get_true_object());
-            break;
-        }
-
-        case OpCode::LOAD_FALSE: {
-            push_to_stack(pool->get_false_object());
-            break;
-        }
-
-        case OpCode::LOAD_NONE: {
-            push_to_stack(pool->get_none_object());
-            break;
-        }
-
-            // ==========================================
-            // --- Variables & Scoping ---
-            // ==========================================
-
-        case OpCode::DEFINE_LOCAL: {
-            frame->consume_byte();
-            break;
-        }
-
-        case OpCode::SET_LOCAL: {
-            int index = static_cast<int>(frame->consume_byte());
-            // Peek the value (assignments evaluate to the value itself)
-            Object_ptr value = peek_tos();
-
-            if (index >= stack.size()) {
-                stack.resize(index + 1);
-            }
-
-            stack[frame->base_pointer + index] = value;
-            break;
-        }
-
-        case OpCode::GET_LOCAL: {
-            int index = static_cast<int>(frame->consume_byte());
-
-            Doctor::get().assert(
-                index < stack.size() && stack[index],
-                WaspStage::VM,
-                "Uninitialized local variable at index " + std::to_string(index)
-            );
-
-            push_to_stack(stack[frame->base_pointer + index]);
-
-            break;
-        }
-
-        case OpCode::GET_NATIVE: {
-            int index = static_cast<int>(frame->consume_byte());
-
-            auto native_obj = native_registry->get_native_object(index);
-            push_to_stack(native_obj);
-
-            break;
-        }
-
-        case OpCode::PUSH_SCOPE: {
-            frame->scope_bases.push_back(stack.size());
-            break;
-        }
-
-        case OpCode::POP_SCOPE: {
-            Doctor::get().assert(
-                !frame->scope_bases.empty(), WaspStage::VM, "POP_SCOPE called with no active scope"
-            );
-
-            size_t base = frame->scope_bases.back();
-            frame->scope_bases.pop_back();
-
-            while (stack.size() > base) {
-                pop_from_stack();
-            }
-
-            break;
-        }
-
-            // ==========================================
             // Control Flow
-            // ==========================================
 
-        case OpCode::JUMP: {
-            uint8_t low = static_cast<uint8_t>(frame->consume_byte());
-            uint8_t high = static_cast<uint8_t>(frame->consume_byte());
-            uint16_t target_ip = low | (high << 8);
-
-            frame->ip = target_ip;
+        case OpCode::JUMP:
+        case OpCode::JUMP_IF_FALSE:
+            execute_control_flow(instruction, frame);
             break;
-        }
 
-        case OpCode::JUMP_IF_FALSE: {
-            uint8_t low = static_cast<uint8_t>(frame->consume_byte());
-            uint8_t high = static_cast<uint8_t>(frame->consume_byte());
-            uint16_t target_ip = low | (high << 8);
+            // Binary Math, Comparisons, Logic
 
-            Object_ptr condition = pop_from_stack();
-
-            bool is_false = !is_truthy(condition);
-
-            if (is_false) {
-                frame->ip = target_ip;
-            }
-
+        case OpCode::ADD:
+        case OpCode::SUB:
+        case OpCode::MUL:
+        case OpCode::DIV:
+        case OpCode::MOD:
+        case OpCode::POW:
+        case OpCode::EQ:
+        case OpCode::NE:
+        case OpCode::LT:
+        case OpCode::LE:
+        case OpCode::GT:
+        case OpCode::GE:
+        case OpCode::LOGICAL_AND:
+        case OpCode::LOGICAL_OR:
+            execute_binary_op(instruction);
             break;
-        }
 
-            // ==========================================
-            // Call
-            // ==========================================
-
-        case OpCode::CALL: {
-            int arg_count = static_cast<int>(frame->consume_byte());
-            Object_ptr callee = peek_tos(arg_count);
-
-            std::visit(
-                overloaded{
-                    [&](std::shared_ptr<FunctionObject>& func) {
-                        size_t new_base_pointer = stack.size() - arg_count;
-                        frames.emplace_back(func, new_base_pointer);
-                        // loop will start reading the new function's bytecode
-                        // in next itreation
-                        frame = &frames.back();
-                    },
-
-                    [&](std::shared_ptr<NativeFunctionObject>& native) {
-                        Doctor::get().assert(
-                            native->arity == -1 || native->arity == arg_count,
-                            WaspStage::VM,
-                            "Arity mismatch in native function call"
-                        );
-
-                        // Collect arguments from the stack
-                        std::vector<Object_ptr> args(arg_count);
-                        for (int i = arg_count - 1; i >= 0; i--) {
-                            args[i] = pop_from_stack();
-                        }
-
-                        // Pop the native function object itself off the stack
-                        pop_from_stack();
-
-                        Object_ptr result = native->function(args);
-                        push_to_stack(result);
-                    },
-
-                    [](auto&) {
-                        Doctor::get().fatal(
-                            WaspStage::VM, "Attempted to call a non-callable object"
-                        );
-                    }
-                },
-                callee->value
-            );
-
-            break;
-        }
-
-            // ------------------------------------------
-            // Binary Operations
-            // ------------------------------------------
-
-        case OpCode::ADD: {
-            Object_ptr right = pop_from_stack();
-            Object_ptr left = pop_from_stack();
-            push_to_stack(perform_add(left, right));
-            break;
-        }
-
-        case OpCode::SUB: {
-            Object_ptr right = pop_from_stack();
-            Object_ptr left = pop_from_stack();
-            push_to_stack(perform_subtract(left, right));
-            break;
-        }
-
-        case OpCode::MUL: {
-            Object_ptr right = pop_from_stack();
-            Object_ptr left = pop_from_stack();
-            push_to_stack(perform_multiply(left, right));
-            break;
-        }
-
-        case OpCode::DIV: {
-            Object_ptr right = pop_from_stack();
-            Object_ptr left = pop_from_stack();
-            push_to_stack(perform_divide(left, right));
-            break;
-        }
-
-        case OpCode::MOD: {
-            Object_ptr right = pop_from_stack();
-            Object_ptr left = pop_from_stack();
-            push_to_stack(perform_reminder(left, right));
-            break;
-        }
-
-        case OpCode::POW: {
-            Object_ptr right = pop_from_stack();
-            Object_ptr left = pop_from_stack();
-            push_to_stack(perform_power(left, right));
-            break;
-        }
-
-            // ==========================================
-            // Comparisons
-            // ==========================================
-
-        case OpCode::EQ: {
-            Object_ptr right = pop_from_stack();
-            Object_ptr left = pop_from_stack();
-            push_to_stack(perform_equal(left, right));
-            break;
-        }
-        case OpCode::NE: {
-            Object_ptr right = pop_from_stack();
-            Object_ptr left = pop_from_stack();
-            push_to_stack(perform_not_equal(left, right));
-            break;
-        }
-        case OpCode::LT: {
-            Object_ptr right = pop_from_stack();
-            Object_ptr left = pop_from_stack();
-            push_to_stack(perform_lesser_than(left, right));
-            break;
-        }
-        case OpCode::LE: {
-            Object_ptr right = pop_from_stack();
-            Object_ptr left = pop_from_stack();
-            push_to_stack(perform_lesser_than_equal(left, right));
-            break;
-        }
-        case OpCode::GT: {
-            Object_ptr right = pop_from_stack();
-            Object_ptr left = pop_from_stack();
-            push_to_stack(perform_greater_than(left, right));
-            break;
-        }
-        case OpCode::GE: {
-            Object_ptr right = pop_from_stack();
-            Object_ptr left = pop_from_stack();
-            push_to_stack(perform_greater_than_equal(left, right));
-            break;
-        }
-
-            // ==========================================
             // Unary
-            // ==========================================
 
-        case OpCode::NEGATE: {
-            Object_ptr top = pop_from_stack();
-            push_to_stack(perform_unary_negative(top));
+        case OpCode::NEGATE:
+        case OpCode::NOT:
+            execute_unary_op(instruction);
             break;
-        }
 
-        case OpCode::NOT: {
-            Object_ptr top = pop_from_stack();
-            push_to_stack(perform_unary_not(top));
+            // Calls
+
+        case OpCode::CALL:
+            execute_call(frame);
             break;
-        }
 
-            // ==========================================
-            // Logic
-            // ==========================================
-
-        case OpCode::LOGICAL_AND: {
-            Object_ptr right = pop_from_stack();
-            Object_ptr left = pop_from_stack();
-            push_to_stack(perform_logical_and(left, right));
-            break;
-        }
-
-        case OpCode::LOGICAL_OR: {
-            Object_ptr right = pop_from_stack();
-            Object_ptr left = pop_from_stack();
-            push_to_stack(perform_logical_or(left, right));
-            break;
-        }
-
-        default: {
+        default:
             Doctor::get().fatal(WaspStage::VM, "Unknown OpCode encountered");
-        }
         }
     }
 }

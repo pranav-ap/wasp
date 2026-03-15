@@ -85,7 +85,7 @@ Symbol_ptr SymbolFactory::create_module(
     );
 }
 
-static Symbol_ptr create_alias(std::string name, Symbol_ptr target) {
+Symbol_ptr SymbolFactory::create_alias(std::string name, Symbol_ptr target) {
     int closure_depth, lexical_depth = 0;
 
     return std::make_shared<Symbol>(

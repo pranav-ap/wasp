@@ -14,7 +14,6 @@ Expression_ptr Parser::parse_expression() { return parse_expression(0); }
 Expression_ptr Parser::parse_expression(const int precedence) {
     auto token = token_pipe.current_in_line();
 
-    // Backtracking is a valid state here, so we use a native 'if'
     if (!token)
         return nullptr;
 
@@ -23,7 +22,6 @@ Expression_ptr Parser::parse_expression(const int precedence) {
     if (token_type == TokenType::LET) {
         token_pipe.advance_pointer();
         Expression_ptr expr = parse_expression();
-        // Replaced macro with direct, zero-copy instantiation
         return std::make_shared<Expression>(VariableDefinitionExpression(expr, true));
     }
 
@@ -62,8 +60,6 @@ Expression_ptr Parser::parse_expression(const int precedence) {
 
         auto infix_it = infix_parselets.find(token->type);
 
-        // This should never realistically trigger because get_next_operator_precedence
-        // already checks if it exists, but it's great internal documentation/safety.
         Doctor::get().assert(
             infix_it != infix_parselets.end(),
             WaspStage::Parser,

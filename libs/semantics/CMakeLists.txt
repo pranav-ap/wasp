@@ -2,6 +2,7 @@ add_library(
     SemanticAnalyzerLib 
     SemanticAnalyzer.cpp
     SemanticAnalyzerTypes.cpp
+    SemanticAnalyzerExpressions.cpp
     TypeChecker.cpp
     SymbolScope.cpp
     DependencyCrawler.cpp

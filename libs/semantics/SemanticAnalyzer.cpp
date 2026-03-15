@@ -119,68 +119,6 @@ void SemanticAnalyzer::visit(const Statement_ptr statement) {
     );
 }
 
-void SemanticAnalyzer::visit(ExpressionStatement& statement) { visit(statement.expression); }
-
-ObjectVector SemanticAnalyzer::visit(ExpressionVector expressions) {
-    ObjectVector computed_types;
-    computed_types.reserve(expressions.size());
-
-    for (const auto& expr : expressions) {
-        computed_types.push_back(visit(expr));
-    }
-
-    return computed_types;
-}
-
-Object_ptr SemanticAnalyzer::visit(const Expression_ptr expr) {
-    Doctor::get().fatal_if_nullptr(expr, WaspStage::Semantics);
-
-    return std::visit(
-        overloaded{
-            // Primitives
-            [&](int& node) -> Object_ptr { return visit(node); },
-            [&](double& node) -> Object_ptr { return visit(node); },
-            [&](std::string& node) -> Object_ptr { return visit(node); },
-            [&](bool& node) -> Object_ptr { return visit(node); },
-
-            // Identifiers & Access
-            [&](Identifier& node) -> Object_ptr { return visit(node); },
-            [&](DotLiteral& node) -> Object_ptr { return visit(node); },
-
-            // Operators
-            [&](Prefix& node) -> Object_ptr { return visit(node); },
-            [&](Infix& node) -> Object_ptr { return visit(node); },
-            [&](Postfix& node) -> Object_ptr { return visit(node); },
-
-            // Collections
-            [&](ListLiteral& node) -> Object_ptr { return visit(node); },
-            [&](TupleLiteral& node) -> Object_ptr { return visit(node); },
-            [&](MapLiteral& node) -> Object_ptr { return visit(node); },
-            [&](SetLiteral& node) -> Object_ptr { return visit(node); },
-            [&](RangeLiteral& node) -> Object_ptr { return visit(node); },
-
-            // Variables & Assignments
-            [&](VariableDefinitionExpression& node) -> Object_ptr { return visit(node); },
-            [&](UntypedAssignment& node) -> Object_ptr { return visit(node); },
-            [&](TypedAssignment& node) -> Object_ptr { return visit(node); },
-            [&](TypePattern& node) -> Object_ptr { return visit(node); },
-
-            // Control Flow
-            [&](IfTernaryBranch& node) -> Object_ptr { return visit(node); },
-            [&](ElseTernaryBranch& node) -> Object_ptr { return visit(node); },
-            [&](Call& node) -> Object_ptr { return visit(node); },
-
-            // Fallback
-            [](auto&) -> Object_ptr {
-                Doctor::get().Doctor::get().fatal(
-                    WaspStage::Semantics, "Unhandled Expression in Semantic Analyzer!"
-                );
-            }
-        },
-        expr->data
-    );
-}
-
 // ============================================================================
 // Branching
 // ============================================================================
@@ -189,7 +127,7 @@ Object_ptr SemanticAnalyzer::visit(IfTernaryBranch& expr) {
     enter_scope(ScopeType::BRANCH);
 
     Object_ptr cond_type = visit(expr.test);
-    type_system->expect_condition_type(current_scope, cond_type);
+    type_checker->expect_condition_type(current_scope, cond_type);
 
     Object_ptr then_type = visit(expr.true_expression);
     leave_scope();
@@ -197,7 +135,7 @@ Object_ptr SemanticAnalyzer::visit(IfTernaryBranch& expr) {
     if (expr.alternative) {
         Object_ptr else_type = visit(expr.alternative);
         ObjectVector unique_types =
-            type_system->remove_duplicates(current_scope, {then_type, else_type});
+            type_checker->remove_duplicates(current_scope, {then_type, else_type});
 
         if (unique_types.size() == 1) {
             return unique_types[0];
@@ -208,7 +146,7 @@ Object_ptr SemanticAnalyzer::visit(IfTernaryBranch& expr) {
 
     Object_ptr none_type = MAKE_OBJECT_VARIANT(NoneType());
     ObjectVector unique_types =
-        type_system->remove_duplicates(current_scope, {then_type, none_type});
+        type_checker->remove_duplicates(current_scope, {then_type, none_type});
 
     if (unique_types.size() == 1)
         return unique_types[0];
@@ -220,7 +158,7 @@ void SemanticAnalyzer::visit(IfBranch& statement) {
     enter_scope(ScopeType::BRANCH);
 
     Object_ptr cond_type = visit(statement.test);
-    type_system->expect_condition_type(current_scope, cond_type);
+    type_checker->expect_condition_type(current_scope, cond_type);
 
     visit(statement.body);
     leave_scope();
@@ -259,7 +197,7 @@ void SemanticAnalyzer::visit(SimpleLoop& statement) {
 
 void SemanticAnalyzer::visit(ForInLoop& loop_stmt) {
     Object_ptr iterable_type = visit(loop_stmt.iterable_expression);
-    type_system->expect_iterable_type(current_scope, iterable_type);
+    type_checker->expect_iterable_type(current_scope, iterable_type);
 
     Object_ptr element_type = MAKE_OBJECT_VARIANT(AnyType());
 
@@ -429,7 +367,7 @@ Object_ptr SemanticAnalyzer::define_variable(Expression_ptr assignment_node, boo
     // Check whether it is assignable
     if (declared_type) {
         Doctor::get().assert(
-            type_system->assignable(current_scope, declared_type, initializer_type),
+            type_checker->assignable(current_scope, declared_type, initializer_type),
             WaspStage::Semantics,
             "Type mismatch in variable definition for '" + symbol_name + "'."
         );
@@ -470,8 +408,9 @@ Object_ptr SemanticAnalyzer::define_variable(Expression_ptr assignment_node, boo
     return local_symbol->get_type();
 }
 
-Object_ptr
-SemanticAnalyzer::mutate_variable(Expression_ptr identifier_expr, Expression_ptr assigned_expr) {
+Object_ptr SemanticAnalyzer::mutate_variable(
+    Expression_ptr identifier_expr, Expression_ptr assigned_expr
+) {
     Doctor::get().assert(
         identifier_expr->is<Identifier>(),
         WaspStage::Semantics,
@@ -513,30 +452,13 @@ SemanticAnalyzer::mutate_variable(Expression_ptr identifier_expr, Expression_ptr
     Object_ptr assigned_type = visit(assigned_expr);
 
     Doctor::get().assert(
-        type_system->assignable(current_scope, target_symbol->get_type(), assigned_type),
+        type_checker->assignable(current_scope, target_symbol->get_type(), assigned_type),
         WaspStage::Semantics,
         "Type mismatch in assignment to '" + symbol_name + "'."
     );
 
     return target_symbol->get_type();
 }
-
-Object_ptr SemanticAnalyzer::visit(Identifier& expr) {
-    Symbol_ptr target_symbol = current_scope->lookup(expr.name);
-    Doctor::get().fatal_if_nullptr(target_symbol, WaspStage::Semantics);
-
-    // Only variables need to be captured by closures
-    if (target_symbol->is<VariableData>()) {
-        auto& var_data = target_symbol->as<VariableData>();
-        target_symbol->capture_if_required(current_scope->get_closure_depth());
-    }
-
-    expr.symbol = target_symbol;
-
-    return target_symbol->get_type();
-}
-
-Object_ptr SemanticAnalyzer::visit(DotLiteral& expr) { return nullptr; }
 
 // ============================================================================
 // Functions & Calls
@@ -613,52 +535,6 @@ void SemanticAnalyzer::visit(FunctionDefinition& func_def) {
     leave_scope();
 }
 
-Object_ptr SemanticAnalyzer::visit(Call& call_expr) {
-    // Resolve the Callee Type
-    Object_ptr callee_type = visit(call_expr.callee);
-
-    Doctor::get().assert(
-        callee_type->is<FunctionType>(),
-        WaspStage::Semantics,
-        "Expression is not callable. Type is: " + Wasp::stringify_object(callee_type)
-    );
-
-    if (call_expr.callee->is<Identifier>()) {
-        call_expr.symbol = call_expr.callee->as<Identifier>().symbol;
-    }
-
-    const auto& function_signature = callee_type->as<FunctionType>();
-
-    // Check Argument Types
-
-    Doctor::get().assert(
-        call_expr.arguments.size() == function_signature.input_types.size(),
-        WaspStage::Semantics,
-        "Incorrect number of arguments. Expected " +
-            std::to_string(function_signature.input_types.size()) + ", got " +
-            std::to_string(call_expr.arguments.size()) + "."
-    );
-
-    for (size_t i = 0; i < call_expr.arguments.size(); ++i) {
-        Object_ptr argument_type = visit(call_expr.arguments[i]);
-        Object_ptr parameter_type = function_signature.input_types[i];
-
-        Doctor::get().assert(
-            type_system->assignable(current_scope, parameter_type, argument_type),
-            WaspStage::Semantics,
-            "Argument mismatch at index " + std::to_string(i) + ". Expected " +
-                Wasp::stringify_object(parameter_type) + ", got " +
-                Wasp::stringify_object(argument_type) + "."
-        );
-    }
-
-    if (function_signature.return_type.has_value()) {
-        return function_signature.return_type.value();
-    }
-
-    return MAKE_OBJECT_VARIANT(NoneType());
-}
-
 void SemanticAnalyzer::visit(Return& statement) {
     Doctor::get().assert(
         !return_type_stack.empty(),
@@ -671,224 +547,11 @@ void SemanticAnalyzer::visit(Return& statement) {
                                                               : MAKE_OBJECT_VARIANT(NoneType());
 
     Doctor::get().assert(
-        type_system->assignable(current_scope, expected_type, actual_type),
+        type_checker->assignable(current_scope, expected_type, actual_type),
         WaspStage::Semantics,
         "Return type mismatch. Expected " + Wasp::stringify_object(expected_type) + ", got " +
             Wasp::stringify_object(actual_type)
     );
 }
 
-// ============================================================================
-// EXPRESSION
-// ============================================================================
-
-Object_ptr SemanticAnalyzer::visit(int expr) { return MAKE_OBJECT_VARIANT(IntType()); }
-
-Object_ptr SemanticAnalyzer::visit(double expr) { return MAKE_OBJECT_VARIANT(FloatType()); }
-
-Object_ptr SemanticAnalyzer::visit(std::string expr) { return MAKE_OBJECT_VARIANT(StringType()); }
-
-Object_ptr SemanticAnalyzer::visit(bool expr) { return MAKE_OBJECT_VARIANT(BooleanType()); }
-
-// --- Operators ---
-
-Object_ptr SemanticAnalyzer::visit(Prefix& expr) {
-    Object_ptr right_type = visit(expr.operand);
-    return type_system->infer(current_scope, right_type, expr.op.type);
-}
-
-Object_ptr SemanticAnalyzer::visit_member_access(Infix& expr) {
-    Object_ptr left_type = visit(expr.left);
-
-    // -----------------------------------------------------------------------
-    // SCENARIO A: Module Access (e.g., math.sqrt, Animal.Dog)
-    // -----------------------------------------------------------------------
-    if (expr.right->is<Identifier>()) {
-        auto& right_id = expr.right->as<Identifier>();
-        std::string member_name = right_id.name;
-
-        // Step A1: Try to extract the Symbol from the left-hand side.
-        // If left is an Identifier ('math'), it's directly attached.
-        // If left is an Infix ('Animal.Dog'), we want the symbol attached to 'Dog'.
-        Symbol_ptr left_symbol = nullptr;
-
-        if (expr.left->is<Identifier>()) {
-            left_symbol = expr.left->as<Identifier>().symbol;
-        } else if (expr.left->is<Infix>()) {
-            auto& left_infix = expr.left->as<Infix>();
-            if (left_infix.right->is<Identifier>()) {
-                left_symbol = left_infix.right->as<Identifier>().symbol;
-            }
-        }
-
-        // Step A2: If we successfully found a static Symbol on the left, we can resolve the right!
-        if (left_symbol != nullptr) {
-            Symbol_ptr resolved_left = left_symbol->resolve();
-
-            // Handle Module/Namespace Access
-            if (resolved_left->is<ModuleData>()) {
-                auto& mod_data = resolved_left->as<ModuleData>();
-                auto it = mod_data.exports.find(member_name);
-
-                Doctor::get().assert(
-                    it != mod_data.exports.end(),
-                    WaspStage::Semantics,
-                    "Module/Namespace '" + resolved_left->name + "' has no member named '" +
-                        member_name + "'."
-                );
-
-                // **CRITICAL FOR PHASE 4**: Bind the resolved symbol to the right-hand identifier!
-                Symbol_ptr member_symbol = it->second;
-                right_id.symbol = member_symbol;
-
-                return member_symbol->get_type();
-            }
-
-            // TODO: You can add `else if (resolved_left->is<ClassData>())` here later!
-        }
-
-        // Step A3: Fallback. What if it's not a static Symbol, but a dynamic runtime Object?
-        // (For instance, if `left_type` is a RecordType or a dynamic Map where members are
-        // identifiers)
-        if (left_type->is<RecordType>()) {
-            auto& record = left_type->as<RecordType>();
-            auto it = record.members.find(member_name);
-
-            Doctor::get().assert(
-                it != record.members.end(),
-                WaspStage::Semantics,
-                "Record type has no member named '" + member_name + "'."
-            );
-            return it->second;
-        }
-
-        Doctor::get().fatal(
-            WaspStage::Semantics,
-            "Cannot access member '" + member_name +
-                "' on type: " + Wasp::stringify_object(left_type)
-        );
-    }
-
-    // -----------------------------------------------------------------------
-    // SCENARIO B: Map value access - config.'host'
-    // -----------------------------------------------------------------------
-    else if (expr.right->is<std::string>()) {
-        Doctor::get().assert(
-            left_type->is<MapType>(),
-            WaspStage::Semantics,
-            "String member access requires a Map type. Got: " + Wasp::stringify_object(left_type)
-        );
-
-        return left_type->as<MapType>().value_type;
-    }
-
-    Doctor::get().fatal(WaspStage::Semantics, "Invalid right-hand side of '.' operator.");
-    return pool->get_none_type();
-}
-
-Object_ptr SemanticAnalyzer::visit(Infix& expr) {
-    if (expr.op.type == TokenType::DOT) {
-        return visit_member_access(expr);
-    }
-
-    Object_ptr left_type = visit(expr.left);
-    Object_ptr right_type = visit(expr.right);
-    return type_system->infer(current_scope, left_type, expr.op.type, right_type);
-}
-
-Object_ptr SemanticAnalyzer::visit(Postfix& expr) {
-    Object_ptr left_type = visit(expr.operand);
-    type_system->expect_number_type(left_type);
-    return left_type;
-}
-
-Object_ptr SemanticAnalyzer::visit(ListLiteral& expr) {
-    if (expr.expressions.empty())
-        return MAKE_OBJECT_VARIANT(ListType(MAKE_OBJECT_VARIANT(AnyType())));
-
-    ObjectVector element_types;
-    for (const auto& element : expr.expressions)
-        element_types.push_back(visit(element));
-
-    ObjectVector unique_types = type_system->remove_duplicates(current_scope, element_types);
-
-    if (unique_types.size() == 1)
-        return MAKE_OBJECT_VARIANT(ListType(unique_types[0]));
-    return MAKE_OBJECT_VARIANT(ListType(MAKE_OBJECT_VARIANT(VariantType(unique_types))));
-}
-
-Object_ptr SemanticAnalyzer::visit(TupleLiteral& expr) {
-    ObjectVector element_types;
-    for (const auto& element : expr.expressions)
-        element_types.push_back(visit(element));
-    return MAKE_OBJECT_VARIANT(TupleType(element_types));
-}
-
-Object_ptr SemanticAnalyzer::visit(MapLiteral& expr) {
-    if (expr.pairs.empty())
-        return MAKE_OBJECT_VARIANT(
-            MapType(MAKE_OBJECT_VARIANT(AnyType()), MAKE_OBJECT_VARIANT(AnyType()))
-        );
-
-    ObjectVector key_types;
-    ObjectVector val_types;
-
-    for (const auto& [key_expr, val_expr] : expr.pairs) {
-        Object_ptr k_type = visit(key_expr);
-        type_system->expect_key_type(current_scope, k_type);
-        key_types.push_back(k_type);
-        val_types.push_back(visit(val_expr));
-    }
-
-    ObjectVector unique_keys = type_system->remove_duplicates(current_scope, key_types);
-    ObjectVector unique_vals = type_system->remove_duplicates(current_scope, val_types);
-
-    Object_ptr final_key_type =
-        unique_keys.size() == 1 ? unique_keys[0] : MAKE_OBJECT_VARIANT(VariantType(unique_keys));
-    Object_ptr final_val_type =
-        unique_vals.size() == 1 ? unique_vals[0] : MAKE_OBJECT_VARIANT(VariantType(unique_vals));
-
-    return MAKE_OBJECT_VARIANT(MapType(final_key_type, final_val_type));
-}
-
-Object_ptr SemanticAnalyzer::visit(SetLiteral& expr) {
-    if (expr.expressions.empty())
-        return MAKE_OBJECT_VARIANT(SetType(MAKE_OBJECT_VARIANT(AnyType())));
-
-    ObjectVector element_types;
-    for (const auto& element : expr.expressions) {
-        Object_ptr el_type = visit(element);
-        type_system->expect_key_type(current_scope, el_type);
-        element_types.push_back(el_type);
-    }
-
-    ObjectVector unique_types = type_system->remove_duplicates(current_scope, element_types);
-
-    if (unique_types.size() == 1)
-        return MAKE_OBJECT_VARIANT(SetType(unique_types[0]));
-    return MAKE_OBJECT_VARIANT(SetType(MAKE_OBJECT_VARIANT(VariantType(unique_types))));
-}
-
-Object_ptr SemanticAnalyzer::visit(RangeLiteral& expr) {
-    Object_ptr start_type = nullptr;
-    Object_ptr end_type = nullptr;
-
-    if (expr.start) {
-        start_type = visit(expr.start);
-        type_system->expect_number_type(start_type);
-    }
-
-    if (expr.end) {
-        end_type = visit(expr.end);
-        type_system->expect_number_type(end_type);
-    }
-
-    if (type_system->is_float_type(start_type) || type_system->is_float_type(end_type)) {
-        return MAKE_OBJECT_VARIANT(ListType(MAKE_OBJECT_VARIANT(FloatType())));
-    }
-
-    return MAKE_OBJECT_VARIANT(ListType(MAKE_OBJECT_VARIANT(IntType())));
-}
-
-Object_ptr SemanticAnalyzer::visit(TypePattern& expr) { return nullptr; }
 } // namespace Wasp

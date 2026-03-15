@@ -76,7 +76,7 @@ void Captain::hoist_symbols(const std::vector<Module_ptr>& build_order) {
 }
 
 void Captain::type_check_and_link(const std::vector<Module_ptr>& build_order) {
-    SemanticAnalyzer sa(workspace->native_registry, workspace);
+    SemanticAnalyzer sa(workspace);
     sa.run(build_order);
 }
 

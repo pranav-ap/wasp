@@ -34,7 +34,7 @@ TEST(Semantics, Simple) {
 
     // 5. Run Phase 3: Semantic Analysis
     // Pass the native_registry from the workspace for consistency
-    Wasp::SemanticAnalyzer semantic_analyzer(workspace->native_registry, workspace);
+    Wasp::SemanticAnalyzer semantic_analyzer(workspace);
 
     // This will now successfully link symbols and check types
     semantic_analyzer.run(build_order);

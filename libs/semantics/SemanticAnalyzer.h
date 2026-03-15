@@ -5,6 +5,7 @@
 #include "NativeRegistry.h"
 #include "Objects.h"
 #include "Statement.h"
+#include "Symbol.h"
 #include "SymbolScope.h"
 #include "TypeAnnotation.h"
 #include "TypeChecker.h"
@@ -17,7 +18,7 @@
 namespace Wasp {
 class SemanticAnalyzer {
     ConstantPool_ptr pool;
-    TypeChecker_ptr type_system;
+    TypeChecker_ptr type_checker;
     NativeRegistry_ptr native_registry;
     SymbolScope_ptr current_scope;
     ObjectVector return_type_stack;
@@ -82,10 +83,16 @@ class SemanticAnalyzer {
     Object_ptr visit(std::string expr);
     Object_ptr visit(bool expr);
 
-    Object_ptr visit(Identifier& expr);
     Object_ptr visit(DotLiteral& expr);
 
-    Object_ptr visit_member_access(Infix& expr);
+    Object_ptr visit(Identifier& expr);
+
+    Object_ptr access_member(const NamespaceType& left_type, Expression_ptr right_expr);
+    Object_ptr access_member(const NamespaceType& left_type, const Identifier& right_identifier);
+    Object_ptr access_member(const NamespaceType& left_type, const Call& right_call);
+
+    Object_ptr visit(MemberAccess& expr);
+    Object_ptr visit(Call& expr);
 
     Object_ptr visit(Prefix& expr);
     Object_ptr visit(Infix& expr);
@@ -101,8 +108,6 @@ class SemanticAnalyzer {
 
     Object_ptr visit(IfTernaryBranch& expr);
     Object_ptr visit(ElseTernaryBranch& expr);
-
-    Object_ptr visit(Call& expr);
 
     // ========================================================================
     // Type Visitors
@@ -145,11 +150,9 @@ class SemanticAnalyzer {
     void register_natives();
 
 public:
-    SemanticAnalyzer(
-        ConstantPool_ptr pool, NativeRegistry_ptr native_registry, Workspace_ptr workspace
-    )
-        : pool(pool), type_system(std::make_shared<TypeChecker>(pool)),
-          native_registry(native_registry), workspace(workspace) {};
+    SemanticAnalyzer(Workspace_ptr workspace)
+        : pool(workspace->pool), type_checker(std::make_shared<TypeChecker>(workspace->pool)),
+          native_registry(workspace->native_registry), workspace(workspace) {};
 
     void run(const std::vector<Module_ptr>& build_order);
 };

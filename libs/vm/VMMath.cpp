@@ -1,7 +1,9 @@
+#include "Objects.h"
 #include "VM.h"
 
-#include <string>
 #include <cmath>
+#include <memory>
+#include <string>
 #include <variant>
 
 #define MAKE_OBJECT_VARIANT(x) std::make_shared<Object>(x)
@@ -16,7 +18,6 @@ template <class... Ts>
 overloaded(Ts...) -> overloaded<Ts...>;
 
 using std::string;
-using std::to_string;
 
 namespace Wasp
 {

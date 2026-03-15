@@ -20,3 +20,8 @@ AccessModifierOffset: -4
 
 # Forces line breaks after the opening brace and before the closing brace
 AlignAfterOpenBracket: BlockIndent
+
+AlwaysBreakAfterReturnType: None
+AlwaysBreakAfterDefinitionReturnType: None
+PenaltyReturnTypeOnItsOwnLine: 100000
+

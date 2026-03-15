@@ -90,12 +90,13 @@ namespace Wasp
 		void resolve_jumps_in_block(ByteVector &bytes, const std::map<BlockId, size_t> &offsets) const;
 
 		void compile_variable_definition(const Expression_ptr &assignment, bool as_expression = false);
-		void compile_assignment(const Expression_ptr &lhs, const Expression_ptr &rhs);
+        void compile_identifier_assignment(Identifier& id, const Expression_ptr& rhs);
+        void compile_member_assignment(MemberAccess& mac, const Expression_ptr& rhs);
 
-		CodeObject flatten();
+        CodeObject flatten();
 
-	public:
-		Compiler(ConstantPool_ptr pool, NativeRegistry_ptr native_registry);
+    public:
+        Compiler(ConstantPool_ptr pool, NativeRegistry_ptr native_registry);
 		Compiler(ConstantPool_ptr pool, Compiler *parent);
 
 		const CFGraph &get_graph() const { return graph; }
@@ -137,15 +138,18 @@ namespace Wasp
 		void visit(std::string expr);
 		void visit(bool expr);
 
-		void visit(Identifier &expr);
-		void visit(DotLiteral &expr);
+        void visit(DotLiteral& expr);
 
-		void visit(Prefix &expr);
-		void visit(Infix &expr);
-		void visit(Postfix &expr);
+        void visit(Identifier& expr);
+        void visit(MemberAccess& expr);
+        void visit(Call& expr);
 
-		void visit(ListLiteral &expr);
-		void visit(TupleLiteral &expr);
+        void visit(Prefix& expr);
+        void visit(Infix& expr);
+        void visit(Postfix& expr);
+
+        void visit(ListLiteral& expr);
+        void visit(TupleLiteral &expr);
 		void visit(MapLiteral &expr);
 		void visit(SetLiteral &expr);
 		void visit(RangeLiteral &expr);
@@ -156,10 +160,8 @@ namespace Wasp
 		void visit(TypePattern &expr);
 
 		void visit(IfTernaryBranch &expr);
-		void visit(ElseTernaryBranch &expr);
+        void visit(ElseTernaryBranch& expr);
+    };
 
-		void visit(Call &expr);
-	};
-
-	using Compiler_ptr = std::shared_ptr<Compiler>;
+    using Compiler_ptr = std::shared_ptr<Compiler>;
 }

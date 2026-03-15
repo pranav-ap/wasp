@@ -44,7 +44,6 @@ namespace Wasp
         register_infix_right(TokenType::POWER, Precedence::EXPONENT);
 
         register_infix_left(TokenType::TILDE, Precedence::PIPE);
-        register_infix_left(TokenType::DOT, Precedence::MEMBER_ACCESS);
 
         register_parselet(TokenType::IDENTIFIER, make_shared<IdentifierParselet>());
         register_parselet(TokenType::MY, make_shared<IdentifierParselet>());
@@ -64,6 +63,8 @@ namespace Wasp
         register_parselet(TokenType::EQUAL, make_shared<AssignmentParselet>());
         register_parselet(TokenType::COLON, make_shared<TypePatternParselet>());
         register_parselet(TokenType::IF, make_shared<TernaryConditionParselet>());
+
+        register_parselet(TokenType::DOT, make_shared<MemberAccessParselet>());
 
         register_parselet(TokenType::DOT, make_shared<PlaceholderDotParselet>());
         register_parselet(TokenType::DOT_DOT_LESS, std::make_shared<PrefixRangeParselet>(false));

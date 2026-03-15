@@ -80,7 +80,7 @@ protected:
         hoister.run(build_order);
 
         // 5. Phase 3: Semantic Analysis
-        Wasp::SemanticAnalyzer semantic_analyzer(workspace->native_registry, workspace);
+        Wasp::SemanticAnalyzer semantic_analyzer(workspace);
         semantic_analyzer.run(build_order);
 
         // 6. Phase 4: Bytecode Compilation

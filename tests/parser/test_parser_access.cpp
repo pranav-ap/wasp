@@ -5,185 +5,172 @@
 #include <gtest/gtest.h>
 #include <string>
 
-TEST(ParseExpressions, MemberAccessNested)
-{
-    auto block = parse(R"(Animal.Dog.GermanShepherd)");
+TEST(ParseExpressions, MemberAccessNested) {
+    auto block = parse("Animal.Dog.GermanShepherd");
     ASSERT_EQ(block.size(), 1);
 
     auto& expr_stmt = check<Wasp::ExpressionStatement>(block[0]);
 
-    // Top Level: [Left] . GermanShepherd
-    {
-        auto &top_infix = check<Wasp::Infix>(expr_stmt.expression);
-        EXPECT_EQ(top_infix.op.type, Wasp::TokenType::DOT);
+    // Top Level: [Animal.Dog] . [GermanShepherd]
+    auto& outer_access = check<Wasp::MemberAccess>(expr_stmt.expression);
 
-        auto &right_id = check<Wasp::Identifier>(top_infix.right);
-        EXPECT_EQ(right_id.name, "GermanShepherd");
+    auto& right_id = check<Wasp::Identifier>(outer_access.right);
+    EXPECT_EQ(right_id.name, "GermanShepherd");
 
-        // Nested Level: Animal . Dog
-        {
-            auto &nested_infix = check<Wasp::Infix>(top_infix.left);
-            EXPECT_EQ(nested_infix.op.type, Wasp::TokenType::DOT);
+    // Inner Level: [Animal] . [Dog]
+    auto& inner_access = check<Wasp::MemberAccess>(outer_access.left);
 
-            auto &left_id = check<Wasp::Identifier>(nested_infix.left);
-            EXPECT_EQ(left_id.name, "Animal");
+    auto& inner_right_id = check<Wasp::Identifier>(inner_access.right);
+    EXPECT_EQ(inner_right_id.name, "Dog");
 
-            auto &mid_id = check<Wasp::Identifier>(nested_infix.right);
-            EXPECT_EQ(mid_id.name, "Dog");
-        }
-    }
+    auto& inner_left_id = check<Wasp::Identifier>(inner_access.left);
+    EXPECT_EQ(inner_left_id.name, "Animal");
 }
 
-TEST(ParseExpressions, MemberAccessWithString)
-{
-    auto block = parse(R"(Animal.'Dog'.GermanShepherd)");
-    ASSERT_EQ(block.size(), 1);
-
-    auto& expr_stmt = check<Wasp::ExpressionStatement>(block[0]);
-
-    // Top Level: [Left] . GermanShepherd
-    {
-        auto &top_infix = check<Wasp::Infix>(expr_stmt.expression);
-        EXPECT_EQ(top_infix.op.type, Wasp::TokenType::DOT);
-
-        auto &right_id = check<Wasp::Identifier>(top_infix.right);
-        EXPECT_EQ(right_id.name, "GermanShepherd");
-
-        // Nested Level: Animal . 'Dog'
-        {
-            auto &nested_infix = check<Wasp::Infix>(top_infix.left);
-            EXPECT_EQ(nested_infix.op.type, Wasp::TokenType::DOT);
-
-            auto &left_id = check<Wasp::Identifier>(nested_infix.left);
-            EXPECT_EQ(left_id.name, "Animal");
-
-            // FIX: Assert on the string node rather than just EXPECT_TRUE(true)
-            auto &mid_str = check<std::string>(nested_infix.right);
-            EXPECT_EQ(mid_str, "Dog");
-        }
-    }
-}
-
-TEST(ParseExpressions, FunctionCallWithoutArguments)
-{
+TEST(ParseExpressions, FunctionCallWithoutArguments) {
     auto block = parse("get_worker()");
     ASSERT_EQ(block.size(), 1);
 
     auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
-    auto &call = check<Wasp::Call>(stmt.expression);
+    auto& call = check<Wasp::Call>(stmt.expression);
 
-    auto &id = check<Wasp::Identifier>(call.callee);
+    auto& id = check<Wasp::Identifier>(call.callable);
     EXPECT_EQ(id.name, "get_worker");
     EXPECT_EQ(call.arguments.size(), 0);
 }
 
-TEST(ParseExpressions, FunctionCallWithMultipleArguments)
-{
+TEST(ParseExpressions, FunctionCallWithMultipleArguments) {
     auto block = parse("get_worker(1, 'John', true)");
     ASSERT_EQ(block.size(), 1);
 
     auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
     ASSERT_NE(stmt.expression, nullptr);
 
-    auto &call = check<Wasp::Call>(stmt.expression);
+    auto& call = check<Wasp::Call>(stmt.expression);
     ASSERT_EQ(call.arguments.size(), 3);
 }
 
-TEST(ParseExpressions, MethodCallWithArguments)
-{
+TEST(ParseExpressions, MethodCallWithArguments) {
     auto block = parse("company.get_worker(1, 'John', true)");
     ASSERT_EQ(block.size(), 1);
 
     auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
 
-    auto &call = check<Wasp::Call>(stmt.expression);
+    // Top Level is now a pure Call node
+    auto& call = check<Wasp::Call>(stmt.expression);
     EXPECT_EQ(call.arguments.size(), 3);
 
-    auto &callee_infix = check<Wasp::Infix>(call.callee);
-    EXPECT_EQ(callee_infix.op.type, Wasp::TokenType::DOT);
+    // The callable being executed is a MemberAccess node
+    auto& callee_access = check<Wasp::MemberAccess>(call.callable);
 
-    auto &left_id = check<Wasp::Identifier>(callee_infix.left);
+    auto& left_id = check<Wasp::Identifier>(callee_access.left);
     EXPECT_EQ(left_id.name, "company");
 
-    auto &right_id = check<Wasp::Identifier>(callee_infix.right);
+    auto& right_id = check<Wasp::Identifier>(callee_access.right);
     EXPECT_EQ(right_id.name, "get_worker");
 }
 
-TEST(ParseExpressions, MethodCallWithArgumentsThenMemberAccess)
-{
+TEST(ParseExpressions, MethodCallWithArgumentsThenMemberAccess) {
     auto block = parse("company.get_worker(1, 'John', true).name");
     ASSERT_EQ(block.size(), 1);
 
     auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
 
-    // Top Level: [company.get_worker(1, 'John', true)] . [name]
-    auto &root_infix = check<Wasp::Infix>(stmt.expression);
-    EXPECT_EQ(root_infix.op.type, Wasp::TokenType::DOT);
+    // Top Level: [company.get_worker(...)] . [name]
+    auto& outer_access = check<Wasp::MemberAccess>(stmt.expression);
 
-    {
-        // Right side: 'name'
-        auto &root_right_id = check<Wasp::Identifier>(root_infix.right);
-        EXPECT_EQ(root_right_id.name, "name");
-    }
+    auto& property_id = check<Wasp::Identifier>(outer_access.right);
+    EXPECT_EQ(property_id.name, "name");
 
-    {
-        // Left side: the call 'company.get_worker(1, 'John', true)'
-        auto &call = check<Wasp::Call>(root_infix.left);
-        EXPECT_EQ(call.arguments.size(), 3);
+    // The left side is the Call node!
+    auto& call = check<Wasp::Call>(outer_access.left);
+    EXPECT_EQ(call.arguments.size(), 3);
 
-        // Check the callee of the call: 'company.get_worker'
-        auto &callee_infix = check<Wasp::Infix>(call.callee);
-        EXPECT_EQ(callee_infix.op.type, Wasp::TokenType::DOT);
+    auto& inner_access = check<Wasp::MemberAccess>(call.callable);
 
-        auto &callee_left_id = check<Wasp::Identifier>(callee_infix.left);
-        EXPECT_EQ(callee_left_id.name, "company");
+    auto& left_id = check<Wasp::Identifier>(inner_access.left);
+    EXPECT_EQ(left_id.name, "company");
 
-        auto &callee_right_id = check<Wasp::Identifier>(callee_infix.right);
-        EXPECT_EQ(callee_right_id.name, "get_worker");
-    }
+    auto& right_id = check<Wasp::Identifier>(inner_access.right);
+    EXPECT_EQ(right_id.name, "get_worker");
 }
 
-TEST(ParseExpressions, PipeOutput)
-{
+TEST(ParseExpressions, FunctionCallThenMemberAccess) {
+    auto block = parse("get_company().worker");
+    ASSERT_EQ(block.size(), 1);
+
+    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
+
+    // Top Level: [get_company()] . [worker]
+    auto& access = check<Wasp::MemberAccess>(stmt.expression);
+
+    auto& property_id = check<Wasp::Identifier>(access.right);
+    EXPECT_EQ(property_id.name, "worker");
+
+    // The left side is a Call node
+    auto& call = check<Wasp::Call>(access.left);
+    EXPECT_EQ(call.arguments.size(), 0);
+
+    auto& callee_id = check<Wasp::Identifier>(call.callable);
+    EXPECT_EQ(callee_id.name, "get_company");
+}
+
+TEST(ParseExpressions, FunctionCallThenMethodCall) {
+    auto block = parse("get_company().get_worker(1)");
+    ASSERT_EQ(block.size(), 1);
+
+    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
+
+    // Top Level: A Call because the chain ends in an execution: (...)
+    auto& outer_call = check<Wasp::Call>(stmt.expression);
+    EXPECT_EQ(outer_call.arguments.size(), 1);
+
+    // The callable is the MemberAccess: [get_company()] . [get_worker]
+    auto& access = check<Wasp::MemberAccess>(outer_call.callable);
+
+    auto& method_id = check<Wasp::Identifier>(access.right);
+    EXPECT_EQ(method_id.name, "get_worker");
+
+    // The left side of the member access is the initial Call
+    auto& left_call = check<Wasp::Call>(access.left);
+    EXPECT_EQ(left_call.arguments.size(), 0);
+
+    auto& left_callee = check<Wasp::Identifier>(left_call.callable);
+    EXPECT_EQ(left_callee.name, "get_company");
+}
+
+TEST(ParseExpressions, PipeOutput) {
     auto block = parse("foo() ~ bar(., 35) ~ boom(*.)");
     ASSERT_EQ(block.size(), 1);
 
     auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
 
-    // Top Level: [foo() ~ bar(., 35)] ~ [boom(*.)]
-    auto &root_infix = check<Wasp::Infix>(stmt.expression);
+    auto& root_infix = check<Wasp::Infix>(stmt.expression);
 
     {
-        // Right side: boom(*.)
-        auto &right_call = check<Wasp::Call>(root_infix.right);
+        auto& right_call = check<Wasp::Call>(root_infix.right);
         EXPECT_EQ(right_call.arguments.size(), 1);
 
-        // The argument is a Prefix expression for `*`
-        auto &boom_arg = check<Wasp::Prefix>(right_call.arguments[0]);
+        auto& boom_arg = check<Wasp::Prefix>(right_call.arguments[0]);
         EXPECT_EQ(boom_arg.op.type, Wasp::TokenType::STAR);
 
-        // The target of the spread `*` is the pipe placeholder `.`
-        auto &spread_target = check<Wasp::DotLiteral>(boom_arg.operand);
+        auto& spread_target = check<Wasp::DotLiteral>(boom_arg.operand);
     }
 
     {
-        // Left side: foo() ~ bar(., 35)
-        auto &left_infix = check<Wasp::Infix>(root_infix.left);
+        auto& left_infix = check<Wasp::Infix>(root_infix.left);
 
         {
-            // LeftInfix Right side: bar(., 35)
-            auto &bar_call = check<Wasp::Call>(left_infix.right);
+            auto& bar_call = check<Wasp::Call>(left_infix.right);
             ASSERT_EQ(bar_call.arguments.size(), 2);
 
-            // Check '.' and '35' arguments
-            auto &bar_arg1 = check<Wasp::DotLiteral>(bar_call.arguments[0]);
-            auto &bar_arg2 = check<int>(bar_call.arguments[1]);
+            auto& bar_arg1 = check<Wasp::DotLiteral>(bar_call.arguments[0]);
+            auto& bar_arg2 = check<int>(bar_call.arguments[1]);
             EXPECT_EQ(bar_arg2, 35);
         }
 
         {
-            // LeftInfix Left side: foo()
-            auto &foo_call = check<Wasp::Call>(left_infix.left);
+            auto& foo_call = check<Wasp::Call>(left_infix.left);
             EXPECT_EQ(foo_call.arguments.size(), 0);
         }
     }

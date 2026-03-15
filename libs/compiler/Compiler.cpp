@@ -487,7 +487,8 @@ void Compiler::visit(Return& statement) {
 }
 
 void Compiler::visit(Call& expr) {
-    visit(expr.callee);
+    visit(expr.callable);
+
     for (const auto& arg : expr.arguments)
         visit(arg);
 
@@ -525,11 +526,12 @@ void Compiler::visit(const Expression_ptr expr) {
             [&](double val) { visit(val); },
             [&](std::string val) { visit(val); },
             [&](bool val) { visit(val); },
-            [&](Identifier& id) { visit(id); },
             [&](UntypedAssignment& a) { visit(a); },
             [&](TypedAssignment& a) { visit(a); },
             [&](Prefix& p) { visit(p); },
             [&](Infix& i) { visit(i); },
+            [&](Identifier& id) { visit(id); },
+            [&](MemberAccess& m) { visit(m); },
             [&](Call& c) { visit(c); },
             [&](ListLiteral& l) { visit(l); },
             [&](TupleLiteral& t) { visit(t); },
@@ -568,16 +570,21 @@ void Compiler::visit(Identifier& expr) {
     }
 }
 
-void Compiler::compile_assignment(const Expression_ptr& lhs, const Expression_ptr& rhs) {
+void Compiler::visit(MemberAccess& expr) {
+    visit(expr.left);
+
+    auto& right_id = expr.right->as<Identifier>();
+    std::string member_name = right_id.name;
+
+    int name_index = constant_pool->allocate(member_name);
+    emit(OpCode::GET_MEMBER, name_index);
+}
+
+void Compiler::compile_identifier_assignment(Identifier& id, const Expression_ptr& rhs) {
+    // 1. Evaluate the right side (Stack: [val])
     visit(rhs);
 
-    Doctor::get().assert(
-        lhs->is<Identifier>(),
-        WaspStage::Compiler,
-        "Left-hand side of assignment must be an Identifier."
-    );
-
-    auto symbol = lhs->as<Identifier>().symbol;
+    auto symbol = id.symbol;
     Doctor::get().fatal_if_nullptr(symbol, WaspStage::Compiler);
 
     bool is_captured = false;
@@ -585,6 +592,7 @@ void Compiler::compile_assignment(const Expression_ptr& lhs, const Expression_pt
         is_captured = symbol->as<VariableData>().is_captured;
     }
 
+    // 2. Emit the assignment
     if (is_captured) {
         int idx = resolve_upvalue(this, symbol);
         emit(OpCode::SET_UPVALUE, idx);
@@ -593,8 +601,41 @@ void Compiler::compile_assignment(const Expression_ptr& lhs, const Expression_pt
     }
 }
 
+void Compiler::compile_member_assignment(MemberAccess& mac, const Expression_ptr& rhs) {
+    // Evaluate the object first (Stack: [obj])
+    visit(mac.left);
+
+    // Evaluate the value second (Stack: [obj, val])
+    visit(rhs);
+
+    // Extract the property name
+    Doctor::get().assert(
+        mac.right->is<Identifier>(),
+        WaspStage::Compiler,
+        "Right side of member assignment must be an Identifier."
+    );
+
+    std::string member_name = mac.right->as<Identifier>().name;
+    int name_index = constant_pool->allocate(member_name);
+    emit(OpCode::SET_MEMBER, name_index);
+}
+
 void Compiler::visit(UntypedAssignment& expr) {
-    compile_assignment(expr.lhs_expression, expr.rhs_expression);
+    Doctor::get().fatal_if_nullptr(expr.lhs_expression, WaspStage::Compiler);
+
+    std::visit(
+        overloaded{
+            [&](Identifier& id) { compile_identifier_assignment(id, expr.rhs_expression); },
+            [&](MemberAccess& mac) { compile_member_assignment(mac, expr.rhs_expression); },
+            [&](auto&) {
+                Doctor::get().fatal(
+                    WaspStage::Compiler,
+                    "Invalid left-hand side for assignment. Must be an Identifier or MemberAccess."
+                );
+            }
+        },
+        expr.lhs_expression->data
+    );
 }
 
 void Compiler::visit(TypedAssignment& expr) {

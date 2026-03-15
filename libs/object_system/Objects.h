@@ -27,26 +27,16 @@ namespace Wasp
     {
     };
 
-    struct IterableAbstractObject : virtual public AbstractObject
-    {
+    struct IterableAbstractObject : public AbstractObject {
         virtual Object_ptr get_iter() = 0;
     };
 
-    struct ScalarObject : virtual public AbstractObject
-    {
-    };
-    struct CompositeObject : virtual public AbstractObject
-    {
-    };
-    struct ActionObject : virtual public AbstractObject
-    {
-    };
-    struct NoneObject : virtual public AbstractObject
-    {
-    };
+    struct ScalarObject : public AbstractObject {};
+    struct CompositeObject : public AbstractObject {};
+    struct ActionObject : public AbstractObject {};
+    struct NoneObject : public AbstractObject {};
 
-    struct DefinitionObject : virtual public AbstractObject
-    {
+    struct DefinitionObject : public AbstractObject {
         std::string name;
         DefinitionObject(std::string name)
             : name(std::move(name)) {};
@@ -143,10 +133,7 @@ namespace Wasp
         int get_length();
     };
 
-    struct MapObject : public CompositeObject, public IterableAbstractObject
-    {
-        // TODO: You will need a custom transparent comparator here instead of default std::less
-        // otherwise this map compares shared_ptr memory addresses, not the object values!
+    struct MapObject : public CompositeObject, public IterableAbstractObject {
         std::map<Object_ptr, Object_ptr> pairs;
 
         Object_ptr insert(Object_ptr key, Object_ptr value);
@@ -217,7 +204,7 @@ namespace Wasp
 
     // Type Objects
 
-    struct AnyType : virtual public AbstractObject {};
+    struct AnyType : public AbstractObject {};
 
     struct NoneType : public AnyType
     {
@@ -328,16 +315,32 @@ namespace Wasp
             : input_types(std::move(input_types)), return_type(std::make_optional(std::move(return_type))) {};
     };
 
-    struct RecordType : public CompositeType
-    {
+    struct MemberedType : public CompositeType {
         std::map<std::string, Object_ptr> members;
-        RecordType(std::map<std::string, Object_ptr> members)
-            : members(std::move(members)) {};
+
+        MemberedType(std::map<std::string, Object_ptr> members) : members(std::move(members)) {}
+
+        bool contains_member(const std::string& member_name) const {
+            return members.find(member_name) != members.end();
+        }
+
+        Object_ptr get_member_type(const std::string& member_name) const {
+            auto it = members.find(member_name);
+            if (it != members.end()) {
+                return it->second;
+            }
+
+            return nullptr;
+        }
     };
 
-    struct NamespaceType : public CompositeType {
-        std::map<std::string, Object_ptr> members;
-        NamespaceType(std::map<std::string, Object_ptr> members) : members(std::move(members)) {}
+    struct RecordType : public MemberedType {
+        RecordType(std::map<std::string, Object_ptr> members) : MemberedType(std::move(members)) {};
+    };
+
+    struct NamespaceType : public MemberedType {
+        NamespaceType(std::map<std::string, Object_ptr> members)
+            : MemberedType(std::move(members)) {}
     };
 
     // Object STRUCT
