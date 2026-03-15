@@ -205,6 +205,47 @@ void VM::execute_stack_op(OpCode op) {
         push_to_stack(peek_tos());
 }
 
+void VM::execute_call(CallFrame* frame) {
+    int arg_count = static_cast<int>(frame->consume_byte());
+    Object_ptr callable = peek_tos(arg_count);
+
+    std::visit(
+        overloaded{
+            [&](std::shared_ptr<FunctionObject>& func) {
+                size_t new_base_pointer = stack.size() - arg_count;
+                frames.emplace_back(func, new_base_pointer);
+                // The main execution loop will automatically start reading
+                // the new function's bytecode on the next iteration
+            },
+
+            [&](std::shared_ptr<NativeFunctionObject>& native) {
+                Doctor::get().assert(
+                    native->arity == -1 || native->arity == arg_count,
+                    WaspStage::VM,
+                    "Arity mismatch in native function call"
+                );
+
+                // Collect arguments from the stack
+                std::vector<Object_ptr> args(arg_count);
+                for (int i = arg_count - 1; i >= 0; i--) {
+                    args[i] = pop_from_stack();
+                }
+
+                // Pop the native function object off the stack
+                pop_from_stack();
+
+                Object_ptr result = native->function(args);
+                push_to_stack(result);
+            },
+
+            [](auto&) {
+                Doctor::get().fatal(WaspStage::VM, "Attempted to call a non-callable object");
+            }
+        },
+        callable->value
+    );
+}
+
 void VM::execute() {
     while (true) {
         CallFrame* frame = &frames.back();

@@ -2,6 +2,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <source_location>
 #include <string>
 
 namespace Wasp {
@@ -14,6 +15,8 @@ std::string to_string(WaspStage stage) {
         return "Parser Error";
     case WaspStage::Semantics:
         return "Semantic Error";
+    case WaspStage::Captain:
+        return "Captain Error";
     case WaspStage::Compiler:
         return "Compiler Error";
     case WaspStage::VM:
@@ -26,34 +29,55 @@ std::string to_string(WaspStage stage) {
 }
 
 void Doctor::print_error(const WaspError& err) const {
-    // ANSI color codes: \033[31;1m is bold red, \033[0m resets formatting
-    std::cerr << "\033[31;1m" << to_string(err.stage) << "\033[0m : " << err.message << "\n";
+    std::cerr << "\033[31m" << to_string(err.stage) << "\033[0m : " << err.message << "\n";
 
-    if (err.line > 0) {
-        if (err.column > 0) {
-            std::cerr << "  -> at line " << err.line << ", column " << err.column << "\n";
+    if (err.wasp_line > 0) {
+        if (err.wasp_column > 0) {
+            std::cerr << "  -> at Wasp script line " << err.wasp_line << ", column "
+                      << err.wasp_column << "\n";
         } else {
-            std::cerr << "  -> at line " << err.line << "\n";
+            std::cerr << "  -> at Wasp script line " << err.wasp_line << "\n";
         }
     }
 
-    std::cerr << "\n";
+    std::cerr << "  => [Wasp Trace] FILE     : " << err.cpp_file << ":" << err.cpp_line << "\n";
+    std::cerr << "  => [Wasp Trace] FUNCTION : " << err.cpp_function << "\n\n";
 }
 
-void Doctor::fatal(WaspStage stage, const std::string& message, int line, int column) const {
-    WaspError err{stage, message, line, column};
+void Doctor::fatal(
+    WaspStage stage,
+    const std::string& message,
+    int line,
+    int column,
+    const std::source_location location
+) const {
+    WaspError err{
+        stage,
+        message,
+        line,
+        column,
+        location.file_name(),
+        static_cast<int>(location.line()),
+        location.function_name()
+    };
+
     print_error(err);
 
-    std::cerr << "\033[31;1mCompilation aborted due to fatal errors.\033[0m\n";
+    std::cerr << "\033[31mCompilation aborted due to fatal errors.\033[0m\n";
     std::exit(EXIT_FAILURE);
 }
 
 void Doctor::assert(
-    bool condition, WaspStage stage, const std::string& message, int line, int column
+    bool condition,
+    WaspStage stage,
+    const std::string& message,
+    int line,
+    int column,
+    const std::source_location location
 ) const {
     if (!condition) {
-        fatal(stage, message, line, column);
+        // Forward the location to fatal so we know exactly which assert tripped!
+        fatal(stage, message, line, column, location);
     }
 }
-
 } // namespace Wasp

@@ -46,7 +46,7 @@ Expression_ptr Parser::parse_expression(const int precedence) {
     }
 
     Expression_ptr left = prefix_it->second->parse(*this, *token);
-    Doctor::get().fatal_if_nullptr(left, WaspStage::Parser, token->line, token->column);
+    Doctor::get().fatal_if_nullptr(left, WaspStage::Parser, "", token->line, token->column);
 
     // ------------------------------------------------------------------
     // Infix Parsing
