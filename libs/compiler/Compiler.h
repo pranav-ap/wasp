@@ -8,7 +8,6 @@
 #include "Statement.h"
 #include "Symbol.h"
 
-
 #include <cstddef>
 #include <map>
 #include <memory>
@@ -16,152 +15,149 @@
 #include <tuple>
 #include <vector>
 
+namespace Wasp {
+struct Upvalue {
+    // The index of the variable to capture.
+    // If is_local is true: index into the parent's stack.
+    // If is_local is false: index into the parent's own upvalue array.
+    int index;
 
-namespace Wasp
-{
-	struct Upvalue
-	{
-		// The index of the variable to capture.
-		// If is_local is true: index into the parent's stack.
-		// If is_local is false: index into the parent's own upvalue array.
-		int index;
+    // Determines where the value is located at runtime during closure creation.
+    bool is_local;
+};
 
-		// Determines where the value is located at runtime during closure creation.
-		bool is_local;
-	};
+class Compiler {
+private:
+    ConstantPool_ptr pool;
+    NativeRegistry_ptr native_registry;
 
-	class Compiler
-	{
-	private:
-        ConstantPool_ptr pool;
-        NativeRegistry_ptr native_registry;
+    // ------------------------------------------------------------------------
+    // Closure Support
+    // ------------------------------------------------------------------------
 
-        // ------------------------------------------------------------------------
-        // Closure Support
-        // ------------------------------------------------------------------------
+    Compiler* parent;
+    std::vector<Upvalue> upvalues;
 
-        Compiler *parent;
-		std::vector<Upvalue> upvalues;
+    int compiler_depth = 0;
+    int current_lexical_scope_depth = 0;
 
-		int compiler_depth = 0;
-		int current_lexical_scope_depth = 0;
+    int add_upvalue(int index, bool is_local);
+    int resolve_upvalue(Compiler* current_compiler, Symbol_ptr symbol);
 
-		int add_upvalue(int index, bool is_local);
-		int resolve_upvalue(Compiler *current_compiler, Symbol_ptr symbol);
+    // ------------------------------------------------------------------------
+    // Control Flow Graph
+    // ------------------------------------------------------------------------
 
-		// ------------------------------------------------------------------------
-		// Control Flow Graph
-		// ------------------------------------------------------------------------
+    CFGraph graph;
+    BlockId current_block_id;
 
-		CFGraph graph;
-		BlockId current_block_id;
+    // Stack of <HeaderBlockId, BodyBlockId, EndBlockId, lexical_scope_depth, body depth>
+    std::vector<std::tuple<BlockId, BlockId, BlockId, int, int>> loop_tracking_stack;
 
-		// Stack of <HeaderBlockId, BodyBlockId, EndBlockId, lexical_scope_depth, body depth>
-		std::vector<std::tuple<BlockId, BlockId, BlockId, int, int>> loop_tracking_stack;
+    // -----------------------------------------------------------------------
+    // Scope
+    // -----------------------------------------------------------------------
 
-		// -----------------------------------------------------------------------
-		// Scope
-		// -----------------------------------------------------------------------
+    void enter_scope();
+    void leave_scope();
 
-		void enter_scope();
-		void leave_scope();
+    // -----------------------------------------------------------------------
+    // Debugging
+    // -----------------------------------------------------------------------
+    std::map<int, std::string> debug_name_map;
 
-		// -----------------------------------------------------------------------
-		// Debugging
-		// -----------------------------------------------------------------------
-		std::map<int, std::string> debug_name_map;
+    // -----------------------------------------------------------------------
+    // Emit
+    // ----------------------------------------------------------------------
 
-		// -----------------------------------------------------------------------
-		// Emit
-		// ----------------------------------------------------------------------
+    void emit(OpCode opcode);
+    void emit(OpCode opcode, int operand);
+    void emit(OpCode opcode, int operand_1, int operand_2);
+    void emit_raw_byte(std::byte b);
 
-		void emit(OpCode opcode);
-		void emit(OpCode opcode, int operand);
-		void emit(OpCode opcode, int operand_1, int operand_2);
-		void emit_raw_byte(std::byte b);
+    // ========================================================================
+    // Visitors
+    // ========================================================================
 
-		// -----------------------------------------------------------------------
-		// UTILS
-		// -----------------------------------------------------------------------
+    void visit(const Statement_ptr statement);
+    void visit(std::vector<Statement_ptr>& statements);
 
-		void set_current_block(BlockId block_id) { current_block_id = block_id; }
+    void visit(ExpressionStatement& statement);
+    void visit(VariableDefinition& statement);
 
-		std::map<BlockId, size_t> calculate_block_offsets() const;
-		void resolve_jumps_in_block(ByteVector &bytes, const std::map<BlockId, size_t> &offsets) const;
+    void visit(IfBranch& statement);
+    void visit(ElseBranch& statement);
 
-		void compile_variable_definition(const Expression_ptr &assignment, bool as_expression = false);
-        void compile_identifier_assignment(Identifier& id, const Expression_ptr& rhs);
-        void compile_member_assignment(MemberAccess& mac, const Expression_ptr& rhs);
+    void visit(SimpleLoop& statement);
+    void visit(ForInLoop& statement);
 
-        CodeObject flatten();
+    void visit(Pass& statement);
+    void visit(LoopControl& statement);
 
-    public:
-        Compiler(ConstantPool_ptr pool, NativeRegistry_ptr native_registry);
-		Compiler(ConstantPool_ptr pool, Compiler *parent);
+    void visit(FunctionDefinition& statement);
+    void visit(Return& statement);
 
-		const CFGraph &get_graph() const { return graph; }
-		const std::map<int, std::string> &get_name_map() const { return debug_name_map; }
+    void visit(SimpleImport& statement);
+    void visit(FromImport& statement);
 
-        CodeObject run(const Block& block);
+    // Expressions
 
-        // ========================================================================
-        // Visitors
-        // ========================================================================
+    void visit(const Expression_ptr expr);
+    void visit(std::vector<Expression_ptr>& expressions);
 
-        void visit(const Statement_ptr statement);
-		void visit(std::vector<Statement_ptr> &statements);
+    void visit(int expr);
+    void visit(double expr);
+    void visit(std::string expr);
+    void visit(bool expr);
 
-		void visit(ExpressionStatement &statement);
-		void visit(VariableDefinition &statement);
+    void visit(DotLiteral& expr);
 
-		void visit(IfBranch &statement);
-		void visit(ElseBranch &statement);
+    void visit(Identifier& expr);
+    void visit(MemberAccess& expr);
+    void visit(Call& expr);
 
-		void visit(SimpleLoop &statement);
-		void visit(ForInLoop &statement);
+    void visit(Prefix& expr);
+    void visit(Infix& expr);
+    void visit(Postfix& expr);
 
-		void visit(Pass &statement);
-		void visit(LoopControl &statement);
+    void visit(ListLiteral& expr);
+    void visit(TupleLiteral& expr);
+    void visit(MapLiteral& expr);
+    void visit(SetLiteral& expr);
+    void visit(RangeLiteral& expr);
 
-		void visit(FunctionDefinition &statement);
-		void visit(Return &statement);
+    void visit(VariableDefinitionExpression& expr);
+    void visit(UntypedAssignment& expr);
+    void visit(TypedAssignment& expr);
+    void visit(TypePattern& expr);
 
-        void visit(SimpleImport& statement);
-        void visit(FromImport& statement);
+    void visit(IfTernaryBranch& expr);
+    void visit(ElseTernaryBranch& expr);
 
-        // Expressions
-        void visit(const Expression_ptr expr);
-		void visit(std::vector<Expression_ptr> &expressions);
+    // -----------------------------------------------------------------------
+    // UTILS
+    // -----------------------------------------------------------------------
 
-		void visit(int expr);
-		void visit(double expr);
-		void visit(std::string expr);
-		void visit(bool expr);
+    void set_current_block(BlockId block_id) { current_block_id = block_id; }
 
-        void visit(DotLiteral& expr);
+    std::map<BlockId, size_t> calculate_block_offsets() const;
+    void resolve_jumps_in_block(ByteVector& bytes, const std::map<BlockId, size_t>& offsets) const;
 
-        void visit(Identifier& expr);
-        void visit(MemberAccess& expr);
-        void visit(Call& expr);
+    void compile_variable_definition(const Expression_ptr& assignment, bool as_expression = false);
+    void compile_identifier_assignment(Identifier& id, const Expression_ptr& rhs);
+    void compile_member_assignment(MemberAccess& mac, const Expression_ptr& rhs);
 
-        void visit(Prefix& expr);
-        void visit(Infix& expr);
-        void visit(Postfix& expr);
+    CodeObject flatten();
 
-        void visit(ListLiteral& expr);
-        void visit(TupleLiteral &expr);
-		void visit(MapLiteral &expr);
-		void visit(SetLiteral &expr);
-		void visit(RangeLiteral &expr);
+public:
+    Compiler(ConstantPool_ptr pool, NativeRegistry_ptr native_registry);
+    Compiler(ConstantPool_ptr pool, Compiler* parent);
 
-		void visit(VariableDefinitionExpression &expr);
-		void visit(UntypedAssignment &expr);
-		void visit(TypedAssignment &expr);
-		void visit(TypePattern &expr);
+    const CFGraph& get_graph() const { return graph; }
+    const std::map<int, std::string>& get_name_map() const { return debug_name_map; }
 
-		void visit(IfTernaryBranch &expr);
-        void visit(ElseTernaryBranch& expr);
-    };
+    CodeObject run(const Block& block, bool is_main = false);
+};
 
-    using Compiler_ptr = std::shared_ptr<Compiler>;
-}
+using Compiler_ptr = std::shared_ptr<Compiler>;
+} // namespace Wasp

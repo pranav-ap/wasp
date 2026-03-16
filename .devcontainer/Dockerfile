@@ -20,5 +20,6 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
         clangd \
         clang-tidy \
         lldb \
+        lld \ 
         iwyu \
         ccache

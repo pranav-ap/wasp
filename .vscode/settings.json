@@ -34,6 +34,9 @@
         "--fallback-style=LLVM", // Base formatting style if no .clang-format file is found
         "-j=4" // Use 4 background threads for faster indexing
     ],
+    "files.eol": "\n",
+    "files.insertFinalNewline": true, // Adds a blank line at the end of the file automatically
+    "files.trimTrailingWhitespace": true, // Deletes invisible spaces at the end of lines
     // -----------------------------------------------------------------
     // Debugger
     // -----------------------------------------------------------------

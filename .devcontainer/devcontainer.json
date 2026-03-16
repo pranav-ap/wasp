@@ -28,7 +28,7 @@
 					"--completion-style=detailed"
 				],
 				// Quality of life: Auto-format your C++ code on save
-				"editor.formatOnSave": true,
+				"editor.formatOnSave": false,
 				"[cpp]": {
 					"editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
 				}
@@ -37,10 +37,13 @@
 				"llvm-vs-code-extensions.vscode-clangd",
 				"ms-vscode.cmake-tools",
 				"GitHub.copilot-chat",
-				"vadimcn.vscode-lldb"
+				"vadimcn.vscode-lldb",
+				"mrmlnc.vscode-duplicate",
+				"codezombiech.gitignore",
+				"redhat.vscode-yaml"
 			]
 		}
 	},
 	// Automatically generate build files and compile_commands.json right after the container spins up
-	"postCreateCommand": "git config --global user.email 'pranavap96@gmail.com' && git config --global user.name 'pranav-ap' && ccache -M 5G && cmake -B build -G Ninja && cmake --build build && ctest --test-dir build -L \"unit\""
+	"postCreateCommand": "sudo chown -R vscode:vscode /home/vscode/.cache/ccache && git config --global user.email 'pranavap96@gmail.com' && git config --global user.name 'pranav-ap' && ccache -M 5G && cmake -B build -G Ninja && cmake --build build && ctest --test-dir build -L \"unit\""
 }

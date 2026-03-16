@@ -187,6 +187,8 @@ void VM::execute_return(CallFrame* frame) {
 }
 
 void VM::run(CodeObject code) {
+    frames.emplace_back(std::make_shared<FunctionVMObject>(code), 0);
+
     while (true) {
         CallFrame* frame = &frames.back();
         OpCode instruction = static_cast<OpCode>(frame->consume_byte());
@@ -198,7 +200,6 @@ void VM::run(CodeObject code) {
             break;
 
         case OpCode::ENTER_WORKSPACE:
-            frames.emplace_back(std::make_shared<FunctionVMObject>(code), 0);
             break;
         case OpCode::EXIT_WORKSPACE:
             frames.pop_back();
@@ -287,7 +288,7 @@ void VM::run(CodeObject code) {
         case OpCode::CALL:
             execute_call(frame);
             break;
-        
+
         case OpCode::RETURN:
             execute_return(frame);
             break;

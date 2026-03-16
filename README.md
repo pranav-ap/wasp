@@ -22,11 +22,6 @@ build/src/wasp.exe run ./code/main.wasp
 ## Linux Setup
 
 ```bash
-sudo apt update
-
-sudo apt install ccache -y
-sudo apt-get install lld -y
-
 ls /usr/bin/lldb-dap* /usr/bin/lldb-vscode*
 /usr/bin/lldb-vscode-14
 ```

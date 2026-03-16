@@ -89,8 +89,10 @@ void Captain::type_check_and_link(const std::vector<Module_ptr>& build_order) {
 
 void Captain::compile(const std::vector<Module_ptr>& build_order) {
     for (const auto& module : build_order) {
+        bool is_main = (module->file_path == entry_file);
+
         Compiler compiler(workspace->pool, workspace->native_registry);
-        module->code = compiler.run(module->block);
+        module->code = compiler.run(module->block, is_main);
 
         dump_build_artifacts(workspace, module->file_path, module->code);
     }

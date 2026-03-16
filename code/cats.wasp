@@ -1,3 +1,2 @@
 fun print_cats()
     print('cats')
-    

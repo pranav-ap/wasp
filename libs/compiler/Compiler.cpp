@@ -795,7 +795,11 @@ CodeObject Compiler::flatten() {
     return final_bytecode;
 }
 
-CodeObject Compiler::run(const Block& block) {
+CodeObject Compiler::run(const Block& block, bool is_main) {
+    if (is_main) {
+        emit(OpCode::ENTER_WORKSPACE);
+    }
+
     emit(OpCode::ENTER_MODULE);
 
     for (const auto& s : block) {
@@ -808,6 +812,10 @@ CodeObject Compiler::run(const Block& block) {
     set_current_block(exit);
 
     emit(OpCode::EXIT_MODULE);
+
+    if (is_main) {
+        emit(OpCode::EXIT_WORKSPACE);
+    }
 
     return flatten();
 }
