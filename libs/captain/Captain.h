@@ -15,6 +15,7 @@ private:
     std::shared_ptr<Workspace> workspace;
     std::filesystem::path entry_file;
 
+    void parse_modules();
     void parse_module(const std::filesystem::path& file_path);
 
     std::vector<Module_ptr> calculate_build_order();

@@ -507,7 +507,7 @@ void Compiler::visit(SimpleImport& statement) {
     emit(OpCode::IMPORT, path_index);
 
     Doctor::get().fatal_if_nullptr(
-        statement.symbol, WaspStage::Compiler, "SimpleImport must have a resolved symbol."
+        statement.symbol, WaspStage::Compiler, "Simple Import must have a resolved symbol."
     );
 
     debug_name_map[statement.symbol->id] = statement.symbol->name;

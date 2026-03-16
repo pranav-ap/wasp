@@ -147,6 +147,15 @@ struct FunctionObject : public CompositeObject {
     FunctionObject(CodeObject code) : code(std::move(code)) {};
 };
 
+struct FunctionVMObject : public FunctionObject {
+    ObjectVector upvalues;
+
+    FunctionVMObject(CodeObject code) : FunctionObject(std::move(code)) {}
+
+    FunctionVMObject(CodeObject code, ObjectVector upvalues)
+        : FunctionObject(std::move(code)), upvalues(std::move(upvalues)) {}
+};
+
 using NativeFnType = std::function<Object_ptr(const std::vector<Object_ptr>&)>;
 
 struct NativeFunctionObject : public CompositeObject {
@@ -169,14 +178,6 @@ struct ModuleObject : public CompositeObject {
 
     Object_ptr get_member(const std::string& member_name);
     void set_member(const std::string& member_name, Object_ptr value);
-};
-
-struct ReferenceObject : public CompositeObject {
-    std::string name;
-    Object_ptr target;
-
-    ReferenceObject(std::string name, Object_ptr target)
-        : name(std::move(name)), target(std::move(target)) {}
 };
 
 // Action Objects
@@ -334,9 +335,9 @@ struct Object {
         std::shared_ptr<VariantObject>,
 
         std::shared_ptr<FunctionObject>,
+        std::shared_ptr<FunctionVMObject>,
         std::shared_ptr<NativeFunctionObject>,
         std::shared_ptr<ModuleObject>,
-        std::shared_ptr<ReferenceObject>,
 
         std::shared_ptr<BreakObject>,
         std::shared_ptr<ContinueObject>,

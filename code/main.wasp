@@ -1,4 +1,7 @@
-import my.cats 
-
 print('hello')
-cats.print_cats()
+
+fun yo()
+    print('yo')
+
+print('calling now')
+yo()

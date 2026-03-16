@@ -9,7 +9,6 @@
     },
     
     "C_Cpp.intelliSenseEngine": "disabled",
-    
     "cmake.generator": "Ninja",
     "clangd.arguments": [
         "--log=verbose",

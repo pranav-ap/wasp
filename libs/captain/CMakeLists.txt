@@ -15,4 +15,4 @@ target_link_libraries(CaptainLib
         VMLib
 )
 
-target_include_directories(CaptainLib PUBLIC .)
+target_include_directories(CaptainLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

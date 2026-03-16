@@ -36,11 +36,11 @@ namespace Wasp
         ConstantPool_ptr pool;
         NativeRegistry_ptr native_registry;
 
-		// ------------------------------------------------------------------------
-		// Closure Support
-		// ------------------------------------------------------------------------
+        // ------------------------------------------------------------------------
+        // Closure Support
+        // ------------------------------------------------------------------------
 
-		Compiler *parent;
+        Compiler *parent;
 		std::vector<Upvalue> upvalues;
 
 		int compiler_depth = 0;

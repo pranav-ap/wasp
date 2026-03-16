@@ -13,14 +13,14 @@
 
 namespace Wasp {
 struct CallFrame {
-    std::shared_ptr<FunctionObject> function;
+    std::shared_ptr<FunctionVMObject> function;
     size_t ip = 0;
     // Where locals start on the VM stack
     size_t base_pointer = 0;
 
     std::vector<size_t> scope_bases;
 
-    CallFrame(std::shared_ptr<FunctionObject> func, size_t bp)
+    CallFrame(std::shared_ptr<FunctionVMObject> func, size_t bp)
         : function(std::move(func)), base_pointer(bp) {}
 
     std::byte consume_byte() { return function->code.data()[ip++]; }
@@ -45,6 +45,8 @@ class VM {
     void execute_constant(OpCode op, CallFrame* frame);
     void execute_variable(OpCode op, CallFrame* frame);
     void execute_control_flow(OpCode op, CallFrame* frame);
+
+    void execute_make_function(CallFrame* frame);
     void execute_call(CallFrame* frame);
 
     void execute_member(OpCode op, CallFrame* frame);
@@ -88,9 +90,9 @@ class VM {
 public:
     VM(Workspace_ptr workspace) : workspace(workspace) { stack.reserve(256); }
 
-    void run(std::shared_ptr<FunctionObject> main_module) {
+    void run(CodeObject code) {
         // Push the initial frame for the entry point
-        frames.emplace_back(main_module, 0);
+        frames.emplace_back(std::make_shared<FunctionVMObject>(code), 0);
         execute();
     }
 };

@@ -42,6 +42,14 @@ Captain::Captain(const std::filesystem::path& target_path) {
                      : (workspace_root / "main.wasp").lexically_normal();
 }
 
+void Captain::parse_modules() {
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(workspace->root_path)) {
+        if (entry.is_regular_file() && entry.path().extension() == ".wasp") {
+            parse_module(entry.path());
+        }
+    }
+}
+
 void Captain::parse_module(const std::filesystem::path& file_path) {
     auto abs_path = std::filesystem::absolute(file_path).lexically_normal();
 
@@ -90,11 +98,7 @@ void Captain::compile(const std::vector<Module_ptr>& build_order) {
 }
 
 std::shared_ptr<Workspace> Captain::build() {
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(workspace->root_path)) {
-        if (entry.is_regular_file() && entry.path().extension() == ".wasp") {
-            parse_module(entry.path());
-        }
-    }
+    parse_modules();
 
     auto build_order = calculate_build_order();
     hoist_symbols(build_order);
@@ -108,10 +112,8 @@ void Captain::execute() {
     auto main_module = workspace->get_module(entry_file);
     Doctor::get().fatal_if_nullptr(main_module, WaspStage::Captain);
 
-    auto main_function = std::make_shared<FunctionObject>(main_module->code);
-
     VM vm(workspace);
-    vm.run(main_function);
+    vm.run(main_module->code);
 }
 
 } // namespace Wasp

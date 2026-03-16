@@ -205,13 +205,49 @@ void VM::execute_stack_op(OpCode op) {
         push_to_stack(peek_tos());
 }
 
+void VM::execute_make_function(CallFrame* frame) {
+    int upvalue_count = static_cast<int>(frame->consume_byte());
+
+    // Pop the function blueprint from the stack (put there by LOAD_CONST)
+    Object_ptr blueprint_obj = pop_from_stack();
+    Doctor::get().assert(
+        blueprint_obj->is<std::shared_ptr<FunctionObject>>(),
+        WaspStage::VM,
+        "MAKE_FUNCTION expects a FunctionObject to pop"
+    );
+
+    auto blueprint = blueprint_obj->as<std::shared_ptr<FunctionObject>>();
+
+    // Prepare the upvalues
+
+    ObjectVector captured_upvalues;
+    captured_upvalues.reserve(upvalue_count);
+
+    for (int i = 0; i < upvalue_count; i++) {
+        bool is_local = (frame->consume_byte() == std::byte{1});
+        uint8_t index = static_cast<uint8_t>(frame->consume_byte());
+
+        if (is_local) {
+            captured_upvalues.push_back(stack[frame->base_pointer + index]);
+        } else {
+            captured_upvalues.push_back(frame->function->upvalues[index]);
+        }
+    }
+
+    auto runtime_closure =
+        std::make_shared<FunctionVMObject>(blueprint->code, std::move(captured_upvalues));
+
+    Object_ptr closure_obj = std::make_shared<Object>(runtime_closure);
+    push_to_stack(closure_obj);
+}
+
 void VM::execute_call(CallFrame* frame) {
     int arg_count = static_cast<int>(frame->consume_byte());
     Object_ptr callable = peek_tos(arg_count);
 
     std::visit(
         overloaded{
-            [&](std::shared_ptr<FunctionObject>& func) {
+            [&](std::shared_ptr<FunctionVMObject>& func) {
                 size_t new_base_pointer = stack.size() - arg_count;
                 frames.emplace_back(func, new_base_pointer);
                 // The main execution loop will automatically start reading
@@ -392,7 +428,11 @@ void VM::execute() {
             execute_unary_op(instruction);
             break;
 
-            // Calls
+            // FUNCTION
+
+        case OpCode::MAKE_FUNCTION:
+            execute_make_function(frame);
+            break;
 
         case OpCode::CALL:
             execute_call(frame);

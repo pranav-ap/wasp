@@ -18,13 +18,13 @@ struct Module {
     std::filesystem::path file_path;
 
     Block block;
+
     CodeObject code;
 
     std::map<std::string, Symbol_ptr> exports;
     Object_ptr type;
 
     CFGraph graph;
-    std::shared_ptr<FunctionObject> fo_instance;
 };
 
 using Module_ptr = std::shared_ptr<Module>;
