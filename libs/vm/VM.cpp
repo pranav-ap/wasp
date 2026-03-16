@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <utility>
@@ -195,16 +196,20 @@ void VM::run(CodeObject code) {
 
         case OpCode::NO_OP:
             break;
+
         case OpCode::ENTER_WORKSPACE:
             frames.emplace_back(std::make_shared<FunctionVMObject>(code), 0);
-            break;
-        case OpCode::ENTER_MODULE:
             break;
         case OpCode::EXIT_WORKSPACE:
             frames.pop_back();
             break;
+
+        case OpCode::ENTER_MODULE:
+            break;
         case OpCode::EXIT_MODULE:
+            return;
         case OpCode::HALT:
+            std::cerr << "Execution halted by HALT instruction.\n";
             return;
 
             // Stack Manipulations
@@ -282,8 +287,13 @@ void VM::run(CodeObject code) {
         case OpCode::CALL:
             execute_call(frame);
             break;
+        
+        case OpCode::RETURN:
+            execute_return(frame);
+            break;
 
         default:
+            std::cerr << "Unknown OpCode encountered : " << stringify_opcode(instruction) << std::endl;
             Doctor::get().fatal(WaspStage::VM, "Unknown OpCode encountered");
         }
     }

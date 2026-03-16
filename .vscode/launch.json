@@ -3,10 +3,8 @@
     "configurations": [
         {
             "name": "Wasp",
-            "type": "lldb-dap",
+            "type": "lldb",
             "request": "launch",
-            // POINT TO YOUR LOCAL BINARY
-            "lldb-dap": "/usr/bin/lldb-vscode-14",
             "program": "${workspaceFolder}/build/src/wasp",
             "args": [
                 "run",
@@ -14,22 +12,18 @@
             ],
             "cwd": "${workspaceFolder}",
             "preLaunchTask": "Build",
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen"
         },
         {
             "name": "Unit Tests",
-            "type": "lldb-dap",
+            "type": "lldb",
             "request": "launch",
-            // POINT TO YOUR LOCAL BINARY
-            "lldb-dap": "/usr/bin/lldb-vscode-14",
             "program": "${workspaceFolder}/build/tests/${input:testTarget}",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
-            "preLaunchTask": "Build",
-            "sourceFileMap": {
-                "/workspaces/wasp": "${workspaceFolder}"
-            }
+            "preLaunchTask": "Build"
         }
     ],
     "inputs": [
@@ -41,7 +35,7 @@
                 "lexer_tests",
                 "parser_tests",
                 "semantics_tests",
-                "compiler_tests"
+                "compiler_tests",
             ],
             "default": "compiler_tests"
         }
