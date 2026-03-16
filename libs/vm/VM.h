@@ -50,6 +50,9 @@ class VM {
     void execute_call(CallFrame* frame);
     void execute_return(CallFrame* frame);
 
+    void execute_import(CallFrame* frame);
+    void execute_exit_module();
+
     void execute_member(OpCode op, CallFrame* frame);
     Object_ptr perform_get_member(Object_ptr obj, const std::string& name);
     void perform_set_member(Object_ptr obj, const std::string& name, Object_ptr value);

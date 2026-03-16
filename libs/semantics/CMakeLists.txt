@@ -1,8 +1,14 @@
 add_library(
-    SemanticAnalyzerLib 
+    SemanticAnalyzerLib
     SemanticAnalyzer.cpp
-    SemanticAnalyzerTypes.cpp
-    SemanticAnalyzerExpressions.cpp
+    SemanticAnalyzer_types.cpp
+    SemanticAnalyzer_expressions.cpp
+    SemanticAnalyzer_control_flow.cpp
+    SemanticAnalyzer_variables.cpp
+    SemanticAnalyzer_definitions.cpp
+    SemanticAnalyzer_functions.cpp
+    SemanticAnalyzer_imports.cpp
+    SemanticAnalyzer_utils.cpp
     TypeChecker.cpp
     SymbolScope.cpp
     DependencyCrawler.cpp

@@ -186,6 +186,73 @@ void VM::execute_return(CallFrame* frame) {
     push_to_stack(result);
 }
 
+void VM::execute_import(CallFrame* frame) {
+    int path_index = static_cast<int>(frame->consume_byte());
+    Object_ptr path_obj = workspace->pool->get(path_index);
+    std::string module_path = path_obj->as<std::string>();
+
+    auto target_module = workspace->get_module(module_path);
+    Doctor::get().fatal_if_nullptr(
+        target_module, WaspStage::VM, "Module not found : " + module_path
+    );
+
+    // 3. Prepare a new execution context
+    // We create a temporary VM object for this module's top-level code
+    auto module_func = std::make_shared<FunctionVMObject>(target_module->code);
+
+    // We need to know where the stack starts BEFORE the module runs
+    // so we can capture everything it defines as "exports"
+    size_t export_base = stack.size();
+
+    // 4. Push the frame and let the VM run it
+    // Note: We use a specific BP so the module doesn't mess with our current locals
+    frames.emplace_back(module_func, export_base);
+
+    // THE TRICK: Since we are inside the main while(true) loop,
+    // simply pushing to 'frames' is enough. The next iteration
+    // of the loop will automatically start executing the imported module.
+
+    // However, we need a way to KNOW when the module finishes so we can
+    // wrap its results into a ModuleObject.
+    // We'll handle this in EXIT_MODULE or by checking frame depth.
+}
+
+void VM::execute_exit_module() {
+    // 1. Capture the return value (the result of the last expression in the module)
+    Object_ptr module_result = pop_from_stack();
+
+    // 2. Access the current frame before we destroy it
+    CallFrame& frame = frames.back();
+    size_t bp = frame.base_pointer;
+
+    // 3. Create the ModuleObject to represent this namespace
+    auto exports = std::make_shared<ModuleObject>();
+
+    // 4. Collect Global Exports
+    // Everything between the base_pointer and the current stack top
+    // represents the variables defined in this module's scope.
+    for (size_t i = bp; i < stack.size(); ++i) {
+        // You'll need a way to look up the name for this index.
+        // Usually, this is stored in the FunctionVMObject's debug_name_map
+        std::string var_name = frame.function->get_name_for_index(i - bp);
+        if (!var_name.empty()) {
+            exports->fields[var_name] = stack[i];
+        }
+    }
+
+    // 5. Cleanup the stack
+    // We remove the module's locals but keep the 'bp' slot if we need
+    // to place the ModuleObject there.
+    stack.erase(stack.begin() + bp, stack.end());
+
+    // 6. Pop the frame
+    frames.pop_back();
+
+    // 7. Push the resulting ModuleObject back to the caller's stack
+    // This allows the caller to do: GET_LOCAL <module> -> GET_MEMBER "func"
+    push_to_stack(std::make_shared<Object>(exports));
+}
+
 void VM::run(CodeObject code) {
     frames.emplace_back(std::make_shared<FunctionVMObject>(code), 0);
 
@@ -205,10 +272,21 @@ void VM::run(CodeObject code) {
             frames.pop_back();
             break;
 
+        case OpCode::IMPORT:
+            execute_import(frame);
+            break;
+
         case OpCode::ENTER_MODULE:
             break;
+
         case OpCode::EXIT_MODULE:
-            return;
+            execute_exit_module();
+            // If you exit from the main module, stop the VM.
+            if (frames.empty())
+                return;
+
+            break;
+
         case OpCode::HALT:
             std::cerr << "Execution halted by HALT instruction.\n";
             return;
