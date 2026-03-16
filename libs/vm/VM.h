@@ -46,7 +46,6 @@ class VM {
     void execute_variable(OpCode op, CallFrame* frame);
     void execute_control_flow(OpCode op, CallFrame* frame);
     void execute_call(CallFrame* frame);
-    void execute_import(CallFrame* frame);
 
     void execute_member(OpCode op, CallFrame* frame);
     Object_ptr perform_get_member(Object_ptr obj, const std::string& name);

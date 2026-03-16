@@ -307,42 +307,6 @@ void VM::perform_set_member(Object_ptr obj, const std::string& name, Object_ptr 
     );
 }
 
-void VM::execute_import(CallFrame* frame) {
-    // 1. Get the module path string from the Constant Pool
-    int path_idx = static_cast<int>(frame->consume_byte());
-    std::string module_path = std::get<StringObject>(workspace->pool->get(path_idx)->value).value;
-
-    // 2. Ask the Workspace for the compiled Module data
-    auto module = workspace->get_module(module_path);
-    Doctor::get().fatal_if_nullptr(
-        module, WaspStage::VM, "VM could not find module in workspace: " + module_path
-    );
-
-    // 3. If we already executed this module earlier, just push the cached result!
-    if (module->runtime_instance != nullptr) {
-        push_to_stack(module->runtime_instance);
-        return;
-    }
-
-    // 4. Wrap the module's CodeObject in a FunctionObject and run it in a sandbox
-    auto mod_func = std::make_shared<FunctionObject>(module->code);
-    VM module_vm(workspace); // Spin up a nested VM!
-    module_vm.run(mod_func);
-
-    // 5. Harvest the exported variables from the sandbox's stack
-    auto mod_obj = std::make_shared<ModuleObject>(module_path);
-    for (const auto& [name, symbol] : module->exports) {
-        // The symbol's ID matches its position on the sandbox's stack
-        mod_obj->set_member(name, module_vm.stack[symbol->id]);
-    }
-
-    auto final_obj = std::make_shared<Object>(mod_obj);
-
-    // 6. Cache it on the Workspace Module so we never run it twice!
-    module->runtime_instance = final_obj;
-    push_to_stack(final_obj);
-}
-
 void VM::execute() {
     while (true) {
         CallFrame* frame = &frames.back();

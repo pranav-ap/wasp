@@ -30,14 +30,14 @@ namespace Wasp {
 // ------------------------------------------------------------------------
 
 Compiler::Compiler(ConstantPool_ptr pool, NativeRegistry_ptr native_registry)
-    : constant_pool(pool), current_block_id(InvalidBlockId), parent(nullptr), compiler_depth(0),
+    : pool(pool), current_block_id(InvalidBlockId), parent(nullptr), compiler_depth(0),
       native_registry(native_registry) {
     current_block_id = graph.create_block();
     graph.set_entry_block(current_block_id);
 }
 
 Compiler::Compiler(ConstantPool_ptr pool, Compiler* parent)
-    : constant_pool(std::move(pool)), parent(parent), compiler_depth(parent->compiler_depth + 1) {
+    : pool(std::move(pool)), parent(parent), compiler_depth(parent->compiler_depth + 1) {
     native_registry = parent->native_registry;
     current_block_id = graph.create_block();
     graph.set_entry_block(current_block_id);
@@ -449,7 +449,7 @@ void Compiler::visit(Pass& statement) {}
 // ------------------------------------------------------------------------
 
 void Compiler::visit(FunctionDefinition& statement) {
-    Compiler func_compiler(constant_pool, this);
+    Compiler func_compiler(pool, this);
 
     func_compiler.enter_scope();
     func_compiler.visit(statement.body);
@@ -462,7 +462,7 @@ void Compiler::visit(FunctionDefinition& statement) {
     func_code.name = statement.name;
     func_code.local_names = std::move(func_compiler.debug_name_map);
 
-    int const_id = constant_pool->allocate_function_definition(std::move(func_code));
+    int const_id = pool->allocate_function_definition(std::move(func_code));
     emit(OpCode::LOAD_CONST, const_id);
 
     int upvalue_count = static_cast<int>(func_compiler.upvalues.size());
@@ -501,7 +501,7 @@ void Compiler::visit(Call& expr) {
 
 void Compiler::visit(SimpleImport& statement) {
     std::string unique_module_path = statement.resolved_path.string();
-    int path_index = constant_pool->allocate(unique_module_path);
+    int path_index = pool->allocate(unique_module_path);
 
     // Tell the VM to execute this module and push a ModuleObject onto the stack
     emit(OpCode::IMPORT, path_index);
@@ -558,11 +558,11 @@ void Compiler::visit(const Expression_ptr expr) {
     );
 }
 
-void Compiler::visit(int expr) { emit(OpCode::LOAD_CONST, constant_pool->allocate(expr)); }
+void Compiler::visit(int expr) { emit(OpCode::LOAD_CONST, pool->allocate(expr)); }
 
-void Compiler::visit(double expr) { emit(OpCode::LOAD_CONST, constant_pool->allocate(expr)); }
+void Compiler::visit(double expr) { emit(OpCode::LOAD_CONST, pool->allocate(expr)); }
 
-void Compiler::visit(std::string expr) { emit(OpCode::LOAD_CONST, constant_pool->allocate(expr)); }
+void Compiler::visit(std::string expr) { emit(OpCode::LOAD_CONST, pool->allocate(expr)); }
 
 void Compiler::visit(bool expr) { emit(expr ? OpCode::LOAD_TRUE : OpCode::LOAD_FALSE); }
 
@@ -587,7 +587,7 @@ void Compiler::visit(MemberAccess& expr) {
     auto& right_id = expr.right->as<Identifier>();
     std::string member_name = right_id.name;
 
-    int name_index = constant_pool->allocate(member_name);
+    int name_index = pool->allocate(member_name);
     emit(OpCode::GET_MEMBER, name_index);
 }
 
@@ -627,7 +627,7 @@ void Compiler::compile_member_assignment(MemberAccess& mac, const Expression_ptr
     );
 
     std::string member_name = mac.right->as<Identifier>().name;
-    int name_index = constant_pool->allocate(member_name);
+    int name_index = pool->allocate(member_name);
     emit(OpCode::SET_MEMBER, name_index);
 }
 

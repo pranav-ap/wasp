@@ -24,7 +24,7 @@ struct Module {
     Object_ptr type;
 
     CFGraph graph;
-    Object_ptr instance;
+    std::shared_ptr<FunctionObject> fo_instance;
 };
 
 using Module_ptr = std::shared_ptr<Module>;

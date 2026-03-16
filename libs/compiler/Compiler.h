@@ -33,8 +33,8 @@ namespace Wasp
 	class Compiler
 	{
 	private:
-		ConstantPool_ptr constant_pool;
-		NativeRegistry_ptr native_registry;
+        ConstantPool_ptr pool;
+        NativeRegistry_ptr native_registry;
 
 		// ------------------------------------------------------------------------
 		// Closure Support
