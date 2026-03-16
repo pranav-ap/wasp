@@ -3,8 +3,14 @@
 #include "OpCode.h"
 #include "VM.h"
 
+#include <cmath>
+#include <cstddef>
 #include <memory>
 #include <string>
+
+#include <memory>
+#include <string>
+#include <variant>
 
 template <class... Ts> struct overloaded : Ts... {
     using Ts::operator()...;
@@ -88,11 +94,11 @@ Object_ptr VM::perform_unary_negative(Object_ptr obj) {
         overloaded{
             [&](IntObject& obj) -> Object_ptr {
                 obj.value = -obj.value;
-                return MAKE_OBJECT_VARIANT(obj);
+                return std::make_shared<Object>(obj);
             },
             [&](FloatObject& obj) -> Object_ptr {
                 obj.value = -obj.value;
-                return MAKE_OBJECT_VARIANT(obj);
+                return std::make_shared<Object>(obj);
             },
             [&](auto) -> Object_ptr { return workspace->pool->make_error_object("_"); }
         },
@@ -105,7 +111,7 @@ Object_ptr VM::perform_unary_not(Object_ptr obj) {
         overloaded{
             [&](BooleanObject& obj) -> Object_ptr {
                 obj.value = !obj.value;
-                return MAKE_OBJECT_VARIANT(obj);
+                return std::make_shared<Object>(obj);
             },
             [&](auto) -> Object_ptr { return workspace->pool->make_error_object("_"); }
         },
@@ -178,7 +184,7 @@ Object_ptr VM::perform_multiply(Object_ptr left, Object_ptr right) {
             },
             // String duplication
             [&](StringObject& left, IntObject& right) -> Object_ptr {
-                string result_string("");
+                std::string result_string("");
                 int count = 0;
                 while (count < right.value) {
                     result_string += left.value;
