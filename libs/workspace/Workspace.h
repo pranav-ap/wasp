@@ -18,12 +18,12 @@ struct Module {
     std::filesystem::path file_path;
 
     Block block;
-    std::map<std::string, Symbol_ptr> exports;
+    CodeObject code;
 
+    std::map<std::string, Symbol_ptr> exports;
     Object_ptr type;
 
     CFGraph graph;
-    CodeObject code;
     Object_ptr instance;
 };
 
