@@ -1,3 +1,5 @@
+import my.cats
+
 print('hello')
 
 fun yo()
