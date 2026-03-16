@@ -1,23 +1,84 @@
+#include "Doctor.h"
 #include "Objects.h"
+#include "OpCode.h"
 #include "VM.h"
 
-#include <cmath>
 #include <memory>
 #include <string>
-#include <variant>
-
-#define MAKE_OBJECT_VARIANT(x) std::make_shared<Object>(x)
-#define MAKE_SHARED_OBJECT_VARIANT(Type, ...)                                                      \
-    std::make_shared<Object>(std::make_shared<Type>(__VA_ARGS__))
 
 template <class... Ts> struct overloaded : Ts... {
     using Ts::operator()...;
 };
 template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
-using std::string;
-
 namespace Wasp {
+void VM::execute_binary_op(OpCode op) {
+    Object_ptr right = pop_from_stack();
+    Object_ptr left = pop_from_stack();
+    Object_ptr result = nullptr;
+
+    switch (op) {
+    // Math
+    case OpCode::ADD:
+        result = perform_add(left, right);
+        break;
+    case OpCode::SUB:
+        result = perform_subtract(left, right);
+        break;
+    case OpCode::MUL:
+        result = perform_multiply(left, right);
+        break;
+    case OpCode::DIV:
+        result = perform_divide(left, right);
+        break;
+    case OpCode::MOD:
+        result = perform_reminder(left, right);
+        break;
+    case OpCode::POW:
+        result = perform_power(left, right);
+        break;
+    // Comparisons
+    case OpCode::EQ:
+        result = perform_equal(left, right);
+        break;
+    case OpCode::NE:
+        result = perform_not_equal(left, right);
+        break;
+    case OpCode::LT:
+        result = perform_lesser_than(left, right);
+        break;
+    case OpCode::LE:
+        result = perform_lesser_than_equal(left, right);
+        break;
+    case OpCode::GT:
+        result = perform_greater_than(left, right);
+        break;
+    case OpCode::GE:
+        result = perform_greater_than_equal(left, right);
+        break;
+    // Logic
+    case OpCode::LOGICAL_AND:
+        result = perform_logical_and(left, right);
+        break;
+    case OpCode::LOGICAL_OR:
+        result = perform_logical_or(left, right);
+        break;
+    default:
+        Doctor::get().fatal(WaspStage::VM, "Invalid binary opcode");
+    }
+
+    push_to_stack(result);
+}
+
+void VM::execute_unary_op(OpCode op) {
+    Object_ptr top = pop_from_stack();
+
+    if (op == OpCode::NEGATE)
+        push_to_stack(perform_unary_negative(top));
+    else if (op == OpCode::NOT)
+        push_to_stack(perform_unary_not(top));
+}
+
 // ---------------------------------------------------------
 // Unary Operations
 // ---------------------------------------------------------

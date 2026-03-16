@@ -48,12 +48,11 @@ class VM {
 
     void execute_make_function(CallFrame* frame);
     void execute_call(CallFrame* frame);
+    void execute_return(CallFrame* frame);
 
     void execute_member(OpCode op, CallFrame* frame);
     Object_ptr perform_get_member(Object_ptr obj, const std::string& name);
     void perform_set_member(Object_ptr obj, const std::string& name, Object_ptr value);
-
-    void execute();
 
     // Unary Ops
 
@@ -90,10 +89,6 @@ class VM {
 public:
     VM(Workspace_ptr workspace) : workspace(workspace) { stack.reserve(256); }
 
-    void run(CodeObject code) {
-        // Push the initial frame for the entry point
-        frames.emplace_back(std::make_shared<FunctionVMObject>(code), 0);
-        execute();
-    }
+    void run(CodeObject code);
 };
 } // namespace Wasp

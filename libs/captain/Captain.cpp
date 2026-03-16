@@ -6,7 +6,6 @@
 #include "Doctor.h"
 #include "Lexer.h"
 #include "NativeRegistry.h"
-#include "Objects.h"
 #include "Parser.h"
 #include "SemanticAnalyzer.h"
 #include "SymbolHoister.h"

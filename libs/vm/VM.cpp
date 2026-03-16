@@ -1,4 +1,5 @@
 #include "VM.h"
+#include "CFGraph.h"
 #include "Doctor.h"
 #include "Objects.h"
 #include "OpCode.h"
@@ -17,121 +18,6 @@ template <class... Ts> struct overloaded : Ts... {
 template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp {
-void VM::push_to_stack(Object_ptr value) { stack.push_back(std::move(value)); }
-
-Object_ptr VM::pop_from_stack() {
-    auto val = std::move(stack.back());
-    stack.pop_back();
-    return val;
-}
-
-ObjectVector VM::pop_n_from_stack(size_t n) {
-    ObjectVector values;
-    values.reserve(n);
-
-    for (size_t i = 0; i < n; i++) {
-        values.push_back(pop_from_stack());
-    }
-
-    return values;
-}
-
-Object_ptr VM::peek_tos(size_t distance) const { return stack[stack.size() - 1 - distance]; }
-
-bool VM::is_truthy(Object_ptr obj) const {
-    return std::visit(
-        overloaded{
-            [](std::monostate&) { return false; },
-
-            [](NoneObject&) { return false; },
-
-            [](BooleanObject& b) { return b.value; },
-
-            [](IntObject& i) { return i.value > 0; },
-            [](FloatObject& f) { return f.value > 0.0; },
-
-            [](StringObject& s) { return !s.value.empty(); },
-
-            [](ListObject& l) { return !l.values.empty(); },
-            [](TupleObject& t) { return !t.values.empty(); },
-            [](SetObject& s) { return !s.values.empty(); },
-            [](MapObject& m) { return !m.pairs.empty(); },
-
-            [](ErrorObject& e) { return false; },
-
-            [](auto&) { return true; }
-        },
-        obj->value
-    );
-}
-
-void VM::execute_binary_op(OpCode op) {
-    Object_ptr right = pop_from_stack();
-    Object_ptr left = pop_from_stack();
-    Object_ptr result = nullptr;
-
-    switch (op) {
-    // Math
-    case OpCode::ADD:
-        result = perform_add(left, right);
-        break;
-    case OpCode::SUB:
-        result = perform_subtract(left, right);
-        break;
-    case OpCode::MUL:
-        result = perform_multiply(left, right);
-        break;
-    case OpCode::DIV:
-        result = perform_divide(left, right);
-        break;
-    case OpCode::MOD:
-        result = perform_reminder(left, right);
-        break;
-    case OpCode::POW:
-        result = perform_power(left, right);
-        break;
-    // Comparisons
-    case OpCode::EQ:
-        result = perform_equal(left, right);
-        break;
-    case OpCode::NE:
-        result = perform_not_equal(left, right);
-        break;
-    case OpCode::LT:
-        result = perform_lesser_than(left, right);
-        break;
-    case OpCode::LE:
-        result = perform_lesser_than_equal(left, right);
-        break;
-    case OpCode::GT:
-        result = perform_greater_than(left, right);
-        break;
-    case OpCode::GE:
-        result = perform_greater_than_equal(left, right);
-        break;
-    // Logic
-    case OpCode::LOGICAL_AND:
-        result = perform_logical_and(left, right);
-        break;
-    case OpCode::LOGICAL_OR:
-        result = perform_logical_or(left, right);
-        break;
-    default:
-        Doctor::get().fatal(WaspStage::VM, "Invalid binary opcode");
-    }
-
-    push_to_stack(result);
-}
-
-void VM::execute_unary_op(OpCode op) {
-    Object_ptr top = pop_from_stack();
-
-    if (op == OpCode::NEGATE)
-        push_to_stack(perform_unary_negative(top));
-    else if (op == OpCode::NOT)
-        push_to_stack(perform_unary_not(top));
-}
-
 void VM::execute_constant(OpCode op, CallFrame* frame) {
     switch (op) {
     case OpCode::LOAD_CONST:
@@ -198,12 +84,9 @@ void VM::execute_control_flow(OpCode op, CallFrame* frame) {
     }
 }
 
-void VM::execute_stack_op(OpCode op) {
-    if (op == OpCode::POP)
-        pop_from_stack();
-    else if (op == OpCode::DUP)
-        push_to_stack(peek_tos());
-}
+// --------------------------------------
+// Function Calls
+// --------------------------------------
 
 void VM::execute_make_function(CallFrame* frame) {
     int upvalue_count = static_cast<int>(frame->consume_byte());
@@ -282,68 +165,27 @@ void VM::execute_call(CallFrame* frame) {
     );
 }
 
-void VM::execute_member(OpCode op, CallFrame* frame) {
-    //  Get the property name from the constant pool
-    int name_index = static_cast<int>(frame->consume_byte());
-    Object_ptr name_obj = workspace->pool->get(name_index);
+void VM::execute_return(CallFrame* frame) {
+    Object_ptr result = pop_from_stack();
 
-    Doctor::get().assert(
-        std::holds_alternative<StringObject>(name_obj->value),
-        WaspStage::VM,
-        "Member name in constant pool must be a string."
-    );
+    size_t bp = frame->base_pointer;
 
-    std::string member_name = std::get<StringObject>(name_obj->value).value;
+    frames.pop_back();
 
-    // Perform the operation
-    if (op == OpCode::GET_MEMBER) {
-        Object_ptr obj = pop_from_stack();
-        Doctor::get().fatal_if_nullptr(
-            obj, WaspStage::VM, "Cannot read property '" + member_name + "' of null."
-        );
-
-        push_to_stack(perform_get_member(obj, member_name));
-    } else if (op == OpCode::SET_MEMBER) {
-        Object_ptr val = pop_from_stack(); // Pushed second
-        Object_ptr obj = pop_from_stack(); // Pushed first
-        perform_set_member(obj, member_name, val);
+    // 'bp' points to arg1. 'bp - 1' is the FunctionVMObject (the callable).
+    // Remove the callable, all arguments, and all local variables.
+    if (bp > 0) {
+        stack.erase(stack.begin() + (bp - 1), stack.end());
+    } else {
+        // Fallback for top-level module returns
+        stack.clear();
     }
+
+    // Push the return value back onto the caller's stack
+    push_to_stack(result);
 }
 
-Object_ptr VM::perform_get_member(Object_ptr obj, const std::string& name) {
-    return std::visit(
-        overloaded{
-            [&](std::shared_ptr<ModuleObject>& module_obj) -> Object_ptr {
-                Object_ptr result = module_obj->get_member(name);
-                Doctor::get().fatal_if_nullptr(
-                    result,
-                    WaspStage::VM,
-                    "Module '" + module_obj->name + "' has no member named '" + name + "'."
-                );
-                return result;
-            },
-            [&](auto&) -> Object_ptr {
-                Doctor::get().fatal(WaspStage::VM, "Object does not support reading properties.");
-                return nullptr;
-            }
-        },
-        obj->value
-    );
-}
-
-void VM::perform_set_member(Object_ptr obj, const std::string& name, Object_ptr value) {
-    std::visit(
-        overloaded{
-            [&](std::shared_ptr<ModuleObject>& module_obj) { module_obj->set_member(name, value); },
-            [&](auto&) {
-                Doctor::get().fatal(WaspStage::VM, "Object does not support setting properties.");
-            }
-        },
-        obj->value
-    );
-}
-
-void VM::execute() {
+void VM::run(CodeObject code) {
     while (true) {
         CallFrame* frame = &frames.back();
         OpCode instruction = static_cast<OpCode>(frame->consume_byte());
@@ -354,10 +196,13 @@ void VM::execute() {
         case OpCode::NO_OP:
             break;
         case OpCode::ENTER_WORKSPACE:
+            frames.emplace_back(std::make_shared<FunctionVMObject>(code), 0);
             break;
         case OpCode::ENTER_MODULE:
             break;
         case OpCode::EXIT_WORKSPACE:
+            frames.pop_back();
+            break;
         case OpCode::EXIT_MODULE:
         case OpCode::HALT:
             return;
