@@ -17,8 +17,7 @@
     case token_type: {                                                                             \
         return call;                                                                               \
     }
-#define MAKE_STATEMENT(x) make_statement(x)
-#define MAKE_EXPRESSION(x) make_expression(x)
+
 #define MAKE_TYPE(x) std::make_shared<TypeAnnotation>(x)
 #define MAKE_RECURSIVE_TYPE(T, ...)                                                                \
     std::make_shared<TypeAnnotation>(std::make_shared<T>(__VA_ARGS__))
@@ -37,7 +36,7 @@ Statement_ptr Parser::parse_variable_definition(bool is_mutable) {
     auto expression = parse_expression();
     token_pipe.require_in_line(TokenType::EOL);
 
-    return MAKE_STATEMENT(VariableDefinition(expression, is_mutable));
+    return make_statement(VariableDefinition(expression, is_mutable));
 }
 
 Statement_ptr Parser::parse_alias_definition() {
@@ -51,7 +50,7 @@ Statement_ptr Parser::parse_alias_definition() {
     auto ref_type = parse_type();
     token_pipe.require_in_line(TokenType::EOL);
 
-    return MAKE_STATEMENT(AliasDefinition(name, ref_type));
+    return make_statement(AliasDefinition(name, ref_type));
 }
 
 // Enum
@@ -63,7 +62,7 @@ Statement_ptr Parser::parse_enum_definition(int indent_level) {
     token_pipe.require_in_line(TokenType::EOL);
 
     std::vector<std::string> members = parse_enum_members(identifier.value, indent_level + 1);
-    return MAKE_STATEMENT(EnumDefinition(identifier.value, members));
+    return make_statement(EnumDefinition(identifier.value, members));
 }
 
 std::vector<std::string> Parser::parse_enum_members(std::string stem, int indent_level) {
@@ -143,7 +142,7 @@ Statement_ptr Parser::parse_function_definition(int indent_level) {
     token_pipe.require_in_line(TokenType::EOL);
 
     StatementVector body = parse_statements_block(indent_level + 1);
-    return MAKE_STATEMENT(FunctionDefinition(name, parameters, return_type, body));
+    return make_statement(FunctionDefinition(name, parameters, return_type, body));
 }
 
 Statement_ptr Parser::parse_annotation_definition() {
@@ -155,10 +154,10 @@ Statement_ptr Parser::parse_annotation_definition() {
     if (token_pipe.consume_optional_in_line(TokenType::OPEN_PARENTHESIS)) {
         std::vector<Expression_ptr> args = parse_expressions();
         token_pipe.require_in_line(TokenType::CLOSE_PARENTHESIS);
-        return MAKE_STATEMENT(AnnotationDefinition(name, args));
+        return make_statement(AnnotationDefinition(name, args));
     }
 
-    return MAKE_STATEMENT(AnnotationDefinition(name, {}));
+    return make_statement(AnnotationDefinition(name, {}));
 }
 
 // Class
@@ -233,7 +232,7 @@ Statement_ptr Parser::parse_class_definition(int indent_level) {
     // Parse all members using the abstracted block loop
     auto members = parse_name_type_block(indent_level + 1);
 
-    return MAKE_STATEMENT(ClassDefinition(class_name, members, traits));
+    return make_statement(ClassDefinition(class_name, members, traits));
 }
 
 Statement_ptr Parser::parse_trait_definition(int indent_level) {
@@ -247,7 +246,7 @@ Statement_ptr Parser::parse_trait_definition(int indent_level) {
     // Parse all members using the abstracted block loop
     auto members = parse_name_type_block(indent_level + 1);
 
-    return MAKE_STATEMENT(TraitDefinition(trait_name, members));
+    return make_statement(TraitDefinition(trait_name, members));
 }
 
 Statement_ptr Parser::parse_impl_definition(int indent_level) {
@@ -300,6 +299,6 @@ Statement_ptr Parser::parse_impl_definition(int indent_level) {
         }
     }
 
-    return MAKE_STATEMENT(ImplDefinition(class_name, trait_name, methods));
+    return make_statement(ImplDefinition(class_name, trait_name, methods));
 }
 } // namespace Wasp

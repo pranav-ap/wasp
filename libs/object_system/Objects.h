@@ -388,9 +388,15 @@ struct Object {
     template <typename T> bool is() const { return std::holds_alternative<T>(value); }
 
     template <typename T> const T& as() const { return std::get<T>(value); }
+    template <typename T> T& as() { return std::get<T>(value); }
 
     template <typename T> const T* try_as() const { return std::get_if<T>(&value); }
+    template <typename T> T* try_as() { return std::get_if<T>(&value); }
 };
+
+template <typename T> inline Object_ptr make_object(T&& val) {
+    return std::make_shared<Object>(std::forward<T>(val));
+}
 
 // Utils
 

@@ -25,12 +25,12 @@ Statement_ptr Parser::parse_simple_loop(TokenType loop_style, int loop_indent_le
 
     if (token_pipe.consume_optional_in_line(TokenType::EOL)) {
         auto body = parse_statements_block(loop_indent_level + 1);
-        return std::make_shared<Statement>(SimpleLoop(body, condition, loop_style));
+        return make_statement(SimpleLoop(body, condition, loop_style));
     }
 
     auto statement = parse_expression_statement();
     auto body = {statement};
-    return std::make_shared<Statement>(SimpleLoop(body, condition, loop_style));
+    return make_statement(SimpleLoop(body, condition, loop_style));
 }
 
 Statement_ptr Parser::parse_for_in_loop(int loop_indent_level) {
@@ -77,14 +77,14 @@ Statement_ptr Parser::parse_for_in_loop(int loop_indent_level) {
 
     if (token_pipe.consume_optional_in_line(TokenType::EOL)) {
         auto body = parse_statements_block(loop_indent_level + 1);
-        return std::make_shared<Statement>(ForInLoop(body, lhs, iterable_expression, is_mutable));
+        return make_statement(ForInLoop(body, lhs, iterable_expression, is_mutable));
     }
 
     auto statement = parse_expression_statement();
     Doctor::get().fatal_if_nullptr(statement, WaspStage::Parser);
 
     StatementVector body = {statement};
-    return std::make_shared<Statement>(ForInLoop(body, lhs, iterable_expression, is_mutable));
+    return make_statement(ForInLoop(body, lhs, iterable_expression, is_mutable));
 }
 
 Statement_ptr Parser::parse_loop_control_statement(TokenType control_type) {
@@ -95,10 +95,10 @@ Statement_ptr Parser::parse_loop_control_statement(TokenType control_type) {
     if (token.has_value() && token.value().type == TokenType::IDENTIFIER) {
         std::string label = token.value().value;
         token_pipe.require_in_line(TokenType::EOL);
-        return std::make_shared<Statement>(LoopControl{control_type, label});
+        return make_statement(LoopControl{control_type, label});
     }
 
     token_pipe.require_in_line(TokenType::EOL);
-    return std::make_shared<Statement>(LoopControl{control_type});
+    return make_statement(LoopControl{control_type});
 }
 } // namespace Wasp

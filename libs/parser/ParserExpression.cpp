@@ -22,13 +22,13 @@ Expression_ptr Parser::parse_expression(const int precedence) {
     if (token_type == TokenType::LET) {
         token_pipe.advance_pointer();
         Expression_ptr expr = parse_expression();
-        return std::make_shared<Expression>(VariableDefinitionExpression(expr, true));
+        return make_expression(VariableDefinitionExpression(expr, true));
     }
 
     if (token_type == TokenType::CONST_KEYWORD) {
         token_pipe.advance_pointer();
         Expression_ptr expr = parse_expression();
-        return std::make_shared<Expression>(VariableDefinitionExpression(expr, false));
+        return make_expression(VariableDefinitionExpression(expr, false));
     }
 
     // ------------------------------------------------------------------

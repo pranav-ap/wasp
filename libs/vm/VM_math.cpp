@@ -94,11 +94,11 @@ Object_ptr VM::perform_unary_negative(Object_ptr obj) {
         overloaded{
             [&](IntObject& obj) -> Object_ptr {
                 obj.value = -obj.value;
-                return std::make_shared<Object>(obj);
+                return make_object(obj);
             },
             [&](FloatObject& obj) -> Object_ptr {
                 obj.value = -obj.value;
-                return std::make_shared<Object>(obj);
+                return make_object(obj);
             },
             [&](auto) -> Object_ptr { return workspace->pool->make_error_object("_"); }
         },
@@ -111,7 +111,7 @@ Object_ptr VM::perform_unary_not(Object_ptr obj) {
         overloaded{
             [&](BooleanObject& obj) -> Object_ptr {
                 obj.value = !obj.value;
-                return std::make_shared<Object>(obj);
+                return make_object(obj);
             },
             [&](auto) -> Object_ptr { return workspace->pool->make_error_object("_"); }
         },

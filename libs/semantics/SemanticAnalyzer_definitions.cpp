@@ -3,7 +3,7 @@
 
 #include <ctime>
 
-#define MAKE_OBJECT_VARIANT(x) std::make_shared<Object>(x)
+#define MAKE_OBJECT_VARIANT(x) std::make_shared<Object> hared<Object>(x)
 
 template <class... Ts> struct overloaded : Ts... {
     using Ts::operator()...;

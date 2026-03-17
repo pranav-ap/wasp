@@ -12,15 +12,10 @@
 #include <memory>
 #include <string>
 
-#define MAKE_STATEMENT(x) make_statement(x)
-#define MAKE_EXPRESSION(x) make_expression(x)
-
-using std::map;
-
 namespace Wasp {
 Expression_ptr IdentifierParselet::parse(Parser& parser, const Token& token) {
     parser.token_pipe.advance_pointer();
-    return MAKE_EXPRESSION(Identifier{token.value});
+    return make_expression(Identifier{token.value});
 }
 
 Expression_ptr LiteralParselet::parse(Parser& parser, const Token& token) {
@@ -28,18 +23,18 @@ Expression_ptr LiteralParselet::parse(Parser& parser, const Token& token) {
 
     switch (token.type) {
     case TokenType::TRUE_KEYWORD:
-        return MAKE_EXPRESSION(true);
+        return make_expression(true);
     case TokenType::FALSE_KEYWORD:
-        return MAKE_EXPRESSION(false);
+        return make_expression(false);
     case TokenType::STRING_LITERAL:
-        return MAKE_EXPRESSION(token.value);
+        return make_expression(token.value);
     case TokenType::NUMBER_LITERAL: {
         double value = std::stod(token.value);
         // Check if it's an integer
         if (std::fmod(value, 1.0) == 0.0) {
-            return MAKE_EXPRESSION(static_cast<int>(value));
+            return make_expression(static_cast<int>(value));
         }
-        return MAKE_EXPRESSION(value);
+        return make_expression(value);
     }
     default: {
         Doctor::get().fatal(WaspStage::Parser, "Expected a literal value");
@@ -51,7 +46,7 @@ Expression_ptr PrefixOperatorParselet::parse(Parser& parser, const Token& token)
     parser.token_pipe.advance_pointer();
     const auto right = parser.parse_expression();
 
-    return MAKE_EXPRESSION((Prefix{token, right}));
+    return make_expression((Prefix{token, right}));
 }
 
 Expression_ptr InfixOperatorParselet::parse(
@@ -59,7 +54,7 @@ Expression_ptr InfixOperatorParselet::parse(
 ) {
     const auto right = parser.parse_expression(precedence - (is_right_associative ? 1 : 0));
 
-    return MAKE_EXPRESSION((Infix{left, token, right}));
+    return make_expression((Infix{left, token, right}));
 }
 
 Expression_ptr SquareBracketParselet::parse(Parser& parser, const Token& token) {
@@ -67,12 +62,12 @@ Expression_ptr SquareBracketParselet::parse(Parser& parser, const Token& token) 
     parser.token_pipe.ignore_spaces();
 
     if (parser.token_pipe.consume_optional(TokenType::CLOSE_SQUARE_BRACKET)) {
-        return MAKE_EXPRESSION(ListLiteral());
+        return make_expression(ListLiteral());
     }
 
     ExpressionVector expressions = parser.parse_expressions();
     parser.token_pipe.require(TokenType::CLOSE_SQUARE_BRACKET);
-    return MAKE_EXPRESSION(ListLiteral(expressions));
+    return make_expression(ListLiteral(expressions));
 }
 
 Expression_ptr ParenthesisParselet::parse(Parser& parser, const Token& token) {
@@ -80,12 +75,12 @@ Expression_ptr ParenthesisParselet::parse(Parser& parser, const Token& token) {
     parser.token_pipe.ignore_spaces();
 
     if (parser.token_pipe.consume_optional(TokenType::CLOSE_PARENTHESIS)) {
-        return MAKE_EXPRESSION(TupleLiteral());
+        return make_expression(TupleLiteral());
     }
 
     ExpressionVector expressions = parser.parse_expressions();
     parser.token_pipe.require(TokenType::CLOSE_PARENTHESIS);
-    return MAKE_EXPRESSION(TupleLiteral(expressions));
+    return make_expression(TupleLiteral(expressions));
 }
 
 Expression_ptr CurlyBraceParselet::parse(Parser& parser, const Token& token) {
@@ -94,11 +89,11 @@ Expression_ptr CurlyBraceParselet::parse(Parser& parser, const Token& token) {
 
     if (parser.token_pipe.consume_optional(TokenType::ARROW)) {
         parser.token_pipe.require(TokenType::CLOSE_CURLY_BRACE);
-        return MAKE_EXPRESSION(MapLiteral());
+        return make_expression(MapLiteral());
     }
 
     if (parser.token_pipe.consume_optional(TokenType::CLOSE_CURLY_BRACE)) {
-        return MAKE_EXPRESSION(SetLiteral());
+        return make_expression(SetLiteral());
     }
 
     parser.token_pipe.ignore_spaces();
@@ -124,7 +119,7 @@ Expression_ptr CurlyBraceParselet::parse(Parser& parser, const Token& token) {
 
         parser.token_pipe.ignore_spaces();
         parser.token_pipe.require(TokenType::CLOSE_CURLY_BRACE);
-        return MAKE_EXPRESSION(MapLiteral(pairs));
+        return make_expression(MapLiteral(pairs));
     }
 
     // Otherwise, it's a Set
@@ -143,14 +138,14 @@ Expression_ptr CurlyBraceParselet::parse(Parser& parser, const Token& token) {
     parser.token_pipe.ignore_spaces();
     parser.token_pipe.require(TokenType::CLOSE_CURLY_BRACE);
 
-    return MAKE_EXPRESSION(SetLiteral(elements));
+    return make_expression(SetLiteral(elements));
 }
 
 Expression_ptr TypePatternParselet::parse(Parser& parser, Expression_ptr left, const Token& token) {
     parser.token_pipe.advance_pointer();
 
     TypeAnnotation_ptr type = parser.parse_type();
-    return MAKE_EXPRESSION(TypePattern(left, type));
+    return make_expression(TypePattern(left, type));
 }
 
 Expression_ptr AssignmentParselet::parse(Parser& parser, Expression_ptr left, const Token& token) {
@@ -162,10 +157,10 @@ Expression_ptr AssignmentParselet::parse(Parser& parser, Expression_ptr left, co
     if (left->is<TypePattern>()) {
         const auto& pattern = left->as<TypePattern>();
 
-        return MAKE_EXPRESSION(TypedAssignment(pattern.expression, right, pattern.type_node));
+        return make_expression(TypedAssignment(pattern.expression, right, pattern.type_node));
     }
 
-    return MAKE_EXPRESSION(UntypedAssignment(left, right));
+    return make_expression(UntypedAssignment(left, right));
 }
 
 Expression_ptr TernaryConditionParselet::parse(Parser& parser, const Token& token) {
@@ -196,7 +191,7 @@ Expression_ptr PrefixRangeParselet::parse(Parser& parser, const Token& token) {
         step = parser.parse_expression(static_cast<int>(Precedence::RANGE));
     }
 
-    return MAKE_EXPRESSION(RangeLiteral(nullptr, end, step, this->is_inclusive));
+    return make_expression(RangeLiteral(nullptr, end, step, this->is_inclusive));
 }
 
 Expression_ptr InfixRangeParselet::parse(Parser& parser, Expression_ptr left, const Token& token) {
@@ -216,12 +211,12 @@ Expression_ptr InfixRangeParselet::parse(Parser& parser, Expression_ptr left, co
         step = parser.parse_expression(static_cast<int>(Precedence::RANGE));
     }
 
-    return MAKE_EXPRESSION(RangeLiteral(left, end, step, this->is_inclusive));
+    return make_expression(RangeLiteral(left, end, step, this->is_inclusive));
 }
 
 Expression_ptr PlaceholderDotParselet::parse(Parser& parser, const Token& token) {
     parser.token_pipe.advance_pointer();
-    return MAKE_EXPRESSION(DotLiteral{});
+    return make_expression(DotLiteral{});
 }
 
 Expression_ptr CallParselet::parse(Parser& parser, const Expression_ptr left, const Token& token) {
@@ -238,7 +233,7 @@ Expression_ptr CallParselet::parse(Parser& parser, const Expression_ptr left, co
         parser.token_pipe.require(TokenType::CLOSE_PARENTHESIS);
     }
 
-    return MAKE_EXPRESSION(Call(left, arguments));
+    return make_expression(Call(left, arguments));
 }
 
 Expression_ptr MemberAccessParselet::parse(
@@ -247,7 +242,7 @@ Expression_ptr MemberAccessParselet::parse(
     Expression_ptr right = parser.parse_expression(get_precedence());
     Doctor::get().fatal_if_nullptr(right, WaspStage::Parser);
 
-    return MAKE_EXPRESSION(MemberAccess(left, right));
+    return make_expression(MemberAccess(left, right));
 }
 
 // get_precedence

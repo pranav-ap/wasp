@@ -6,14 +6,12 @@
 #include <variant>
 #include <vector>
 
-
 #define MAKE_OBJECT_VARIANT(x) std::make_shared<Object>(x)
 #define VOID std::make_shared<Object>(std::make_shared<ReturnObject>())
 #define THROW(message) return std::make_shared<Object>(std::make_shared<ErrorObject>(message));
-#define THROW_IF(condition, message)                                             \
-    if (!(condition))                                                            \
-    {                                                                            \
-        return std::make_shared<Object>(std::make_shared<ErrorObject>(message)); \
+#define THROW_IF(condition, message)                                                               \
+    if (!(condition)) {                                                                            \
+        return std::make_shared<Object>(std::make_shared<ErrorObject>(message));                   \
     }
 
 template <class... Ts>
