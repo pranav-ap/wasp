@@ -15,14 +15,11 @@ using Symbol_ptr = std::shared_ptr<Symbol>;
 
 struct VariableData {
     Object_ptr type;
-
     bool is_mutable;
-    bool is_captured;
 };
 
 struct FunctionData {
     Object_ptr type;
-
     bool is_native;
 };
 
@@ -50,13 +47,13 @@ struct Symbol : public std::enable_shared_from_this<Symbol> {
     std::string name;
 
     int id = -1;
-    int closure_depth = 0;
+    int declaration_depth = 0;
     int lexical_depth = 0;
 
     SymbolPayload payload;
 
     Symbol(std::string name, int closure_depth, int lexical_depth, SymbolPayload payload)
-        : name(std::move(name)), closure_depth(closure_depth), lexical_depth(lexical_depth),
+        : name(std::move(name)), declaration_depth(closure_depth), lexical_depth(lexical_depth),
           payload(std::move(payload)) {}
 
     bool is_global() const { return lexical_depth == 0; }
@@ -64,33 +61,23 @@ struct Symbol : public std::enable_shared_from_this<Symbol> {
     Object_ptr get_type();
     void set_type(Object_ptr new_type);
 
-    // If we are writing to a variable declared in an outer scope, mark it captured.
-    bool should_be_captured(int current_closure_depth) const {
-        return closure_depth > 0 && closure_depth < current_closure_depth;
-    }
-
-    void capture_if_required(int current_closure_depth) {
-        if (is<VariableData>()) {
-            auto& var_data = as<VariableData>();
-            if (!var_data.is_captured && should_be_captured(current_closure_depth)) {
-                var_data.is_captured = true;
-            }
-        }
-    }
+    // If it was declared in a shallower scope than we are currently in, it's an upvalue!
+    // only takes care at file level not inter file level
+    bool should_be_captured(int usage_depth) const { return declaration_depth < usage_depth; }
 
     Symbol_ptr resolve() {
-        if (is<AliasData>()) {
+        if (payload_is<AliasData>()) {
             // Recursively unwrap aliases until we hit the real symbol
-            return as<AliasData>().target->resolve();
+            return get_payload_as<AliasData>().target->resolve();
         }
 
         // Safely return a shared_ptr to ourselves!
         return shared_from_this();
     }
 
-    template <typename T> bool is() const { return std::holds_alternative<T>(payload); }
+    template <typename T> bool payload_is() const { return std::holds_alternative<T>(payload); }
 
-    template <typename T> T& as() { return std::get<T>(payload); }
+    template <typename T> T& get_payload_as() { return std::get<T>(payload); }
 };
 
 struct SymbolFactory {
@@ -98,8 +85,7 @@ struct SymbolFactory {
     static Symbol_ptr create_variable(
         std::string name,
         Object_ptr type,
-        bool is_mutable,
-        bool is_captured = false,
+        bool is_mutable = false,
         int closure_depth = 0,
         int lexical_depth = 0
     );
@@ -120,8 +106,9 @@ struct SymbolFactory {
         std::string name, Object_ptr type = nullptr, int closure_depth = 0, int lexical_depth = 0
     );
 
-    static Symbol_ptr
-    create_module(std::string name, Object_ptr type, std::map<std::string, Symbol_ptr> exports);
+    static Symbol_ptr create_module(
+        std::string name, Object_ptr type, std::map<std::string, Symbol_ptr> exports = {}
+    );
 
     static Symbol_ptr create_alias(std::string name, Symbol_ptr target);
 };

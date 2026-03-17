@@ -1,8 +1,5 @@
 import my.cats
 
-let x = 23
-print(x)
-
 print('hello')
 
 fun yo()
@@ -11,4 +8,6 @@ fun yo()
 print('calling now')
 yo()
 
+print('calling cats')
 cats.print_cats()
+print(cats.y)

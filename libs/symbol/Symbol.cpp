@@ -41,17 +41,11 @@ void Symbol::set_type(Object_ptr new_type) {
         payload
     );
 }
-
 Symbol_ptr SymbolFactory::create_variable(
-    std::string name,
-    Object_ptr type,
-    bool is_mutable,
-    bool is_captured,
-    int closure_depth,
-    int lexical_depth
+    std::string name, Object_ptr type, bool is_mutable, int closure_depth, int lexical_depth
 ) {
     return std::make_shared<Symbol>(
-        std::move(name), closure_depth, lexical_depth, VariableData{type, is_mutable, is_captured}
+        std::move(name), closure_depth, lexical_depth, VariableData{std::move(type), is_mutable}
     );
 }
 
@@ -59,37 +53,35 @@ Symbol_ptr SymbolFactory::create_function(
     std::string name, Object_ptr type, bool is_native, int closure_depth, int lexical_depth
 ) {
     return std::make_shared<Symbol>(
-        std::move(name), closure_depth, lexical_depth, FunctionData{type, is_native}
+        std::move(name), closure_depth, lexical_depth, FunctionData{std::move(type), is_native}
     );
 }
 
 Symbol_ptr SymbolFactory::create_class(
     std::string name, Object_ptr type, int closure_depth, int lexical_depth
 ) {
-    return std::make_shared<Symbol>(std::move(name), closure_depth, lexical_depth, ClassData{type});
+    return std::make_shared<Symbol>(
+        std::move(name), closure_depth, lexical_depth, ClassData{std::move(type)}
+    );
 }
 
 Symbol_ptr SymbolFactory::create_enum(
     std::string name, Object_ptr type, int closure_depth, int lexical_depth
 ) {
-    return std::make_shared<Symbol>(std::move(name), closure_depth, lexical_depth, EnumData{type});
+    return std::make_shared<Symbol>(
+        std::move(name), closure_depth, lexical_depth, EnumData{std::move(type)}
+    );
 }
 
 Symbol_ptr SymbolFactory::create_module(
     std::string name, Object_ptr type, std::map<std::string, Symbol_ptr> exports
 ) {
-    int closure_depth, lexical_depth = 0;
-
     return std::make_shared<Symbol>(
-        std::move(name), closure_depth, lexical_depth, ModuleData{type}
+        std::move(name), 0, 0, ModuleData{std::move(type), std::move(exports)}
     );
 }
 
 Symbol_ptr SymbolFactory::create_alias(std::string name, Symbol_ptr target) {
-    int closure_depth, lexical_depth = 0;
-
-    return std::make_shared<Symbol>(
-        std::move(name), closure_depth, lexical_depth, AliasData{target}
-    );
+    return std::make_shared<Symbol>(std::move(name), 0, 0, AliasData{std::move(target)});
 }
 } // namespace Wasp

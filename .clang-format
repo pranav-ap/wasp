@@ -10,7 +10,7 @@ ColumnLimit: 100
 # Keeps your pointer stars glued to the type (e.g., Object_ptr*)
 PointerAlignment: Left
 
-# Controls how arguments are packed. 
+# Controls how arguments are packed.
 # Setting these to 'false' can sometimes help prevent aggressive single-line packing.
 BinPackArguments: false
 BinPackParameters: false
@@ -24,4 +24,5 @@ AlignAfterOpenBracket: BlockIndent
 AlwaysBreakAfterReturnType: None
 AlwaysBreakAfterDefinitionReturnType: None
 PenaltyReturnTypeOnItsOwnLine: 100000
+PenaltyBreakAssignment: 1000
 

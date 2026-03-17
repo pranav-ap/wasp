@@ -111,7 +111,6 @@ void SemanticAnalyzer::visit(ForInLoop& loop_stmt) {
         symbol_name,
         element_type,
         loop_stmt.lhs_is_mutable,
-        false, // is_captured
         current_scope->get_closure_depth(),
         current_scope->get_lexical_depth()
     );

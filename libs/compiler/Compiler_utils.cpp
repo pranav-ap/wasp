@@ -42,7 +42,7 @@ int Compiler::add_upvalue(int index, bool is_local) {
 int Compiler::resolve_upvalue(Compiler* current_compiler, Symbol_ptr symbol) {
     Doctor::get().fatal_if_nullptr(current_compiler->parent, WaspStage::Compiler);
 
-    if (symbol->closure_depth == current_compiler->parent->compiler_depth) {
+    if (symbol->declaration_depth == current_compiler->parent->compiler_depth) {
         return current_compiler->add_upvalue(symbol->id, true);
     }
 

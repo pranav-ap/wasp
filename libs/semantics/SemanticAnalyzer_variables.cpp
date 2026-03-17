@@ -113,7 +113,6 @@ Object_ptr SemanticAnalyzer::define_variable(Expression_ptr assignment_node, boo
         symbol_name,
         resolved_type,
         is_mutable,
-        false,
         current_scope->get_closure_depth(),
         current_scope->get_lexical_depth()
     );
@@ -138,29 +137,23 @@ Object_ptr SemanticAnalyzer::mutate_variable(
 
     Symbol_ptr target_symbol = current_scope->lookup(symbol_name);
 
-    Doctor::get().assert(
-        target_symbol != nullptr,
-        WaspStage::Semantics,
-        "Cannot assign to undefined variable '" + symbol_name + "'."
+    Doctor::get().fatal_if_nullptr(
+        target_symbol, WaspStage::Semantics, "Cannot assign to undefined variable '" + symbol_name
     );
 
     Doctor::get().assert(
-        target_symbol->is<VariableData>(),
+        target_symbol->payload_is<VariableData>(),
         WaspStage::Semantics,
-        "Cannot assign to non-variable symbol '" + symbol_name + "'."
+        "Cannot assign to non-variable symbol '" + symbol_name
     );
 
-    auto& var_data = target_symbol->as<VariableData>();
+    auto& var_data = target_symbol->get_payload_as<VariableData>();
 
     Doctor::get().assert(
         var_data.is_mutable,
         WaspStage::Semantics,
         "Cannot reassign immutable variable '" + symbol_name + "'."
     );
-
-    if (target_symbol->should_be_captured(current_scope->get_closure_depth())) {
-        var_data.is_captured = true;
-    }
 
     identifier_node.symbol = target_symbol;
 
@@ -175,6 +168,5 @@ Object_ptr SemanticAnalyzer::mutate_variable(
 
     return target_symbol->get_type();
 }
-
 
 } // namespace Wasp

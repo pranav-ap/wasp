@@ -317,6 +317,8 @@ void VM::run(CodeObject code) {
         case OpCode::SET_LOCAL:
         case OpCode::GET_LOCAL:
         case OpCode::GET_NATIVE:
+        case OpCode::GET_UPVALUE:
+        case OpCode::SET_UPVALUE:
         case OpCode::PUSH_SCOPE:
         case OpCode::POP_SCOPE:
             execute_variable(instruction, frame);

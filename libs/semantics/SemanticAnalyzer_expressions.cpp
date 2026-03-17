@@ -92,13 +92,11 @@ Object_ptr SemanticAnalyzer::visit(Identifier& expr) {
     Symbol_ptr target_symbol = current_scope->lookup(expr.name);
     Doctor::get().fatal_if_nullptr(target_symbol, WaspStage::Semantics);
 
-    // Only variables need to be captured by closures
-    if (target_symbol->is<VariableData>()) {
-        auto& var_data = target_symbol->as<VariableData>();
-        target_symbol->capture_if_required(current_scope->get_closure_depth());
-    }
-
     expr.symbol = target_symbol;
+
+    if (target_symbol->should_be_captured(current_scope->get_closure_depth())) {
+        expr.must_be_captured = true;
+    }
 
     return target_symbol->get_type();
 }

@@ -73,6 +73,7 @@ void SemanticAnalyzer::register_natives() {
         auto symbol_type = native_registry->get_native_object_type(index);
 
         auto symbol = SymbolFactory::create_function(name, symbol_type, true);
+
         current_scope->define(symbol);
     }
 }

@@ -61,7 +61,7 @@ void SemanticAnalyzer::visit(FunctionDefinition& func_def) {
         auto local_symbol = SymbolFactory::create_function(
             func_def.name,
             function_signature,
-            false, // is_native
+            false,
             current_scope->get_closure_depth(),
             current_scope->get_lexical_depth()
         );
@@ -78,8 +78,7 @@ void SemanticAnalyzer::visit(FunctionDefinition& func_def) {
         auto param_symbol = SymbolFactory::create_variable(
             parameter_names[i],
             parameter_types[i],
-            false,
-            false,
+            true,
             current_scope->get_closure_depth(),
             current_scope->get_lexical_depth()
         );

@@ -69,12 +69,12 @@ void Compiler::visit(Identifier& expr) {
     auto symbol = expr.symbol;
     Doctor::get().fatal_if_nullptr(symbol, WaspStage::Compiler);
 
-    if (symbol->is<VariableData>() && symbol->as<VariableData>().is_captured) {
-        int upval_index = resolve_upvalue(this, symbol);
-        emit(OpCode::GET_UPVALUE, upval_index);
-    } else if (symbol->is<FunctionData>() && symbol->as<FunctionData>().is_native) {
+    if (symbol->payload_is<FunctionData>() && symbol->get_payload_as<FunctionData>().is_native) {
         auto native_registry_id = native_registry->get_native_index(symbol->name);
         emit(OpCode::GET_NATIVE, native_registry_id);
+    } else if (expr.must_be_captured) {
+        int upval_index = resolve_upvalue(this, symbol);
+        emit(OpCode::GET_UPVALUE, upval_index);
     } else {
         emit(OpCode::GET_LOCAL, symbol->id);
     }
@@ -91,19 +91,12 @@ void Compiler::visit(MemberAccess& expr) {
 }
 
 void Compiler::compile_identifier_assignment(Identifier& id, const Expression_ptr& rhs) {
-    // 1. Evaluate the right side (Stack: [val])
     visit(rhs);
 
     auto symbol = id.symbol;
     Doctor::get().fatal_if_nullptr(symbol, WaspStage::Compiler);
 
-    bool is_captured = false;
-    if (symbol->is<VariableData>()) {
-        is_captured = symbol->as<VariableData>().is_captured;
-    }
-
-    // 2. Emit the assignment
-    if (is_captured) {
+    if (id.must_be_captured) {
         int idx = resolve_upvalue(this, symbol);
         emit(OpCode::SET_UPVALUE, idx);
     } else {

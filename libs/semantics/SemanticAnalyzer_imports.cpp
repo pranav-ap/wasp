@@ -31,38 +31,13 @@ void SemanticAnalyzer::visit(SimpleImport& import_stmt) {
 
     auto module_type = std::make_shared<Object>(ModuleType(std::move(member_types)));
 
-    auto module_symbol = SymbolFactory::create_module(module_name, module_type, mod->exports);
+    Symbol_ptr module_symbol = SymbolFactory::create_module(module_name, module_type, mod->exports);
+
     current_scope->define(module_symbol);
 
     import_stmt.symbol = module_symbol;
 }
 
-void SemanticAnalyzer::visit(FromImport& import_stmt) {
-    auto mod = workspace->get_module(import_stmt.resolved_path);
-    Doctor::get().fatal_if_nullptr(mod, WaspStage::Semantics);
-
-    // `from math import sqrt, pi as pie`
-    for (const auto& sym : import_stmt.symbols) {
-        // Check if the dependency actually exports the requested name
-        auto it = mod->exports.find(sym.name);
-
-        Doctor::get().assert(
-            it != mod->exports.end(),
-            WaspStage::Semantics,
-            "Import Error: Module '" + import_stmt.resolved_path.stem().string() +
-                "' does not export '" + sym.name + "'."
-        );
-
-        Symbol_ptr symbol_to_define = it->second;
-
-        // If aliased, we must safely clone it using the SymbolFactory
-        if (sym.alias.has_value()) {
-            std::string alias_name = sym.alias.value();
-            symbol_to_define = SymbolFactory::create_alias(alias_name, it->second);
-        }
-
-        current_scope->define(symbol_to_define);
-    }
-}
+void SemanticAnalyzer::visit(FromImport& import_stmt) {}
 
 } // namespace Wasp

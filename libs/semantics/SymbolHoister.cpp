@@ -30,14 +30,10 @@ void SymbolHoister::run(Module_ptr module) {
                     Doctor::get().assert(
                         !module->exports.contains(func_def.name),
                         WaspStage::Captain,
-                        "Duplicate export: '" + func_def.name + "' is already defined."
+                        "Duplicate export: '" + func_def.name + "' is already defined"
                     );
 
-                    auto symbol = SymbolFactory::create_function(
-                        func_def.name,
-                        nullptr, // Phase 3 will resolve the FunctionType
-                        false    // is_native
-                    );
+                    auto symbol = SymbolFactory::create_function(func_def.name, nullptr, false);
 
                     module->exports[func_def.name] = symbol;
                 },
@@ -74,9 +70,7 @@ void SymbolHoister::run(Module_ptr module) {
                     );
 
                     auto symbol = SymbolFactory::create_variable(
-                        var_name,
-                        nullptr, // Phase 3 will resolve the RHS Object_ptr type
-                        var_def.is_mutable
+                        var_name, nullptr, var_def.is_mutable
                     );
 
                     module->exports[var_name] = symbol;
