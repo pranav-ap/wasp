@@ -24,12 +24,12 @@ void SemanticAnalyzer::visit(SimpleImport& import_stmt) {
 
     std::string module_name = import_stmt.alias.value_or(import_stmt.resolved_path.stem().string());
 
-    std::map<std::string, Object_ptr> namespace_member_types;
+    std::map<std::string, Object_ptr> member_types;
     for (const auto& [name, exported_symbol] : mod->exports) {
-        namespace_member_types[name] = exported_symbol->get_type();
+        member_types[name] = exported_symbol->get_type();
     }
 
-    auto module_type = std::make_shared<Object>(ModuleType(std::move(namespace_member_types)));
+    auto module_type = std::make_shared<Object>(ModuleType(std::move(member_types)));
 
     auto module_symbol = SymbolFactory::create_module(module_name, module_type, mod->exports);
     current_scope->define(module_symbol);

@@ -40,9 +40,18 @@ void VM::execute_constant(OpCode op, CallFrame* frame) {
 
 void VM::execute_variable(OpCode op, CallFrame* frame) {
     switch (op) {
-    case OpCode::DEFINE_LOCAL:
-        frame->consume_byte();
+    case OpCode::DEFINE_LOCAL: {
+        Object_ptr val = pop_from_stack();
+
+        int index = static_cast<int>(frame->consume_byte());
+        size_t target_idx = frame->base_pointer + index;
+
+        if (target_idx >= stack.size())
+            stack.resize(target_idx + 1);
+
+        stack[target_idx] = std::move(val);
         break;
+    }
     case OpCode::SET_LOCAL: {
         int index = static_cast<int>(frame->consume_byte());
         if (index >= stack.size())
@@ -60,9 +69,10 @@ void VM::execute_variable(OpCode op, CallFrame* frame) {
         push_to_stack(workspace->native_registry->get_native_object(index));
         break;
     }
-    case OpCode::PUSH_SCOPE:
+    case OpCode::PUSH_SCOPE: {
         frame->scope_bases.push_back(stack.size());
         break;
+    }
     case OpCode::POP_SCOPE: {
         size_t base = frame->scope_bases.back();
         frame->scope_bases.pop_back();

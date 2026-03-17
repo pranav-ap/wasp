@@ -43,8 +43,8 @@ class VM {
     void execute_stack_op(OpCode op);
 
     void execute_constant(OpCode op, CallFrame* frame);
-    void execute_variable(OpCode op, CallFrame* frame);
     void execute_control_flow(OpCode op, CallFrame* frame);
+    void execute_variable(OpCode op, CallFrame* frame);
 
     void execute_make_function(CallFrame* frame);
     void execute_call(CallFrame* frame);
