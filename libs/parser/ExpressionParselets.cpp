@@ -12,8 +12,8 @@
 #include <memory>
 #include <string>
 
-#define MAKE_STATEMENT(x) std::make_shared<Statement>(Statement(x))
-#define MAKE_EXPRESSION(x) std::make_shared<Expression>(Expression(x))
+#define MAKE_STATEMENT(x) make_statement(x)
+#define MAKE_EXPRESSION(x) make_expression(x)
 
 using std::map;
 

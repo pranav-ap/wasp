@@ -17,8 +17,8 @@
     case token_type: {                                                                             \
         return call;                                                                               \
     }
-#define MAKE_STATEMENT(x) std::make_shared<Statement>(Statement(x))
-#define MAKE_EXPRESSION(x) std::make_shared<Expression>(Expression(x))
+#define MAKE_STATEMENT(x) make_statement(x)
+#define MAKE_EXPRESSION(x) make_expression(x)
 #define MAKE_TYPE(x) std::make_shared<TypeAnnotation>(x)
 #define MAKE_RECURSIVE_TYPE(T, ...)                                                                \
     std::make_shared<TypeAnnotation>(std::make_shared<T>(__VA_ARGS__))
