@@ -1,5 +1,7 @@
 #pragma once
 
+#include "AST.h"
+
 #include <map>
 #include <memory>
 #include <string>
@@ -40,48 +42,6 @@ struct MapTypeNode;
 struct VariantTypeNode;
 struct FunctionTypeNode;
 struct RecordTypeNode;
-
-struct TypeAnnotation {
-    std::variant<
-        std::monostate,
-
-        AnyTypeNode,
-        NoneTypeNode,
-
-        IntTypeNode,
-        FloatTypeNode,
-        StringTypeNode,
-        BoolTypeNode,
-
-        IntLiteralTypeNode,
-        FloatLiteralTypeNode,
-        StringLiteralTypeNode,
-        BoolLiteralTypeNode,
-
-        TypeIdentifierNode,
-
-        std::shared_ptr<ListTypeNode>,
-        std::shared_ptr<TupleTypeNode>,
-        std::shared_ptr<SetTypeNode>,
-        std::shared_ptr<MapTypeNode>,
-        std::shared_ptr<VariantTypeNode>,
-        std::shared_ptr<FunctionTypeNode>,
-        std::shared_ptr<RecordTypeNode>>
-        data;
-
-    TypeAnnotation() = default;
-
-    template <typename T> TypeAnnotation(T&& val) : data(std::forward<T>(val)) {}
-
-    template <typename T> [[nodiscard]] bool is() const { return std::holds_alternative<T>(data); }
-
-    template <typename T> const T& as() const { return std::get<T>(data); }
-
-    template <typename T> const T* try_as() const { return std::get_if<T>(&data); }
-};
-
-using TypeAnnotation_ptr = std::shared_ptr<TypeAnnotation>;
-using TypeAnnotationVector = std::vector<TypeAnnotation_ptr>;
 
 struct ListTypeNode {
     TypeAnnotation_ptr element_type;
@@ -132,5 +92,53 @@ struct RecordTypeNode {
     explicit RecordTypeNode(std::map<std::string, TypeAnnotation_ptr> members)
         : members(std::move(members)) {}
 };
+
+// Type Anno
+
+// 1. Define the variant payload FIRST
+using TypeAnnotationVariant = std::variant<
+    std::monostate,
+
+    AnyTypeNode,
+    NoneTypeNode,
+
+    IntTypeNode,
+    FloatTypeNode,
+    StringTypeNode,
+    BoolTypeNode,
+
+    IntLiteralTypeNode,
+    FloatLiteralTypeNode,
+    StringLiteralTypeNode,
+    BoolLiteralTypeNode,
+
+    TypeIdentifierNode,
+
+    std::shared_ptr<ListTypeNode>,
+    std::shared_ptr<TupleTypeNode>,
+    std::shared_ptr<SetTypeNode>,
+    std::shared_ptr<MapTypeNode>,
+    std::shared_ptr<VariantTypeNode>,
+    std::shared_ptr<FunctionTypeNode>,
+    std::shared_ptr<RecordTypeNode>>;
+
+struct TypeAnnotation : public AstNode<TypeAnnotationVariant> {
+    using AstNode::AstNode;
+
+    Token start_token;
+    Token end_token;
+};
+
+template <typename T> inline TypeAnnotation_ptr make_type_annotation(T&& data) {
+    return std::make_shared<TypeAnnotation>(std::forward<T>(data));
+}
+
+template <typename T>
+inline TypeAnnotation_ptr make_type_annotation(T&& data, Token start_token, Token end_token) {
+    auto type_node = std::make_shared<TypeAnnotation>(std::forward<T>(data));
+    type_node->start_token = std::move(start_token);
+    type_node->end_token = std::move(end_token);
+    return type_node;
+}
 
 } // namespace Wasp

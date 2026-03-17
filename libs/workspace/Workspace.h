@@ -17,7 +17,7 @@ namespace Wasp {
 struct Module {
     std::filesystem::path file_path;
 
-    Block block;
+    StatementVector block;
 
     CodeObject code;
 

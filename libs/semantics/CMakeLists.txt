@@ -17,4 +17,4 @@ add_library(
 
 target_link_libraries(SemanticAnalyzerLib PUBLIC TokenLib ASTLib SymbolLib ObjectSystemLib WorkspaceLib DoctorLib)
 
-target_include_directories(SemanticAnalyzerLib PUBLIC .)
+target_include_directories(SemanticAnalyzerLib PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR})

@@ -142,7 +142,7 @@ Statement_ptr Parser::parse_function_definition(int indent_level) {
 
     token_pipe.require_in_line(TokenType::EOL);
 
-    Block body = parse_statements_block(indent_level + 1);
+    StatementVector body = parse_statements_block(indent_level + 1);
     return MAKE_STATEMENT(FunctionDefinition(name, parameters, return_type, body));
 }
 

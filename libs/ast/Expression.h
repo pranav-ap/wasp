@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AST.h"
 #include "Resolvable.h"
 #include "Token.h"
 #include "TypeAnnotation.h"
@@ -13,11 +14,6 @@
 #include <vector>
 
 namespace Wasp {
-
-struct Expression;
-using Expression_ptr = std::shared_ptr<Expression>;
-using ExpressionVector = std::vector<Expression_ptr>;
-using ExpressionStack = std::stack<Expression_ptr>;
 
 struct Symbol;
 
@@ -183,50 +179,57 @@ struct RangeLiteral {
           is_inclusive(is_inclusive) {}
 };
 
-// Expression Variant
+// Expression
 
-struct Expression {
-    std::variant<
-        std::monostate,
+using ExpressionVariant = std::variant<
+    std::monostate,
 
-        int,
-        double,
-        std::string,
-        bool,
+    int,
+    double,
+    std::string,
+    bool,
 
-        DotLiteral,
-        Identifier,
-        MemberAccess,
+    DotLiteral,
+    Identifier,
+    MemberAccess,
 
-        Call,
+    Call,
 
-        Prefix,
-        Infix,
-        Postfix,
+    Prefix,
+    Infix,
+    Postfix,
 
-        ListLiteral,
-        TupleLiteral,
-        MapLiteral,
-        SetLiteral,
-        RangeLiteral,
+    ListLiteral,
+    TupleLiteral,
+    MapLiteral,
+    SetLiteral,
+    RangeLiteral,
 
-        VariableDefinitionExpression,
-        UntypedAssignment,
-        TypedAssignment,
-        TypePattern,
+    VariableDefinitionExpression,
+    UntypedAssignment,
+    TypedAssignment,
+    TypePattern,
 
-        IfTernaryBranch,
-        ElseTernaryBranch>
-        data;
+    IfTernaryBranch,
+    ElseTernaryBranch>;
 
-    Expression() = default;
+struct Expression : public AstNode<ExpressionVariant> {
+    using AstNode::AstNode;
 
-    template <typename T> Expression(T&& val) : data(std::forward<T>(val)) {}
-
-    template <typename T> [[nodiscard]] bool is() const { return std::holds_alternative<T>(data); }
-
-    template <typename T> const T& as() const { return std::get<T>(data); }
-
-    template <typename T> const T* try_as() const { return std::get_if<T>(&data); }
+    Token start_token;
+    Token end_token;
 };
+
+template <typename T> inline Expression_ptr make_expression(T&& data) {
+    return std::make_shared<Expression>(std::forward<T>(data));
+}
+
+template <typename T>
+inline Expression_ptr make_expression(T&& data, Token start_token, Token end_token) {
+    auto expr = std::make_shared<Expression>(std::forward<T>(data));
+    expr->start_token = std::move(start_token);
+    expr->end_token = std::move(end_token);
+    return expr;
+}
+
 } // namespace Wasp

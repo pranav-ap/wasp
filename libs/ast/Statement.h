@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AST.h"
 #include "Expression.h"
 #include "Resolvable.h"
 #include "Token.h"
@@ -16,11 +17,7 @@
 
 namespace Wasp {
 
-struct Statement;
 struct ExpressionStatement;
-
-using Statement_ptr = std::shared_ptr<Statement>;
-using Block = std::vector<Statement_ptr>;
 
 struct ExpressionStatement {
     Expression_ptr expression;
@@ -71,7 +68,7 @@ struct FunctionDefinition : public Definition {
     std::string name;
     std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters;
     TypeAnnotation_ptr return_type;
-    Block body;
+    StatementVector body;
 
     FunctionDefinition() = default;
 
@@ -79,7 +76,7 @@ struct FunctionDefinition : public Definition {
         std::string name,
         std::vector<std::pair<std::string, TypeAnnotation_ptr>> params,
         TypeAnnotation_ptr ret_type,
-        Block body
+        StatementVector body
     )
         : name(std::move(name)), parameters(std::move(params)), return_type(std::move(ret_type)),
           body(std::move(body)) {};
@@ -139,7 +136,7 @@ struct ImplDefinition : public Definition {
 // Branching
 
 struct Branch {
-    Block body;
+    StatementVector body;
 };
 
 struct IfBranch : Branch {
@@ -148,22 +145,22 @@ struct IfBranch : Branch {
 
     IfBranch() = default;
 
-    IfBranch(Expression_ptr test, Block body)
+    IfBranch(Expression_ptr test, StatementVector body)
         : Branch(body), test(test), alternative(std::nullopt) {};
 
-    IfBranch(Expression_ptr test, Block body, Statement_ptr alternative)
+    IfBranch(Expression_ptr test, StatementVector body, Statement_ptr alternative)
         : Branch(body), test(test), alternative(std::make_optional(alternative)) {};
 };
 
 struct ElseBranch : Branch {
     ElseBranch() = default;
-    ElseBranch(Block body) : Branch(body) {};
+    ElseBranch(StatementVector body) : Branch(body) {};
 };
 
 // Looping
 
 struct Loop {
-    Block body;
+    StatementVector body;
 };
 
 struct SimpleLoop : public Loop {
@@ -172,7 +169,7 @@ struct SimpleLoop : public Loop {
 
     SimpleLoop() = default;
 
-    SimpleLoop(Block body, Expression_ptr condition, TokenType style)
+    SimpleLoop(StatementVector body, Expression_ptr condition, TokenType style)
         : Loop(body), condition(std::move(condition)), style(style) {};
 };
 
@@ -184,7 +181,10 @@ struct ForInLoop : public Loop {
     ForInLoop() = default;
 
     ForInLoop(
-        Block body, Expression_ptr lhs, Expression_ptr iterable_expression, bool lhs_is_mutable
+        StatementVector body,
+        Expression_ptr lhs,
+        Expression_ptr iterable_expression,
+        bool lhs_is_mutable
     )
         : Loop(body), lhs_is_mutable(lhs_is_mutable), lhs(std::move(lhs)),
           iterable_expression(std::move(iterable_expression)) {};
@@ -269,53 +269,49 @@ struct FromImport : public AbstractImport, Resolvable {
 
 // Statement Variant
 
-struct Statement {
-    using StatementData = std::variant<
-        std::monostate,
-        ExpressionStatement,
+// 1. Define the variant payload FIRST
+using StatementVariant = std::variant<
+    std::monostate,
+    ExpressionStatement,
 
-        VariableDefinition,
-        AliasDefinition,
-        EnumDefinition,
-        FunctionDefinition,
-        ClassDefinition,
-        TraitDefinition,
-        ImplDefinition,
+    VariableDefinition,
+    AliasDefinition,
+    EnumDefinition,
+    FunctionDefinition,
+    ClassDefinition,
+    TraitDefinition,
+    ImplDefinition,
 
-        AnnotationDefinition,
+    AnnotationDefinition,
 
-        SimpleImport,
-        FromImport,
+    SimpleImport,
+    FromImport,
 
-        IfBranch,
-        ElseBranch,
-        SimpleLoop,
-        ForInLoop,
-        LoopControl,
+    IfBranch,
+    ElseBranch,
+    SimpleLoop,
+    ForInLoop,
+    LoopControl,
 
-        Pass,
-        Return>;
+    Pass,
+    Return>;
 
-    StatementData data;
+// STATEMENT
 
-    int statement_number; // For error reporting and debugging
+struct Statement : public AstNode<StatementVariant> {
+    using AstNode::AstNode;
 
-    Statement() = default;
-
-    template <typename T> Statement(T&& val) : data(std::forward<T>(val)) {}
-
-    template <typename T> bool is() const { return std::holds_alternative<T>(data); }
-
-    template <typename T> const T& as() const { return std::get<T>(data); }
-    template <typename T> const T* try_as() const { return std::get_if<T>(&data); }
-
-    template <typename T> T& as() { return std::get<T>(data); }
-    template <typename T> T* try_as() { return std::get_if<T>(&data); }
+    Token start_token;
+    Token end_token;
 };
 
-template <typename T> Statement_ptr make_statement(T&& data, int current_line_number) {
+template <typename T> inline Statement_ptr make_statement(T&& data) {
+    return std::make_shared<Statement>(std::forward<T>(data));
+}
+
+template <typename T> inline Statement_ptr make_statement(T&& data, int statement_number) {
     auto stmt = std::make_shared<Statement>(std::forward<T>(data));
-    stmt->statement_number = current_line_number;
+    stmt->statement_number = statement_number;
     return stmt;
 }
 

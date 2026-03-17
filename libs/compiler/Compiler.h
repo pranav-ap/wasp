@@ -156,7 +156,7 @@ public:
     const CFGraph& get_graph() const { return graph; }
     const std::map<int, std::string>& get_name_map() const { return debug_name_map; }
 
-    CodeObject run(const Block& block, bool is_main = false);
+    CodeObject run(const StatementVector& block, bool is_main = false);
 };
 
 using Compiler_ptr = std::shared_ptr<Compiler>;

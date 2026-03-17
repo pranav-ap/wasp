@@ -81,13 +81,13 @@ Statement_ptr Parser::parse_statement(int expected_indent_level) {
     }
 }
 
-Block Parser::parse_statements_block(int expected_indent_level) {
+StatementVector Parser::parse_statements_block(int expected_indent_level) {
     token_pipe.ignore_empty_lines();
 
     auto s = parse_statement(expected_indent_level);
     Doctor::get().fatal_if_nullptr(s, WaspStage::Parser);
 
-    Block statements{std::move(s)};
+    StatementVector statements{std::move(s)};
 
     while (true) {
         token_pipe.ignore_empty_lines();

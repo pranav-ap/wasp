@@ -30,7 +30,7 @@ Statement_ptr Parser::parse_branching(TokenType token_type,
 
   // If Block
 
-  Block body = parse_statements_block(if_keyword_indent_level + 1);
+  StatementVector body = parse_statements_block(if_keyword_indent_level + 1);
   token_pipe.ignore_empty_lines();
 
   if (token_pipe.peek_type_at_indent(if_keyword_indent_level,
@@ -75,7 +75,7 @@ Expression_ptr Parser::parse_ternary_condition(TokenType token_type,
 
 Statement_ptr Parser::parse_else_block(int if_keyword_indent_level) {
   token_pipe.require_in_line(TokenType::EOL);
-  Block else_block = parse_statements_block(if_keyword_indent_level + 1);
+  StatementVector else_block = parse_statements_block(if_keyword_indent_level + 1);
 
   return MAKE_STATEMENT(ElseBranch(else_block));
 }

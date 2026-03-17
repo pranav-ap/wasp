@@ -47,7 +47,7 @@ class Parser {
 
     // Branching Parsers
 
-    Block parse_statements_block(int expected_indent_level);
+    StatementVector parse_statements_block(int expected_indent_level);
 
     Statement_ptr parse_branching(TokenType token_type, int if_indent_level);
     Statement_ptr parse_else_block(int if_indent_level);
@@ -104,7 +104,7 @@ public:
     TypeAnnotation_ptr parse_type();
     TypeAnnotationVector parse_types();
 
-    Block run(const std::vector<Token>& tokens);
+    StatementVector run(const std::vector<Token>& tokens);
 };
 
 using ParserPtr = std::shared_ptr<Parser>;

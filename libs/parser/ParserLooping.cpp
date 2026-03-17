@@ -83,7 +83,7 @@ Statement_ptr Parser::parse_for_in_loop(int loop_indent_level) {
     auto statement = parse_expression_statement();
     Doctor::get().fatal_if_nullptr(statement, WaspStage::Parser);
 
-    Block body = {statement};
+    StatementVector body = {statement};
     return std::make_shared<Statement>(ForInLoop(body, lhs, iterable_expression, is_mutable));
 }
 

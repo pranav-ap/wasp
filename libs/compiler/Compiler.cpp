@@ -33,7 +33,7 @@ Compiler::Compiler(ConstantPool_ptr pool, Compiler* parent)
     graph.set_entry_block(current_block_id);
 }
 
-CodeObject Compiler::run(const Block& block, bool is_main) {
+CodeObject Compiler::run(const StatementVector& block, bool is_main) {
     if (is_main) {
         emit(OpCode::ENTER_WORKSPACE);
     }
