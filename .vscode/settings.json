@@ -8,7 +8,7 @@
         "markdown": false,
         "scminput": false,
         "python": true,
-        "cpp": false,
+        "cpp": true,
         "c": true
     },
     // -----------------------------------------------------------------

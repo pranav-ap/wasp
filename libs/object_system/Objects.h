@@ -149,8 +149,8 @@ struct FunctionObject : public CompositeObject {
 
     FunctionObject(CodeObject code) : code(std::move(code)), name(""), exports_map({}) {}
 
-    FunctionObject(CodeObject code, std::string name, std::map<int, std::string> names)
-        : code(std::move(code)), name(std::move(name)), exports_map(std::move(names)) {}
+    FunctionObject(CodeObject code, std::string name, std::map<int, std::string> exports_map)
+        : code(std::move(code)), name(std::move(name)), exports_map(std::move(exports_map)) {}
 
     std::string get_name_for_index(int index) const {
         auto it = exports_map.find(index);
@@ -163,16 +163,13 @@ struct FunctionVMObject : public FunctionObject {
 
     FunctionVMObject(CodeObject code) : FunctionObject(code), upvalues({}) {}
 
-    FunctionVMObject(ObjectVector upvalues, CodeObject code)
-        : FunctionObject(code), upvalues(upvalues) {}
-
     FunctionVMObject(
         ObjectVector upvalues,
         CodeObject code,
         std::string name,
-        std::map<int, std::string> name_map
+        std::map<int, std::string> exports_map
     )
-        : FunctionObject(code, name, name_map), upvalues(std::move(upvalues)) {}
+        : FunctionObject(code, name, exports_map), upvalues(std::move(upvalues)) {}
 };
 
 using NativeFnType = std::function<Object_ptr(const std::vector<Object_ptr>&)>;
@@ -189,8 +186,6 @@ struct NativeFunctionObject : public CompositeObject {
 struct ModuleObject : public CompositeObject {
     std::string name;
     std::map<std::string, Object_ptr> members;
-
-    ModuleObject(std::string name) : name(std::move(name)) {}
 
     ModuleObject(std::string name, std::map<std::string, Object_ptr> members)
         : name(std::move(name)), members(std::move(members)) {}

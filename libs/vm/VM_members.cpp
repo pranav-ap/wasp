@@ -3,6 +3,7 @@
 #include "OpCode.h"
 #include "VM.h"
 
+#include <iostream>
 #include <memory>
 #include <string>
 #include <variant>
@@ -49,12 +50,18 @@ Object_ptr VM::perform_get_member(Object_ptr obj, const std::string& name) {
                 Doctor::get().fatal_if_nullptr(
                     result,
                     WaspStage::VM,
-                    "Module '" + module_obj->name + "' has no member named '" + name + "'."
+                    "Module '" + module_obj->name + "' has no member named '" + name
                 );
                 return result;
             },
             [&](auto&) -> Object_ptr {
-                Doctor::get().fatal(WaspStage::VM, "Object does not support reading properties.");
+                std::cout << "[VM BUG] perform_get_member expected a ModuleObject, but got Variant "
+                             "Index: "
+                          << obj->value.index() << "\n";
+
+                Doctor::get().fatal(
+                    WaspStage::VM, "Object of variant type does not support reading properties."
+                );
                 return nullptr;
             }
         },

@@ -55,7 +55,11 @@ CodeObject Compiler::run(const Block& block, bool is_main) {
         emit(OpCode::EXIT_WORKSPACE);
     }
 
-    return flatten();
+    CodeObject final_code = flatten();
+    final_code.local_names = std::move(this->debug_name_map);
+    // final_code.name = "module";
+
+    return final_code;
 }
 
 // ========================================================================

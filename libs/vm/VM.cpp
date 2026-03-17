@@ -6,7 +6,9 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
@@ -69,6 +71,16 @@ void VM::execute_variable(OpCode op, CallFrame* frame) {
         push_to_stack(workspace->native_registry->get_native_object(index));
         break;
     }
+    case OpCode::GET_UPVALUE: {
+        int index = static_cast<int>(frame->consume_byte());
+        push_to_stack(frame->function->upvalues[index]);
+        break;
+    }
+    case OpCode::SET_UPVALUE: {
+        int index = static_cast<int>(frame->consume_byte());
+        frame->function->upvalues[index] = peek_tos();
+        break;
+    }
     case OpCode::PUSH_SCOPE: {
         frame->scope_bases.push_back(stack.size());
         break;
@@ -128,8 +140,9 @@ void VM::execute_make_function(CallFrame* frame) {
         }
     }
 
-    auto runtime_closure =
-        std::make_shared<FunctionVMObject>(std::move(captured_upvalues), blueprint->code);
+    auto runtime_closure = std::make_shared<FunctionVMObject>(
+        std::move(captured_upvalues), blueprint->code, blueprint->name, blueprint->exports_map
+    );
 
     Object_ptr closure_obj = std::make_shared<Object>(runtime_closure);
     push_to_stack(closure_obj);
@@ -200,13 +213,20 @@ void VM::execute_import(CallFrame* frame) {
     int path_index = static_cast<int>(frame->consume_byte());
     Object_ptr path_obj = workspace->pool->get(path_index);
     std::string module_path = path_obj->as<StringObject>().value;
+    std::string module_name = std::filesystem::path(module_path).stem().string();
 
     auto target_module = workspace->get_module(module_path);
     Doctor::get().fatal_if_nullptr(
         target_module, WaspStage::VM, "Module not found : " + module_path
     );
 
-    auto module_func = std::make_shared<FunctionVMObject>(target_module->code);
+    auto module_func = std::make_shared<FunctionVMObject>(
+        ObjectVector{},                 // Top-level modules don't have upvalues
+        target_module->code,            // bytecode
+        module_name,                    // Set the module's name to its file path
+        target_module->code.local_names // Inject the compiler's variable name map
+    );
+
     size_t export_base = stack.size();
     frames.emplace_back(module_func, export_base);
 }
@@ -215,20 +235,25 @@ void VM::execute_exit_module() {
     CallFrame& frame = frames.back();
     size_t bp = frame.base_pointer;
 
-    auto exports = std::make_shared<ModuleObject>(frame.function->name);
+    std::map<std::string, Object_ptr> exported_members;
 
-    // Collect Global Exports
+    // Collect Exports from the stack
     for (size_t i = bp; i < stack.size(); ++i) {
         std::string var_name = frame.function->get_name_for_index(i - bp);
 
         if (!var_name.empty()) {
-            exports->members[var_name] = stack[i];
+            exported_members[var_name] = stack[i];
         }
     }
 
+    auto exports =
+        std::make_shared<ModuleObject>(frame.function->name, std::move(exported_members));
+
+    // Clean up the stack and pop the module's CallFrame
     stack.erase(stack.begin() + bp, stack.end());
     frames.pop_back();
 
+    // Push the completed module object to the caller's stack
     push_to_stack(std::make_shared<Object>(exports));
 }
 

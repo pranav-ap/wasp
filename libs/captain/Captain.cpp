@@ -93,6 +93,7 @@ void Captain::compile(const std::vector<Module_ptr>& build_order) {
 
         Compiler compiler(workspace->pool, workspace->native_registry);
         module->code = compiler.run(module->block, is_main);
+        module->code.name = module->file_path.stem().string();
 
         dump_build_artifacts(workspace, module->file_path, module->code);
     }
