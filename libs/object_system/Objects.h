@@ -144,16 +144,35 @@ struct VariantObject : public CompositeObject {
 struct FunctionObject : public CompositeObject {
     CodeObject code;
 
-    FunctionObject(CodeObject code) : code(std::move(code)) {};
+    std::string name;
+    std::map<int, std::string> exports_map;
+
+    FunctionObject(CodeObject code) : code(std::move(code)), name(""), exports_map({}) {}
+
+    FunctionObject(CodeObject code, std::string name, std::map<int, std::string> names)
+        : code(std::move(code)), name(std::move(name)), exports_map(std::move(names)) {}
+
+    std::string get_name_for_index(int index) const {
+        auto it = exports_map.find(index);
+        return (it != exports_map.end()) ? it->second : "";
+    }
 };
 
 struct FunctionVMObject : public FunctionObject {
     ObjectVector upvalues;
 
-    FunctionVMObject(CodeObject code) : FunctionObject(std::move(code)) {}
+    FunctionVMObject(CodeObject code) : FunctionObject(code), upvalues({}) {}
 
-    FunctionVMObject(CodeObject code, ObjectVector upvalues)
-        : FunctionObject(std::move(code)), upvalues(std::move(upvalues)) {}
+    FunctionVMObject(ObjectVector upvalues, CodeObject code)
+        : FunctionObject(code), upvalues(upvalues) {}
+
+    FunctionVMObject(
+        ObjectVector upvalues,
+        CodeObject code,
+        std::string name,
+        std::map<int, std::string> name_map
+    )
+        : FunctionObject(code, name, name_map), upvalues(std::move(upvalues)) {}
 };
 
 using NativeFnType = std::function<Object_ptr(const std::vector<Object_ptr>&)>;

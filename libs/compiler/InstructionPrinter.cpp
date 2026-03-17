@@ -1,7 +1,15 @@
 #include "InstructionPrinter.h"
-#include <iostream>
+#include "CFGraph.h"
+#include "Objects.h"
+#include "OpCode.h"
+#include <cstddef>
 #include <iomanip>
+#include <iostream>
+#include <map>
+#include <memory>
 #include <sstream>
+#include <string>
+
 
 #ifndef ASSERT
 #include <cassert>

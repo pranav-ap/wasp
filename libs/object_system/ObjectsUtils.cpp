@@ -127,139 +127,119 @@ namespace Wasp
         if (!value)
             return "null";
 
-        return std::visit(overloaded{[](const std::monostate &) -> std::string
-                                     { return "uninitialized"; },
+        return std::visit(
+            overloaded{
+                [](const std::monostate&) -> std::string { return "uninitialized"; },
 
-                                     // Base Types
-                                     [](const AnyType &) -> std::string
-                                     { return "any type"; },
-                                     [](const NamedDefinitionType &obj) -> std::string
-                                     { return "named definition: " + obj.name; },
-                                     [](const FunctionType &) -> std::string
-                                     { return "function type"; },
+                // Base Types
+                [](const AnyType&) -> std::string { return "any type"; },
+                [](const NamedDefinitionType& obj) -> std::string {
+                    return "named definition: " + obj.name;
+                },
+                [](const FunctionType&) -> std::string { return "function type"; },
 
-                                     // Scalar Objects
-                                     [](const NoneObject &) -> std::string
-                                     { return "none"; },
-                                     [](const IntObject &obj) -> std::string
-                                     { return std::to_string(obj.value); },
-                                     [](const FloatObject &obj) -> std::string
-                                     { return std::to_string(obj.value); },
-                                     [](const StringObject &obj) -> std::string
-                                     { return "\"" + obj.value + "\""; },
-                                     [](const BooleanObject &obj) -> std::string
-                                     { return obj.value ? "true" : "false"; },
+                // Scalar Objects
+                [](const NoneObject&) -> std::string { return "none"; },
+                [](const IntObject& obj) -> std::string { return std::to_string(obj.value); },
+                [](const FloatObject& obj) -> std::string { return std::to_string(obj.value); },
+                [](const StringObject& obj) -> std::string { return "\"" + obj.value + "\""; },
+                [](const BooleanObject& obj) -> std::string {
+                    return obj.value ? "true" : "false";
+                },
 
-                                     // Literal Types
-                                     [](const IntLiteralType &) -> std::string
-                                     { return "int literal type"; },
-                                     [](const FloatLiteralType &) -> std::string
-                                     { return "float literal type"; },
-                                     [](const StringLiteralType &) -> std::string
-                                     { return "string literal type"; },
-                                     [](const BooleanLiteralType &) -> std::string
-                                     { return "boolean literal type"; },
+                // Literal Types
+                [](const IntLiteralType&) -> std::string { return "int literal type"; },
+                [](const FloatLiteralType&) -> std::string { return "float literal type"; },
+                [](const StringLiteralType&) -> std::string { return "string literal type"; },
+                [](const BooleanLiteralType&) -> std::string { return "boolean literal type"; },
 
-                                     // Scalar Types
-                                     [](const IntType &) -> std::string
-                                     { return "int type"; },
-                                     [](const FloatType &) -> std::string
-                                     { return "float type"; },
-                                     [](const StringType &) -> std::string
-                                     { return "string type"; },
-                                     [](const BooleanType &) -> std::string
-                                     { return "bool type"; },
+                // Scalar Types
+                [](const IntType&) -> std::string { return "int type"; },
+                [](const FloatType&) -> std::string { return "float type"; },
+                [](const StringType&) -> std::string { return "string type"; },
+                [](const BooleanType&) -> std::string { return "bool type"; },
 
-                                     // Composite Types
-                                     [](const ListType &) -> std::string
-                                     { return "list type"; },
-                                     [](const TupleType &) -> std::string
-                                     { return "tuple type"; },
-                                     [](const SetType &) -> std::string
-                                     { return "set type"; },
-                                     [](const MapType &) -> std::string
-                                     { return "map type"; },
-                                     [](const VariantType &) -> std::string
-                                     { return "variant type"; },
+                // Composite Types
+                [](const ListType&) -> std::string { return "list type"; },
+                [](const TupleType&) -> std::string { return "tuple type"; },
+                [](const SetType&) -> std::string { return "set type"; },
+                [](const MapType&) -> std::string { return "map type"; },
+                [](const VariantType&) -> std::string { return "variant type"; },
 
-                                     // Composite Objects
-                                     [](const std::shared_ptr<IteratorObject> &) -> std::string
-                                     { return "<iterator>"; },
+                // Composite Objects
+                [](const std::shared_ptr<IteratorObject>&) -> std::string { return "<iterator>"; },
 
-                                     [](const std::shared_ptr<ListObject> &obj) -> std::string
-                                     {
-                                         std::string res = "[";
-                                         for (size_t i = 0; i < obj->values.size(); ++i)
-                                         {
-                                             res += stringify_object(obj->values[i]);
-                                             if (i < obj->values.size() - 1)
-                                                 res += ", ";
-                                         }
-                                         return res + "]";
-                                     },
+                [](const std::shared_ptr<ListObject>& obj) -> std::string {
+                    std::string res = "[";
+                    for (size_t i = 0; i < obj->values.size(); ++i) {
+                        res += stringify_object(obj->values[i]);
+                        if (i < obj->values.size() - 1)
+                            res += ", ";
+                    }
+                    return res + "]";
+                },
 
-                                     [](const std::shared_ptr<TupleObject> &obj) -> std::string
-                                     {
-                                         std::string res = "(";
-                                         for (size_t i = 0; i < obj->values.size(); ++i)
-                                         {
-                                             res += stringify_object(obj->values[i]);
-                                             if (i < obj->values.size() - 1)
-                                                 res += ", ";
-                                         }
-                                         return res + ")";
-                                     },
+                [](const std::shared_ptr<TupleObject>& obj) -> std::string {
+                    std::string res = "(";
+                    for (size_t i = 0; i < obj->values.size(); ++i) {
+                        res += stringify_object(obj->values[i]);
+                        if (i < obj->values.size() - 1)
+                            res += ", ";
+                    }
+                    return res + ")";
+                },
 
-                                     [](const std::shared_ptr<SetObject> &obj) -> std::string
-                                     {
-                                         std::string res = "{";
-                                         auto it = obj->values.begin();
-                                         while (it != obj->values.end())
-                                         {
-                                             res += stringify_object(*it);
-                                             if (++it != obj->values.end())
-                                                 res += ", ";
-                                         }
-                                         return res + "}";
-                                     },
+                [](const std::shared_ptr<SetObject>& obj) -> std::string {
+                    std::string res = "{";
+                    auto it = obj->values.begin();
+                    while (it != obj->values.end()) {
+                        res += stringify_object(*it);
+                        if (++it != obj->values.end())
+                            res += ", ";
+                    }
+                    return res + "}";
+                },
 
-                                     [](const std::shared_ptr<MapObject> &obj) -> std::string
-                                     {
-                                         std::string res = "{";
-                                         auto it = obj->pairs.begin();
-                                         while (it != obj->pairs.end())
-                                         {
-                                             res += stringify_object(it->first) + ": " + stringify_object(it->second);
-                                             if (++it != obj->pairs.end())
-                                                 res += ", ";
-                                         }
-                                         return res + "}";
-                                     },
+                [](const std::shared_ptr<MapObject>& obj) -> std::string {
+                    std::string res = "{";
+                    auto it = obj->pairs.begin();
+                    while (it != obj->pairs.end()) {
+                        res += stringify_object(it->first) + ": " + stringify_object(it->second);
+                        if (++it != obj->pairs.end())
+                            res += ", ";
+                    }
+                    return res + "}";
+                },
 
-                                     [](const std::shared_ptr<VariantObject> &) -> std::string
-                                     { return "<variant>"; },
+                [](const std::shared_ptr<VariantObject>&) -> std::string { return "<variant>"; },
 
-                                     [](const std::shared_ptr<FunctionObject> &func) -> std::string
-                                     { return "<function " + func->code.name + ">"; },
+                [](const std::shared_ptr<FunctionObject>& func) -> std::string {
+                    return "<function " + func->code.name + ">";
+                },
 
-                                     // Action Objects
-                                     [](const std::shared_ptr<ReturnObject> &) -> std::string
-                                     { return "return"; },
-                                     [](const std::shared_ptr<ErrorObject> &obj) -> std::string
-                                     { return "error: " + obj->message; },
-                                     [](const std::shared_ptr<RedoObject> &) -> std::string
-                                     { return "redo"; },
-                                     [](const std::shared_ptr<BreakObject> &) -> std::string
-                                     { return "break"; },
-                                     [](const std::shared_ptr<ContinueObject> &) -> std::string
-                                     { return "continue"; },
+                [](const std::shared_ptr<FunctionVMObject>& func) -> std::string {
+                    return "<VM function " + func->code.name + ">";
+                },
 
-                                     // Fallback for anything missed
-                                     [](const auto &) -> std::string
-                                     { return "unknown object"; }
+                [](const std::shared_ptr<ModuleObject>& mod) -> std::string {
+                    return "<module " + mod->name + ">";
+                },
 
-                          },
-                          value->value);
+                // Action Objects
+                [](const std::shared_ptr<ReturnObject>&) -> std::string { return "return"; },
+                [](const std::shared_ptr<ErrorObject>& obj) -> std::string {
+                    return "error: " + obj->message;
+                },
+                [](const std::shared_ptr<RedoObject>&) -> std::string { return "redo"; },
+                [](const std::shared_ptr<BreakObject>&) -> std::string { return "break"; },
+                [](const std::shared_ptr<ContinueObject>&) -> std::string { return "continue"; },
+
+                // Fallback for anything missed
+                [](const auto&) -> std::string { return "<Unknown Object>"; }
+
+            },
+            value->value
+        );
     }
 
 }
