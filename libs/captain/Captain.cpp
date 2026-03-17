@@ -62,12 +62,9 @@ void Captain::parse_module(const std::filesystem::path& file_path) {
     auto tokens = lexer.run(code);
 
     Parser parser;
-    auto block = parser.run(tokens);
+    auto stmts = parser.run(tokens);
 
-    auto module = std::make_shared<Module>();
-    module->file_path = abs_path;
-    module->block = std::move(block);
-
+    auto module = std::make_shared<Module>(abs_path, stmts);
     workspace->add_module(abs_path, module);
 }
 
@@ -92,7 +89,7 @@ void Captain::compile(const std::vector<Module_ptr>& build_order) {
         bool is_main = (module->file_path == entry_file);
 
         Compiler compiler(workspace->pool, workspace->native_registry);
-        module->code = compiler.run(module->block, is_main);
+        module->code = compiler.run(module->stmts, is_main);
         module->code.name = module->file_path.stem().string();
 
         dump_build_artifacts(workspace, module->file_path, module->code);

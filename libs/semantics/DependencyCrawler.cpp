@@ -18,14 +18,10 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp {
 
-std::vector<Module_ptr>
-DependencyCrawler::calculate_build_order(const std::filesystem::path& entry_file) {
-    build_order.clear();
-    currently_visiting.clear();
-    visited.clear();
-
+std::vector<Module_ptr> DependencyCrawler::calculate_build_order(
+    const std::filesystem::path& entry_file
+) {
     traverse_edges(entry_file);
-
     return build_order;
 }
 
@@ -50,7 +46,7 @@ void DependencyCrawler::traverse_edges(const std::filesystem::path& file_path) {
 
     // Look for Top-Level Imports
 
-    for (auto& stmt_ptr : mod->block) {
+    for (auto& stmt_ptr : mod->stmts) {
         if (stmt_ptr->is<SimpleImport>()) {
             auto& import_stmt = stmt_ptr->as<SimpleImport>();
 

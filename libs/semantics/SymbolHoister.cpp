@@ -23,7 +23,7 @@ void SymbolHoister::run(const std::vector<Module_ptr>& build_order) {
 }
 
 void SymbolHoister::run(Module_ptr module) {
-    for (const auto& stmt_ptr : module->block) {
+    for (const auto& stmt_ptr : module->stmts) {
         std::visit(
             overloaded{
                 [&](const FunctionDefinition& func_def) {

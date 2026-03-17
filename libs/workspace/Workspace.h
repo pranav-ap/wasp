@@ -1,10 +1,10 @@
 #pragma once
 
+#include "AST.h"
 #include "CFGraph.h"
 #include "ConstantPool.h"
 #include "NativeRegistry.h"
 #include "Objects.h"
-#include "Statement.h"
 #include "Symbol.h"
 
 #include <filesystem>
@@ -15,22 +15,30 @@
 namespace Wasp {
 
 struct Module {
-    std::filesystem::path file_path;
+    const std::filesystem::path file_path;
 
-    StatementVector block;
-
+    StatementVector stmts;
+    CFGraph graph;
     CodeObject code;
 
     std::map<std::string, Symbol_ptr> exports;
     Object_ptr type;
 
-    CFGraph graph;
+    Module() = default;
+
+    Module(std::filesystem::path file_path, StatementVector stmts)
+        : file_path(file_path), stmts(stmts) {}
+
+    std::string get_name() const { return file_path.stem().string(); }
 };
 
 using Module_ptr = std::shared_ptr<Module>;
 
+struct Package;
+using Package_ptr = std::shared_ptr<Package>;
+
 struct Package {
-    std::map<std::string, std::shared_ptr<Package>> sub_packages;
+    std::map<std::string, Package_ptr> sub_packages;
     std::map<std::string, Module_ptr> modules;
 };
 

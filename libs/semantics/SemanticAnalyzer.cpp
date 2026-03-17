@@ -57,7 +57,7 @@ void SemanticAnalyzer::run(const std::vector<Module_ptr>& build_order) {
             current_scope->define(symbol);
         }
 
-        visit(module->block);
+        visit(module->stmts);
         leave_scope();
 
         extract_module_type(module);

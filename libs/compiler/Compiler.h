@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AST.h"
 #include "CFGraph.h"
 #include "ConstantPool.h"
 #include "Expression.h"
