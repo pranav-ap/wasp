@@ -219,6 +219,10 @@ namespace Wasp
                     return "<VM function " + func->name + ">";
                 },
 
+                [](const std::shared_ptr<NativeFunctionObject>& func) -> std::string {
+                    return "<Native function " + func->name + ">";
+                },
+
                 [](const std::shared_ptr<ModuleObject>& mod) -> std::string {
                     return "<module " + mod->name + ">";
                 },

@@ -21,7 +21,7 @@ using std::string;
 
 namespace Wasp {
 string InstructionPrinter::stringify_instruction(
-    byte opcode, byte operand, const std::map<int, std::string>& names
+    byte opcode, byte operand, const std::map<int, std::string>& id_to_name_map
 ) {
     int op_int = std::to_integer<int>(operand);
     std::stringstream ss;
@@ -35,13 +35,26 @@ string InstructionPrinter::stringify_instruction(
                << stringify_object(ws->pool->get(op_int)) << ")";
         }
         break;
+    case OpCode::GET_NATIVE: {
+        std::string native_name = ws->native_registry->get_native_name(op_int);
+        ss << std::right << setw(OPERAND_WIDTH) << " (" << native_name << ")";
+        break;
+    }
+
     case OpCode::DEFINE_LOCAL:
     case OpCode::SET_LOCAL:
     case OpCode::GET_LOCAL:
-        if (names.contains(op_int)) {
-            ss << std::right << setw(OPERAND_WIDTH) << " (" << names.at(op_int) << ")";
+    case OpCode::GET_MEMBER:
+    case OpCode::SET_MEMBER:
+    case OpCode::GET_UPVALUE:
+    case OpCode::SET_UPVALUE: {
+        if (id_to_name_map.contains(op_int)) {
+            ss << std::right << setw(OPERAND_WIDTH) << " (" << id_to_name_map.at(op_int) << ")";
+        } else {
+            ss << std::right << setw(OPERAND_WIDTH) << " (id " << op_int << ")";
         }
         break;
+    }
     case OpCode::CALL:
         ss << std::right << setw(OPERAND_WIDTH) << " (" << op_int << " args)";
         break;
@@ -83,7 +96,6 @@ void InstructionPrinter::print(const Object_ptr obj, std::ostream& out) {
     print(function_obj, out);
 }
 
-// --- THE EXTRACTED HELPER ---
 void InstructionPrinter::print_bytecode(
     const CodeObject& code_source, const std::map<int, std::string>& names, std::ostream& out
 ) {

@@ -1,3 +1,4 @@
+#include "AST.h"
 #include "Compiler.h"
 #include "Doctor.h"
 #include "Expression.h"
@@ -115,7 +116,7 @@ void Compiler::compile_member_assignment(MemberAccess& mac, const Expression_ptr
     Doctor::get().assert(
         mac.right->is<Identifier>(),
         WaspStage::Compiler,
-        "Right side of member assignment must be an Identifier."
+        "Right side of member assignment must be an Identifier"
     );
 
     std::string member_name = mac.right->as<Identifier>().name;

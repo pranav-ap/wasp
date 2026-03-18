@@ -34,6 +34,15 @@ public:
 
     int get_native_index(const std::string& name) const;
 
+    std::string get_native_name(int index) const {
+        for (const auto& [native_name, native_index] : native_names) {
+            if (native_index == index)
+                return native_name;
+        }
+
+        return "<unknown native>";
+    }
+
     std::unordered_map<std::string, int> get_all_native_names() const { return native_names; }
 
     int get_size() const { return static_cast<int>(native_objects.size()); }

@@ -1,3 +1,4 @@
+#include "AST.h"
 #include "Compiler.h"
 #include "Doctor.h"
 #include "Expression.h"

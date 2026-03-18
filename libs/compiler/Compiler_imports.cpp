@@ -2,6 +2,7 @@
 #include "Doctor.h"
 #include "OpCode.h"
 #include "Statement.h"
+#include "Symbol.h"
 
 #include <map>
 #include <memory>
@@ -26,6 +27,13 @@ void Compiler::visit(SimpleImport& statement) {
 
     id_to_name_map[statement.symbol->id] = statement.symbol->name;
     emit(OpCode::DEFINE_LOCAL, statement.symbol->id);
+
+    // save member names
+
+    for (const auto& member : statement.symbol->get_payload_as<ModuleData>().exports) {
+        int id = pool->allocate(member.first);
+        id_to_name_map[id] = member.second->name;
+    }
 }
 
 void Compiler::visit(FromImport& statement) {
