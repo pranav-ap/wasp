@@ -1,9 +1,9 @@
 #include "Symbol.h"
 #include "Objects.h"
 
-#include <map>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <variant>
 
@@ -50,11 +50,21 @@ Symbol_ptr SymbolFactory::create_variable(
 }
 
 Symbol_ptr SymbolFactory::create_function(
-    std::string name, Object_ptr type, bool is_native, int closure_depth, int lexical_depth
-) {
-    return std::make_shared<Symbol>(
-        std::move(name), closure_depth, lexical_depth, FunctionData{std::move(type), is_native}
-    );
+    std::string name,
+    Object_ptr type,
+    bool is_native,
+    int closure_depth,
+    int lexical_depth)
+{
+    auto symbol = std::make_shared<Symbol>(
+        std::move(name),
+        closure_depth,
+        lexical_depth,
+        FunctionData{std::move(type), is_native, {}});
+
+    symbol->get_payload_as<FunctionData>().reachable_overloads.push_back(symbol);
+
+    return symbol;
 }
 
 Symbol_ptr SymbolFactory::create_class(
@@ -74,8 +84,10 @@ Symbol_ptr SymbolFactory::create_enum(
 }
 
 Symbol_ptr SymbolFactory::create_module(
-    std::string name, Object_ptr type, std::map<std::string, Symbol_ptr> exports
-) {
+    std::string name,
+    Object_ptr type,
+    std::unordered_map<std::string, Symbol_ptr> exports)
+{
     return std::make_shared<Symbol>(
         std::move(name), 0, 0, ModuleData{std::move(type), std::move(exports)}
     );

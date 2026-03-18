@@ -1,18 +1,31 @@
 #pragma once
 
 #include "Symbol.h"
+#include <algorithm>
 #include <memory>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <vector>
 
-namespace Wasp {
-enum class ScopeType { NONE, WORKSPACE, MODULE, EXPRESSION, LOOP, BRANCH, FUNCTION };
+namespace Wasp
+{
+enum class ScopeType
+{
+    NONE,
+    WORKSPACE,
+    MODULE,
+    EXPRESSION,
+    LOOP,
+    BRANCH,
+    FUNCTION
+};
 
 class SymbolScope;
 using SymbolScope_ptr = std::shared_ptr<SymbolScope>;
 
-class SymbolScope {
+class SymbolScope
+{
 private:
     ScopeType type;
     SymbolScope_ptr enclosing_scope;
@@ -20,8 +33,10 @@ private:
     int closure_depth;
     int lexical_depth;
 
-    std::unordered_map<std::string, Symbol_ptr> symbols;
-    std::unordered_map<std::string, std::vector<Symbol_ptr>> function_symbols;
+    std::unordered_map<int, std::string> id_to_name_map;
+    SymbolVector symbols;
+
+    Symbol_ptr define_function(Symbol_ptr symbol);
 
 public:
     SymbolScope(ScopeType type, SymbolScope_ptr enclosing_scope = nullptr);
@@ -30,13 +45,19 @@ public:
     SymbolScope& operator=(const SymbolScope&) = delete;
 
     Symbol_ptr define(Symbol_ptr symbol);
-    Symbol_ptr lookup(std::string name) const;
-    std::vector<Symbol_ptr> collect_function_symbols(const std::string& name) const;
+    Symbol_ptr lookup(const std::string& name) const;
 
-    int get_symbols_count() const;
+    SymbolVector get_function_overloads(const std::string& name) const;
 
-    bool contains_in_current_scope(std::string name) const {
-        return symbols.find(name) != symbols.end();
+    Symbol_ptr find_any_function_overload_in_current_scope(const std::string& name) const;
+    Symbol_ptr find_any_function_overload_in_any_parent_scope(const std::string& name) const;
+
+    bool contains_in_current_scope(const std::string& name) const
+    {
+        return std::any_of(
+            symbols.begin(),
+            symbols.end(),
+            [&](const Symbol_ptr& s) { return s->name == name; });
     }
 
     bool contains_in_any_scope(std::string name) const { return lookup(name) != nullptr; }
@@ -50,10 +71,16 @@ public:
     int get_closure_depth() const { return closure_depth; }
     int get_lexical_depth() const { return lexical_depth; }
 
-    int get_function_distance(int target_closure_depth) const {
+    int get_function_distance(int target_closure_depth) const
+    {
         // 0 = local to the current function
         // 1 = in the immediate parent function
         return this->closure_depth - target_closure_depth;
+    }
+
+    std::tuple<SymbolVector, std::unordered_map<int, std::string>> get_all_symbols() const
+    {
+        return {symbols, id_to_name_map};
     }
 };
 } // namespace Wasp

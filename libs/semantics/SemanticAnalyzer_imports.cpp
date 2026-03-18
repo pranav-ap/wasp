@@ -25,8 +25,9 @@ void SemanticAnalyzer::visit(SimpleImport& import_stmt) {
     std::string module_name = import_stmt.alias.value_or(import_stmt.resolved_path.stem().string());
 
     std::map<std::string, Object_ptr> member_types;
-    for (const auto& [name, exported_symbol] : mod->exports) {
-        member_types[name] = exported_symbol->get_type();
+    for (const auto& [name, symbol] : mod->exports)
+    {
+        member_types[name] = symbol->get_type();
     }
 
     auto module_type = std::make_shared<Object>(ModuleType(std::move(member_types)));

@@ -21,7 +21,7 @@ public:
 
     Symbol_ptr resolve_function_overload(
         SymbolScope_ptr scope,
-        const std::vector<Symbol_ptr>& overloads,
+        const std::string& func_name,
         const ObjectVector& arg_types) const;
 
     void validate_new_overload(

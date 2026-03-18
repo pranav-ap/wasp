@@ -29,11 +29,13 @@ namespace Wasp
 
 Symbol_ptr TypeChecker::resolve_function_overload(
     SymbolScope_ptr scope,
-    const std::vector<Symbol_ptr>& overloads,
+    const std::string& func_name,
     const ObjectVector& arg_types) const
 {
     std::vector<Symbol_ptr> exact_matches;
     std::vector<Symbol_ptr> assignable_matches;
+
+    auto overloads = scope->get_function_overloads(func_name);
 
     for (const auto& sym : overloads)
     {
@@ -115,39 +117,44 @@ void TypeChecker::validate_new_overload(
     const std::string& func_name,
     const ObjectVector& new_param_types) const
 {
-    auto existing_overloads = scope->collect_function_symbols(func_name);
+    auto existing_overloads = scope->get_function_overloads(func_name);
 
     for (const auto& sym : existing_overloads)
     {
         auto func_type_obj = sym->get_payload_as<FunctionData>().type;
-        if (!func_type_obj || !func_type_obj->is<FunctionType>())
-            continue;
 
-        const auto& existing_func_type = func_type_obj->as<FunctionType>();
+        Doctor::get().fatal_if_nullptr(
+            func_type_obj,
+            WaspStage::Semantics,
+            "Overloaded symbol does not have a type");
+
+        Doctor::get().assert(
+            func_type_obj->is<FunctionType>(),
+            WaspStage::Semantics,
+            "Overloaded symbol has a non-function type");
+
+        const auto& func_type = func_type_obj->as<FunctionType>();
 
         // If the number of parameters is different, there is zero risk of collision!
-        if (existing_func_type.input_types.size() != new_param_types.size())
+        if (func_type.input_types.size() != new_param_types.size())
         {
             continue;
         }
 
-        // EXACT MATCH CHECK: Prevent redefining the exact same signature
-        if (equal(scope, existing_func_type.input_types, new_param_types))
+        // EXACT MATCH AMBIGUITY CHECK
+        if (equal(scope, func_type.input_types, new_param_types))
         {
             Doctor::get().fatal(
                 WaspStage::Semantics,
-                "Overload Error: A function named '" + func_name +
-                    "' with this exact signature already exists.");
+                "A function named '" + func_name + "' with this exact signature already exists.");
         }
 
-        // ASSIGNABLE AMBIGUITY CHECK: Prevent overlapping signatures.
-        if (assignable(scope, existing_func_type.input_types, new_param_types) ||
-            assignable(scope, new_param_types, existing_func_type.input_types))
+        // ASSIGNABLE AMBIGUITY CHECK
+        if (assignable(scope, func_type.input_types, new_param_types))
         {
-
             Doctor::get().fatal(
                 WaspStage::Semantics,
-                "Overload Error: The signature for '" + func_name +
+                "Signature for '" + func_name +
                     "' overlaps ambiguously with an existing overload.");
         }
     }

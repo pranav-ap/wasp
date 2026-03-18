@@ -5,13 +5,16 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <variant>
+#include <vector>
 
 namespace Wasp {
 
 struct Symbol;
 using Symbol_ptr = std::shared_ptr<Symbol>;
+using SymbolVector = std::vector<Symbol_ptr>;
 
 struct VariableData {
     Object_ptr type;
@@ -21,6 +24,9 @@ struct VariableData {
 struct FunctionData {
     Object_ptr type;
     bool is_native;
+
+    // includes all overloads of this function, including the current one
+    std::vector<Symbol_ptr> reachable_overloads;
 };
 
 struct ClassData {
@@ -33,15 +39,15 @@ struct EnumData {
 
 struct ModuleData {
     Object_ptr type;
-    std::map<std::string, Symbol_ptr> exports;
+    std::unordered_map<std::string, Symbol_ptr> exports;
 };
 
 struct AliasData {
     Symbol_ptr target;
 };
 
-using SymbolPayload =
-    std::variant<VariableData, FunctionData, ModuleData, ClassData, EnumData, AliasData>;
+using SymbolPayload = std::
+    variant<VariableData, FunctionData, ModuleData, ClassData, EnumData, AliasData>;
 
 struct Symbol : public std::enable_shared_from_this<Symbol> {
     std::string name;
@@ -107,8 +113,9 @@ struct SymbolFactory {
     );
 
     static Symbol_ptr create_module(
-        std::string name, Object_ptr type, std::map<std::string, Symbol_ptr> exports
-    );
+        std::string name,
+        Object_ptr type,
+        std::unordered_map<std::string, Symbol_ptr> exports);
 
     static Symbol_ptr create_alias(std::string name, Symbol_ptr target);
 };

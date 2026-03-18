@@ -11,6 +11,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <unordered_map>
 
 namespace Wasp {
 
@@ -21,7 +22,12 @@ struct Module {
     CFGraph graph;
     FunctionObject_ptr blueprint;
 
-    std::map<std::string, Symbol_ptr> exports;
+    // Symbol Hoiser Stage
+    SymbolVector hoisted_symbols;
+    std::unordered_map<int, std::string> id_to_hoisted_symbol_name_map;
+
+    std::unordered_map<std::string, Symbol_ptr> exports;
+
     Object_ptr type;
 
     Module() = default;
