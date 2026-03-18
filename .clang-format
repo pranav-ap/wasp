@@ -19,10 +19,18 @@ BinPackParameters: false
 AccessModifierOffset: -4
 
 # Forces line breaks after the opening brace and before the closing brace
-AlignAfterOpenBracket: BlockIndent
+AlignAfterOpenBracket: AlwaysBreak # BlockIndent
+ContinuationIndentWidth: 4
 
 AlwaysBreakAfterReturnType: None
 AlwaysBreakAfterDefinitionReturnType: None
 PenaltyReturnTypeOnItsOwnLine: 100000
 PenaltyBreakAssignment: 1000
 
+BreakBeforeBraces: Allman
+
+# Prevents dropping the entire parameter list onto the next line
+AllowAllParametersOfDeclarationOnNextLine: false
+
+# Prevents dropping all arguments onto the next line when CALLING a function
+AllowAllArgumentsOnNextLine: false

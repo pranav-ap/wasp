@@ -2,34 +2,59 @@
 
 #include "ConstantPool.h"
 #include "Objects.h"
+#include "Symbol.h"
 #include "SymbolScope.h"
 #include "Token.h"
 
 #include <memory>
+#include <string>
+#include <vector>
 
-namespace Wasp {
-class TypeChecker {
+namespace Wasp
+{
+class TypeChecker
+{
 public:
     ConstantPool_ptr pool;
 
     TypeChecker(ConstantPool_ptr pool) : pool(pool) {};
 
+    Symbol_ptr resolve_function_overload(
+        SymbolScope_ptr scope,
+        const std::vector<Symbol_ptr>& overloads,
+        const ObjectVector& arg_types) const;
+
+    void validate_new_overload(
+        SymbolScope_ptr scope,
+        const std::string& func_name,
+        const ObjectVector& new_param_types) const;
+
     bool equal(SymbolScope_ptr scope, const Object_ptr type_1, const Object_ptr type_2) const;
+
     bool equal(
-        SymbolScope_ptr scope, const ObjectVector type_vector_1, const ObjectVector type_vector_2
-    ) const;
+        SymbolScope_ptr scope,
+        const ObjectVector type_vector_1,
+        const ObjectVector type_vector_2) const;
+
     bool equal_unordered(
-        SymbolScope_ptr scope, const ObjectVector type_vector_1, const ObjectVector type_vector_2
-    ) const;
+        SymbolScope_ptr scope,
+        const ObjectVector type_vector_1,
+        const ObjectVector type_vector_2) const;
 
-    bool
-    assignable(SymbolScope_ptr scope, const Object_ptr lhs_type, const Object_ptr rhs_type) const;
+    bool assignable(SymbolScope_ptr scope, const Object_ptr lhs_type, const Object_ptr rhs_type)
+        const;
+
     bool assignable(
-        SymbolScope_ptr scope, const ObjectVector type_vector_1, const ObjectVector type_vector_2
-    ) const;
+        SymbolScope_ptr scope,
+        const ObjectVector type_vector_1,
+        const ObjectVector type_vector_2) const;
 
-    Object_ptr
-    infer(SymbolScope_ptr scope, Object_ptr left_type, TokenType op, Object_ptr right_type);
+    Object_ptr infer(
+        SymbolScope_ptr scope,
+        Object_ptr left_type,
+        TokenType op,
+        Object_ptr right_type);
+
     Object_ptr infer(SymbolScope_ptr scope, Object_ptr left_type, TokenType op);
 
     Object_ptr spread_type(Object_ptr type);

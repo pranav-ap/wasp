@@ -148,9 +148,7 @@ struct FunctionObject : public CompositeObject {
     std::map<int, std::string> id_to_name_map;
     std::map<int, std::string> id_to_name_upvalues_map;
 
-    bool is_module;
-
-    FunctionObject(CodeObject code) : code(std::move(code)), is_module(false) {}
+    FunctionObject(CodeObject code) : code(std::move(code)) {}
 
     FunctionObject(
         CodeObject code,
@@ -159,7 +157,7 @@ struct FunctionObject : public CompositeObject {
         std::map<int, std::string> id_to_name_upvalues_map
     )
         : code(std::move(code)), name(std::move(name)), id_to_name_map(std::move(id_to_name_map)),
-          id_to_name_upvalues_map(std::move(id_to_name_upvalues_map)), is_module(false) {}
+          id_to_name_upvalues_map(std::move(id_to_name_upvalues_map)) {}
 
     std::string get_name_for_index(int index) const {
         auto it = id_to_name_map.find(index);

@@ -22,6 +22,7 @@ namespace Wasp
         std::unordered_map<int, int> int_cache;
         std::unordered_map<double, int> float_cache;
         std::unordered_map<std::string, int> string_cache;
+        std::unordered_map<std::string, int> function_group_cache;
 
     public:
         ConstantPool();

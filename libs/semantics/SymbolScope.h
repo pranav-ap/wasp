@@ -21,6 +21,7 @@ private:
     int lexical_depth;
 
     std::unordered_map<std::string, Symbol_ptr> symbols;
+    std::unordered_map<std::string, std::vector<Symbol_ptr>> function_symbols;
 
 public:
     SymbolScope(ScopeType type, SymbolScope_ptr enclosing_scope = nullptr);
@@ -30,6 +31,9 @@ public:
 
     Symbol_ptr define(Symbol_ptr symbol);
     Symbol_ptr lookup(std::string name) const;
+    std::vector<Symbol_ptr> collect_function_symbols(const std::string& name) const;
+
+    int get_symbols_count() const;
 
     bool contains_in_current_scope(std::string name) const {
         return symbols.find(name) != symbols.end();

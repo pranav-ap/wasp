@@ -2,7 +2,6 @@
 #include "Doctor.h"
 #include "Symbol.h"
 
-#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -16,18 +15,47 @@ SymbolScope::SymbolScope(ScopeType type, SymbolScope_ptr enclosing)
     }
 }
 
+int SymbolScope::get_symbols_count() const {
+    int count = symbols.size();
+
+    // Sum up all overloaded functions
+    for (const auto& [name, overloads] : function_symbols) {
+        count += overloads.size();
+    }
+
+    return count;
+}
+
 Symbol_ptr SymbolScope::define(Symbol_ptr symbol) {
     Doctor::get().fatal_if_nullptr(symbol, WaspStage::Semantics);
+
+    symbol->id = get_symbols_count();
+
+    if (symbol->payload_is<FunctionData>()) {
+        Doctor::get().assert(
+            symbols.find(symbol->name) == symbols.end(),
+            WaspStage::Semantics,
+            "Name collision: '" + symbol->name + "' is already declared as a variable."
+        );
+
+        function_symbols[symbol->name].push_back(symbol);
+        return symbol;
+    }
+
     Doctor::get().assert(
-        symbols.find(std::string(symbol->name)) == symbols.end(),
+        function_symbols.find(symbol->name) == function_symbols.end(),
         WaspStage::Semantics,
-        "Variable '" + std::string(symbol->name) + "' already declared in this scope"
+        "Name collision: '" + symbol->name + "' is already declared as a function."
     );
 
-    int id = static_cast<int>(symbols.size());
-    symbol->id = id;
+    Doctor::get().assert(
+        symbols.find(symbol->name) == symbols.end(),
+        WaspStage::Semantics,
+        "Variable '" + symbol->name + "' already declared in this scope."
+    );
 
-    symbols.emplace(std::string(symbol->name), symbol);
+    symbols[symbol->name] = symbol;
+
     return symbol;
 }
 
@@ -40,17 +68,45 @@ Symbol_ptr SymbolScope::lookup(std::string name) const {
             return it->second;
         }
 
+        // check if it's a function
+        // just send the first one you find, the caller will handle the overloads
+
+        auto func_it = current->function_symbols.find(name);
+        if (func_it != current->function_symbols.end() && !func_it->second.empty()) {
+            return func_it->second.front();
+        }
+
         current = current->enclosing_scope.get();
     }
 
     return nullptr;
 }
 
+std::vector<Symbol_ptr> SymbolScope::collect_function_symbols(const std::string& name) const {
+    std::vector<Symbol_ptr> result;
+    const SymbolScope* current = this;
+
+    while (current) {
+        auto it = current->function_symbols.find(name);
+
+        if (it != current->function_symbols.end()) {
+            // Append all overloads found in this specific scope
+            result.insert(result.end(), it->second.begin(), it->second.end());
+        }
+
+        current = current->enclosing_scope.get();
+    }
+
+    return result;
+}
+
 bool SymbolScope::enclosed_in(ScopeType target_type) const {
     const SymbolScope* current = this;
     while (current) {
-        if (current->type == target_type)
+        if (current->type == target_type) {
             return true;
+        }
+
         current = current->enclosing_scope.get();
     }
     return false;

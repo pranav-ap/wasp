@@ -107,7 +107,7 @@ struct SymbolFactory {
     );
 
     static Symbol_ptr create_module(
-        std::string name, Object_ptr type, std::map<std::string, Symbol_ptr> exports = {}
+        std::string name, Object_ptr type, std::map<std::string, Symbol_ptr> exports
     );
 
     static Symbol_ptr create_alias(std::string name, Symbol_ptr target);
