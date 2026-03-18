@@ -60,7 +60,7 @@ void Compiler::compile_variable_definition(const Expression_ptr& assignment, boo
     auto symbol = lhs->as<Identifier>().symbol;
     Doctor::get().fatal_if_nullptr(symbol, WaspStage::Compiler);
 
-    debug_name_map[symbol->id] = symbol->name;
+    id_to_name_map[symbol->id] = symbol->name;
 
     emit(OpCode::DEFINE_LOCAL, symbol->id);
 }

@@ -1,14 +1,12 @@
-#include "CFGraph.h"
 #include "Captain.h"
-#include "ConstantPool.h"
 #include "Doctor.h"
 #include "InstructionPrinter.h"
+#include "Objects.h"
 #include "Workspace.h"
 
 #include <filesystem>
 #include <fstream>
 #include <iterator>
-#include <memory>
 #include <string>
 
 namespace Wasp {
@@ -23,9 +21,9 @@ std::string Captain::read_file(const std::filesystem::path& file_path) {
 }
 
 void Captain::dump_build_artifacts(
-    std::shared_ptr<Workspace> workspace,
+    Workspace_ptr workspace,
     const std::filesystem::path& source_file_path,
-    const CodeObject& bytecode
+    const FunctionObject_ptr function_object
 ) {
     namespace fs = std::filesystem;
 
@@ -45,9 +43,9 @@ void Captain::dump_build_artifacts(
         "Failed to open debug file for writing: " + debug_log_path.string()
     );
 
-    InstructionPrinter printer(workspace->pool);
-    printer.print(bytecode, debug_file);
-    printer.print_pool(debug_file);
+    InstructionPrinter printer(workspace);
+    printer.print(function_object, debug_file);
+    printer.print_pool_functions(debug_file);
 }
 
 } // namespace Wasp

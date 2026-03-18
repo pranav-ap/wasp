@@ -19,7 +19,7 @@ struct Module {
 
     StatementVector stmts;
     CFGraph graph;
-    CodeObject code;
+    FunctionObject_ptr blueprint;
 
     std::map<std::string, Symbol_ptr> exports;
     Object_ptr type;

@@ -145,18 +145,24 @@ struct FunctionObject : public CompositeObject {
     CodeObject code;
 
     std::string name;
-    std::map<int, std::string> exports_map;
+    std::map<int, std::string> id_to_name_map;
 
-    FunctionObject(CodeObject code) : code(std::move(code)), name(""), exports_map({}) {}
+    bool is_module;
 
-    FunctionObject(CodeObject code, std::string name, std::map<int, std::string> exports_map)
-        : code(std::move(code)), name(std::move(name)), exports_map(std::move(exports_map)) {}
+    FunctionObject(CodeObject code)
+        : code(std::move(code)), name(""), id_to_name_map({}), is_module(false) {}
+
+    FunctionObject(CodeObject code, std::string name, std::map<int, std::string> id_to_name_map)
+        : code(std::move(code)), name(std::move(name)), id_to_name_map(std::move(id_to_name_map)),
+          is_module(false) {}
 
     std::string get_name_for_index(int index) const {
-        auto it = exports_map.find(index);
-        return (it != exports_map.end()) ? it->second : "";
+        auto it = id_to_name_map.find(index);
+        return (it != id_to_name_map.end()) ? it->second : "";
     }
 };
+
+using FunctionObject_ptr = std::shared_ptr<FunctionObject>;
 
 struct FunctionVMObject : public FunctionObject {
     ObjectVector upvalues;
@@ -167,10 +173,12 @@ struct FunctionVMObject : public FunctionObject {
         ObjectVector upvalues,
         CodeObject code,
         std::string name,
-        std::map<int, std::string> exports_map
+        std::map<int, std::string> id_to_name_map
     )
-        : FunctionObject(code, name, exports_map), upvalues(std::move(upvalues)) {}
+        : FunctionObject(code, name, id_to_name_map), upvalues(std::move(upvalues)) {}
 };
+
+using FunctionVMObject_ptr = std::shared_ptr<FunctionVMObject>;
 
 using NativeFnType = std::function<Object_ptr(const std::vector<Object_ptr>&)>;
 

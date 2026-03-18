@@ -57,6 +57,7 @@ public:
         int column = 0,
         const std::source_location location = std::source_location::current()
     ) const;
+
     template <typename T>
     void fatal_if_nullptr(
         T ptr,

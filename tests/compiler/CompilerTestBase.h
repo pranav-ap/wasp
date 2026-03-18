@@ -5,6 +5,7 @@
 #include "ConstantPool.h"
 #include "InstructionPrinter.h"
 #include "NativeRegistry.h"
+#include "Objects.h"
 #include "OpCode.h"
 #include "SemanticAnalyzer.h"
 #include "SymbolHoister.h"
@@ -27,7 +28,7 @@ protected:
 
     std::shared_ptr<Wasp::Workspace> workspace;
     Wasp::ConstantPool_ptr pool;
-    Wasp::CodeObject current_bytecode;
+    Wasp::FunctionObject_ptr function_object;
     Wasp::CFGraph current_graph;
 
     int pool_size = 0;
@@ -74,17 +75,17 @@ protected:
         Wasp::SemanticAnalyzer semantic_analyzer(workspace);
         semantic_analyzer.run(build_order);
 
-        Wasp::Compiler compiler(pool, workspace->native_registry);
+        Wasp::Compiler compiler(workspace);
 
-        current_bytecode = compiler.run(module->stmts);
+        function_object = compiler.run(module->stmts);
         current_graph = compiler.get_graph();
 
         if (enable_logging) {
             log();
         }
 
-        const std::byte* data = current_bytecode.data();
-        return std::vector<std::byte>(data, data + current_bytecode.length());
+        const std::byte* data = function_object->code.data();
+        return std::vector<std::byte>(data, data + function_object->code.length());
     }
 
     void log() {
@@ -98,15 +99,15 @@ protected:
         std::string dot_file_path = log_dir + "/dots/" + test_name + ".dot";
         std::ofstream dot_file(dot_file_path);
 
-        Wasp::InstructionPrinter printer(pool);
+        Wasp::InstructionPrinter printer(workspace);
 
         if (dot_file.is_open()) {
             printer.print(current_graph, dot_file);
         }
 
         if (log_file.is_open()) {
-            printer.print(current_bytecode, log_file);
-            printer.print_pool(log_file);
+            printer.print(function_object, log_file);
+            printer.print_pool_functions(log_file);
         }
     }
 };

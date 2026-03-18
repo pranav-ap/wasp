@@ -4,6 +4,7 @@
 #include "Objects.h"
 
 #include <cstddef>
+#include <map>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -54,8 +55,14 @@ namespace Wasp
         int allocate(int value);
         int allocate(double value);
         int allocate(std::string value);
+
+        int allocate_function_definition(FunctionObject_ptr func_obj);
+        int allocate_function_definition(CodeObject code);
+        int allocate_function_definition(
+            CodeObject code, std::string name, std::map<int, std::string> id_to_name_map
+        );
+
         int allocate_type(Object_ptr value);
-        int allocate_function_definition(CodeObject func_code);
     };
 
     using ConstantPool_ptr = std::shared_ptr<ConstantPool>;

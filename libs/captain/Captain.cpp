@@ -1,11 +1,8 @@
 #include "Captain.h"
-#include "CFGraph.h"
 #include "Compiler.h"
-#include "ConstantPool.h"
 #include "DependencyCrawler.h"
 #include "Doctor.h"
 #include "Lexer.h"
-#include "NativeRegistry.h"
 #include "Parser.h"
 #include "SemanticAnalyzer.h"
 #include "SymbolHoister.h"
@@ -88,15 +85,15 @@ void Captain::compile(const std::vector<Module_ptr>& build_order) {
     for (const auto& module : build_order) {
         bool is_main = (module->file_path == entry_file);
 
-        Compiler compiler(workspace->pool, workspace->native_registry);
-        module->code = compiler.run(module->stmts, is_main);
-        module->code.name = module->file_path.stem().string();
+        Compiler compiler(workspace);
+        auto function_object = compiler.run(module->stmts, is_main);
+        module->blueprint = std::move(function_object);
 
-        dump_build_artifacts(workspace, module->file_path, module->code);
+        dump_build_artifacts(workspace, module->file_path, module->blueprint);
     }
 }
 
-std::shared_ptr<Workspace> Captain::build() {
+Workspace_ptr Captain::build() {
     parse_modules();
 
     auto build_order = calculate_build_order();
@@ -112,7 +109,7 @@ void Captain::execute() {
     Doctor::get().fatal_if_nullptr(main_module, WaspStage::Captain);
 
     VM vm(workspace);
-    vm.run(main_module->code);
+    vm.run(main_module->blueprint);
 }
 
 } // namespace Wasp

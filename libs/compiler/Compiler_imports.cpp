@@ -24,7 +24,7 @@ void Compiler::visit(SimpleImport& statement) {
         statement.symbol, WaspStage::Compiler, "Simple Import must have a resolved symbol."
     );
 
-    debug_name_map[statement.symbol->id] = statement.symbol->name;
+    id_to_name_map[statement.symbol->id] = statement.symbol->name;
     emit(OpCode::DEFINE_LOCAL, statement.symbol->id);
 }
 

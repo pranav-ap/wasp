@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
@@ -145,12 +146,24 @@ namespace Wasp
         return id;
     }
 
-    int ConstantPool::allocate_function_definition(CodeObject func_code)
-    {
+    int ConstantPool::allocate_function_definition(FunctionObject_ptr func_obj) {
         int id = objects.size();
-        objects.push_back(MAKE_SHARED_OBJECT_VARIANT(
-            FunctionObject, std::move(func_code), "", func_code.local_names
-        ));
+        objects.push_back(MAKE_OBJECT_VARIANT(func_obj));
         return id;
+    }
+
+    int ConstantPool::allocate_function_definition(CodeObject code) {
+        auto func_obj = std::make_shared<FunctionObject>(std::move(code));
+        return allocate_function_definition(func_obj);
+    }
+
+    int ConstantPool::allocate_function_definition(
+        CodeObject code, std::string name, std::map<int, std::string> id_to_name_map
+    ) {
+        auto func_obj = std::make_shared<FunctionObject>(
+            std::move(code), std::move(name), std::move(id_to_name_map)
+        );
+
+        return allocate_function_definition(func_obj);
     }
 }

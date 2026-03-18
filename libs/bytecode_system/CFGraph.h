@@ -3,9 +3,7 @@
 #include "OpCode.h"
 
 #include <cstddef>
-#include <map>
 #include <memory>
-#include <string>
 #include <utility>
 #include <vector>
 
@@ -23,20 +21,9 @@ namespace Wasp
         ByteVector instructions;
 
     public:
-        // Metadata for debugging and stack traces
-        std::string name;
-        std::map<int, std::string> local_names;
+        CodeObject() = default;
 
-        // Default to <module> for the top-level module
-        CodeObject() : name("<module>") {};
-
-        // Flexible constructor for sub-compilers to pass everything at once
-        CodeObject(ByteVector instrs,
-                   std::map<int, std::string> names = {},
-                   std::string name = "<anonymous>")
-            : instructions(std::move(instrs)),
-              local_names(std::move(names)),
-              name(std::move(name)) {}
+        CodeObject(ByteVector instrs) : instructions(std::move(instrs)) {}
 
         std::size_t length() const;
 

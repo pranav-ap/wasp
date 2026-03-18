@@ -24,21 +24,22 @@ namespace Wasp {
 // Function Definition
 // ------------------------------------------------------------------------
 
-void Compiler::visit(FunctionDefinition& statement) {
-    Compiler func_compiler(pool, this);
+void Compiler::visit(FunctionDefinition& function_definition) {
+    Compiler func_compiler(this);
 
     func_compiler.enter_scope();
-    func_compiler.visit(statement.body);
+    func_compiler.visit(function_definition.body);
     func_compiler.leave_scope();
 
     func_compiler.emit(OpCode::LOAD_NONE);
     func_compiler.emit(OpCode::RETURN);
 
-    CodeObject func_code = func_compiler.flatten();
-    func_code.name = statement.name;
-    func_code.local_names = std::move(func_compiler.debug_name_map);
+    CodeObject code = func_compiler.flatten();
 
-    int const_id = pool->allocate_function_definition(std::move(func_code));
+    int const_id = pool->allocate_function_definition(
+        std::move(code), function_definition.name, std::move(func_compiler.id_to_name_map)
+    );
+
     emit(OpCode::LOAD_CONST, const_id);
 
     int upvalue_count = static_cast<int>(func_compiler.upvalues.size());
@@ -49,8 +50,8 @@ void Compiler::visit(FunctionDefinition& statement) {
         emit_raw_byte(static_cast<std::byte>(uv.index));
     }
 
-    debug_name_map[statement.symbol->id] = statement.name;
-    emit(OpCode::DEFINE_LOCAL, statement.symbol->id);
+    id_to_name_map[function_definition.symbol->id] = function_definition.name;
+    emit(OpCode::DEFINE_LOCAL, function_definition.symbol->id);
 }
 
 void Compiler::visit(Return& statement) {

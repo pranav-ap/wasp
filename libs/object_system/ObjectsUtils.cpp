@@ -212,11 +212,11 @@ namespace Wasp
                 [](const std::shared_ptr<VariantObject>&) -> std::string { return "<variant>"; },
 
                 [](const std::shared_ptr<FunctionObject>& func) -> std::string {
-                    return "<function " + func->code.name + ">";
+                    return "<function " + func->name + ">";
                 },
 
                 [](const std::shared_ptr<FunctionVMObject>& func) -> std::string {
-                    return "<VM function " + func->code.name + ">";
+                    return "<VM function " + func->name + ">";
                 },
 
                 [](const std::shared_ptr<ModuleObject>& mod) -> std::string {

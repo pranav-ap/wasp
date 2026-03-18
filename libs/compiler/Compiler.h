@@ -5,9 +5,11 @@
 #include "ConstantPool.h"
 #include "Expression.h"
 #include "NativeRegistry.h"
+#include "Objects.h"
 #include "OpCode.h"
 #include "Statement.h"
 #include "Symbol.h"
+#include "Workspace.h"
 
 #include <cstddef>
 #include <map>
@@ -29,6 +31,7 @@ struct Upvalue {
 
 class Compiler {
 private:
+    Workspace_ptr workspace;
     ConstantPool_ptr pool;
     NativeRegistry_ptr native_registry;
 
@@ -65,7 +68,7 @@ private:
     // -----------------------------------------------------------------------
     // Debugging
     // -----------------------------------------------------------------------
-    std::map<int, std::string> debug_name_map;
+    std::map<int, std::string> id_to_name_map;
 
     // -----------------------------------------------------------------------
     // Emit
@@ -151,13 +154,13 @@ private:
     CodeObject flatten();
 
 public:
-    Compiler(ConstantPool_ptr pool, NativeRegistry_ptr native_registry);
-    Compiler(ConstantPool_ptr pool, Compiler* parent);
+    Compiler(Workspace_ptr workspace);
+    Compiler(Compiler* parent);
 
     const CFGraph& get_graph() const { return graph; }
-    const std::map<int, std::string>& get_name_map() const { return debug_name_map; }
+    const std::map<int, std::string>& get_name_map() const { return id_to_name_map; }
 
-    CodeObject run(const StatementVector& block, bool is_main = false);
+    FunctionObject_ptr run(const StatementVector& block, bool is_main = false);
 };
 
 using Compiler_ptr = std::shared_ptr<Compiler>;

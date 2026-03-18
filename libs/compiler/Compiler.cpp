@@ -3,9 +3,10 @@
 #include "CFGraph.h"
 #include "ConstantPool.h"
 #include "Doctor.h"
-#include "NativeRegistry.h"
+#include "Objects.h"
 #include "OpCode.h"
 #include "Statement.h"
+#include "Workspace.h"
 
 #include <memory>
 #include <string>
@@ -19,21 +20,21 @@ template <class... Ts> struct overloaded : Ts... {
 template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp {
-Compiler::Compiler(ConstantPool_ptr pool, NativeRegistry_ptr native_registry)
-    : pool(pool), current_block_id(InvalidBlockId), parent(nullptr), compiler_depth(0),
-      native_registry(native_registry) {
+Compiler::Compiler(Workspace_ptr workspace)
+    : workspace(workspace), pool(workspace->pool), current_block_id(InvalidBlockId),
+      parent(nullptr), compiler_depth(0), native_registry(workspace->native_registry) {
     current_block_id = graph.create_block();
     graph.set_entry_block(current_block_id);
 }
 
-Compiler::Compiler(ConstantPool_ptr pool, Compiler* parent)
-    : pool(std::move(pool)), parent(parent), compiler_depth(parent->compiler_depth + 1) {
+Compiler::Compiler(Compiler* parent)
+    : pool(parent->pool), parent(parent), compiler_depth(parent->compiler_depth + 1) {
     native_registry = parent->native_registry;
     current_block_id = graph.create_block();
     graph.set_entry_block(current_block_id);
 }
 
-CodeObject Compiler::run(const StatementVector& block, bool is_main) {
+FunctionObject_ptr Compiler::run(const StatementVector& block, bool is_main) {
     if (is_main) {
         emit(OpCode::ENTER_WORKSPACE);
     }
@@ -56,10 +57,11 @@ CodeObject Compiler::run(const StatementVector& block, bool is_main) {
     }
 
     CodeObject final_code = flatten();
-    final_code.local_names = std::move(this->debug_name_map);
-    // final_code.name = "module";
+    auto function_object = std::make_shared<FunctionObject>(
+        std::move(final_code), "<main>", id_to_name_map
+    );
 
-    return final_code;
+    return function_object;
 }
 
 // ========================================================================

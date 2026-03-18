@@ -1,10 +1,10 @@
 #pragma once
 
 #include "CFGraph.h"
+#include "Objects.h"
 #include "Workspace.h"
 
 #include <filesystem>
-#include <memory>
 #include <string>
 #include <vector>
 
@@ -12,7 +12,7 @@ namespace Wasp {
 
 class Captain {
 private:
-    std::shared_ptr<Workspace> workspace;
+    Workspace_ptr workspace;
     std::filesystem::path entry_file;
 
     void parse_modules();
@@ -26,14 +26,14 @@ private:
     std::string read_file(const std::filesystem::path& file_path);
 
     void dump_build_artifacts(
-        std::shared_ptr<Workspace> workspace,
+        Workspace_ptr workspace,
         const std::filesystem::path& source_file_path,
-        const CodeObject& bytecode
+        const FunctionObject_ptr function_object
     );
 
 public:
     explicit Captain(const std::filesystem::path& target_path);
-    std::shared_ptr<Workspace> build();
+    Workspace_ptr build();
     void execute();
 };
 

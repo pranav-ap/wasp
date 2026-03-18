@@ -1,33 +1,43 @@
 #pragma once
 
-#include "OpCode.h"
-#include "ConstantPool.h"
 #include "CFGraph.h"
+#include "Objects.h"
+#include "Workspace.h"
 
-#include <string>
-#include <vector>
-#include <memory>
-#include <map>
+#include <cstddef>
 #include <iostream>
+#include <map>
+#include <memory>
 #include <ostream>
+#include <string>
 
-namespace Wasp
-{
-	class InstructionPrinter
-	{
-		ConstantPool_ptr constant_pool;
+namespace Wasp {
+class InstructionPrinter {
+    Workspace_ptr ws;
 
-		std::string stringify_instruction(std::byte opcode, std::byte operand, const std::map<int, std::string> &names);
-		std::string stringify_instruction(std::byte opcode, std::byte operand_1, std::byte operand_2, const std::map<int, std::string> &names);
+    std::string stringify_instruction(
+        std::byte opcode, std::byte operand, const std::map<int, std::string>& names
+    );
+    std::string stringify_instruction(
+        std::byte opcode,
+        std::byte operand_1,
+        std::byte operand_2,
+        const std::map<int, std::string>& names
+    );
 
-	public:
-		InstructionPrinter(ConstantPool_ptr constant_pool)
-			: constant_pool(constant_pool) {};
+    void print_bytecode(
+        const CodeObject& code_source, const std::map<int, std::string>& names, std::ostream& out
+    );
 
-		void print(const CodeObject &code_object, std::ostream &out = std::cout);
-		void print(const CFGraph &graph, std::ostream &out = std::cout);
-		void print_pool(std::ostream &out);
-	};
+public:
+    InstructionPrinter(Workspace_ptr ws) : ws(ws) {};
 
-	using InstructionPrinter_ptr = std::shared_ptr<InstructionPrinter>;
-}
+    void print(const Object_ptr obj, std::ostream& out = std::cout);
+    void print(const FunctionObject_ptr func_obj, std::ostream& out = std::cout);
+    void print(const CodeObject& code_object, std::ostream& out);
+    void print(const CFGraph& graph, std::ostream& out = std::cout);
+    void print_pool_functions(std::ostream& out);
+};
+
+using InstructionPrinter_ptr = std::shared_ptr<InstructionPrinter>;
+} // namespace Wasp

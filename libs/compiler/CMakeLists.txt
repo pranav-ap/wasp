@@ -13,6 +13,7 @@ add_library(
 target_link_libraries(
     CompilerLib
     PUBLIC
+    WorkspaceLib
     ObjectSystemLib
     BytecodeSystemLib
     SymbolLib

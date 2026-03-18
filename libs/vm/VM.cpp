@@ -141,7 +141,7 @@ void VM::execute_make_function(CallFrame* frame) {
     }
 
     auto runtime_closure = std::make_shared<FunctionVMObject>(
-        std::move(captured_upvalues), blueprint->code, blueprint->name, blueprint->exports_map
+        std::move(captured_upvalues), blueprint->code, blueprint->name, blueprint->id_to_name_map
     );
 
     Object_ptr closure_obj = std::make_shared<Object>(runtime_closure);
@@ -221,10 +221,10 @@ void VM::execute_import(CallFrame* frame) {
     );
 
     auto module_func = std::make_shared<FunctionVMObject>(
-        ObjectVector{},                 // Top-level modules don't have upvalues
-        target_module->code,            // bytecode
-        module_name,                    // Set the module's name to its file path
-        target_module->code.local_names // Inject the compiler's variable name map
+        ObjectVector{}, // Top-level modules don't have upvalues
+        target_module->blueprint->code,
+        module_name,
+        target_module->blueprint->id_to_name_map
     );
 
     size_t export_base = stack.size();
@@ -257,8 +257,16 @@ void VM::execute_exit_module() {
     push_to_stack(std::make_shared<Object>(exports));
 }
 
-void VM::run(CodeObject code) {
-    frames.emplace_back(std::make_shared<FunctionVMObject>(code), 0);
+void VM::run(FunctionObject_ptr function_object) {
+    frames.emplace_back(
+        std::make_shared<FunctionVMObject>(
+            ObjectVector{},
+            function_object->code,
+            function_object->name,
+            function_object->id_to_name_map
+        ),
+        0
+    );
 
     while (true) {
         CallFrame* frame = &frames.back();
