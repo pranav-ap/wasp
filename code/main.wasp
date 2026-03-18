@@ -1,4 +1,5 @@
-import my.cats
+import my.cats as c
+from my.paris import tower_height as t
 
 print('hello')
 
@@ -9,5 +10,8 @@ print('calling now')
 yo()
 
 print('calling cats')
-cats.print_cats()
-print(cats.y)
+c.print_cats()
+print(c.y)
+
+print('using paris')
+print(t)

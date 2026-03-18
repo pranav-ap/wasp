@@ -38,6 +38,28 @@ void SemanticAnalyzer::visit(SimpleImport& import_stmt) {
     import_stmt.symbol = module_symbol;
 }
 
-void SemanticAnalyzer::visit(FromImport& import_stmt) {}
+void SemanticAnalyzer::visit(FromImport& import_stmt) {
+    auto mod = workspace->get_module(import_stmt.resolved_path);
+    Doctor::get().assert(mod != nullptr, WaspStage::Semantics, "Failed to load module");
+
+    for (auto& imported_sym : import_stmt.symbols) {
+
+        auto it = mod->exports.find(imported_sym.name);
+        Doctor::get().assert(
+            it != mod->exports.end(),
+            WaspStage::Semantics,
+            "Module does not export symbol: " + imported_sym.name
+        );
+
+        auto original_exported_symbol = it->second;
+
+        std::string local_name = imported_sym.alias.value_or(imported_sym.name);
+
+        Symbol_ptr local_symbol = SymbolFactory::create_alias(local_name, original_exported_symbol);
+        current_scope->define(local_symbol);
+
+        imported_sym.symbol = local_symbol;
+    }
+}
 
 } // namespace Wasp

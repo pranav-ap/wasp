@@ -1,3 +1,4 @@
+#include "AST.h"
 #include "Doctor.h"
 #include "Parser.h"
 #include "Statement.h"

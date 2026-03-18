@@ -248,9 +248,14 @@ struct SimpleImport : public AbstractImport, Resolvable {
 };
 
 // Tank as FuelTank
-struct ImportedSymbol {
+struct ImportedSymbol : public Resolvable {
     std::string name;
     std::optional<std::string> alias;
+
+    ImportedSymbol() = default;
+
+    ImportedSymbol(std::string name, std::optional<std::string> alias = std::nullopt)
+        : name(std::move(name)), alias(std::move(alias)) {}
 };
 
 // from top.engine import Tank, Pump
