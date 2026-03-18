@@ -107,6 +107,87 @@ Object_ptr SemanticAnalyzer::visit(Identifier& expr)
     return target_symbol->get_type();
 }
 
+Object_ptr SemanticAnalyzer::visit(Call& call_expr)
+{
+    ObjectVector arg_types;
+
+    // 1. Evaluate all arguments first
+    for (auto& arg : call_expr.arguments)
+    {
+        arg_types.push_back(visit(arg));
+    }
+
+    // --- CASE 1: Standard Function Call (Identifier) ---
+    if (call_expr.callable->is<Identifier>())
+    {
+        auto& callable_ident = call_expr.callable->as<Identifier>();
+        std::string func_name = callable_ident.name;
+
+        // Resolve the specific overload using the new TypeChecker architecture
+        Symbol_ptr resolved_func = type_checker->resolve_function_overload(
+            current_scope,
+            func_name,
+            arg_types);
+
+        // Attach the specific symbol to BOTH nodes for the Compiler Pass
+        call_expr.symbol = resolved_func;
+        callable_ident.symbol = resolved_func;
+
+        if (resolved_func->should_be_captured(current_scope->get_closure_depth()))
+        {
+            callable_ident.must_be_captured = true;
+        }
+
+        Object_ptr callee_type = resolved_func->get_payload_as<FunctionData>().type;
+        const auto& final_signature = callee_type->as<FunctionType>();
+
+        if (final_signature.return_type.has_value())
+        {
+            return final_signature.return_type.value();
+        }
+        return MAKE_OBJECT_VARIANT(NoneType());
+    }
+
+    // --- CASE 2: Module or Object Method Call (MemberAccess) ---
+    else if (call_expr.callable->is<MemberAccess>())
+    {
+        auto& mac = call_expr.callable->as<MemberAccess>();
+
+        // Let your existing visit(MemberAccess) logic extract the member's type
+        Object_ptr member_type = visit(mac);
+
+        Doctor::get().assert(
+            member_type->is<FunctionType>(),
+            WaspStage::Semantics,
+            "Member is not a callable function.");
+
+        const auto& final_signature = member_type->as<FunctionType>();
+
+        // Check that the arguments match the member function's signature
+        // Note: You can upgrade this to use TypeChecker::assignable later!
+        Doctor::get().assert(
+            final_signature.input_types.size() == arg_types.size(),
+            WaspStage::Semantics,
+            "Argument count mismatch in member function call.");
+
+        // We DO NOT need to set a symbol here, because your Compiler's
+        // visit(MemberAccess) handles it dynamically using OpCode::GET_MEMBER!
+
+        if (final_signature.return_type.has_value())
+        {
+            return final_signature.return_type.value();
+        }
+        return MAKE_OBJECT_VARIANT(NoneType());
+    }
+
+    // --- CASE 3: Invalid Callable ---
+    Doctor::get().fatal(
+        WaspStage::Semantics,
+        "Expected an Identifier or MemberAccess as the callable.");
+
+    return nullptr;
+}
+
 Object_ptr SemanticAnalyzer::access_member(
     const ModuleType& left_type,
     const Identifier& right_identifier)
@@ -159,41 +240,6 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
         "Incorrect type for LHS of member access.");
 
     return access_member(left_type->as<ModuleType>(), expr.right);
-}
-
-Object_ptr SemanticAnalyzer::visit(Call& call_expr)
-{
-    ObjectVector arg_types;
-
-    for (auto& arg : call_expr.arguments)
-    {
-        arg_types.push_back(visit(arg));
-    }
-
-    Doctor::get().assert(
-        call_expr.callable->is<Identifier>(),
-        WaspStage::Semantics,
-        "Expected an identifier here");
-
-    std::string func_name = call_expr.callable->as<Identifier>().name;
-
-    Symbol_ptr resolved_func = type_checker->resolve_function_overload(
-        current_scope,
-        func_name,
-        arg_types);
-
-    call_expr.symbol = resolved_func;
-
-    Object_ptr callee_type = resolved_func->get_payload_as<FunctionData>().type;
-
-    const auto& final_signature = callee_type->as<FunctionType>();
-
-    if (final_signature.return_type.has_value())
-    {
-        return final_signature.return_type.value();
-    }
-
-    return MAKE_OBJECT_VARIANT(NoneType());
 }
 
 Object_ptr SemanticAnalyzer::visit(int expr) { return MAKE_OBJECT_VARIANT(IntType()); }

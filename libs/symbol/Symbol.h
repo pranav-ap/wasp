@@ -39,7 +39,7 @@ struct EnumData {
 
 struct ModuleData {
     Object_ptr type;
-    std::unordered_map<std::string, Symbol_ptr> exports;
+    SymbolVector exports;
 };
 
 struct AliasData {
@@ -112,10 +112,7 @@ struct SymbolFactory {
         std::string name, Object_ptr type = nullptr, int closure_depth = 0, int lexical_depth = 0
     );
 
-    static Symbol_ptr create_module(
-        std::string name,
-        Object_ptr type,
-        std::unordered_map<std::string, Symbol_ptr> exports);
+    static Symbol_ptr create_module(std::string name, Object_ptr type, SymbolVector exports);
 
     static Symbol_ptr create_alias(std::string name, Symbol_ptr target);
 };

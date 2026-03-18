@@ -66,13 +66,4 @@ void Compiler::visit(Return& statement) {
     emit(OpCode::RETURN);
 }
 
-void Compiler::visit(Call& expr) {
-    visit(expr.callable);
-
-    for (const auto& arg : expr.arguments)
-        visit(arg);
-
-    emit(OpCode::CALL, static_cast<int>(expr.arguments.size()));
-}
-
 } // namespace Wasp

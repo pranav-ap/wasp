@@ -4,6 +4,7 @@
 #include "Statement.h"
 #include "Symbol.h"
 
+#include <algorithm>
 #include <ctime>
 #include <map>
 #include <memory>
@@ -25,9 +26,10 @@ void SemanticAnalyzer::visit(SimpleImport& import_stmt) {
     std::string module_name = import_stmt.alias.value_or(import_stmt.resolved_path.stem().string());
 
     std::map<std::string, Object_ptr> member_types;
-    for (const auto& [name, symbol] : mod->exports)
+
+    for (const auto& symbol : mod->exports)
     {
-        member_types[name] = symbol->get_type();
+        member_types[symbol->name] = symbol->get_type();
     }
 
     auto module_type = std::make_shared<Object>(ModuleType(std::move(member_types)));
@@ -39,20 +41,24 @@ void SemanticAnalyzer::visit(SimpleImport& import_stmt) {
     import_stmt.symbol = module_symbol;
 }
 
-void SemanticAnalyzer::visit(FromImport& import_stmt) {
+void SemanticAnalyzer::visit(FromImport& import_stmt)
+{
     auto mod = workspace->get_module(import_stmt.resolved_path);
     Doctor::get().assert(mod != nullptr, WaspStage::Semantics, "Failed to load module");
 
-    for (auto& imported_sym : import_stmt.symbols) {
+    for (auto& imported_sym : import_stmt.symbols)
+    {
+        auto it = std::find_if(
+            mod->exports.begin(),
+            mod->exports.end(),
+            [&](const Symbol_ptr& s) { return s->name == imported_sym.name; });
 
-        auto it = mod->exports.find(imported_sym.name);
         Doctor::get().assert(
             it != mod->exports.end(),
             WaspStage::Semantics,
-            "Module does not export symbol: " + imported_sym.name
-        );
+            "Module does not export symbol: " + imported_sym.name);
 
-        auto original_exported_symbol = it->second;
+        auto original_exported_symbol = *it;
 
         std::string local_name = imported_sym.alias.value_or(imported_sym.name);
 

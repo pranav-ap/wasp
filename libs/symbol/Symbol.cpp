@@ -83,10 +83,7 @@ Symbol_ptr SymbolFactory::create_enum(
     );
 }
 
-Symbol_ptr SymbolFactory::create_module(
-    std::string name,
-    Object_ptr type,
-    std::unordered_map<std::string, Symbol_ptr> exports)
+Symbol_ptr SymbolFactory::create_module(std::string name, Object_ptr type, SymbolVector exports)
 {
     return std::make_shared<Symbol>(
         std::move(name), 0, 0, ModuleData{std::move(type), std::move(exports)}

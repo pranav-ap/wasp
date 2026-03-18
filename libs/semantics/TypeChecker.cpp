@@ -123,10 +123,10 @@ void TypeChecker::validate_new_overload(
     {
         auto func_type_obj = sym->get_payload_as<FunctionData>().type;
 
-        Doctor::get().fatal_if_nullptr(
-            func_type_obj,
-            WaspStage::Semantics,
-            "Overloaded symbol does not have a type");
+        if (func_type_obj == nullptr)
+        {
+            continue;
+        }
 
         Doctor::get().assert(
             func_type_obj->is<FunctionType>(),

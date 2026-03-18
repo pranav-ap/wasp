@@ -26,7 +26,8 @@ struct Module {
     SymbolVector hoisted_symbols;
     std::unordered_map<int, std::string> id_to_hoisted_symbol_name_map;
 
-    std::unordered_map<std::string, Symbol_ptr> exports;
+    SymbolVector exports;
+    std::unordered_map<int, std::string> id_to_exported_symbol_name_map;
 
     Object_ptr type;
 
@@ -40,21 +41,9 @@ struct Module {
 
 using Module_ptr = std::shared_ptr<Module>;
 
-struct Package;
-using Package_ptr = std::shared_ptr<Package>;
-
-struct Package {
-    std::map<std::string, Package_ptr> sub_packages;
-    std::map<std::string, Module_ptr> modules;
-};
-
 class Workspace {
 private:
-    // Flat View
     std::map<std::filesystem::path, Module_ptr> module_registry;
-
-    // Hierarchial View
-    Package root_package;
 
 public:
     const std::filesystem::path root_path;

@@ -81,6 +81,16 @@ void Compiler::visit(Identifier& expr) {
     }
 }
 
+void Compiler::visit(Call& expr)
+{
+    visit(expr.callable);
+
+    for (const auto& arg : expr.arguments)
+        visit(arg);
+
+    emit(OpCode::CALL, static_cast<int>(expr.arguments.size()));
+}
+
 void Compiler::visit(MemberAccess& expr) {
     visit(expr.left);
 

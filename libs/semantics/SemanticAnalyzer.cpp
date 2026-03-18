@@ -30,7 +30,7 @@ namespace Wasp {
 void SemanticAnalyzer::extract_module_type(Module_ptr module) {
     std::map<std::string, Object_ptr> module_members;
 
-    for (const auto& [name, symbol] : module->exports)
+    for (const auto& symbol : module->exports)
     {
         Object_ptr resolved_type = symbol->get_type();
 
@@ -53,7 +53,7 @@ void SemanticAnalyzer::run(const std::vector<Module_ptr>& build_order) {
         enter_scope(ScopeType::MODULE);
 
         // Push the hoisted exports into this module's scope
-        for (const auto& [name, symbol] : module->exports)
+        for (const auto& symbol : module->exports)
         {
             current_scope->define(symbol);
         }
