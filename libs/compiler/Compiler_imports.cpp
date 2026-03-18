@@ -30,10 +30,10 @@ void Compiler::visit(SimpleImport& statement) {
 
     // save member names
 
-    for (const auto& member : statement.symbol->get_payload_as<ModuleData>().exports) {
-        int id = pool->allocate(member.first);
-        id_to_name_map[id] = member.second->name;
-    }
+    // for (const auto& member : statement.symbol->get_payload_as<ModuleData>().exports) {
+    //     int id = pool->allocate(member.first);
+    //     id_to_name_map[id] = member.second->name;
+    // }
 }
 
 void Compiler::visit(FromImport& statement) {

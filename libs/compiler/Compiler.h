@@ -25,6 +25,8 @@ struct Upvalue {
     // If is_local is false: index into the parent's own upvalue array.
     int index;
 
+    std::string name;
+
     // Determines where the value is located at runtime during closure creation.
     bool is_local;
 };
@@ -45,7 +47,7 @@ private:
     int compiler_depth = 0;
     int current_lexical_scope_depth = 0;
 
-    int add_upvalue(int index, bool is_local);
+    int add_upvalue(int index, std::string name, bool is_local);
     int resolve_upvalue(Compiler* current_compiler, Symbol_ptr symbol);
 
     // ------------------------------------------------------------------------
@@ -69,6 +71,7 @@ private:
     // Debugging
     // -----------------------------------------------------------------------
     std::map<int, std::string> id_to_name_map;
+    std::map<int, std::string> id_to_upvalue_name_map;
 
     // -----------------------------------------------------------------------
     // Emit

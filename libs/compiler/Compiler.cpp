@@ -58,7 +58,7 @@ FunctionObject_ptr Compiler::run(const StatementVector& block, bool is_main) {
 
     CodeObject final_code = flatten();
     auto function_object = std::make_shared<FunctionObject>(
-        std::move(final_code), "<main>", id_to_name_map
+        std::move(final_code), "<main>", id_to_name_map, id_to_upvalue_name_map
     );
 
     return function_object;

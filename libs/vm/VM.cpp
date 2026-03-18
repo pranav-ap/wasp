@@ -1,5 +1,4 @@
 #include "VM.h"
-#include "CFGraph.h"
 #include "Doctor.h"
 #include "Objects.h"
 #include "OpCode.h"
@@ -141,7 +140,11 @@ void VM::execute_make_function(CallFrame* frame) {
     }
 
     auto runtime_closure = std::make_shared<FunctionVMObject>(
-        std::move(captured_upvalues), blueprint->code, blueprint->name, blueprint->id_to_name_map
+        blueprint->code,
+        blueprint->name,
+        blueprint->id_to_name_map,
+        blueprint->id_to_name_upvalues_map,
+        std::move(captured_upvalues)
     );
 
     Object_ptr closure_obj = std::make_shared<Object>(runtime_closure);
@@ -221,10 +224,11 @@ void VM::execute_import(CallFrame* frame) {
     );
 
     auto module_func = std::make_shared<FunctionVMObject>(
-        ObjectVector{}, // Top-level modules don't have upvalues
         target_module->blueprint->code,
         module_name,
-        target_module->blueprint->id_to_name_map
+        target_module->blueprint->id_to_name_map,
+        target_module->blueprint->id_to_name_upvalues_map,
+        ObjectVector{} // Top-level modules don't have upvalues
     );
 
     size_t export_base = stack.size();
@@ -260,10 +264,11 @@ void VM::execute_exit_module() {
 void VM::run(FunctionObject_ptr function_object) {
     frames.emplace_back(
         std::make_shared<FunctionVMObject>(
-            ObjectVector{},
             function_object->code,
             function_object->name,
-            function_object->id_to_name_map
+            function_object->id_to_name_map,
+            function_object->id_to_name_upvalues_map,
+            ObjectVector{}
         ),
         0
     );

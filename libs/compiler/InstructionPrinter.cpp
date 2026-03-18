@@ -21,7 +21,10 @@ using std::string;
 
 namespace Wasp {
 string InstructionPrinter::stringify_instruction(
-    byte opcode, byte operand, const std::map<int, std::string>& id_to_name_map
+    byte opcode,
+    byte operand,
+    const std::map<int, std::string>& id_to_name_map,
+    const std::map<int, std::string>& id_to_upvalue_name_map
 ) {
     int op_int = std::to_integer<int>(operand);
     std::stringstream ss;
@@ -41,17 +44,22 @@ string InstructionPrinter::stringify_instruction(
         break;
     }
 
+    case OpCode::GET_UPVALUE:
+    case OpCode::SET_UPVALUE: {
+        if (id_to_upvalue_name_map.contains(op_int)) {
+            ss << std::right << setw(OPERAND_WIDTH) << " (" << id_to_upvalue_name_map.at(op_int)
+               << ")";
+        }
+        break;
+    }
+
     case OpCode::DEFINE_LOCAL:
     case OpCode::SET_LOCAL:
     case OpCode::GET_LOCAL:
     case OpCode::GET_MEMBER:
-    case OpCode::SET_MEMBER:
-    case OpCode::GET_UPVALUE:
-    case OpCode::SET_UPVALUE: {
+    case OpCode::SET_MEMBER: {
         if (id_to_name_map.contains(op_int)) {
             ss << std::right << setw(OPERAND_WIDTH) << " (" << id_to_name_map.at(op_int) << ")";
-        } else {
-            ss << std::right << setw(OPERAND_WIDTH) << " (id " << op_int << ")";
         }
         break;
     }
@@ -65,7 +73,11 @@ string InstructionPrinter::stringify_instruction(
 }
 
 string InstructionPrinter::stringify_instruction(
-    byte opcode, byte op1, byte op2, const std::map<int, std::string>& names
+    byte opcode,
+    byte op1,
+    byte op2,
+    const std::map<int, std::string>& id_to_name_map,
+    const std::map<int, std::string>& id_to_upvalue_name_map
 ) {
     OpCode op = static_cast<OpCode>(opcode);
     std::stringstream ss;
@@ -97,11 +109,14 @@ void InstructionPrinter::print(const Object_ptr obj, std::ostream& out) {
 }
 
 void InstructionPrinter::print_bytecode(
-    const CodeObject& code_source, const std::map<int, std::string>& names, std::ostream& out
+    const CodeObject& code,
+    const std::map<int, std::string>& id_to_name_map,
+    const std::map<int, std::string>& id_to_upvalue_name_map,
+    std::ostream& out
 ) {
-    int length = static_cast<int>(code_source.length());
+    int length = static_cast<int>(code.length());
     int index_width = std::to_string(length).size() + 2;
-    const byte* data = code_source.data();
+    const byte* data = code.data();
 
     for (int index = 0; index < length;) {
         byte opcode = data[index];
@@ -129,32 +144,42 @@ void InstructionPrinter::print_bytecode(
             continue;
         }
 
-        auto instruction = code_source.instruction_at(index);
+        auto instruction = code.instruction_at(index);
         int arity = static_cast<int>(instruction.size()) - 1;
 
-        if (arity == 0)
+        if (arity == 0) {
             out << stringify_opcode(opcode) << "\n";
-        else if (arity == 1)
-            out << stringify_instruction(opcode, instruction[1], names) << "\n";
-        else if (arity == 2)
-            out << stringify_instruction(opcode, instruction[1], instruction[2], names) << "\n";
+        } else if (arity == 1) {
+            out << stringify_instruction(
+                       opcode, instruction[1], id_to_name_map, id_to_upvalue_name_map
+                   )
+                << "\n";
+        } else if (arity == 2) {
+            out << stringify_instruction(
+                       opcode,
+                       instruction[1],
+                       instruction[2],
+                       id_to_name_map,
+                       id_to_upvalue_name_map
+                   )
+                << "\n";
+        }
 
         index += static_cast<int>(instruction.size());
     }
 }
 
 void InstructionPrinter::print(const FunctionObject_ptr function_obj, std::ostream& out) {
-    print_bytecode(function_obj->code, function_obj->id_to_name_map, out);
+    print_bytecode(
+        function_obj->code, function_obj->id_to_name_map, function_obj->id_to_name_upvalues_map, out
+    );
 }
 
 void InstructionPrinter::print(const CodeObject& code_object, std::ostream& out) {
-    print_bytecode(code_object, {}, out);
+    print_bytecode(code_object, {}, {}, out);
 }
 
 void InstructionPrinter::print_pool_functions(std::ostream& out) {
-    if (!ws)
-        return;
-
     out << "\n=========================================\n";
     out << " CONSTANT POOL FUNCTIONS\n";
     out << "=========================================\n\n";

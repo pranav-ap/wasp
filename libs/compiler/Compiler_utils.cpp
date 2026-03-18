@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <map>
+#include <string>
 #include <vector>
 
 namespace Wasp {
@@ -28,27 +29,32 @@ void Compiler::leave_scope() {
 // Closure Support
 // ------------------------------------------------------------------------
 
-int Compiler::add_upvalue(int index, bool is_local) {
+int Compiler::add_upvalue(int index, std::string name, bool is_local) {
     for (int i = 0; i < static_cast<int>(upvalues.size()); i++) {
         if (upvalues[i].index == index && upvalues[i].is_local == is_local) {
             return i;
         }
     }
 
-    upvalues.push_back({index, is_local});
-    return static_cast<int>(upvalues.size()) - 1;
+    Upvalue uv{index, name, is_local};
+    upvalues.push_back(uv);
+
+    int id = static_cast<int>(upvalues.size()) - 1;
+    id_to_upvalue_name_map[id] = name;
+
+    return id;
 }
 
 int Compiler::resolve_upvalue(Compiler* current_compiler, Symbol_ptr symbol) {
     Doctor::get().fatal_if_nullptr(current_compiler->parent, WaspStage::Compiler);
 
     if (symbol->declaration_depth == current_compiler->parent->compiler_depth) {
-        return current_compiler->add_upvalue(symbol->id, true);
+        return current_compiler->add_upvalue(symbol->id, symbol->name, true);
     }
 
     int upvalue_index_in_parent = resolve_upvalue(current_compiler->parent, symbol);
 
-    return current_compiler->add_upvalue(upvalue_index_in_parent, false);
+    return current_compiler->add_upvalue(upvalue_index_in_parent, symbol->name, false);
 }
 
 // -----------------------------------------------------------------------

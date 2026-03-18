@@ -16,17 +16,25 @@ class InstructionPrinter {
     Workspace_ptr ws;
 
     std::string stringify_instruction(
-        std::byte opcode, std::byte operand, const std::map<int, std::string>& names
+        std::byte opcode,
+        std::byte operand,
+        const std::map<int, std::string>& id_to_name_map,
+        const std::map<int, std::string>& id_to_upvalue_name_map
     );
+
     std::string stringify_instruction(
         std::byte opcode,
         std::byte operand_1,
         std::byte operand_2,
-        const std::map<int, std::string>& names
+        const std::map<int, std::string>& id_to_name_map,
+        const std::map<int, std::string>& id_to_upvalue_name_map
     );
 
     void print_bytecode(
-        const CodeObject& code_source, const std::map<int, std::string>& names, std::ostream& out
+        const CodeObject& code,
+        const std::map<int, std::string>& id_to_name_map,
+        const std::map<int, std::string>& id_to_upvalue_name_map,
+        std::ostream& out
     );
 
 public:
