@@ -37,7 +37,6 @@ Symbol_ptr SymbolScope::define(Symbol_ptr symbol)
     symbol->id = id;
 
     symbols.push_back(symbol);
-    id_to_name_map[id] = symbol->name;
 
     return symbol;
 }
@@ -51,38 +50,31 @@ Symbol_ptr SymbolScope::define_function(Symbol_ptr new_symbol)
 
     auto& new_payload = new_symbol->get_payload_as<FunctionData>();
 
-    if (auto anchor = find_any_function_overload_in_current_scope(new_symbol->name))
+    if (auto siblings = get_sibling_overloads(new_symbol->name); siblings.size() > 0)
     {
-        auto& anchor_payload = anchor->get_payload_as<FunctionData>();
-        std::vector<Symbol_ptr> siblings = anchor_payload.reachable_overloads;
-
-        new_payload.reachable_overloads.insert(
-            new_payload.reachable_overloads.end(),
-            siblings.begin(),
-            siblings.end());
-
         for (auto sibling : siblings)
         {
-            sibling->get_payload_as<FunctionData>().reachable_overloads.push_back(new_symbol);
+            sibling->get_payload_as<FunctionData>().add_sibling_overload(new_symbol);
+            new_payload.add_sibling_overload(sibling);
         }
     }
-    else if (
-        auto existing_parent_anchor = find_any_function_overload_in_any_parent_scope(
-            new_symbol->name))
-    {
-        auto& existing_parent_payload = existing_parent_anchor->get_payload_as<FunctionData>();
 
-        new_payload.reachable_overloads.insert(
-            new_payload.reachable_overloads.end(),
-            existing_parent_payload.reachable_overloads.begin(),
-            existing_parent_payload.reachable_overloads.end());
+    if (auto parent = get_parent_overload(new_symbol->name))
+    {
+        new_payload.add_parent_overload(parent);
+
+        auto parents = parent->get_payload_as<FunctionData>().get_overloads();
+
+        for (auto parent : parents)
+        {
+            new_symbol->get_payload_as<FunctionData>().add_parent_overload(parent);
+        }
     }
 
     int id = static_cast<int>(symbols.size());
     new_symbol->id = id;
 
     symbols.push_back(new_symbol);
-    id_to_name_map[id] = new_symbol->name;
 
     return new_symbol;
 }
@@ -112,16 +104,41 @@ Symbol_ptr SymbolScope::lookup(const std::string& name) const
 SymbolVector SymbolScope::get_function_overloads(const std::string& name) const
 {
     Symbol_ptr base_symbol = lookup(name);
+    base_symbol = base_symbol->resolve();
 
-    if (base_symbol && base_symbol->payload_is<FunctionData>())
-    {
-        return base_symbol->get_payload_as<FunctionData>().reachable_overloads;
-    }
+    Doctor::get().fatal_if_nullptr(
+        base_symbol,
+        WaspStage::Semantics,
+        "No symbol found with name '" + name + "' to retrieve overloads from");
 
-    return {};
+    Doctor::get().assert(
+        base_symbol->payload_is<FunctionData>(),
+        WaspStage::Semantics,
+        "Symbol '" + name + "' is not a function and cannot have overloads");
+
+    auto& function_data = base_symbol->get_payload_as<FunctionData>();
+
+    SymbolVector result;
+
+    result.reserve(
+        1 + function_data.parent_overloads.size() + function_data.sibling_overloads.size());
+
+    result.push_back(base_symbol);
+
+    result.insert(
+        result.end(),
+        function_data.parent_overloads.begin(),
+        function_data.parent_overloads.end());
+
+    result.insert(
+        result.end(),
+        function_data.sibling_overloads.begin(),
+        function_data.sibling_overloads.end());
+
+    return result;
 }
 
-Symbol_ptr SymbolScope::find_any_function_overload_in_current_scope(const std::string& name) const
+SymbolVector SymbolScope::get_sibling_overloads(const std::string& name) const
 {
     auto it = std::find_if(
         symbols.begin(),
@@ -130,14 +147,25 @@ Symbol_ptr SymbolScope::find_any_function_overload_in_current_scope(const std::s
 
     if (it != symbols.end())
     {
-        return *it;
+        Symbol_ptr anchor = *it;
+        const auto& siblings = anchor->get_payload_as<FunctionData>().sibling_overloads;
+
+        SymbolVector full_family;
+        full_family.reserve(1 + siblings.size());
+
+        // Add the anchor symbol itself
+        full_family.push_back(anchor);
+
+        // Append all of its siblings
+        full_family.insert(full_family.end(), siblings.begin(), siblings.end());
+
+        return full_family;
     }
 
-    return nullptr;
+    return {};
 }
 
-Symbol_ptr SymbolScope::find_any_function_overload_in_any_parent_scope(
-    const std::string& name) const
+Symbol_ptr SymbolScope::get_parent_overload(const std::string& name) const
 {
     if (!enclosing_scope)
     {

@@ -1,9 +1,9 @@
 #include "Symbol.h"
 #include "Objects.h"
 
+#include <algorithm>
 #include <memory>
 #include <string>
-#include <unordered_map>
 #include <utility>
 #include <variant>
 
@@ -41,6 +41,33 @@ void Symbol::set_type(Object_ptr new_type) {
         payload
     );
 }
+
+void FunctionData::add_sibling_overload(Symbol_ptr sibling)
+{
+    auto it = std::find_if(
+        sibling_overloads.begin(),
+        sibling_overloads.end(),
+        [&](const Symbol_ptr& s) { return s->id == sibling->id; });
+
+    if (it == sibling_overloads.end())
+    {
+        sibling_overloads.push_back(sibling);
+    }
+}
+
+void FunctionData::add_parent_overload(Symbol_ptr parent)
+{
+    auto it = std::find_if(
+        parent_overloads.begin(),
+        parent_overloads.end(),
+        [&](const Symbol_ptr& p) { return p->id == parent->id; });
+
+    if (it == parent_overloads.end())
+    {
+        parent_overloads.push_back(parent);
+    }
+}
+
 Symbol_ptr SymbolFactory::create_variable(
     std::string name, Object_ptr type, bool is_mutable, int closure_depth, int lexical_depth
 ) {
@@ -60,9 +87,7 @@ Symbol_ptr SymbolFactory::create_function(
         std::move(name),
         closure_depth,
         lexical_depth,
-        FunctionData{std::move(type), is_native, {}});
-
-    symbol->get_payload_as<FunctionData>().reachable_overloads.push_back(symbol);
+        FunctionData{std::move(type), is_native, {}, {}});
 
     return symbol;
 }

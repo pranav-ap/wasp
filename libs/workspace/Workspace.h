@@ -11,7 +11,6 @@
 #include <map>
 #include <memory>
 #include <string>
-#include <unordered_map>
 
 namespace Wasp {
 
@@ -24,10 +23,10 @@ struct Module {
 
     // Symbol Hoiser Stage
     SymbolVector hoisted_symbols;
-    std::unordered_map<int, std::string> id_to_hoisted_symbol_name_map;
+    std::map<int, std::string> id_to_hoisted_symbol_name_map;
 
     SymbolVector exports;
-    std::unordered_map<int, std::string> id_to_exported_symbol_name_map;
+    std::map<int, std::string> id_to_exported_symbol_name_map;
 
     Object_ptr type;
 

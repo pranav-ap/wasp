@@ -74,9 +74,11 @@ void NativeRegistry::load_stdlib() {
     add_native(
         "print",
         // Arity -1 means it can take any number of arguments!
-        -1,
-        [&](const std::vector<Object_ptr>& args) -> Object_ptr {
-            for (const auto& arg : args) {
+        1,
+        [&](const std::vector<Object_ptr>& args) -> Object_ptr
+        {
+            for (const auto& arg : args)
+            {
                 std::visit(
                     overloaded{
                         [](const IntObject& i) { std::cout << i.value; },
@@ -95,8 +97,7 @@ void NativeRegistry::load_stdlib() {
         // Input Types
         {pool->get_any_type()},
         // Return Type
-        pool->get_none_type()
-    );
+        pool->get_none_type());
 
     add_native(
         "input",

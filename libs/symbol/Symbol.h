@@ -2,6 +2,7 @@
 
 #include "Objects.h"
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <utility>
@@ -19,12 +20,32 @@ struct VariableData {
     bool is_mutable;
 };
 
-struct FunctionData {
+struct FunctionData
+{
     Object_ptr type;
     bool is_native;
 
-    // includes all overloads of this function, including the current one
-    std::vector<Symbol_ptr> reachable_overloads;
+    SymbolVector sibling_overloads;
+    SymbolVector parent_overloads;
+
+    void add_sibling_overload(Symbol_ptr sibling);
+
+    void add_parent_overload(Symbol_ptr parent);
+
+    SymbolVector get_overloads() const
+    {
+        SymbolVector all_overloads;
+        all_overloads.reserve(sibling_overloads.size() + parent_overloads.size() + 1);
+
+        all_overloads.insert(
+            all_overloads.end(),
+            sibling_overloads.begin(),
+            sibling_overloads.end());
+
+        all_overloads.insert(all_overloads.end(), parent_overloads.begin(), parent_overloads.end());
+
+        return all_overloads;
+    }
 };
 
 struct ClassData {

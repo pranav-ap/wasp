@@ -86,12 +86,15 @@ void SymbolHoister::run(Module_ptr mod)
 {
     hoist(mod);
 
-    auto [symbols, id_to_name_map] = current_scope->get_all_symbols();
+    auto symbols = current_scope->get_all_symbols();
     mod->hoisted_symbols = symbols;
-    mod->id_to_hoisted_symbol_name_map = id_to_name_map;
-
     mod->exports = symbols;
-    mod->id_to_exported_symbol_name_map = id_to_name_map;
+
+    for (const auto& symbol : symbols)
+    {
+        mod->id_to_hoisted_symbol_name_map[symbol->id] = symbol->name;
+        mod->id_to_exported_symbol_name_map[symbol->id] = symbol->name;
+    }
 }
 
 void SymbolHoister::run(const std::vector<Module_ptr>& build_order)

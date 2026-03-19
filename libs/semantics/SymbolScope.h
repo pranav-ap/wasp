@@ -4,8 +4,6 @@
 #include <algorithm>
 #include <memory>
 #include <string>
-#include <tuple>
-#include <unordered_map>
 #include <vector>
 
 namespace Wasp
@@ -33,7 +31,6 @@ private:
     int closure_depth;
     int lexical_depth;
 
-    std::unordered_map<int, std::string> id_to_name_map;
     SymbolVector symbols;
 
     Symbol_ptr define_function(Symbol_ptr symbol);
@@ -49,8 +46,8 @@ public:
 
     SymbolVector get_function_overloads(const std::string& name) const;
 
-    Symbol_ptr find_any_function_overload_in_current_scope(const std::string& name) const;
-    Symbol_ptr find_any_function_overload_in_any_parent_scope(const std::string& name) const;
+    SymbolVector get_sibling_overloads(const std::string& name) const;
+    Symbol_ptr get_parent_overload(const std::string& name) const;
 
     bool contains_in_current_scope(const std::string& name) const
     {
@@ -78,9 +75,6 @@ public:
         return this->closure_depth - target_closure_depth;
     }
 
-    std::tuple<SymbolVector, std::unordered_map<int, std::string>> get_all_symbols() const
-    {
-        return {symbols, id_to_name_map};
-    }
+    SymbolVector get_all_symbols() const { return symbols; }
 };
 } // namespace Wasp
