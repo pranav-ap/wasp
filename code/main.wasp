@@ -1,17 +1,9 @@
-import my.cats as c
-from my.paris import tower_height as t
+fun greet()
+    print('hello')
 
-print('hello')
+fun greet(name: str)
+    print('bye')
 
-fun yo()
-    print('yo')
 
-print('calling now')
-yo()
-
-print('calling cats')
-c.print_cats()
-print(c.y)
-
-print('using paris')
-print(t)
+greet()
+greet('jon')

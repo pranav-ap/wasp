@@ -1,8 +1,0 @@
-import my.dogs
-
-fun print_cats()
-    print('cats')
-    dogs.print_dogs()
-
-
-let y  = 55

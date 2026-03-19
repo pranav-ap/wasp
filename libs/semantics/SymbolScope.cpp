@@ -51,25 +51,31 @@ Symbol_ptr SymbolScope::define_function(Symbol_ptr new_symbol)
 
     auto& new_payload = new_symbol->get_payload_as<FunctionData>();
 
-    if (auto old_anchor = find_any_function_overload_in_current_scope(new_symbol->name))
+    if (auto anchor = find_any_function_overload_in_current_scope(new_symbol->name))
     {
-        auto& anchor_payload = old_anchor->get_payload_as<FunctionData>();
+        auto& anchor_payload = anchor->get_payload_as<FunctionData>();
+        std::vector<Symbol_ptr> siblings = anchor_payload.reachable_overloads;
 
-        // exchange overload lists
+        new_payload.reachable_overloads.insert(
+            new_payload.reachable_overloads.end(),
+            siblings.begin(),
+            siblings.end());
 
-        for (auto& sibling : anchor_payload.reachable_overloads)
+        for (auto sibling : siblings)
         {
             sibling->get_payload_as<FunctionData>().reachable_overloads.push_back(new_symbol);
         }
-
-        new_payload.reachable_overloads = anchor_payload.reachable_overloads;
     }
     else if (
         auto existing_parent_anchor = find_any_function_overload_in_any_parent_scope(
             new_symbol->name))
     {
         auto& existing_parent_payload = existing_parent_anchor->get_payload_as<FunctionData>();
-        new_payload.reachable_overloads = existing_parent_payload.reachable_overloads;
+
+        new_payload.reachable_overloads.insert(
+            new_payload.reachable_overloads.end(),
+            existing_parent_payload.reachable_overloads.begin(),
+            existing_parent_payload.reachable_overloads.end());
     }
 
     int id = static_cast<int>(symbols.size());
