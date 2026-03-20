@@ -104,6 +104,12 @@ Symbol_ptr SymbolScope::lookup(const std::string& name) const
 SymbolVector SymbolScope::get_function_overloads(const std::string& name) const
 {
     Symbol_ptr base_symbol = lookup(name);
+
+    if (!base_symbol)
+    {
+        return {};
+    }
+
     base_symbol = base_symbol->resolve();
 
     Doctor::get().fatal_if_nullptr(
