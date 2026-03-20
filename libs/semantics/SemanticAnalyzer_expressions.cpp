@@ -107,139 +107,89 @@ Object_ptr SemanticAnalyzer::visit(Identifier& expr)
     return target_symbol->get_type();
 }
 
-Object_ptr SemanticAnalyzer::visit(Call& call_expr)
+Object_ptr SemanticAnalyzer::visit(SimpleCall& call_expr)
 {
     ObjectVector arg_types;
 
-    // 1. Evaluate all arguments first
     for (auto& arg : call_expr.arguments)
     {
         arg_types.push_back(visit(arg));
     }
 
-    // --- CASE 1: Standard Function Call (Identifier) ---
-    if (call_expr.callable->is<Identifier>())
+    Symbol_ptr resolved_function = type_checker->resolve_function_overload(
+        current_scope,
+        call_expr.callable.name,
+        arg_types);
+
+    Doctor::get().fatal_if_nullptr(
+        resolved_function,
+        WaspStage::Semantics,
+        "No matching function overload found for '" + call_expr.callable.name);
+
+    if (resolved_function->should_be_captured(current_scope->get_closure_depth()))
     {
-        auto& callable_ident = call_expr.callable->as<Identifier>();
-        std::string func_name = callable_ident.name;
-
-        // Resolve the specific overload using the new TypeChecker architecture
-        Symbol_ptr resolved_func = type_checker->resolve_function_overload(
-            current_scope,
-            func_name,
-            arg_types);
-
-        // Attach the specific symbol to BOTH nodes for the Compiler Pass
-        call_expr.symbol = resolved_func;
-        callable_ident.symbol = resolved_func;
-
-        if (resolved_func->should_be_captured(current_scope->get_closure_depth()))
-        {
-            callable_ident.must_be_captured = true;
-        }
-
-        Object_ptr callee_type = resolved_func->get_payload_as<FunctionData>().type;
-        const auto& final_signature = callee_type->as<FunctionType>();
-
-        if (final_signature.return_type.has_value())
-        {
-            return final_signature.return_type.value();
-        }
-        return MAKE_OBJECT_VARIANT(NoneType());
+        call_expr.callable.must_be_captured = true;
     }
 
-    // --- CASE 2: Module or Object Method Call (MemberAccess) ---
-    else if (call_expr.callable->is<MemberAccess>())
+    call_expr.callable.symbol = resolved_function;
+
+    auto& final_signature = resolved_function->get_payload_as<FunctionData>()
+                                .type->as<FunctionType>();
+
+    if (final_signature.return_type.has_value())
     {
-        auto& mac = call_expr.callable->as<MemberAccess>();
-
-        // Let your existing visit(MemberAccess) logic extract the member's type
-        Object_ptr member_type = visit(mac);
-
-        Doctor::get().assert(
-            member_type->is<FunctionType>(),
-            WaspStage::Semantics,
-            "Member is not a callable function.");
-
-        const auto& final_signature = member_type->as<FunctionType>();
-
-        // Check that the arguments match the member function's signature
-        // Note: You can upgrade this to use TypeChecker::assignable later!
-        Doctor::get().assert(
-            final_signature.input_types.size() == arg_types.size(),
-            WaspStage::Semantics,
-            "Argument count mismatch in member function call.");
-
-        // We DO NOT need to set a symbol here, because your Compiler's
-        // visit(MemberAccess) handles it dynamically using OpCode::GET_MEMBER!
-
-        if (final_signature.return_type.has_value())
-        {
-            return final_signature.return_type.value();
-        }
-        return MAKE_OBJECT_VARIANT(NoneType());
+        return final_signature.return_type.value();
     }
 
-    // --- CASE 3: Invalid Callable ---
-    Doctor::get().fatal(
-        WaspStage::Semantics,
-        "Expected an Identifier or MemberAccess as the callable.");
-
-    return nullptr;
+    return MAKE_OBJECT_VARIANT(NoneType());
 }
 
-Object_ptr SemanticAnalyzer::access_member(
-    const ModuleType& left_type,
-    const Identifier& right_identifier)
+Object_ptr SemanticAnalyzer::visit(ComplexCall& call_expr)
 {
-    std::string member_name = right_identifier.name;
-    auto it = left_type.members.find(member_name);
+    auto& mac = call_expr.callable->as<MemberAccess>();
+
+    // Let your existing visit(MemberAccess) logic extract the member's type
+    Object_ptr member_type = visit(mac);
 
     Doctor::get().assert(
-        it != left_type.members.end(),
+        member_type->is<FunctionType>(),
         WaspStage::Semantics,
-        "Namespace has no member named '" + member_name);
+        "Member is not a callable function.");
 
-    return it->second;
-}
+    const auto& final_signature = member_type->as<FunctionType>();
 
-Object_ptr SemanticAnalyzer::access_member(const ModuleType& left_type, const Call& right_call)
-{
+    // Check that the arguments match the member function's signature
+    // Note: You can upgrade this to use TypeChecker::assignable later!
     Doctor::get().assert(
-        right_call.callable->is<Identifier>(),
+        final_signature.input_types.size() == arg_types.size(),
         WaspStage::Semantics,
-        "Expected RHS of '.' to be an identifier when accessing a namespace.");
-
-    auto& right_idenitifer = right_call.callable->as<Identifier>();
-    return access_member(left_type, right_idenitifer);
+        "Argument count mismatch in member function call.");
 }
 
-Object_ptr SemanticAnalyzer::access_member(const ModuleType& left_type, Expression_ptr right_expr)
+Object_ptr SemanticAnalyzer::visit(MemberAccess& chain)
 {
-    return std::visit(
-        overloaded{
-            [&](Identifier& id) { return access_member(left_type, id); },
-            [&](Call& call) { return access_member(left_type, call); },
-            [](auto&) -> Object_ptr
-            {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "RHS of member access must be either an identifier or a call.");
-                return nullptr;
-            }},
-        right_expr->data);
-}
+    auto links = chain.get_access_path();
+    Doctor::get().assert(
+        !links.empty(),
+        WaspStage::Semantics,
+        "Invalid member access path. Expected at least one identifier.");
 
-Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
-{
-    Object_ptr left_type = visit(expr.left);
+    auto first_link = links[0];
+    auto other_links = ExpressionVector(links.begin() + 1, links.end());
+
+    auto link_type = visit(first_link);
 
     Doctor::get().assert(
-        left_type->is<ModuleType>(),
+        link_type->is<ModuleType>(),
         WaspStage::Semantics,
-        "Incorrect type for LHS of member access.");
+        "Expected first part of member access to be a module");
 
-    return access_member(left_type->as<ModuleType>(), expr.right);
+    for (size_t i = 1; i < other_links.size(); i++)
+    {
+        link_type = type_checker->get_member_type(link_type->as<ModuleType>(), links[i]);
+    }
+
+    return link_type;
 }
 
 Object_ptr SemanticAnalyzer::visit(int expr) { return MAKE_OBJECT_VARIANT(IntType()); }

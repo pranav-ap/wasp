@@ -3,26 +3,16 @@
 #include "AST.h"
 #include "Resolvable.h"
 #include "Token.h"
-#include "TypeAnnotation.h"
 
 #include <map>
 #include <memory>
-#include <stack>
 #include <string>
 #include <utility>
 #include <variant>
-#include <vector>
 
 namespace Wasp {
 
 struct Symbol;
-
-struct Identifier : public Resolvable {
-    std::string name;
-
-    Identifier() = default;
-    Identifier(std::string name) : name(std::move(name)) {}
-};
 
 struct DotLiteral {};
 
@@ -145,26 +135,64 @@ struct ElseTernaryBranch : public TernaryBranch {
     ElseTernaryBranch(Expression_ptr expression) : expression(expression) {};
 };
 
-// Other
+// Identifiers & Access
 
-struct MemberAccess : public Resolvable {
+struct Identifier : public Resolvable
+{
+    std::string name;
+
+    Identifier() = default;
+    Identifier(std::string name) : name(std::move(name)) {}
+};
+
+struct MemberAccess : public Resolvable
+{
     Expression_ptr left;
     Expression_ptr right;
 
     MemberAccess() = default;
     MemberAccess(Expression_ptr left, Expression_ptr right)
-        : left(std::move(left)), right(std::move(right)) {}
+        : left(std::move(left)), right(std::move(right))
+    {
+    }
+
+    ExpressionVector get_access_path() const;
 };
 
-struct Call : public Resolvable {
-    Expression_ptr callable;
+struct Call : public Resolvable
+{
     ExpressionVector arguments;
 
     Call() = default;
 
-    Call(Expression_ptr callable, ExpressionVector arguments)
-        : callable(std::move(callable)), arguments(std::move(arguments)) {}
+    Call(ExpressionVector arguments) : arguments(std::move(arguments)) {}
 };
+
+struct SimpleCall : public Call
+{
+    Identifier callable;
+
+    SimpleCall() = default;
+
+    SimpleCall(Identifier callable, ExpressionVector arguments)
+        : Call(std::move(arguments)), callable(std::move(callable))
+    {
+    }
+};
+
+struct ComplexCall : public Call
+{
+    Expression_ptr callable;
+
+    ComplexCall() = default;
+
+    ComplexCall(Expression_ptr callable, ExpressionVector arguments)
+        : Call(std::move(arguments)), callable(std::move(callable))
+    {
+    }
+};
+
+// Others
 
 struct RangeLiteral {
     Expression_ptr start; // nullptr for ..10
@@ -193,7 +221,8 @@ using ExpressionVariant = std::variant<
     Identifier,
     MemberAccess,
 
-    Call,
+    SimpleCall,
+    ComplexCall,
 
     Prefix,
     Infix,

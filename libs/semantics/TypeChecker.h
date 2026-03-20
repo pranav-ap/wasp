@@ -1,6 +1,8 @@
 #pragma once
 
+#include "AST.h"
 #include "ConstantPool.h"
+#include "Expression.h"
 #include "Objects.h"
 #include "Symbol.h"
 #include "SymbolScope.h"
@@ -8,7 +10,6 @@
 
 #include <memory>
 #include <string>
-#include <vector>
 
 namespace Wasp
 {
@@ -28,6 +29,11 @@ public:
         SymbolScope_ptr scope,
         const std::string& func_name,
         const ObjectVector& new_param_types) const;
+
+    Object_ptr get_member_type(const ModuleType& module_type, const Expression_ptr chain) const;
+    Object_ptr get_member_type(const ModuleType& module_type, const Identifier& identifier) const;
+    Object_ptr get_member_type(const ModuleType& module_type, const SimpleCall& call) const;
+    Object_ptr get_member_type(const ModuleType& module_type, const ComplexCall& call) const;
 
     bool equal(SymbolScope_ptr scope, const Object_ptr type_1, const Object_ptr type_2) const;
 

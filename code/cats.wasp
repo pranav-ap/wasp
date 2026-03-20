@@ -1,0 +1,11 @@
+import my.dogs
+
+fun print_cats()
+    print('cats')
+    dogs.print_dogs()
+
+fun print_cats(count: int)
+    print('cats')
+    print(count)
+
+let y  = 55

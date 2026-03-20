@@ -86,13 +86,10 @@ class SemanticAnalyzer {
     Object_ptr visit(DotLiteral& expr);
 
     Object_ptr visit(Identifier& expr);
-
-    Object_ptr access_member(const ModuleType& left_type, Expression_ptr right_expr);
-    Object_ptr access_member(const ModuleType& left_type, const Identifier& right_identifier);
-    Object_ptr access_member(const ModuleType& left_type, const Call& right_call);
-
     Object_ptr visit(MemberAccess& expr);
-    Object_ptr visit(Call& expr);
+
+    Object_ptr visit(SimpleCall& expr);
+    Object_ptr visit(ComplexCall& expr);
 
     Object_ptr visit(Prefix& expr);
     Object_ptr visit(Infix& expr);

@@ -38,10 +38,22 @@ Captain::Captain(const std::filesystem::path& target_path) {
                      : (workspace_root / "main.wasp").lexically_normal();
 }
 
-void Captain::parse_modules() {
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(workspace->root_path)) {
-        if (entry.is_regular_file() && entry.path().extension() == ".wasp") {
-            parse_module(entry.path());
+void Captain::parse_modules()
+{
+    auto it = std::filesystem::recursive_directory_iterator(workspace->root_path);
+    auto end = std::filesystem::recursive_directory_iterator();
+
+    for (; it != end; ++it)
+    {
+        if (it->is_directory() && it->path().filename() == "frozen")
+        {
+            it.disable_recursion_pending();
+            continue;
+        }
+
+        if (it->is_regular_file() && it->path().extension() == ".wasp")
+        {
+            parse_module(it->path());
         }
     }
 }

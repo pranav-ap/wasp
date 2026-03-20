@@ -12,13 +12,13 @@ TEST(ParseExpressions, MemberAccessNested) {
     auto& expr_stmt = check<Wasp::ExpressionStatement>(block[0]);
 
     // Top Level: [Animal.Dog] . [GermanShepherd]
-    auto& outer_access = check<Wasp::MemberAccess>(expr_stmt.expression);
+    auto& outer_access = check<Wasp::MemberAccessLink>(expr_stmt.expression);
 
     auto& right_id = check<Wasp::Identifier>(outer_access.right);
     EXPECT_EQ(right_id.name, "GermanShepherd");
 
     // Inner Level: [Animal] . [Dog]
-    auto& inner_access = check<Wasp::MemberAccess>(outer_access.left);
+    auto& inner_access = check<Wasp::MemberAccessLink>(outer_access.left);
 
     auto& inner_right_id = check<Wasp::Identifier>(inner_access.right);
     EXPECT_EQ(inner_right_id.name, "Dog");
@@ -61,7 +61,7 @@ TEST(ParseExpressions, MethodCallWithArguments) {
     EXPECT_EQ(call.arguments.size(), 3);
 
     // The callable being executed is a MemberAccess node
-    auto& callee_access = check<Wasp::MemberAccess>(call.callable);
+    auto& callee_access = check<Wasp::MemberAccessLink>(call.callable);
 
     auto& left_id = check<Wasp::Identifier>(callee_access.left);
     EXPECT_EQ(left_id.name, "company");
@@ -77,7 +77,7 @@ TEST(ParseExpressions, MethodCallWithArgumentsThenMemberAccess) {
     auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
 
     // Top Level: [company.get_worker(...)] . [name]
-    auto& outer_access = check<Wasp::MemberAccess>(stmt.expression);
+    auto& outer_access = check<Wasp::MemberAccessLink>(stmt.expression);
 
     auto& property_id = check<Wasp::Identifier>(outer_access.right);
     EXPECT_EQ(property_id.name, "name");
@@ -86,7 +86,7 @@ TEST(ParseExpressions, MethodCallWithArgumentsThenMemberAccess) {
     auto& call = check<Wasp::Call>(outer_access.left);
     EXPECT_EQ(call.arguments.size(), 3);
 
-    auto& inner_access = check<Wasp::MemberAccess>(call.callable);
+    auto& inner_access = check<Wasp::MemberAccessLink>(call.callable);
 
     auto& left_id = check<Wasp::Identifier>(inner_access.left);
     EXPECT_EQ(left_id.name, "company");
@@ -102,7 +102,7 @@ TEST(ParseExpressions, FunctionCallThenMemberAccess) {
     auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
 
     // Top Level: [get_company()] . [worker]
-    auto& access = check<Wasp::MemberAccess>(stmt.expression);
+    auto& access = check<Wasp::MemberAccessLink>(stmt.expression);
 
     auto& property_id = check<Wasp::Identifier>(access.right);
     EXPECT_EQ(property_id.name, "worker");
@@ -126,7 +126,7 @@ TEST(ParseExpressions, FunctionCallThenMethodCall) {
     EXPECT_EQ(outer_call.arguments.size(), 1);
 
     // The callable is the MemberAccess: [get_company()] . [get_worker]
-    auto& access = check<Wasp::MemberAccess>(outer_call.callable);
+    auto& access = check<Wasp::MemberAccessLink>(outer_call.callable);
 
     auto& method_id = check<Wasp::Identifier>(access.right);
     EXPECT_EQ(method_id.name, "get_worker");

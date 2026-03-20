@@ -42,7 +42,7 @@ void Compiler::visit(const Expression_ptr expr) {
             [&](Prefix& p) { visit(p); },
             [&](Infix& i) { visit(i); },
             [&](Identifier& id) { visit(id); },
-            [&](MemberAccess& m) { visit(m); },
+            [&](MemberAccessLink& m) { visit(m); },
             [&](Call& c) { visit(c); },
             [&](ListLiteral& l) { visit(l); },
             [&](TupleLiteral& t) { visit(t); },
@@ -52,10 +52,8 @@ void Compiler::visit(const Expression_ptr expr) {
             [&](VariableDefinitionExpression& v) { visit(v); },
             [&](IfTernaryBranch& i) { visit(i); },
             [&](ElseTernaryBranch& e) { visit(e); },
-            [&](auto&) { /* Fallback */ }
-        },
-        expr->data
-    );
+            [&](auto&) { /* Fallback */ }},
+        expr->data);
 }
 
 void Compiler::visit(int expr) { emit(OpCode::LOAD_CONST, pool->allocate(expr)); }
@@ -91,7 +89,8 @@ void Compiler::visit(Call& expr)
     emit(OpCode::CALL, static_cast<int>(expr.arguments.size()));
 }
 
-void Compiler::visit(MemberAccess& expr) {
+void Compiler::visit(MemberAccessLink& expr)
+{
     visit(expr.left);
 
     auto& right_id = expr.right->as<Identifier>();
@@ -115,7 +114,8 @@ void Compiler::compile_identifier_assignment(Identifier& id, const Expression_pt
     }
 }
 
-void Compiler::compile_member_assignment(MemberAccess& mac, const Expression_ptr& rhs) {
+void Compiler::compile_member_assignment(MemberAccessLink& mac, const Expression_ptr& rhs)
+{
     // Evaluate the object first (Stack: [obj])
     visit(mac.left);
 
@@ -140,16 +140,15 @@ void Compiler::visit(UntypedAssignment& expr) {
     std::visit(
         overloaded{
             [&](Identifier& id) { compile_identifier_assignment(id, expr.rhs_expression); },
-            [&](MemberAccess& mac) { compile_member_assignment(mac, expr.rhs_expression); },
-            [&](auto&) {
+            [&](MemberAccessLink& mac) { compile_member_assignment(mac, expr.rhs_expression); },
+            [&](auto&)
+            {
                 Doctor::get().fatal(
                     WaspStage::Compiler,
                     "Invalid left-hand side for assignment. Must be an Identifier or MemberAccess."
                 );
-            }
-        },
-        expr.lhs_expression->data
-    );
+            }},
+        expr.lhs_expression->data);
 }
 
 void Compiler::visit(TypedAssignment& expr) {

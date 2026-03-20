@@ -1,16 +1,23 @@
 #include "ExpressionParselets.h"
+#include "AST.h"
 #include "Doctor.h"
 #include "Expression.h"
 #include "Parser.h"
 #include "Precedence.h"
 #include "Token.h"
-#include "TypeAnnotation.h"
 
 #include <cmath>
 #include <cstdlib>
 #include <map>
 #include <memory>
 #include <string>
+#include <variant>
+
+template <class... Ts> struct overloaded : Ts...
+{
+    using Ts::operator()...;
+};
+template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp {
 Expression_ptr IdentifierParselet::parse(Parser& parser, const Token& token) {
@@ -223,8 +230,7 @@ Expression_ptr CallParselet::parse(Parser& parser, const Expression_ptr left, co
     Doctor::get().assert(
         left->is<Identifier>() || left->is<MemberAccess>() || left->is<Call>(),
         WaspStage::Parser,
-        "Callee requires an identifier or member access expression"
-    );
+        "Callee requires an identifier or member access expression");
 
     ExpressionVector arguments;
 
@@ -233,7 +239,18 @@ Expression_ptr CallParselet::parse(Parser& parser, const Expression_ptr left, co
         parser.token_pipe.require(TokenType::CLOSE_PARENTHESIS);
     }
 
-    return make_expression(Call(left, arguments));
+    return std::visit(
+        overloaded{
+            [&](Identifier& id) { return make_expression(SimpleCall(id, arguments)); },
+            [&](MemberAccess& ma) { return make_expression(ComplexCall(left, arguments)); },
+
+            [](auto&) -> Expression_ptr
+            {
+                Doctor::get().fatal(
+                    WaspStage::Parser,
+                    "Expected an identifier or member access as the callable.");
+            }},
+        left->data);
 }
 
 Expression_ptr MemberAccessParselet::parse(
