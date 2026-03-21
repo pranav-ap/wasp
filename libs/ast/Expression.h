@@ -145,6 +145,8 @@ struct Identifier : public Resolvable
     Identifier(std::string name) : name(std::move(name)) {}
 };
 
+// a.b
+// a.b.c().d
 struct MemberAccess : public Resolvable
 {
     Expression_ptr left;
@@ -156,38 +158,23 @@ struct MemberAccess : public Resolvable
     {
     }
 
-    ExpressionVector get_access_path() const;
+    ExpressionVector flatten_links() const;
 };
 
+// process()
+// a.process()
+// a.b.process()
+// create_function()()
+// a.b().c()
 struct Call : public Resolvable
 {
+    Expression_ptr callable;
     ExpressionVector arguments;
 
     Call() = default;
 
-    Call(ExpressionVector arguments) : arguments(std::move(arguments)) {}
-};
-
-struct SimpleCall : public Call
-{
-    Identifier callable;
-
-    SimpleCall() = default;
-
-    SimpleCall(Identifier callable, ExpressionVector arguments)
-        : Call(std::move(arguments)), callable(std::move(callable))
-    {
-    }
-};
-
-struct ComplexCall : public Call
-{
-    Expression_ptr callable;
-
-    ComplexCall() = default;
-
-    ComplexCall(Expression_ptr callable, ExpressionVector arguments)
-        : Call(std::move(arguments)), callable(std::move(callable))
+    Call(Expression_ptr callable, ExpressionVector arguments)
+        : callable(callable), arguments(std::move(arguments))
     {
     }
 };
@@ -221,8 +208,7 @@ using ExpressionVariant = std::variant<
     Identifier,
     MemberAccess,
 
-    SimpleCall,
-    ComplexCall,
+    Call,
 
     Prefix,
     Infix,

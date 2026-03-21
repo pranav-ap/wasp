@@ -1,7 +1,5 @@
 #include "TypeChecker.h"
-#include "AST.h"
 #include "Doctor.h"
-#include "Expression.h"
 #include "Objects.h"
 #include "Symbol.h"
 #include "SymbolScope.h"
@@ -160,57 +158,6 @@ void TypeChecker::validate_new_overload(
                     "' overlaps ambiguously with an existing overload.");
         }
     }
-}
-
-// ============================================================================
-// Member Access Resolution
-// ============================================================================
-
-Object_ptr TypeChecker::get_member_type(const ModuleType& module_type, const Identifier& identifier)
-    const
-{
-    auto it = module_type.members.find(identifier.name);
-
-    Doctor::get().assert(
-        it != module_type.members.end(),
-        WaspStage::Semantics,
-        "Namespace has no member named '" + identifier.name);
-
-    return it->second;
-}
-
-Object_ptr TypeChecker::get_member_type(const ModuleType& module_type, const SimpleCall& call) const
-{
-    auto it = module_type.members.find(call.callable.name);
-
-    return get_member_type(module_type, call.callable);
-}
-
-Object_ptr TypeChecker::get_member_type(const ModuleType& module_type, const ComplexCall& call)
-    const
-{
-    auto links = call.callable->as<MemberAccess>().get_access_path();
-
-    Doctor::get().assert(
-        !links.empty(),
-        WaspStage::Semantics,
-        "Invalid member access path. Expected at least one identifier.");
-
-    return get_member_type(module_type, call.callable);
-}
-
-Object_ptr TypeChecker::get_member_type(const ModuleType& module_type, const Expression_ptr chain)
-    const
-{
-    return std::visit(
-        overloaded{
-            [&](Identifier& identifier) { return get_member_type(module_type, identifier); },
-            [&](SimpleCall& call) { return get_member_type(module_type, call); },
-            [&](ComplexCall& call) { return get_member_type(module_type, call); },
-
-            [](auto&) -> Object_ptr
-            { Doctor::get().fatal(WaspStage::Semantics, "Expected an identifier or call"); }},
-        chain->data);
 }
 
 // ============================================================================

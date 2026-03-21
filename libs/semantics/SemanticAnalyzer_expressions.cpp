@@ -12,7 +12,6 @@
 #include <map>
 #include <memory>
 #include <string>
-#include <utility>
 #include <variant>
 
 #define MAKE_OBJECT_VARIANT(x) std::make_shared<Object>(x)
@@ -107,7 +106,7 @@ Object_ptr SemanticAnalyzer::visit(Identifier& expr)
     return target_symbol->get_type();
 }
 
-Object_ptr SemanticAnalyzer::visit(SimpleCall& call_expr)
+Object_ptr SemanticAnalyzer::visit(Call& call_expr)
 {
     ObjectVector arg_types;
 
@@ -144,7 +143,7 @@ Object_ptr SemanticAnalyzer::visit(SimpleCall& call_expr)
     return MAKE_OBJECT_VARIANT(NoneType());
 }
 
-Object_ptr SemanticAnalyzer::visit(ComplexCall& call_expr)
+Object_ptr SemanticAnalyzer::visit(Call& call_expr)
 {
     auto& mac = call_expr.callable->as<MemberAccess>();
 
@@ -166,30 +165,115 @@ Object_ptr SemanticAnalyzer::visit(ComplexCall& call_expr)
         "Argument count mismatch in member function call.");
 }
 
+Object_ptr SemanticAnalyzer::get_member_type(
+    const ModuleType& module_type,
+    const Identifier& identifier) const
+{
+    Doctor::get().assert(
+        module_type.contains_member(identifier.name),
+        WaspStage::Semantics,
+        "Module has no member named '" + identifier.name);
+
+    return module_type.get_member_type(identifier.name);
+}
+
+Object_ptr SemanticAnalyzer::get_member_type(const ModuleType& module_type, const Call& call) const
+{
+    return std::visit(
+        overloaded{
+            [&](Identifier& identifier) -> Object_ptr
+            { return get_member_type(module_type, identifier); },
+
+            [&](MemberAccess& member_access) -> Object_ptr
+            { return get_member_type(module_type, member_access); },
+
+            [&](Call& inner_call) -> Object_ptr
+            {
+                auto links = inner_call.callable->as<MemberAccess>().flatten_links();
+
+                Doctor::get().assert(
+                    !links.empty(),
+                    WaspStage::Semantics,
+                    "Invalid member access path in call. Expected at least one identifier.");
+
+                return get_member_type(module_type, links);
+            },
+
+            [](auto&) -> Object_ptr
+            {
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Expected an identifier or call in member access chain");
+                return nullptr;
+            }},
+        call.callable->data);
+}
+
+Object_ptr SemanticAnalyzer::get_member_type(
+    const ModuleType& module_type,
+    const Expression_ptr link) const
+{
+    return std::visit(
+        overloaded{
+            [&](Identifier& identifier) -> Object_ptr
+            { return get_member_type(module_type, identifier); },
+
+            [&](Call& call) -> Object_ptr { return get_member_type(module_type, call); },
+
+            [](auto&) -> Object_ptr
+            {
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Expected an identifier or call in member access chain");
+                return nullptr;
+            }},
+        link->data);
+}
+
+Object_ptr SemanticAnalyzer::get_member_type(
+    const ModuleType& module_type,
+    const ExpressionVector& chain) const
+{
+    Doctor::get().assert(
+        !chain.empty(),
+        WaspStage::Semantics,
+        "Chain must have at least one element to resolve member type");
+
+    Object_ptr deepest_type = nullptr;
+
+    for (const auto expr : chain)
+    {
+        deepest_type = get_member_type(module_type, expr);
+    }
+}
+
 Object_ptr SemanticAnalyzer::visit(MemberAccess& chain)
 {
-    auto links = chain.get_access_path();
+    auto links = chain.flatten_links();
+
     Doctor::get().assert(
         !links.empty(),
         WaspStage::Semantics,
         "Invalid member access path. Expected at least one identifier.");
 
     auto first_link = links[0];
+    auto first_link_type = visit(first_link);
+
     auto other_links = ExpressionVector(links.begin() + 1, links.end());
 
-    auto link_type = visit(first_link);
+    return std::visit(
+        overloaded{
+            [&](ModuleType& module_type) -> Object_ptr
+            { return get_member_type(module_type, other_links); },
 
-    Doctor::get().assert(
-        link_type->is<ModuleType>(),
-        WaspStage::Semantics,
-        "Expected first part of member access to be a module");
-
-    for (size_t i = 1; i < other_links.size(); i++)
-    {
-        link_type = type_checker->get_member_type(link_type->as<ModuleType>(), links[i]);
-    }
-
-    return link_type;
+            [](auto&) -> Object_ptr
+            {
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Only module namespaces can be accessed with member access.");
+                return nullptr;
+            }},
+        first_link_type->value);
 }
 
 Object_ptr SemanticAnalyzer::visit(int expr) { return MAKE_OBJECT_VARIANT(IntType()); }

@@ -239,18 +239,7 @@ Expression_ptr CallParselet::parse(Parser& parser, const Expression_ptr left, co
         parser.token_pipe.require(TokenType::CLOSE_PARENTHESIS);
     }
 
-    return std::visit(
-        overloaded{
-            [&](Identifier& id) { return make_expression(SimpleCall(id, arguments)); },
-            [&](MemberAccess& ma) { return make_expression(ComplexCall(left, arguments)); },
-
-            [](auto&) -> Expression_ptr
-            {
-                Doctor::get().fatal(
-                    WaspStage::Parser,
-                    "Expected an identifier or member access as the callable.");
-            }},
-        left->data);
+    return make_expression(Call(left, arguments));
 }
 
 Expression_ptr MemberAccessParselet::parse(
