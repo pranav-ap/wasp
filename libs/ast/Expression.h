@@ -157,8 +157,6 @@ struct MemberAccess : public Resolvable
         : left(std::move(left)), right(std::move(right))
     {
     }
-
-    ExpressionVector flatten_links() const;
 };
 
 // process()

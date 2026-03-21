@@ -106,6 +106,34 @@ Object_ptr SemanticAnalyzer::visit(Identifier& expr)
     return target_symbol->get_type();
 }
 
+Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
+{
+    // For `a.b.c`, this naturally evaluates `a.b` first, which evaluates `a`
+    Object_ptr left_type = visit(expr.left);
+
+    Doctor::get().assert(
+        left_type->is<ModuleType>(),
+        WaspStage::Semantics,
+        "LHS of member access is not a module");
+
+    const auto& module_type = left_type->as<ModuleType>();
+
+    //  The right side MUST be an identifier (e.g., 'c' in a.b.c)
+    Doctor::get().assert(
+        expr.right->is<Identifier>(),
+        WaspStage::Semantics,
+        "RHS of member access must be an identifier.");
+
+    std::string member_name = expr.right->as<Identifier>().name;
+
+    Doctor::get().assert(
+        module_type.contains_member(member_name),
+        WaspStage::Semantics,
+        "Module does not contain member '" + member_name + "'");
+
+    return module_type.get_member_type(member_name);
+}
+
 Object_ptr SemanticAnalyzer::visit(Call& call_expr)
 {
     ObjectVector arg_types;
@@ -115,165 +143,64 @@ Object_ptr SemanticAnalyzer::visit(Call& call_expr)
         arg_types.push_back(visit(arg));
     }
 
-    Symbol_ptr resolved_function = type_checker->resolve_function_overload(
-        current_scope,
-        call_expr.callable.name,
-        arg_types);
-
-    Doctor::get().fatal_if_nullptr(
-        resolved_function,
-        WaspStage::Semantics,
-        "No matching function overload found for '" + call_expr.callable.name);
-
-    if (resolved_function->should_be_captured(current_scope->get_closure_depth()))
+    // CASE 1 - Standard Function Call (e.g., process(x))
+    if (call_expr.callable->is<Identifier>())
     {
-        call_expr.callable.must_be_captured = true;
+        auto& callable_identifier = call_expr.callable->as<Identifier>();
+        std::string func_name = callable_identifier.name;
+
+        Symbol_ptr resolved_function = type_checker->resolve_function_overload(
+            current_scope,
+            func_name,
+            arg_types);
+
+        callable_identifier.symbol = resolved_function;
+
+        if (resolved_function->should_be_captured(current_scope->get_closure_depth()))
+        {
+            callable_identifier.must_be_captured = true;
+        }
+
+        const auto& final_signature = resolved_function->get_payload_as<FunctionData>()
+                                          .type->as<FunctionType>();
+
+        if (final_signature.return_type.has_value())
+        {
+            return final_signature.return_type.value();
+        }
+
+        return MAKE_OBJECT_VARIANT(NoneType());
     }
 
-    call_expr.callable.symbol = resolved_function;
-
-    auto& final_signature = resolved_function->get_payload_as<FunctionData>()
-                                .type->as<FunctionType>();
-
-    if (final_signature.return_type.has_value())
+    // CASE 2 - Module / Method Call (e.g., math.sqrt(x) or a.b.c())
+    else if (call_expr.callable->is<MemberAccess>())
     {
-        return final_signature.return_type.value();
+        // This recursively evaluates the entire `math.sqrt` chain and returns the type!
+        Object_ptr member_type = visit(call_expr.callable);
+
+        Doctor::get().assert(
+            member_type->is<FunctionType>(),
+            WaspStage::Semantics,
+            "Member is not a callable function.");
+
+        const auto& final_signature = member_type->as<FunctionType>();
+
+        Doctor::get().assert(
+            final_signature.input_types.size() == arg_types.size(),
+            WaspStage::Semantics,
+            "Argument count mismatch in member function call");
+
+        if (final_signature.return_type.has_value())
+        {
+            return final_signature.return_type.value();
+        }
+
+        return MAKE_OBJECT_VARIANT(NoneType());
     }
 
-    return MAKE_OBJECT_VARIANT(NoneType());
-}
-
-Object_ptr SemanticAnalyzer::visit(Call& call_expr)
-{
-    auto& mac = call_expr.callable->as<MemberAccess>();
-
-    // Let your existing visit(MemberAccess) logic extract the member's type
-    Object_ptr member_type = visit(mac);
-
-    Doctor::get().assert(
-        member_type->is<FunctionType>(),
+    Doctor::get().fatal(
         WaspStage::Semantics,
-        "Member is not a callable function.");
-
-    const auto& final_signature = member_type->as<FunctionType>();
-
-    // Check that the arguments match the member function's signature
-    // Note: You can upgrade this to use TypeChecker::assignable later!
-    Doctor::get().assert(
-        final_signature.input_types.size() == arg_types.size(),
-        WaspStage::Semantics,
-        "Argument count mismatch in member function call.");
-}
-
-Object_ptr SemanticAnalyzer::get_member_type(
-    const ModuleType& module_type,
-    const Identifier& identifier) const
-{
-    Doctor::get().assert(
-        module_type.contains_member(identifier.name),
-        WaspStage::Semantics,
-        "Module has no member named '" + identifier.name);
-
-    return module_type.get_member_type(identifier.name);
-}
-
-Object_ptr SemanticAnalyzer::get_member_type(const ModuleType& module_type, const Call& call) const
-{
-    return std::visit(
-        overloaded{
-            [&](Identifier& identifier) -> Object_ptr
-            { return get_member_type(module_type, identifier); },
-
-            [&](MemberAccess& member_access) -> Object_ptr
-            { return get_member_type(module_type, member_access); },
-
-            [&](Call& inner_call) -> Object_ptr
-            {
-                auto links = inner_call.callable->as<MemberAccess>().flatten_links();
-
-                Doctor::get().assert(
-                    !links.empty(),
-                    WaspStage::Semantics,
-                    "Invalid member access path in call. Expected at least one identifier.");
-
-                return get_member_type(module_type, links);
-            },
-
-            [](auto&) -> Object_ptr
-            {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "Expected an identifier or call in member access chain");
-                return nullptr;
-            }},
-        call.callable->data);
-}
-
-Object_ptr SemanticAnalyzer::get_member_type(
-    const ModuleType& module_type,
-    const Expression_ptr link) const
-{
-    return std::visit(
-        overloaded{
-            [&](Identifier& identifier) -> Object_ptr
-            { return get_member_type(module_type, identifier); },
-
-            [&](Call& call) -> Object_ptr { return get_member_type(module_type, call); },
-
-            [](auto&) -> Object_ptr
-            {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "Expected an identifier or call in member access chain");
-                return nullptr;
-            }},
-        link->data);
-}
-
-Object_ptr SemanticAnalyzer::get_member_type(
-    const ModuleType& module_type,
-    const ExpressionVector& chain) const
-{
-    Doctor::get().assert(
-        !chain.empty(),
-        WaspStage::Semantics,
-        "Chain must have at least one element to resolve member type");
-
-    Object_ptr deepest_type = nullptr;
-
-    for (const auto expr : chain)
-    {
-        deepest_type = get_member_type(module_type, expr);
-    }
-}
-
-Object_ptr SemanticAnalyzer::visit(MemberAccess& chain)
-{
-    auto links = chain.flatten_links();
-
-    Doctor::get().assert(
-        !links.empty(),
-        WaspStage::Semantics,
-        "Invalid member access path. Expected at least one identifier.");
-
-    auto first_link = links[0];
-    auto first_link_type = visit(first_link);
-
-    auto other_links = ExpressionVector(links.begin() + 1, links.end());
-
-    return std::visit(
-        overloaded{
-            [&](ModuleType& module_type) -> Object_ptr
-            { return get_member_type(module_type, other_links); },
-
-            [](auto&) -> Object_ptr
-            {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "Only module namespaces can be accessed with member access.");
-                return nullptr;
-            }},
-        first_link_type->value);
+        "Expected an Identifier or MemberAccess as the callable.");
 }
 
 Object_ptr SemanticAnalyzer::visit(int expr) { return MAKE_OBJECT_VARIANT(IntType()); }

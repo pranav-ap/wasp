@@ -42,7 +42,7 @@ void Compiler::visit(const Expression_ptr expr) {
             [&](Prefix& p) { visit(p); },
             [&](Infix& i) { visit(i); },
             [&](Identifier& id) { visit(id); },
-            [&](MemberAccessLink& m) { visit(m); },
+            [&](MemberAccess& m) { visit(m); },
             [&](Call& c) { visit(c); },
             [&](ListLiteral& l) { visit(l); },
             [&](TupleLiteral& t) { visit(t); },
@@ -89,7 +89,7 @@ void Compiler::visit(Call& expr)
     emit(OpCode::CALL, static_cast<int>(expr.arguments.size()));
 }
 
-void Compiler::visit(MemberAccessLink& expr)
+void Compiler::visit(MemberAccess& expr)
 {
     visit(expr.left);
 
@@ -114,7 +114,7 @@ void Compiler::compile_identifier_assignment(Identifier& id, const Expression_pt
     }
 }
 
-void Compiler::compile_member_assignment(MemberAccessLink& mac, const Expression_ptr& rhs)
+void Compiler::compile_member_assignment(MemberAccess& mac, const Expression_ptr& rhs)
 {
     // Evaluate the object first (Stack: [obj])
     visit(mac.left);
@@ -140,7 +140,7 @@ void Compiler::visit(UntypedAssignment& expr) {
     std::visit(
         overloaded{
             [&](Identifier& id) { compile_identifier_assignment(id, expr.rhs_expression); },
-            [&](MemberAccessLink& mac) { compile_member_assignment(mac, expr.rhs_expression); },
+            [&](MemberAccess& mac) { compile_member_assignment(mac, expr.rhs_expression); },
             [&](auto&)
             {
                 Doctor::get().fatal(

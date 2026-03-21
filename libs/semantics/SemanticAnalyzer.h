@@ -85,12 +85,6 @@ class SemanticAnalyzer {
 
     Object_ptr visit(DotLiteral& expr);
 
-    Object_ptr get_member_type(const ModuleType& module_type, const ExpressionVector& chain) const;
-    Object_ptr get_member_type(const ModuleType& module_type, const Expression_ptr link) const;
-
-    Object_ptr get_member_type(const ModuleType& module_type, const Identifier& identifier) const;
-    Object_ptr get_member_type(const ModuleType& module_type, const Call& call) const;
-
     Object_ptr visit(Identifier& expr);
     Object_ptr visit(MemberAccess& expr);
 

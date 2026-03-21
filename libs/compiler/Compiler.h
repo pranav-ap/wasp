@@ -120,7 +120,7 @@ private:
     void visit(DotLiteral& expr);
 
     void visit(Identifier& expr);
-    void visit(MemberAccessLink& expr);
+    void visit(MemberAccess& expr);
     void visit(Call& expr);
 
     void visit(Prefix& expr);
@@ -152,7 +152,7 @@ private:
 
     void compile_variable_definition(const Expression_ptr& assignment, bool as_expression = false);
     void compile_identifier_assignment(Identifier& id, const Expression_ptr& rhs);
-    void compile_member_assignment(MemberAccessLink& mac, const Expression_ptr& rhs);
+    void compile_member_assignment(MemberAccess& mac, const Expression_ptr& rhs);
 
     CodeObject flatten();
 
