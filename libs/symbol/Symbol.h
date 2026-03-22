@@ -75,7 +75,19 @@ struct Symbol : public std::enable_shared_from_this<Symbol> {
 
     // If it was declared in a shallower scope than we are currently in, it's an upvalue!
     // only takes care at file level not inter file level
-    bool should_be_captured(int usage_depth) const { return declaration_depth < usage_depth; }
+    // bool should_be_captured(int usage_depth) const { return declaration_depth < usage_depth; }
+
+    bool should_be_captured(int current_function_depth) const
+    {
+        // If the symbol was defined in a scope OUTSIDE the current function's scope,
+        // it MUST be captured as an upvalue!
+        if (this->declaration_depth < current_function_depth)
+        {
+            return true;
+        }
+
+        return false;
+    }
 
     Symbol_ptr resolve() {
         if (payload_is<AliasData>()) {
