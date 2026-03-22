@@ -43,7 +43,7 @@ void SemanticAnalyzer::extract_module_type(Module_ptr module) {
         module_members[symbol->name] = resolved_type;
     }
 
-    module->type = std::make_shared<Object>(ModuleType(std::move(module_members)));
+    module->type = make_object(ModuleType(std::move(module_members)));
 }
 
 void SemanticAnalyzer::run(const std::vector<Module_ptr>& build_order) {

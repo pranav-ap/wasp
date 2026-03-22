@@ -118,7 +118,7 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
 
     const auto& module_type = left_type->as<ModuleType>();
 
-    //  The right side MUST be an identifier (e.g., 'c' in a.b.c)
+    // The right side MUST be an identifier (e.g., 'c' in a.b.c)
     Doctor::get().assert(
         expr.right->is<Identifier>(),
         WaspStage::Semantics,
@@ -143,64 +143,68 @@ Object_ptr SemanticAnalyzer::visit(Call& call_expr)
         arg_types.push_back(visit(arg));
     }
 
-    // CASE 1 - Standard Function Call (e.g., process(x))
-    if (call_expr.callable->is<Identifier>())
+    return std::visit(
+        overloaded{
+            [&](Identifier& id) -> Object_ptr { return evaluate_identifier_call(id, arg_types); },
+
+            [&](MemberAccess& ma) -> Object_ptr
+            { return evaluate_member_access_call(call_expr.callable, arg_types); },
+
+            [](auto&) -> Object_ptr
+            {
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Expected an Identifier or MemberAccess as the callable.");
+            }},
+        call_expr.callable->data);
+}
+
+Object_ptr SemanticAnalyzer::evaluate_identifier_call(
+    Identifier& callable_identifier,
+    const ObjectVector& arg_types)
+{
+    Symbol_ptr function_symbol = type_checker->resolve_function_overload(
+        current_scope,
+        callable_identifier.name,
+        arg_types);
+
+    callable_identifier.symbol = function_symbol;
+
+    if (function_symbol->should_be_captured(current_scope->get_closure_depth()))
     {
-        auto& callable_identifier = call_expr.callable->as<Identifier>();
-        std::string func_name = callable_identifier.name;
-
-        Symbol_ptr resolved_function = type_checker->resolve_function_overload(
-            current_scope,
-            func_name,
-            arg_types);
-
-        callable_identifier.symbol = resolved_function;
-
-        if (resolved_function->should_be_captured(current_scope->get_closure_depth()))
-        {
-            callable_identifier.must_be_captured = true;
-        }
-
-        const auto& final_signature = resolved_function->get_payload_as<FunctionData>()
-                                          .type->as<FunctionType>();
-
-        if (final_signature.return_type.has_value())
-        {
-            return final_signature.return_type.value();
-        }
-
-        return MAKE_OBJECT_VARIANT(NoneType());
+        callable_identifier.must_be_captured = true;
     }
 
-    // CASE 2 - Module / Method Call (e.g., math.sqrt(x) or a.b.c())
-    else if (call_expr.callable->is<MemberAccess>())
-    {
-        // This recursively evaluates the entire `math.sqrt` chain and returns the type!
-        Object_ptr member_type = visit(call_expr.callable);
+    return function_symbol->get_payload_as<FunctionData>().get_return_type();
+}
 
-        Doctor::get().assert(
-            member_type->is<FunctionType>(),
-            WaspStage::Semantics,
-            "Member is not a callable function.");
+Object_ptr SemanticAnalyzer::evaluate_member_access_call(
+    const Expression_ptr& callable_expr,
+    const ObjectVector& arg_types)
+{
+    auto& mac = callable_expr->as<MemberAccess>();
 
-        const auto& final_signature = member_type->as<FunctionType>();
-
-        Doctor::get().assert(
-            final_signature.input_types.size() == arg_types.size(),
-            WaspStage::Semantics,
-            "Argument count mismatch in member function call");
-
-        if (final_signature.return_type.has_value())
-        {
-            return final_signature.return_type.value();
-        }
-
-        return MAKE_OBJECT_VARIANT(NoneType());
-    }
-
-    Doctor::get().fatal(
+    Doctor::get().assert(
+        mac.left->is<Identifier>() && mac.right->is<Identifier>(),
         WaspStage::Semantics,
-        "Expected an Identifier or MemberAccess as the callable.");
+        "Supports calls of the form module.function()");
+
+    std::string module_name = mac.left->as<Identifier>().name;
+    std::string func_name = mac.right->as<Identifier>().name;
+
+    Symbol_ptr module_symbol = current_scope->lookup(module_name);
+    Doctor::get().fatal_if_nullptr(module_symbol, WaspStage::Semantics);
+    mac.left->as<Identifier>().symbol = module_symbol;
+
+    Symbol_ptr function_symbol = type_checker->resolve_module_function_overload(
+        current_scope,
+        module_name,
+        func_name,
+        arg_types);
+
+    mac.right->as<Identifier>().symbol = function_symbol;
+
+    return function_symbol->get_payload_as<FunctionData>().get_return_type();
 }
 
 Object_ptr SemanticAnalyzer::visit(int expr) { return MAKE_OBJECT_VARIANT(IntType()); }

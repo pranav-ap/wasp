@@ -1,5 +1,7 @@
 #include "Symbol.h"
+#include "Doctor.h"
 #include "Objects.h"
+
 
 #include <algorithm>
 #include <memory>
@@ -7,14 +9,17 @@
 #include <utility>
 #include <variant>
 
-template <class... Ts> struct overloaded : Ts... {
+template <class... Ts> struct overloaded : Ts...
+{
     using Ts::operator()...;
 };
 template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
-namespace Wasp {
+namespace Wasp
+{
 
-Object_ptr Symbol::get_type() {
+Object_ptr Symbol::get_type()
+{
     return std::visit(
         overloaded{
             [](const VariableData& d) { return d.type; },
@@ -22,13 +27,12 @@ Object_ptr Symbol::get_type() {
             [](const ClassData& d) { return d.type; },
             [](const EnumData& d) { return d.type; },
             [](const ModuleData& d) -> Object_ptr { return d.type; },
-            [](const AliasData& d) { return d.target->get_type(); }
-        },
-        payload
-    );
+            [](const AliasData& d) { return d.target->get_type(); }},
+        payload);
 }
 
-void Symbol::set_type(Object_ptr new_type) {
+void Symbol::set_type(Object_ptr new_type)
+{
     std::visit(
         overloaded{
             [&](VariableData& d) { d.type = std::move(new_type); },
@@ -36,10 +40,37 @@ void Symbol::set_type(Object_ptr new_type) {
             [&](ClassData& d) { d.type = std::move(new_type); },
             [&](EnumData& d) { d.type = std::move(new_type); },
             [&](ModuleData& d) { d.type = std::move(new_type); },
-            [&](AliasData& d) { d.target->set_type(std::move(new_type)); }
-        },
-        payload
-    );
+            [&](AliasData& d) { d.target->set_type(std::move(new_type)); }},
+        payload);
+}
+
+Object_ptr FunctionData::get_return_type() const
+{
+    Doctor::get().assert(
+        type->is<FunctionType>(),
+        WaspStage::Semantics,
+        "FunctionData's type payload is not a FunctionType");
+
+    const auto& signature = type->as<FunctionType>();
+
+    if (signature.return_type.has_value())
+    {
+        return signature.return_type.value();
+    }
+
+    return make_object(NoneType());
+}
+
+SymbolVector FunctionData::get_overloads() const
+{
+    SymbolVector all_overloads;
+    all_overloads.reserve(sibling_overloads.size() + parent_overloads.size() + 1);
+
+    all_overloads.insert(all_overloads.end(), sibling_overloads.begin(), sibling_overloads.end());
+
+    all_overloads.insert(all_overloads.end(), parent_overloads.begin(), parent_overloads.end());
+
+    return all_overloads;
 }
 
 void FunctionData::add_sibling_overload(Symbol_ptr sibling)
@@ -69,11 +100,17 @@ void FunctionData::add_parent_overload(Symbol_ptr parent)
 }
 
 Symbol_ptr SymbolFactory::create_variable(
-    std::string name, Object_ptr type, bool is_mutable, int closure_depth, int lexical_depth
-) {
+    std::string name,
+    Object_ptr type,
+    bool is_mutable,
+    int closure_depth,
+    int lexical_depth)
+{
     return std::make_shared<Symbol>(
-        std::move(name), closure_depth, lexical_depth, VariableData{std::move(type), is_mutable}
-    );
+        std::move(name),
+        closure_depth,
+        lexical_depth,
+        VariableData{std::move(type), is_mutable});
 }
 
 Symbol_ptr SymbolFactory::create_function(
@@ -93,29 +130,42 @@ Symbol_ptr SymbolFactory::create_function(
 }
 
 Symbol_ptr SymbolFactory::create_class(
-    std::string name, Object_ptr type, int closure_depth, int lexical_depth
-) {
+    std::string name,
+    Object_ptr type,
+    int closure_depth,
+    int lexical_depth)
+{
     return std::make_shared<Symbol>(
-        std::move(name), closure_depth, lexical_depth, ClassData{std::move(type)}
-    );
+        std::move(name),
+        closure_depth,
+        lexical_depth,
+        ClassData{std::move(type)});
 }
 
 Symbol_ptr SymbolFactory::create_enum(
-    std::string name, Object_ptr type, int closure_depth, int lexical_depth
-) {
+    std::string name,
+    Object_ptr type,
+    int closure_depth,
+    int lexical_depth)
+{
     return std::make_shared<Symbol>(
-        std::move(name), closure_depth, lexical_depth, EnumData{std::move(type)}
-    );
+        std::move(name),
+        closure_depth,
+        lexical_depth,
+        EnumData{std::move(type)});
 }
 
 Symbol_ptr SymbolFactory::create_module(std::string name, Object_ptr type, SymbolVector exports)
 {
     return std::make_shared<Symbol>(
-        std::move(name), 0, 0, ModuleData{std::move(type), std::move(exports)}
-    );
+        std::move(name),
+        0,
+        0,
+        ModuleData{std::move(type), std::move(exports)});
 }
 
-Symbol_ptr SymbolFactory::create_alias(std::string name, Symbol_ptr target) {
+Symbol_ptr SymbolFactory::create_alias(std::string name, Symbol_ptr target)
+{
     return std::make_shared<Symbol>(std::move(name), 0, 0, AliasData{std::move(target)});
 }
 } // namespace Wasp

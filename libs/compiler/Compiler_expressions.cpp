@@ -79,6 +79,16 @@ void Compiler::visit(Identifier& expr) {
     }
 }
 
+void Compiler::visit(MemberAccess& expr)
+{
+    visit(expr.left);
+
+    auto& right_identifier = expr.right->as<Identifier>();
+
+    int name_index = pool->allocate(right_identifier.name);
+    emit(OpCode::GET_MEMBER, name_index);
+}
+
 void Compiler::visit(Call& expr)
 {
     visit(expr.callable);
@@ -87,17 +97,6 @@ void Compiler::visit(Call& expr)
         visit(arg);
 
     emit(OpCode::CALL, static_cast<int>(expr.arguments.size()));
-}
-
-void Compiler::visit(MemberAccess& expr)
-{
-    visit(expr.left);
-
-    auto& right_id = expr.right->as<Identifier>();
-    std::string member_name = right_id.name;
-
-    int name_index = pool->allocate(member_name);
-    emit(OpCode::GET_MEMBER, name_index);
 }
 
 void Compiler::compile_identifier_assignment(Identifier& id, const Expression_ptr& rhs) {

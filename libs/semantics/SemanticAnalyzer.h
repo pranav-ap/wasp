@@ -88,6 +88,12 @@ class SemanticAnalyzer {
     Object_ptr visit(Identifier& expr);
     Object_ptr visit(MemberAccess& expr);
 
+    Object_ptr evaluate_identifier_call(Identifier& callable, const ObjectVector& arg_types);
+
+    Object_ptr evaluate_member_access_call(
+        const Expression_ptr& callable_expr,
+        const ObjectVector& arg_types);
+
     Object_ptr visit(Call& expr);
 
     Object_ptr visit(Prefix& expr);

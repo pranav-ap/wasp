@@ -101,26 +101,16 @@ Symbol_ptr SymbolScope::lookup(const std::string& name) const
     return nullptr;
 }
 
-SymbolVector SymbolScope::get_function_overloads(const std::string& name) const
+SymbolVector SymbolScope::assemble_overload_family(
+    Symbol_ptr base_symbol,
+    const std::string& error_message) const
 {
-    Symbol_ptr base_symbol = lookup(name);
-
-    if (!base_symbol)
-    {
-        return {};
-    }
-
     base_symbol = base_symbol->resolve();
-
-    Doctor::get().fatal_if_nullptr(
-        base_symbol,
-        WaspStage::Semantics,
-        "No symbol found with name '" + name + "' to retrieve overloads from");
 
     Doctor::get().assert(
         base_symbol->payload_is<FunctionData>(),
         WaspStage::Semantics,
-        "Symbol '" + name + "' is not a function and cannot have overloads");
+        error_message);
 
     auto& function_data = base_symbol->get_payload_as<FunctionData>();
 
@@ -142,6 +132,64 @@ SymbolVector SymbolScope::get_function_overloads(const std::string& name) const
         function_data.sibling_overloads.end());
 
     return result;
+}
+
+SymbolVector SymbolScope::get_function_overloads_from_module(
+    const std::string& module_name,
+    const std::string& function_name) const
+{
+    Symbol_ptr module_symbol = lookup(module_name);
+
+    if (!module_symbol)
+    {
+        return {};
+    }
+
+    module_symbol = module_symbol->resolve();
+
+    Doctor::get().assert(
+        module_symbol->payload_is<ModuleData>(),
+        WaspStage::Semantics,
+        "Symbol '" + module_name + "' is not a module");
+
+    const auto& module_data = module_symbol->get_payload_as<ModuleData>();
+
+    // Find any function with given name exported by module
+
+    Symbol_ptr base_symbol = nullptr;
+
+    for (const auto& exported_sym : module_data.exports)
+    {
+        if (exported_sym->name == function_name)
+        {
+            base_symbol = exported_sym;
+            break;
+        }
+    }
+
+    if (!base_symbol)
+    {
+        return {};
+    }
+
+    return assemble_overload_family(
+        base_symbol,
+        "Symbol '" + function_name + "' in module '" + module_name +
+            "' is not a function and cannot have overloads");
+}
+
+SymbolVector SymbolScope::get_function_overloads(const std::string& name) const
+{
+    Symbol_ptr base_symbol = lookup(name);
+
+    if (!base_symbol)
+    {
+        return {};
+    }
+
+    return assemble_overload_family(
+        base_symbol,
+        "Symbol '" + name + "' is not a function and cannot have overloads");
 }
 
 SymbolVector SymbolScope::get_sibling_overloads(const std::string& name) const

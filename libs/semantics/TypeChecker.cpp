@@ -27,35 +27,22 @@ namespace Wasp
 // Overload Resolution
 // ============================================================================
 
-Symbol_ptr TypeChecker::resolve_function_overload(
+Symbol_ptr TypeChecker::resolve_from_overload_list(
     SymbolScope_ptr scope,
-    const std::string& func_name,
+    const SymbolVector& overloads,
     const ObjectVector& arg_types) const
 {
     std::vector<Symbol_ptr> exact_matches;
     std::vector<Symbol_ptr> assignable_matches;
-
-    auto overloads = scope->get_function_overloads(func_name);
 
     for (const auto& sym : overloads)
     {
         Doctor::get().assert(
             sym->payload_is<FunctionData>(),
             WaspStage::Semantics,
-            "Overloaded symbol is not a function: " + sym->name);
+            "Not a function");
 
         auto func_type_obj = sym->get_payload_as<FunctionData>().type;
-
-        Doctor::get().fatal_if_nullptr(
-            func_type_obj,
-            WaspStage::Semantics,
-            "Overloaded symbol does not have a type");
-
-        Doctor::get().assert(
-            func_type_obj->is<FunctionType>(),
-            WaspStage::Semantics,
-            "Overloaded symbol has a non-function type: " + Wasp::stringify_object(func_type_obj));
-
         const auto& func_type = func_type_obj->as<FunctionType>();
 
         // Check Number of arguments
@@ -79,7 +66,6 @@ Symbol_ptr TypeChecker::resolve_function_overload(
     }
 
     // Exact matches take highest priority
-
     if (!exact_matches.empty())
     {
         if (exact_matches.size() > 1)
@@ -88,28 +74,58 @@ Symbol_ptr TypeChecker::resolve_function_overload(
                 WaspStage::Semantics,
                 "Ambiguous function call: multiple exact matches found.");
         }
-
         return exact_matches[0];
     }
 
     // Fallback to assignable matches
-
     if (!assignable_matches.empty())
     {
         if (assignable_matches.size() > 1)
         {
             Doctor::get().fatal(
                 WaspStage::Semantics,
-                "Ambiguous function call: multiple assignable overloads match the provided "
-                "arguments");
+                "Ambiguous function call: multiple assignable matches.");
         }
-
         return assignable_matches[0];
     }
 
-    Doctor::get().fatal(
+    // If we reach here, nothing matched!
+    return nullptr;
+}
+
+Symbol_ptr TypeChecker::resolve_function_overload(
+    SymbolScope_ptr scope,
+    const std::string& func_name,
+    const ObjectVector& arg_types) const
+{
+    auto overloads = scope->get_function_overloads(func_name);
+
+    Symbol_ptr resolved = resolve_from_overload_list(scope, overloads, arg_types);
+
+    Doctor::get().fatal_if_nullptr(
+        resolved,
         WaspStage::Semantics,
-        "No matching function overload found for the provided arguments.");
+        "No matching function overload found for standard function '" + func_name + "'");
+
+    return resolved;
+}
+
+Symbol_ptr TypeChecker::resolve_module_function_overload(
+    SymbolScope_ptr scope,
+    const std::string& module_name,
+    const std::string& func_name,
+    const ObjectVector& arg_types) const
+{
+    auto overloads = scope->get_function_overloads_from_module(module_name, func_name);
+
+    Symbol_ptr resolved = resolve_from_overload_list(scope, overloads, arg_types);
+
+    Doctor::get().fatal_if_nullptr(
+        resolved,
+        WaspStage::Semantics,
+        "No matching function overload found for '" + module_name + "." + func_name);
+
+    return resolved;
 }
 
 void TypeChecker::validate_new_overload(
@@ -170,7 +186,7 @@ bool TypeChecker::equal(SymbolScope_ptr scope, const Object_ptr type_1, const Ob
     if (!type_1 || !type_2)
         return false;
     if (type_1 == type_2)
-        return true; // Quick memory check
+        return true;
 
     // Extract Variant logic outside to prevent template explosion
     if (type_1->is<VariantType>() && type_2->is<VariantType>())

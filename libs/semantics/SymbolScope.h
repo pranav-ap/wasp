@@ -46,6 +46,13 @@ public:
 
     SymbolVector get_function_overloads(const std::string& name) const;
 
+    SymbolVector get_function_overloads_from_module(
+        const std::string& module_name,
+        const std::string& function_name) const;
+
+    SymbolVector assemble_overload_family(Symbol_ptr base_symbol, const std::string& error_message)
+        const;
+
     SymbolVector get_sibling_overloads(const std::string& name) const;
     Symbol_ptr get_parent_overload(const std::string& name) const;
 

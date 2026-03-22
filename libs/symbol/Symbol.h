@@ -29,23 +29,10 @@ struct FunctionData
     SymbolVector parent_overloads;
 
     void add_sibling_overload(Symbol_ptr sibling);
-
     void add_parent_overload(Symbol_ptr parent);
 
-    SymbolVector get_overloads() const
-    {
-        SymbolVector all_overloads;
-        all_overloads.reserve(sibling_overloads.size() + parent_overloads.size() + 1);
-
-        all_overloads.insert(
-            all_overloads.end(),
-            sibling_overloads.begin(),
-            sibling_overloads.end());
-
-        all_overloads.insert(all_overloads.end(), parent_overloads.begin(), parent_overloads.end());
-
-        return all_overloads;
-    }
+    Object_ptr get_return_type() const;
+    SymbolVector get_overloads() const;
 };
 
 struct ClassData {

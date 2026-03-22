@@ -84,10 +84,9 @@ void NativeRegistry::load_stdlib() {
                         [](const IntObject& i) { std::cout << i.value; },
                         [](const StringObject& s) { std::cout << s.value; },
                         [](const BooleanObject& b) { std::cout << (b.value ? "true" : "false"); },
-                        [](const auto&) { std::cout << "<object>"; }
-                    },
-                    arg->value
-                );
+                        [](const NoneObject&) { std::cout << "none"; },
+                        [](const auto&) { std::cout << "Unhandled type in print"; }},
+                    arg->value);
             }
 
             std::cout << std::endl;

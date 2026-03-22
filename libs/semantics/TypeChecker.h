@@ -13,6 +13,11 @@ namespace Wasp
 {
 class TypeChecker
 {
+    Symbol_ptr resolve_from_overload_list(
+        SymbolScope_ptr scope,
+        const SymbolVector& overloads,
+        const ObjectVector& arg_types) const;
+
 public:
     ConstantPool_ptr pool;
 
@@ -20,6 +25,12 @@ public:
 
     Symbol_ptr resolve_function_overload(
         SymbolScope_ptr scope,
+        const std::string& func_name,
+        const ObjectVector& arg_types) const;
+
+    Symbol_ptr resolve_module_function_overload(
+        SymbolScope_ptr scope,
+        const std::string& module_name,
         const std::string& func_name,
         const ObjectVector& arg_types) const;
 
