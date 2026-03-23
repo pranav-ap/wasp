@@ -1,11 +1,10 @@
 import my.dogs
 
 fun print_cats()
-    print('cats')
+    print('cats calling dogs')
     dogs.print_dogs()
 
-fun print_cats(count: int)
-    print('cats')
-    print(count)
+fun print_cats(a: int)
+    print('integer yay!')
+    dogs.print_dogs()
 
-let y  = 55

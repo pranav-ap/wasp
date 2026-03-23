@@ -212,7 +212,9 @@ struct ModuleObject : public CompositeObject {
 // Action Objects
 
 struct BreakObject : public ActionObject {};
+
 struct ContinueObject : public ActionObject {};
+
 struct RedoObject : public ActionObject {};
 
 struct ReturnObject : public ActionObject {

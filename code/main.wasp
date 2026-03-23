@@ -1,5 +1,4 @@
 import my.cats as c
-
 print('calling cats')
 c.print_cats()
 

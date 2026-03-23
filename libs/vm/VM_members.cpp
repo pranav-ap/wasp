@@ -45,7 +45,8 @@ void VM::execute_member(OpCode op, CallFrame* frame) {
 Object_ptr VM::perform_get_member(Object_ptr obj, const std::string& name) {
     return std::visit(
         overloaded{
-            [&](std::shared_ptr<ModuleObject>& module_obj) -> Object_ptr {
+            [&](std::shared_ptr<ModuleObject>& module_obj) -> Object_ptr
+            {
                 Object_ptr result = module_obj->get_member(name);
                 Doctor::get().fatal_if_nullptr(
                     result,
@@ -54,19 +55,14 @@ Object_ptr VM::perform_get_member(Object_ptr obj, const std::string& name) {
                 );
                 return result;
             },
-            [&](auto&) -> Object_ptr {
-                std::cout << "[VM BUG] perform_get_member expected a ModuleObject, but got Variant "
-                             "Index: "
-                          << obj->value.index() << "\n";
-
+            [&](auto&) -> Object_ptr
+            {
                 Doctor::get().fatal(
-                    WaspStage::VM, "Object of variant type does not support reading properties."
-                );
+                    WaspStage::VM,
+                    "Object of this type does not support reading properties.");
                 return nullptr;
-            }
-        },
-        obj->value
-    );
+            }},
+        obj->value);
 }
 
 void VM::perform_set_member(Object_ptr obj, const std::string& name, Object_ptr value) {

@@ -194,7 +194,13 @@ Object_ptr SemanticAnalyzer::evaluate_member_access_call(
 
     Symbol_ptr module_symbol = current_scope->lookup(module_name);
     Doctor::get().fatal_if_nullptr(module_symbol, WaspStage::Semantics);
+
     mac.left->as<Identifier>().symbol = module_symbol;
+
+    if (module_symbol->should_be_captured(current_scope->get_closure_depth()))
+    {
+        mac.left->as<Identifier>().must_be_captured = true;
+    }
 
     Symbol_ptr function_symbol = type_checker->resolve_module_function_overload(
         current_scope,

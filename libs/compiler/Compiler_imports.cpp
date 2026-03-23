@@ -8,13 +8,16 @@
 #include <memory>
 #include <string>
 
-template <class... Ts> struct overloaded : Ts... {
+template <class... Ts> struct overloaded : Ts...
+{
     using Ts::operator()...;
 };
 template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
-namespace Wasp {
-void Compiler::visit(SimpleImport& statement) {
+namespace Wasp
+{
+void Compiler::visit(SimpleImport& statement)
+{
     std::string unique_module_path = statement.resolved_path.string();
     int path_index = pool->allocate(unique_module_path);
 
@@ -22,32 +25,38 @@ void Compiler::visit(SimpleImport& statement) {
     emit(OpCode::IMPORT, path_index);
 
     Doctor::get().fatal_if_nullptr(
-        statement.symbol, WaspStage::Compiler, "Simple Import must have a resolved symbol."
-    );
+        statement.symbol,
+        WaspStage::Compiler,
+        "Simple Import must have a resolved symbol.");
 
     id_to_name_map[statement.symbol->id] = statement.symbol->name;
     emit(OpCode::DEFINE_LOCAL, statement.symbol->id);
 }
 
-void Compiler::visit(FromImport& statement) {
+void Compiler::visit(FromImport& statement)
+{
     std::string unique_module_path = statement.resolved_path.string();
     int path_index = pool->allocate(unique_module_path);
 
     emit(OpCode::IMPORT, path_index);
 
-    if (statement.symbols.empty()) {
+    if (statement.symbols.empty())
+    {
         emit(OpCode::POP);
         return;
     }
 
-    for (size_t i = 0; i < statement.symbols.size(); i++) {
+    for (size_t i = 0; i < statement.symbols.size(); i++)
+    {
         const auto& imported_sym = statement.symbols[i];
 
         Doctor::get().fatal_if_nullptr(
-            imported_sym.symbol, WaspStage::Compiler, "FromImport symbol must be resolved."
-        );
+            imported_sym.symbol,
+            WaspStage::Compiler,
+            "FromImport symbol must be resolved.");
 
-        if (i < statement.symbols.size() - 1) {
+        if (i < statement.symbols.size() - 1)
+        {
             emit(OpCode::DUP);
         }
 
