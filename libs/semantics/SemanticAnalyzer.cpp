@@ -8,11 +8,9 @@
 #include "Workspace.h"
 
 #include <ctime>
-#include <map>
 #include <memory>
 #include <string>
 #include <unordered_map>
-#include <utility>
 #include <variant>
 #include <vector>
 
@@ -34,7 +32,7 @@ void SemanticAnalyzer::extract_module_type(Module_ptr module)
 {
     auto module_type = ModuleType();
 
-    for (const auto& symbol : module->get_exports())
+    for (const auto& symbol : module->get_flat_exports())
     {
         Object_ptr type = symbol->get_type();
 
@@ -60,7 +58,7 @@ void SemanticAnalyzer::run(const std::vector<Module_ptr>& build_order)
 
         // Push this module's hoisted symbols into its scope before visiting the statements,
         // so that they can be referenced in the module body
-        for (auto& symbol : module->hoisted_symbols)
+        for (auto& symbol : module->get_flat_hoists())
         {
             current_scope->define(symbol);
         }

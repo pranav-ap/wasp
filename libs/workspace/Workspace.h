@@ -165,7 +165,7 @@ struct Module
     CFGraph graph;
     StaticFunctionObject_ptr blueprint;
 
-    SymbolVector hoisted_symbols;
+    std::map<std::string, SymbolVector> hoisted_symbols;
     Object_ptr type;
 
     Module() = default;
@@ -177,11 +177,25 @@ struct Module
 
     std::string get_name() const { return file_path.stem().string(); }
 
-    SymbolVector get_exports() const
+    std::map<std::string, SymbolVector> get_exports() const
     {
         // TODO: export only public symbols
         return hoisted_symbols;
     }
+
+    SymbolVector get_flat_hoists() const
+    {
+        SymbolVector all_symbols;
+
+        for (const auto& [_, symbols] : get_exports())
+        {
+            all_symbols.insert(all_symbols.end(), symbols.begin(), symbols.end());
+        }
+
+        return all_symbols;
+    }
+
+    SymbolVector get_flat_exports() const { return get_flat_hoists(); }
 };
 
 // ----------------------------------------------------------------

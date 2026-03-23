@@ -1,13 +1,13 @@
 #pragma once
 
 #include "AST.h"
+#include "Token.h"
 
 #include <map>
 #include <memory>
 #include <string>
 #include <utility>
 #include <variant>
-#include <vector>
 
 namespace Wasp {
 

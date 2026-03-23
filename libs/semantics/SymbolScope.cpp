@@ -2,13 +2,13 @@
 #include "Doctor.h"
 #include "Workspace.h"
 
-#include <algorithm>
 #include <string>
 #include <utility>
 #include <vector>
 
 namespace Wasp
 {
+
 SymbolScope::SymbolScope(ScopeType type, SymbolScope_ptr enclosing)
     : type(type), enclosing_scope(std::move(enclosing)), closure_depth(0), lexical_depth(0)
 {
@@ -31,12 +31,9 @@ Symbol_ptr SymbolScope::define(Symbol_ptr symbol)
     Doctor::get().assert(
         !contains_in_current_scope(symbol->name),
         WaspStage::Semantics,
-        std::string(symbol->name) + "' already declared in this scope");
+        symbol->name + "' already declared in this scope");
 
-    int id = static_cast<int>(symbols.size());
-    symbol->id = id;
-
-    symbols.push_back(symbol);
+    symbols[symbol->name].push_back(symbol);
 
     return symbol;
 }
@@ -50,13 +47,12 @@ Symbol_ptr SymbolScope::define_function(Symbol_ptr new_symbol)
 
     auto& new_payload = new_symbol->get_payload_as<FunctionData>();
 
-    if (auto siblings = get_sibling_overloads(new_symbol->name); siblings.size() > 0)
+    auto& siblings = symbols[new_symbol->name];
+
+    for (auto& sibling : siblings)
     {
-        for (auto sibling : siblings)
-        {
-            sibling->get_payload_as<FunctionData>().add_sibling_overload(new_symbol);
-            new_payload.add_sibling_overload(sibling);
-        }
+        sibling->get_payload_as<FunctionData>().add_sibling_overload(new_symbol);
+        new_payload.add_sibling_overload(sibling);
     }
 
     if (auto parent = get_parent_overload(new_symbol->name))
@@ -65,40 +61,55 @@ Symbol_ptr SymbolScope::define_function(Symbol_ptr new_symbol)
 
         auto parents = parent->get_payload_as<FunctionData>().get_overloads();
 
-        for (auto parent : parents)
+        for (auto p : parents)
         {
-            new_symbol->get_payload_as<FunctionData>().add_parent_overload(parent);
+            new_symbol->get_payload_as<FunctionData>().add_parent_overload(p);
         }
     }
 
-    int id = static_cast<int>(symbols.size());
-    new_symbol->id = id;
-
-    symbols.push_back(new_symbol);
+    symbols[new_symbol->name].push_back(new_symbol);
 
     return new_symbol;
 }
 
-Symbol_ptr SymbolScope::lookup(const std::string& name) const
+SymbolVector SymbolScope::lookup(const std::string& name) const
 {
     const SymbolScope* current = this;
 
     while (current)
     {
-        auto it = std::find_if(
-            current->symbols.begin(),
-            current->symbols.end(),
-            [&](const Symbol_ptr& s) { return s->name == name; });
-
-        if (it != current->symbols.end())
+        if (current->symbols.contains(name) && !current->symbols.at(name).empty())
         {
-            return *it;
+            return current->symbols.at(name);
         }
 
         current = current->enclosing_scope.get();
     }
 
-    return nullptr;
+    return {};
+}
+
+Symbol_ptr SymbolScope::lookup_solo(const std::string& name) const
+{
+    const SymbolScope* current = this;
+
+    while (current)
+    {
+        if (current->symbols.contains(name) && !current->symbols.at(name).empty())
+        {
+            Doctor::get().assert(
+                current->symbols.at(name).size() == 1,
+                WaspStage::Semantics,
+                "Expected only one symbol with name '" + name + "' in this scope, but found " +
+                    std::to_string(current->symbols.at(name).size()));
+
+            return current->symbols.at(name).front();
+        }
+
+        current = current->enclosing_scope.get();
+    }
+
+    return {};
 }
 
 SymbolVector SymbolScope::assemble_overload_family(
@@ -138,7 +149,7 @@ SymbolVector SymbolScope::get_function_overloads_from_module(
     const std::string& module_name,
     const std::string& function_name) const
 {
-    Symbol_ptr module_symbol = lookup(module_name);
+    Symbol_ptr module_symbol = lookup_solo(module_name);
 
     if (!module_symbol)
     {
@@ -154,11 +165,9 @@ SymbolVector SymbolScope::get_function_overloads_from_module(
 
     const auto& module_data = module_symbol->get_payload_as<ModuleData>();
 
-    // Find any function with given name exported by module
-
     Symbol_ptr base_symbol = nullptr;
 
-    for (const auto& exported_sym : module_data.mod->get_exports())
+    for (const auto& exported_sym : module_data.mod->get_flat_exports())
     {
         if (exported_sym->name == function_name)
         {
@@ -180,43 +189,16 @@ SymbolVector SymbolScope::get_function_overloads_from_module(
 
 SymbolVector SymbolScope::get_function_overloads(const std::string& name) const
 {
-    Symbol_ptr base_symbol = lookup(name);
+    SymbolVector matched_symbols = lookup(name);
 
-    if (!base_symbol)
+    if (matched_symbols.empty())
     {
         return {};
     }
 
     return assemble_overload_family(
-        base_symbol,
+        matched_symbols.front(),
         "Symbol '" + name + "' is not a function and cannot have overloads");
-}
-
-SymbolVector SymbolScope::get_sibling_overloads(const std::string& name) const
-{
-    auto it = std::find_if(
-        symbols.begin(),
-        symbols.end(),
-        [&](const Symbol_ptr& s) { return s->name == name && s->payload_is<FunctionData>(); });
-
-    if (it != symbols.end())
-    {
-        Symbol_ptr anchor = *it;
-        const auto& siblings = anchor->get_payload_as<FunctionData>().sibling_overloads;
-
-        SymbolVector full_family;
-        full_family.reserve(1 + siblings.size());
-
-        // Add the anchor symbol itself
-        full_family.push_back(anchor);
-
-        // Append all of its siblings
-        full_family.insert(full_family.end(), siblings.begin(), siblings.end());
-
-        return full_family;
-    }
-
-    return {};
 }
 
 Symbol_ptr SymbolScope::get_parent_overload(const std::string& name) const
@@ -226,11 +208,11 @@ Symbol_ptr SymbolScope::get_parent_overload(const std::string& name) const
         return nullptr;
     }
 
-    Symbol_ptr sym = enclosing_scope->lookup(name);
+    SymbolVector parent_symbols = enclosing_scope->lookup(name);
 
-    if (sym && sym->payload_is<FunctionData>())
+    if (!parent_symbols.empty() && parent_symbols.front()->payload_is<FunctionData>())
     {
-        return sym;
+        return parent_symbols.front();
     }
 
     return nullptr;
@@ -265,4 +247,5 @@ bool SymbolScope::enclosed_in(const std::vector<ScopeType>& types) const
     }
     return false;
 }
+
 } // namespace Wasp

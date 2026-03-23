@@ -94,7 +94,7 @@ Object_ptr SemanticAnalyzer::visit(const Expression_ptr expr)
 
 Object_ptr SemanticAnalyzer::visit(Identifier& expr)
 {
-    Symbol_ptr target_symbol = current_scope->lookup(expr.name);
+    Symbol_ptr target_symbol = current_scope->lookup_solo(expr.name);
     Doctor::get().fatal_if_nullptr(target_symbol, WaspStage::Semantics);
 
     expr.symbol = target_symbol;
@@ -200,7 +200,7 @@ Object_ptr SemanticAnalyzer::evaluate_member_access_call(
     std::string module_name = mac.left->as<Identifier>().name;
     std::string func_name = mac.right->as<Identifier>().name;
 
-    Symbol_ptr module_symbol = current_scope->lookup(module_name);
+    Symbol_ptr module_symbol = current_scope->lookup_solo(module_name);
     Doctor::get().fatal_if_nullptr(module_symbol, WaspStage::Semantics);
 
     mac.left->as<Identifier>().symbol = module_symbol;

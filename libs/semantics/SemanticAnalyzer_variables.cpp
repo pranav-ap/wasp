@@ -1,11 +1,11 @@
-#include "SemanticAnalyzer.h"
+#include "AST.h"
 #include "Doctor.h"
 #include "Expression.h"
 #include "Objects.h"
+#include "SemanticAnalyzer.h"
 #include "Statement.h"
-
 #include "SymbolScope.h"
-#include "TypeAnnotation.h"
+#include "Workspace.h"
 
 #include <ctime>
 #include <memory>
@@ -85,21 +85,20 @@ Object_ptr SemanticAnalyzer::define_variable(Expression_ptr assignment_node, boo
         Doctor::get().assert(
             type_checker->assignable(current_scope, declared_type, initializer_type),
             WaspStage::Semantics,
-            "Type mismatch in variable definition for '" + symbol_name + "'."
-        );
+            "Type mismatch in variable definition for '" + symbol_name);
 
         resolved_type = declared_type;
     }
 
     // Hoister Usage
 
-    if (Symbol_ptr hoisted_symbol = current_scope->lookup(symbol_name)) {
+    if (Symbol_ptr hoisted_symbol = current_scope->lookup_solo(symbol_name))
+    {
         // If it exists, it must be a hoisted global waiting for its type.
         Doctor::get().assert(
             hoisted_symbol->get_type() == nullptr,
             WaspStage::Semantics,
-            "Variable '" + symbol_name + "' is already defined in the current scope."
-        );
+            "Variable '" + symbol_name + "' is hoisted but already has a type!");
 
         hoisted_symbol->set_type(resolved_type);
         identifier_expr->as<Identifier>().symbol = hoisted_symbol;
@@ -135,7 +134,7 @@ Object_ptr SemanticAnalyzer::mutate_variable(
     auto& identifier_node = identifier_expr->as<Identifier>();
     std::string symbol_name = identifier_node.name;
 
-    Symbol_ptr target_symbol = current_scope->lookup(symbol_name);
+    Symbol_ptr target_symbol = current_scope->lookup_solo(symbol_name);
 
     Doctor::get().fatal_if_nullptr(
         target_symbol, WaspStage::Semantics, "Cannot assign to undefined variable '" + symbol_name
@@ -152,8 +151,7 @@ Object_ptr SemanticAnalyzer::mutate_variable(
     Doctor::get().assert(
         var_data.is_mutable,
         WaspStage::Semantics,
-        "Cannot reassign immutable variable '" + symbol_name + "'."
-    );
+        "Cannot reassign immutable variable '" + symbol_name);
 
     identifier_node.symbol = target_symbol;
 
@@ -163,8 +161,7 @@ Object_ptr SemanticAnalyzer::mutate_variable(
     Doctor::get().assert(
         type_checker->assignable(current_scope, target_symbol->get_type(), assigned_type),
         WaspStage::Semantics,
-        "Type mismatch in assignment to '" + symbol_name + "'."
-    );
+        "Type mismatch in assignment to '" + symbol_name);
 
     return target_symbol->get_type();
 }

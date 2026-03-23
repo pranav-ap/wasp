@@ -4,6 +4,7 @@
 #include "Statement.h"
 
 #include "SymbolScope.h"
+#include "Workspace.h"
 
 #include <cstddef>
 #include <ctime>
