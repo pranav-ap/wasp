@@ -3,8 +3,9 @@
 #include "Doctor.h"
 #include "Expression.h"
 #include "OpCode.h"
-#include "Symbol.h"
+
 #include "Token.h"
+#include "Workspace.h"
 
 #include <map>
 #include <memory>

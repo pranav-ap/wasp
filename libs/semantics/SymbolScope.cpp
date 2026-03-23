@@ -1,6 +1,6 @@
 #include "SymbolScope.h"
 #include "Doctor.h"
-#include "Symbol.h"
+#include "Workspace.h"
 
 #include <algorithm>
 #include <string>
@@ -158,7 +158,7 @@ SymbolVector SymbolScope::get_function_overloads_from_module(
 
     Symbol_ptr base_symbol = nullptr;
 
-    for (const auto& exported_sym : module_data.exports)
+    for (const auto& exported_sym : module_data.mod->get_exports())
     {
         if (exported_sym->name == function_name)
         {

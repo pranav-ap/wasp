@@ -2,7 +2,6 @@
 #include "Compiler.h"
 #include "Doctor.h"
 #include "OpCode.h"
-#include "Symbol.h"
 
 #include <cstddef>
 #include <cstdint>

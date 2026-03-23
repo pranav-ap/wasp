@@ -2,7 +2,7 @@
 
 #include "ConstantPool.h"
 #include "Objects.h"
-#include "Symbol.h"
+
 #include "SymbolScope.h"
 #include "Token.h"
 

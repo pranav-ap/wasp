@@ -13,14 +13,17 @@
 
 namespace Wasp {
 struct CallFrame {
-    FunctionVMObject_ptr function;
+    RuntimeFunctionObject_ptr function;
     size_t ip = 0;
     // Where locals start on the VM stack
     size_t base_pointer = 0;
 
     std::vector<size_t> scope_bases;
 
-    CallFrame(FunctionVMObject_ptr func, size_t bp) : function(std::move(func)), base_pointer(bp) {}
+    CallFrame(RuntimeFunctionObject_ptr func, size_t bp)
+        : function(std::move(func)), base_pointer(bp)
+    {
+    }
 
     std::byte consume_byte() { return function->code.data()[ip++]; }
 };
@@ -91,6 +94,6 @@ class VM {
 public:
     VM(Workspace_ptr workspace) : workspace(workspace) { stack.reserve(256); }
 
-    void run(FunctionObject_ptr main_function);
+    void run(StaticFunctionObject_ptr main_function);
 };
 } // namespace Wasp

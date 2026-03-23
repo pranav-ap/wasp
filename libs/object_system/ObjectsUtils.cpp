@@ -131,9 +131,8 @@ namespace Wasp
 
                 // Base Types
                 [](const AnyType&) -> std::string { return "any type"; },
-                [](const NamedDefinitionType& obj) -> std::string {
-                    return "named definition: " + obj.name;
-                },
+                [](const NamedDefinitionType& obj) -> std::string
+                { return "named definition: " + obj.name; },
                 [](const FunctionType&) -> std::string { return "function type"; },
 
                 // Scalar Objects
@@ -141,9 +140,8 @@ namespace Wasp
                 [](const IntObject& obj) -> std::string { return std::to_string(obj.value); },
                 [](const FloatObject& obj) -> std::string { return std::to_string(obj.value); },
                 [](const StringObject& obj) -> std::string { return "\"" + obj.value + "\""; },
-                [](const BooleanObject& obj) -> std::string {
-                    return obj.value ? "true" : "false";
-                },
+                [](const BooleanObject& obj) -> std::string
+                { return obj.value ? "true" : "false"; },
 
                 // Literal Types
                 [](const IntLiteralType&) -> std::string { return "int literal type"; },
@@ -167,9 +165,11 @@ namespace Wasp
                 // Composite Objects
                 [](const std::shared_ptr<IteratorObject>&) -> std::string { return "<iterator>"; },
 
-                [](const std::shared_ptr<ListObject>& obj) -> std::string {
+                [](const std::shared_ptr<ListObject>& obj) -> std::string
+                {
                     std::string res = "[";
-                    for (size_t i = 0; i < obj->values.size(); ++i) {
+                    for (size_t i = 0; i < obj->values.size(); ++i)
+                    {
                         res += stringify_object(obj->values[i]);
                         if (i < obj->values.size() - 1)
                             res += ", ";
@@ -177,9 +177,11 @@ namespace Wasp
                     return res + "]";
                 },
 
-                [](const std::shared_ptr<TupleObject>& obj) -> std::string {
+                [](const std::shared_ptr<TupleObject>& obj) -> std::string
+                {
                     std::string res = "(";
-                    for (size_t i = 0; i < obj->values.size(); ++i) {
+                    for (size_t i = 0; i < obj->values.size(); ++i)
+                    {
                         res += stringify_object(obj->values[i]);
                         if (i < obj->values.size() - 1)
                             res += ", ";
@@ -187,10 +189,12 @@ namespace Wasp
                     return res + ")";
                 },
 
-                [](const std::shared_ptr<SetObject>& obj) -> std::string {
+                [](const std::shared_ptr<SetObject>& obj) -> std::string
+                {
                     std::string res = "{";
                     auto it = obj->values.begin();
-                    while (it != obj->values.end()) {
+                    while (it != obj->values.end())
+                    {
                         res += stringify_object(*it);
                         if (++it != obj->values.end())
                             res += ", ";
@@ -198,10 +202,12 @@ namespace Wasp
                     return res + "}";
                 },
 
-                [](const std::shared_ptr<MapObject>& obj) -> std::string {
+                [](const std::shared_ptr<MapObject>& obj) -> std::string
+                {
                     std::string res = "{";
                     auto it = obj->pairs.begin();
-                    while (it != obj->pairs.end()) {
+                    while (it != obj->pairs.end())
+                    {
                         res += stringify_object(it->first) + ": " + stringify_object(it->second);
                         if (++it != obj->pairs.end())
                             res += ", ";
@@ -211,27 +217,22 @@ namespace Wasp
 
                 [](const std::shared_ptr<VariantObject>&) -> std::string { return "<variant>"; },
 
-                [](const std::shared_ptr<FunctionObject>& func) -> std::string {
-                    return "<function " + func->name + ">";
-                },
+                [](const std::shared_ptr<StaticFunctionObject>& func) -> std::string
+                { return "<function " + func->name + ">"; },
 
-                [](const std::shared_ptr<FunctionVMObject>& func) -> std::string {
-                    return "<VM function " + func->name + ">";
-                },
+                [](const std::shared_ptr<RuntimeFunctionObject>& func) -> std::string
+                { return "<VM function " + func->name + ">"; },
 
-                [](const std::shared_ptr<NativeFunctionObject>& func) -> std::string {
-                    return "<Native function " + func->name + ">";
-                },
+                [](const std::shared_ptr<NativeFunctionObject>& func) -> std::string
+                { return "<Native function " + func->name + ">"; },
 
-                [](const std::shared_ptr<ModuleObject>& mod) -> std::string {
-                    return "<module " + mod->name + ">";
-                },
+                [](const std::shared_ptr<ModuleObject>& mod) -> std::string
+                { return "<module " + mod->name + ">"; },
 
                 // Action Objects
                 [](const std::shared_ptr<ReturnObject>&) -> std::string { return "return"; },
-                [](const std::shared_ptr<ErrorObject>& obj) -> std::string {
-                    return "error: " + obj->message;
-                },
+                [](const std::shared_ptr<ErrorObject>& obj) -> std::string
+                { return "error: " + obj->message; },
                 [](const std::shared_ptr<RedoObject>&) -> std::string { return "redo"; },
                 [](const std::shared_ptr<BreakObject>&) -> std::string { return "break"; },
                 [](const std::shared_ptr<ContinueObject>&) -> std::string { return "continue"; },
@@ -240,8 +241,7 @@ namespace Wasp
                 [](const auto&) -> std::string { return "<Unknown Object>"; }
 
             },
-            value->value
-        );
+            value->value);
     }
 
 }

@@ -146,14 +146,15 @@ namespace Wasp
         return id;
     }
 
-    int ConstantPool::allocate_function_definition(FunctionObject_ptr func_obj) {
+    int ConstantPool::allocate_function_definition(StaticFunctionObject_ptr func_obj)
+    {
         int id = objects.size();
         objects.push_back(MAKE_OBJECT_VARIANT(func_obj));
         return id;
     }
 
     int ConstantPool::allocate_function_definition(CodeObject code) {
-        auto func_obj = std::make_shared<FunctionObject>(std::move(code));
+        auto func_obj = std::make_shared<StaticFunctionObject>(std::move(code));
         return allocate_function_definition(func_obj);
     }
 
@@ -163,12 +164,11 @@ namespace Wasp
         std::map<int, std::string> id_to_name_map,
         std::map<int, std::string> id_to_upvalue_name_map
     ) {
-        auto func_obj = std::make_shared<FunctionObject>(
+        auto func_obj = std::make_shared<StaticFunctionObject>(
             std::move(code),
             std::move(name),
             std::move(id_to_name_map),
-            std::move(id_to_upvalue_name_map)
-        );
+            std::move(id_to_upvalue_name_map));
 
         return allocate_function_definition(func_obj);
     }

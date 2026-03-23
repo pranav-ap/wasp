@@ -3,7 +3,7 @@
 #include "Doctor.h"
 #include "Objects.h"
 #include "Statement.h"
-#include "Symbol.h"
+
 #include "SymbolScope.h"
 #include "Workspace.h"
 
@@ -18,43 +18,49 @@
 
 #define MAKE_OBJECT_VARIANT(x) std::make_shared<Object>(x)
 
-template <class... Ts> struct overloaded : Ts... {
+template <class... Ts> struct overloaded : Ts...
+{
     using Ts::operator()...;
 };
 template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
-namespace Wasp {
+namespace Wasp
+{
 // ============================================================================
 // ENTRY POINT
 // ============================================================================
 
-void SemanticAnalyzer::extract_module_type(Module_ptr module) {
-    std::map<std::string, Object_ptr> module_members;
+void SemanticAnalyzer::extract_module_type(Module_ptr module)
+{
+    auto module_type = ModuleType();
 
-    for (const auto& symbol : module->exports)
+    for (const auto& symbol : module->get_exports())
     {
-        Object_ptr resolved_type = symbol->get_type();
+        Object_ptr type = symbol->get_type();
 
         Doctor::get().fatal_if_nullptr(
-            resolved_type,
+            type,
             WaspStage::Semantics,
-            "Compiler Error: Exported symbol '" + symbol->name + "' failed to resolve a type.");
+            "Symbol '" + symbol->name + "' has no type information");
 
-        module_members[symbol->name] = resolved_type;
+        module_type.add_member(symbol->name, type);
     }
 
-    module->type = make_object(ModuleType(std::move(module_members)));
+    module->type = make_object(module_type);
 }
 
-void SemanticAnalyzer::run(const std::vector<Module_ptr>& build_order) {
+void SemanticAnalyzer::run(const std::vector<Module_ptr>& build_order)
+{
     enter_scope(ScopeType::WORKSPACE);
     register_natives();
 
-    for (const auto& module : build_order) {
+    for (const auto& module : build_order)
+    {
         enter_scope(ScopeType::MODULE);
 
-        // Push the hoisted exports into this module's scope
-        for (const auto& symbol : module->exports)
+        // Push this module's hoisted symbols into its scope before visiting the statements,
+        // so that they can be referenced in the module body
+        for (auto& symbol : module->hoisted_symbols)
         {
             current_scope->define(symbol);
         }
@@ -68,10 +74,12 @@ void SemanticAnalyzer::run(const std::vector<Module_ptr>& build_order) {
     leave_scope();
 }
 
-void SemanticAnalyzer::register_natives() {
+void SemanticAnalyzer::register_natives()
+{
     std::unordered_map<std::string, int> native_names = native_registry->get_all_native_names();
 
-    for (const auto& [name, index] : native_names) {
+    for (const auto& [name, index] : native_names)
+    {
         auto symbol_type = native_registry->get_native_object_type(index);
 
         auto symbol = SymbolFactory::create_function(name, symbol_type, true);
@@ -83,13 +91,16 @@ void SemanticAnalyzer::register_natives() {
 // High Level Visitors
 // ============================================================================
 
-void SemanticAnalyzer::visit(std::vector<Statement_ptr>& statements) {
-    for (const auto& stmt : statements) {
+void SemanticAnalyzer::visit(std::vector<Statement_ptr>& statements)
+{
+    for (const auto& stmt : statements)
+    {
         visit(stmt);
     }
 }
 
-void SemanticAnalyzer::visit(const Statement_ptr statement) {
+void SemanticAnalyzer::visit(const Statement_ptr statement)
+{
     Doctor::get().fatal_if_nullptr(statement, WaspStage::Semantics);
 
     std::visit(
@@ -112,13 +123,12 @@ void SemanticAnalyzer::visit(const Statement_ptr statement) {
             [&](Return& stat) { visit(stat); },
             [&](SimpleImport& stat) { visit(stat); },
             [&](FromImport& stat) { visit(stat); },
-            [](auto) {
+            [](auto)
+            {
                 Doctor::get().Doctor::get().fatal(
-                    WaspStage::Semantics, "Unhandled Statement in Semantic Analyzer!"
-                );
-            }
-        },
-        statement->data
-    );
+                    WaspStage::Semantics,
+                    "Unhandled Statement in Semantic Analyzer!");
+            }},
+        statement->data);
 }
 } // namespace Wasp

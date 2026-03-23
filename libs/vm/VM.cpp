@@ -116,12 +116,11 @@ void VM::execute_make_function(CallFrame* frame) {
     // Pop the function blueprint from the stack (put there by LOAD_CONST)
     Object_ptr blueprint_obj = pop_from_stack();
     Doctor::get().assert(
-        blueprint_obj->is<std::shared_ptr<FunctionObject>>(),
+        blueprint_obj->is<std::shared_ptr<StaticFunctionObject>>(),
         WaspStage::VM,
-        "MAKE_FUNCTION expects a FunctionObject to pop"
-    );
+        "MAKE_FUNCTION expects a FunctionObject to pop");
 
-    auto blueprint = blueprint_obj->as<std::shared_ptr<FunctionObject>>();
+    auto blueprint = blueprint_obj->as<std::shared_ptr<StaticFunctionObject>>();
 
     // Prepare the upvalues
 
@@ -139,13 +138,12 @@ void VM::execute_make_function(CallFrame* frame) {
         }
     }
 
-    auto runtime_closure = std::make_shared<FunctionVMObject>(
+    auto runtime_closure = std::make_shared<RuntimeFunctionObject>(
         blueprint->code,
         blueprint->name,
         blueprint->id_to_name_map,
         blueprint->id_to_name_upvalues_map,
-        std::move(captured_upvalues)
-    );
+        std::move(captured_upvalues));
 
     Object_ptr closure_obj = std::make_shared<Object>(runtime_closure);
     push_to_stack(closure_obj);
@@ -157,14 +155,16 @@ void VM::execute_call(CallFrame* frame) {
 
     std::visit(
         overloaded{
-            [&](std::shared_ptr<FunctionVMObject>& func) {
+            [&](std::shared_ptr<RuntimeFunctionObject>& func)
+            {
                 size_t new_base_pointer = stack.size() - arg_count;
                 frames.emplace_back(func, new_base_pointer);
                 // The main execution loop will automatically start reading
                 // the new function's bytecode on the next iteration
             },
 
-            [&](std::shared_ptr<NativeFunctionObject>& native) {
+            [&](std::shared_ptr<NativeFunctionObject>& native)
+            {
                 Doctor::get().assert(
                     native->arity == -1 || native->arity == arg_count,
                     WaspStage::VM,
@@ -173,7 +173,8 @@ void VM::execute_call(CallFrame* frame) {
 
                 // Collect arguments from the stack
                 std::vector<Object_ptr> args(arg_count);
-                for (int i = arg_count - 1; i >= 0; i--) {
+                for (int i = arg_count - 1; i >= 0; i--)
+                {
                     args[i] = pop_from_stack();
                 }
 
@@ -184,12 +185,9 @@ void VM::execute_call(CallFrame* frame) {
                 push_to_stack(result);
             },
 
-            [](auto&) {
-                Doctor::get().fatal(WaspStage::VM, "Attempted to call a non-callable object");
-            }
-        },
-        callable->value
-    );
+            [](auto&)
+            { Doctor::get().fatal(WaspStage::VM, "Attempted to call a non-callable object"); }},
+        callable->value);
 }
 
 void VM::execute_return(CallFrame* frame) {
@@ -199,7 +197,7 @@ void VM::execute_return(CallFrame* frame) {
 
     frames.pop_back();
 
-    // 'bp' points to arg1. 'bp - 1' is the FunctionVMObject (the callable).
+    // 'bp' points to arg1. 'bp - 1' is the RuntimeFunctionObject (the callable).
     // Remove the callable, all arguments, and all local variables.
     if (bp > 0) {
         stack.erase(stack.begin() + (bp - 1), stack.end());
@@ -223,7 +221,7 @@ void VM::execute_import(CallFrame* frame) {
         target_module, WaspStage::VM, "Module not found : " + module_path
     );
 
-    auto module_func = std::make_shared<FunctionVMObject>(
+    auto module_func = std::make_shared<RuntimeFunctionObject>(
         target_module->blueprint->code,
         module_name,
         target_module->blueprint->id_to_name_map,
@@ -261,17 +259,16 @@ void VM::execute_exit_module() {
     push_to_stack(std::make_shared<Object>(exports));
 }
 
-void VM::run(FunctionObject_ptr function_object) {
+void VM::run(StaticFunctionObject_ptr function_object)
+{
     frames.emplace_back(
-        std::make_shared<FunctionVMObject>(
+        std::make_shared<RuntimeFunctionObject>(
             function_object->code,
             function_object->name,
             function_object->id_to_name_map,
             function_object->id_to_name_upvalues_map,
-            ObjectVector{}
-        ),
-        0
-    );
+            ObjectVector{}),
+        0);
 
     while (true) {
         CallFrame* frame = &frames.back();

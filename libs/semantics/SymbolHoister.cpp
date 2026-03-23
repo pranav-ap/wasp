@@ -2,7 +2,7 @@
 #include "Doctor.h"
 #include "Expression.h"
 #include "Statement.h"
-#include "Symbol.h"
+
 #include "Workspace.h"
 
 #include <string>
@@ -85,16 +85,7 @@ void SymbolHoister::hoist(Module_ptr mod)
 void SymbolHoister::run(Module_ptr mod)
 {
     hoist(mod);
-
-    auto symbols = current_scope->get_all_symbols();
-    mod->hoisted_symbols = symbols;
-    mod->exports = symbols;
-
-    for (const auto& symbol : symbols)
-    {
-        mod->id_to_hoisted_symbol_name_map[symbol->id] = symbol->name;
-        mod->id_to_exported_symbol_name_map[symbol->id] = symbol->name;
-    }
+    mod->hoisted_symbols = current_scope->get_all_symbols();
 }
 
 void SymbolHoister::run(const std::vector<Module_ptr>& build_order)

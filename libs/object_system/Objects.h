@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CFGraph.h"
+#include "Doctor.h"
 
 #include <cstddef>
 #include <functional>
@@ -12,7 +13,8 @@
 #include <variant>
 #include <vector>
 
-namespace Wasp {
+namespace Wasp
+{
 
 struct Object;
 using Object_ptr = std::shared_ptr<Object>;
@@ -21,18 +23,30 @@ using StringVector = std::vector<std::string>;
 
 // Base Classes
 
-struct AbstractObject {};
+struct AbstractObject
+{
+};
 
-struct IterableAbstractObject : public AbstractObject {
+struct IterableAbstractObject : public AbstractObject
+{
     virtual Object_ptr get_iter() = 0;
 };
 
-struct ScalarObject : public AbstractObject {};
-struct CompositeObject : public AbstractObject {};
-struct ActionObject : public AbstractObject {};
-struct NoneObject : public AbstractObject {};
+struct ScalarObject : public AbstractObject
+{
+};
+struct CompositeObject : public AbstractObject
+{
+};
+struct ActionObject : public AbstractObject
+{
+};
+struct NoneObject : public AbstractObject
+{
+};
 
-struct DefinitionObject : public AbstractObject {
+struct DefinitionObject : public AbstractObject
+{
     std::string name;
     DefinitionObject(std::string name) : name(std::move(name)) {};
 };
@@ -41,30 +55,35 @@ struct DefinitionObject : public AbstractObject {
 
 // Scalar Objects
 
-struct IntObject : public ScalarObject {
+struct IntObject : public ScalarObject
+{
     int value;
     IntObject(int value) : value(value) {};
 };
 
-struct FloatObject : public ScalarObject {
+struct FloatObject : public ScalarObject
+{
     double value;
     FloatObject(double value) : value(value) {};
 };
 
-struct StringObject : public ScalarObject, public IterableAbstractObject {
+struct StringObject : public ScalarObject, public IterableAbstractObject
+{
     std::string value;
     StringObject(std::string value) : value(std::move(value)) {};
     virtual Object_ptr get_iter() override;
 };
 
-struct BooleanObject : public ScalarObject {
+struct BooleanObject : public ScalarObject
+{
     bool value;
     BooleanObject(bool value) : value(value) {};
 };
 
 // Composite Objects
 
-struct IteratorObject : public CompositeObject {
+struct IteratorObject : public CompositeObject
+{
     ObjectVector vec;
     size_t index;
 
@@ -74,7 +93,8 @@ struct IteratorObject : public CompositeObject {
     void reset_iter();
 };
 
-struct ListObject : public CompositeObject, public IterableAbstractObject {
+struct ListObject : public CompositeObject, public IterableAbstractObject
+{
     std::vector<Object_ptr> values;
 
     Object_ptr append(Object_ptr value);
@@ -95,7 +115,8 @@ struct ListObject : public CompositeObject, public IterableAbstractObject {
     ListObject(ObjectVector values);
 };
 
-struct TupleObject : public CompositeObject {
+struct TupleObject : public CompositeObject
+{
     ObjectVector values;
 
     TupleObject(ObjectVector values) : values(std::move(values)) {};
@@ -107,7 +128,8 @@ struct TupleObject : public CompositeObject {
     int get_length();
 };
 
-struct SetObject : public CompositeObject, public IterableAbstractObject {
+struct SetObject : public CompositeObject, public IterableAbstractObject
+{
     ObjectVector values;
 
     SetObject(ObjectVector values) : values(std::move(values)) {};
@@ -120,7 +142,8 @@ struct SetObject : public CompositeObject, public IterableAbstractObject {
     int get_length();
 };
 
-struct MapObject : public CompositeObject, public IterableAbstractObject {
+struct MapObject : public CompositeObject, public IterableAbstractObject
+{
     std::map<Object_ptr, Object_ptr> pairs;
 
     Object_ptr insert(Object_ptr key, Object_ptr value);
@@ -133,7 +156,8 @@ struct MapObject : public CompositeObject, public IterableAbstractObject {
     int get_size();
 };
 
-struct VariantObject : public CompositeObject {
+struct VariantObject : public CompositeObject
+{
     Object_ptr value;
 
     VariantObject(Object_ptr value) : value(std::move(value)) {};
@@ -141,69 +165,82 @@ struct VariantObject : public CompositeObject {
     bool has_value();
 };
 
-struct FunctionObject : public CompositeObject {
+struct StaticFunctionObject : public CompositeObject
+{
     CodeObject code;
 
     std::string name;
     std::map<int, std::string> id_to_name_map;
     std::map<int, std::string> id_to_name_upvalues_map;
 
-    FunctionObject(CodeObject code) : code(std::move(code)) {}
+    StaticFunctionObject(CodeObject code) : code(std::move(code)) {}
 
-    FunctionObject(
+    StaticFunctionObject(
         CodeObject code,
         std::string name,
         std::map<int, std::string> id_to_name_map,
-        std::map<int, std::string> id_to_name_upvalues_map
-    )
+        std::map<int, std::string> id_to_name_upvalues_map)
         : code(std::move(code)), name(std::move(name)), id_to_name_map(std::move(id_to_name_map)),
-          id_to_name_upvalues_map(std::move(id_to_name_upvalues_map)) {}
+          id_to_name_upvalues_map(std::move(id_to_name_upvalues_map))
+    {
+    }
 
-    std::string get_name_for_index(int index) const {
+    std::string get_name_for_index(int index) const
+    {
         auto it = id_to_name_map.find(index);
         return (it != id_to_name_map.end()) ? it->second : "";
     }
 };
 
-using FunctionObject_ptr = std::shared_ptr<FunctionObject>;
+using StaticFunctionObject_ptr = std::shared_ptr<StaticFunctionObject>;
 
-struct FunctionVMObject : public FunctionObject {
+struct RuntimeFunctionObject : public StaticFunctionObject
+{
     ObjectVector upvalues;
 
-    FunctionVMObject(CodeObject code) : FunctionObject(code) {}
+    RuntimeFunctionObject(CodeObject code) : StaticFunctionObject(code) {}
 
-    FunctionVMObject(
+    RuntimeFunctionObject(
         CodeObject code,
         std::string name,
         std::map<int, std::string> id_to_name_map,
         std::map<int, std::string> id_to_upvalue_name_map,
-        ObjectVector upvalues
-    )
-        : FunctionObject(
-              code, std::move(name), std::move(id_to_name_map), std::move(id_to_upvalue_name_map)
-          ),
-          upvalues(std::move(upvalues)) {}
+        ObjectVector upvalues)
+        : StaticFunctionObject(
+              code,
+              std::move(name),
+              std::move(id_to_name_map),
+              std::move(id_to_upvalue_name_map)),
+          upvalues(std::move(upvalues))
+    {
+    }
 };
 
-using FunctionVMObject_ptr = std::shared_ptr<FunctionVMObject>;
+using RuntimeFunctionObject_ptr = std::shared_ptr<RuntimeFunctionObject>;
 
 using NativeFnType = std::function<Object_ptr(const std::vector<Object_ptr>&)>;
 
-struct NativeFunctionObject : public CompositeObject {
+struct NativeFunctionObject : public CompositeObject
+{
     NativeFnType function;
     int arity;
     std::string name;
 
     NativeFunctionObject(NativeFnType function, int arity, std::string name)
-        : function(std::move(function)), arity(arity), name(name) {}
+        : function(std::move(function)), arity(arity), name(name)
+    {
+    }
 };
 
-struct ModuleObject : public CompositeObject {
+struct ModuleObject : public CompositeObject
+{
     std::string name;
     std::map<std::string, Object_ptr> members;
 
     ModuleObject(std::string name, std::map<std::string, Object_ptr> members)
-        : name(std::move(name)), members(std::move(members)) {}
+        : name(std::move(name)), members(std::move(members))
+    {
+    }
 
     Object_ptr get_member(const std::string& member_name);
     void set_member(const std::string& member_name, Object_ptr value);
@@ -211,20 +248,28 @@ struct ModuleObject : public CompositeObject {
 
 // Action Objects
 
-struct BreakObject : public ActionObject {};
+struct BreakObject : public ActionObject
+{
+};
 
-struct ContinueObject : public ActionObject {};
+struct ContinueObject : public ActionObject
+{
+};
 
-struct RedoObject : public ActionObject {};
+struct RedoObject : public ActionObject
+{
+};
 
-struct ReturnObject : public ActionObject {
+struct ReturnObject : public ActionObject
+{
     std::optional<Object_ptr> value;
 
     ReturnObject() : value(std::nullopt) {};
     ReturnObject(Object_ptr value) : value(std::optional(std::move(value))) {};
 };
 
-struct ErrorObject : public ActionObject {
+struct ErrorObject : public ActionObject
+{
     std::string message;
 
     ErrorObject() : message("") {};
@@ -233,67 +278,93 @@ struct ErrorObject : public ActionObject {
 
 // Type Objects
 
-struct AnyType : public AbstractObject {};
+struct AnyType : public AbstractObject
+{
+};
 
-struct NoneType : public AnyType {};
+struct NoneType : public AnyType
+{
+};
 
-struct ScalarType : public AnyType {};
-struct LiteralType : public AnyType {};
-struct CompositeType : public AnyType {};
+struct ScalarType : public AnyType
+{
+};
+struct LiteralType : public AnyType
+{
+};
+struct CompositeType : public AnyType
+{
+};
 
-struct NamedDefinitionType : public AnyType {
+struct NamedDefinitionType : public AnyType
+{
     std::string name;
 
     NamedDefinitionType(std::string name) : name(std::move(name)) {};
 };
 
 // Scalar Types
-struct IntType : public ScalarType {
+struct IntType : public ScalarType
+{
     std::string name = "int";
 };
 
-struct FloatType : public ScalarType {};
-struct StringType : public ScalarType {};
-struct BooleanType : public ScalarType {};
+struct FloatType : public ScalarType
+{
+};
+struct StringType : public ScalarType
+{
+};
+struct BooleanType : public ScalarType
+{
+};
 
 // Literal Types
-struct IntLiteralType : public LiteralType {
+struct IntLiteralType : public LiteralType
+{
     int value;
     IntLiteralType(int value) : value(value) {};
 };
 
-struct FloatLiteralType : public LiteralType {
+struct FloatLiteralType : public LiteralType
+{
     double value;
     FloatLiteralType(double value) : value(value) {};
 };
 
-struct StringLiteralType : public LiteralType {
+struct StringLiteralType : public LiteralType
+{
     std::string value;
     StringLiteralType(std::string value) : value(std::move(value)) {};
 };
 
-struct BooleanLiteralType : public LiteralType {
+struct BooleanLiteralType : public LiteralType
+{
     bool value;
     BooleanLiteralType(bool value) : value(value) {};
 };
 
 // Composite Types
-struct ListType : public CompositeType {
+struct ListType : public CompositeType
+{
     Object_ptr element_type;
     ListType(Object_ptr element_type) : element_type(std::move(element_type)) {};
 };
 
-struct TupleType : public CompositeType {
+struct TupleType : public CompositeType
+{
     ObjectVector element_types;
     TupleType(ObjectVector element_types) : element_types(std::move(element_types)) {};
 };
 
-struct SetType : public CompositeType {
+struct SetType : public CompositeType
+{
     Object_ptr element_type;
     SetType(Object_ptr element_type) : element_type(std::move(element_type)) {};
 };
 
-struct MapType : public CompositeType {
+struct MapType : public CompositeType
+{
     Object_ptr key_type;
     Object_ptr value_type;
 
@@ -301,12 +372,14 @@ struct MapType : public CompositeType {
         : key_type(std::move(key_type)), value_type(std::move(value_type)) {};
 };
 
-struct VariantType : public CompositeType {
+struct VariantType : public CompositeType
+{
     ObjectVector types;
     VariantType(ObjectVector types) : types(std::move(types)) {};
 };
 
-struct FunctionType : public AnyType {
+struct FunctionType : public AnyType
+{
     ObjectVector input_types;
     std::optional<Object_ptr> return_type;
 
@@ -318,18 +391,21 @@ struct FunctionType : public AnyType {
           return_type(std::make_optional(std::move(return_type))) {};
 };
 
-struct MemberedType : public CompositeType {
+struct RecordType
+{
     std::map<std::string, Object_ptr> members;
 
-    MemberedType(std::map<std::string, Object_ptr> members) : members(std::move(members)) {}
+    RecordType(std::map<std::string, Object_ptr> members) : members(std::move(members)) {};
 
-    bool contains_member(const std::string& member_name) const {
-        return members.find(member_name) != members.end();
+    bool contains_member(const std::string& member_name) const
+    {
+        return members.contains(member_name);
     }
 
-    Object_ptr get_member_type(const std::string& member_name) const {
-        auto it = members.find(member_name);
-        if (it != members.end()) {
+    Object_ptr get_member_type(const std::string& member_name) const
+    {
+        if (auto it = members.find(member_name); it != members.end())
+        {
             return it->second;
         }
 
@@ -337,17 +413,42 @@ struct MemberedType : public CompositeType {
     }
 };
 
-struct RecordType : public MemberedType {
-    RecordType(std::map<std::string, Object_ptr> members) : MemberedType(std::move(members)) {};
-};
+struct ModuleType : public CompositeType
+{
+    std::map<std::string, std::vector<Object_ptr>> exports;
 
-struct ModuleType : public MemberedType {
-    ModuleType(std::map<std::string, Object_ptr> members) : MemberedType(std::move(members)) {}
+    ModuleType() = default;
+
+    void add_member(const std::string& member_name, Object_ptr member_type)
+    {
+        Doctor::get().assert(
+            !contains_member(member_name),
+            WaspStage::Semantics,
+            "Module member ID already exists");
+
+        exports[member_name].push_back(std::move(member_type));
+    }
+
+    bool contains_member(const std::string& member_name) const
+    {
+        return exports.contains(member_name);
+    }
+
+    std::vector<Object_ptr> get_member_type(const std::string& member_name) const
+    {
+        if (auto it = exports.find(member_name); it != exports.end())
+        {
+            return it->second;
+        }
+
+        return {};
+    }
 };
 
 // Object STRUCT
 
-struct Object {
+struct Object
+{
     using UnderlyingVariant = std::variant<
         std::monostate,
 
@@ -365,8 +466,8 @@ struct Object {
         std::shared_ptr<MapObject>,
         std::shared_ptr<VariantObject>,
 
-        std::shared_ptr<FunctionObject>,
-        std::shared_ptr<FunctionVMObject>,
+        std::shared_ptr<StaticFunctionObject>,
+        std::shared_ptr<RuntimeFunctionObject>,
         std::shared_ptr<NativeFunctionObject>,
         std::shared_ptr<ModuleObject>,
 
@@ -411,7 +512,8 @@ struct Object {
     template <typename T> T* try_as() { return std::get_if<T>(&value); }
 };
 
-template <typename T> inline Object_ptr make_object(T&& val) {
+template <typename T> inline Object_ptr make_object(T&& val)
+{
     return std::make_shared<Object>(std::forward<T>(val));
 }
 

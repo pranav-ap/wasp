@@ -215,15 +215,14 @@ struct LoopControl {
 
 // Imports
 
-struct AbstractImport {
+struct AbstractImport : public Resolvable
+{
     // std::nullopt means it's a 3rd party lib (like 'math3d')
     // Otherwise it holds the keyword: my, our, pkg, top, or up
     std::optional<TokenType> access_token_type;
 
     // ["engine", "fuel"]
     std::vector<std::string> path;
-
-    std::filesystem::path resolved_path;
 
     AbstractImport() = default;
 
@@ -234,7 +233,8 @@ struct AbstractImport {
 };
 
 // import top.engine.fuel as f
-struct SimpleImport : public AbstractImport, Resolvable {
+struct SimpleImport : public AbstractImport
+{
     std::optional<std::string> alias;
 
     SimpleImport() = default;
@@ -248,9 +248,12 @@ struct SimpleImport : public AbstractImport, Resolvable {
 };
 
 // Tank as FuelTank
-struct ImportedSymbol : public Resolvable {
+struct ImportedSymbol
+{
     std::string name;
     std::optional<std::string> alias;
+
+    std::vector<std::shared_ptr<Symbol>> resolved_symbols;
 
     ImportedSymbol() = default;
 
@@ -259,7 +262,8 @@ struct ImportedSymbol : public Resolvable {
 };
 
 // from top.engine import Tank, Pump
-struct FromImport : public AbstractImport, Resolvable {
+struct FromImport : public AbstractImport
+{
     std::vector<ImportedSymbol> symbols;
 
     FromImport() = default;

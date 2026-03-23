@@ -28,7 +28,7 @@ protected:
 
     std::shared_ptr<Wasp::Workspace> workspace;
     Wasp::ConstantPool_ptr pool;
-    Wasp::FunctionObject_ptr function_object;
+    Wasp::StaticFunctionObject_ptr function_object;
     Wasp::CFGraph current_graph;
 
     int pool_size = 0;
@@ -77,7 +77,7 @@ protected:
 
         Wasp::Compiler compiler(workspace);
 
-        function_object = compiler.run(module->stmts);
+        function_object = compiler.run(module->stmts, "<test>");
         current_graph = compiler.get_graph();
 
         if (enable_logging) {

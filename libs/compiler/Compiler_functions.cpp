@@ -1,7 +1,5 @@
 #include "CFGraph.h"
 #include "Compiler.h"
-#include "ConstantPool.h"
-#include "Expression.h"
 #include "OpCode.h"
 #include "Statement.h"
 
@@ -39,9 +37,8 @@ void Compiler::visit(FunctionDefinition& function_definition) {
     int const_id = pool->allocate_function_definition(
         std::move(code),
         function_definition.name,
-        std::move(func_compiler.id_to_name_map),
-        std::move(func_compiler.id_to_upvalue_name_map)
-    );
+        func_compiler.id_to_name_map,
+        func_compiler.id_to_upvalue_name_map);
 
     emit(OpCode::LOAD_CONST, const_id);
 

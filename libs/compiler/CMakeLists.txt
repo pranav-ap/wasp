@@ -16,7 +16,7 @@ target_link_libraries(
     WorkspaceLib
     ObjectSystemLib
     BytecodeSystemLib
-    SymbolLib
+
     ASTLib
     TokenLib
     DoctorLib

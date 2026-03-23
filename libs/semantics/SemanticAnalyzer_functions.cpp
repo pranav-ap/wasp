@@ -2,7 +2,7 @@
 #include "Objects.h"
 #include "SemanticAnalyzer.h"
 #include "Statement.h"
-#include "Symbol.h"
+
 #include "SymbolScope.h"
 
 #include <cstddef>

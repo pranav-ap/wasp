@@ -55,7 +55,6 @@ add_subdirectory(libs/lexer)
 add_subdirectory(libs/ast)
 add_subdirectory(libs/parser)
 add_subdirectory(libs/object_system)
-add_subdirectory(libs/symbol)
 add_subdirectory(libs/semantics)
 add_subdirectory(libs/captain)
 add_subdirectory(libs/bytecode_system)
@@ -75,9 +74,9 @@ if(PROJECT_IS_TOP_LEVEL)
     FetchContent_Declare(
       googletest
       GIT_REPOSITORY https://github.com/google/googletest.git
-      GIT_TAG        v1.17.0 
+      GIT_TAG        v1.17.0
     )
-    
+
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(googletest)
 

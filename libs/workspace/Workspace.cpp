@@ -1,7 +1,6 @@
-#include "Symbol.h"
+#include "Workspace.h"
 #include "Doctor.h"
 #include "Objects.h"
-
 
 #include <algorithm>
 #include <memory>
@@ -26,7 +25,7 @@ Object_ptr Symbol::get_type()
             [](const FunctionData& d) { return d.type; },
             [](const ClassData& d) { return d.type; },
             [](const EnumData& d) { return d.type; },
-            [](const ModuleData& d) -> Object_ptr { return d.type; },
+            [](const ModuleData& d) -> Object_ptr { return d.mod->type; },
             [](const AliasData& d) { return d.target->get_type(); }},
         payload);
 }
@@ -39,9 +38,26 @@ void Symbol::set_type(Object_ptr new_type)
             [&](FunctionData& d) { d.type = std::move(new_type); },
             [&](ClassData& d) { d.type = std::move(new_type); },
             [&](EnumData& d) { d.type = std::move(new_type); },
-            [&](ModuleData& d) { d.type = std::move(new_type); },
-            [&](AliasData& d) { d.target->set_type(std::move(new_type)); }},
+            [&](AliasData& d) { d.target->set_type(std::move(new_type)); },
+            [](auto) -> void
+            {
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "You are not allowed to set type for this object");
+            }},
         payload);
+}
+
+Symbol_ptr Symbol::resolve()
+{
+    if (payload_is<AliasData>())
+    {
+        // Recursively unwrap aliases until we hit the real symbol
+        return get_payload_as<AliasData>().target->resolve();
+    }
+
+    // Safely return a shared_ptr to ourselves!
+    return shared_from_this();
 }
 
 Object_ptr FunctionData::get_return_type() const
@@ -107,6 +123,7 @@ Symbol_ptr SymbolFactory::create_variable(
     int lexical_depth)
 {
     return std::make_shared<Symbol>(
+        symbol_id_counter++,
         std::move(name),
         closure_depth,
         lexical_depth,
@@ -121,6 +138,7 @@ Symbol_ptr SymbolFactory::create_function(
     int lexical_depth)
 {
     auto symbol = std::make_shared<Symbol>(
+        symbol_id_counter++,
         std::move(name),
         closure_depth,
         lexical_depth,
@@ -136,6 +154,7 @@ Symbol_ptr SymbolFactory::create_class(
     int lexical_depth)
 {
     return std::make_shared<Symbol>(
+        symbol_id_counter++,
         std::move(name),
         closure_depth,
         lexical_depth,
@@ -149,23 +168,30 @@ Symbol_ptr SymbolFactory::create_enum(
     int lexical_depth)
 {
     return std::make_shared<Symbol>(
+        symbol_id_counter++,
         std::move(name),
         closure_depth,
         lexical_depth,
         EnumData{std::move(type)});
 }
 
-Symbol_ptr SymbolFactory::create_module(std::string name, Object_ptr type, SymbolVector exports)
+Symbol_ptr SymbolFactory::create_module(std::string name, Module_ptr mod)
 {
     return std::make_shared<Symbol>(
+        symbol_id_counter++,
         std::move(name),
         0,
         0,
-        ModuleData{std::move(type), std::move(exports)});
+        ModuleData{std::move(mod)});
 }
 
 Symbol_ptr SymbolFactory::create_alias(std::string name, Symbol_ptr target)
 {
-    return std::make_shared<Symbol>(std::move(name), 0, 0, AliasData{std::move(target)});
+    return std::make_shared<Symbol>(
+        symbol_id_counter++,
+        std::move(name),
+        0,
+        0,
+        AliasData{std::move(target)});
 }
 } // namespace Wasp

@@ -57,7 +57,7 @@ namespace Wasp
         int allocate(double value);
         int allocate(std::string value);
 
-        int allocate_function_definition(FunctionObject_ptr func_obj);
+        int allocate_function_definition(StaticFunctionObject_ptr func_obj);
         int allocate_function_definition(CodeObject code);
         int allocate_function_definition(
             CodeObject code,

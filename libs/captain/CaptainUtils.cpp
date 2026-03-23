@@ -23,8 +23,8 @@ std::string Captain::read_file(const std::filesystem::path& file_path) {
 void Captain::dump_build_artifacts(
     Workspace_ptr workspace,
     const std::filesystem::path& source_file_path,
-    const FunctionObject_ptr function_object
-) {
+    const StaticFunctionObject_ptr function_object)
+{
     namespace fs = std::filesystem;
 
     // "script.wasp" -> "script"

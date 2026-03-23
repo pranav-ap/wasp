@@ -8,7 +8,7 @@
 #include "Objects.h"
 #include "OpCode.h"
 #include "Statement.h"
-#include "Symbol.h"
+
 #include "Workspace.h"
 
 #include <cstddef>
@@ -163,7 +163,10 @@ public:
     const CFGraph& get_graph() const { return graph; }
     const std::map<int, std::string>& get_name_map() const { return id_to_name_map; }
 
-    FunctionObject_ptr run(const StatementVector& block, bool is_main = false);
+    StaticFunctionObject_ptr run(
+        const StatementVector& block,
+        std::string name,
+        bool is_main = false);
 };
 
 using Compiler_ptr = std::shared_ptr<Compiler>;

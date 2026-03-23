@@ -4,9 +4,10 @@
 #include "Objects.h"
 #include "SemanticAnalyzer.h"
 #include "Statement.h"
-#include "Symbol.h"
+
 #include "SymbolScope.h"
 #include "Token.h"
+#include "Workspace.h"
 
 #include <ctime>
 #include <map>
@@ -131,7 +132,14 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
         WaspStage::Semantics,
         "Module does not contain member '" + member_name + "'");
 
-    return module_type.get_member_type(member_name);
+    auto member_type = module_type.get_member_type(member_name);
+
+    Doctor::get().assert(
+        member_type.size() == 1,
+        WaspStage::Semantics,
+        "Only functions are allowed to overload");
+
+    return member_type[0];
 }
 
 Object_ptr SemanticAnalyzer::visit(Call& call_expr)

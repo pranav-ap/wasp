@@ -28,8 +28,7 @@ private:
     void dump_build_artifacts(
         Workspace_ptr workspace,
         const std::filesystem::path& source_file_path,
-        const FunctionObject_ptr function_object
-    );
+        const StaticFunctionObject_ptr function_object);
 
 public:
     explicit Captain(const std::filesystem::path& target_path);

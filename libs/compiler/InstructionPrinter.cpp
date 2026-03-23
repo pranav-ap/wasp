@@ -101,10 +101,11 @@ void InstructionPrinter::print(const Object_ptr obj, std::ostream& out) {
     Doctor::get().fatal_if_nullptr(obj, WaspStage::Compiler, "Cannot print a null object");
 
     Doctor::get().assert(
-        obj->is<FunctionObject_ptr>(), WaspStage::Compiler, "Can only print FunctionObjects"
-    );
+        obj->is<StaticFunctionObject_ptr>(),
+        WaspStage::Compiler,
+        "Can only print FunctionObjects");
 
-    auto function_obj = obj->as<FunctionObject_ptr>();
+    auto function_obj = obj->as<StaticFunctionObject_ptr>();
     print(function_obj, out);
 }
 
@@ -169,7 +170,8 @@ void InstructionPrinter::print_bytecode(
     }
 }
 
-void InstructionPrinter::print(const FunctionObject_ptr function_obj, std::ostream& out) {
+void InstructionPrinter::print(const StaticFunctionObject_ptr function_obj, std::ostream& out)
+{
     print_bytecode(
         function_obj->code, function_obj->id_to_name_map, function_obj->id_to_name_upvalues_map, out
     );
@@ -187,8 +189,9 @@ void InstructionPrinter::print_pool_functions(std::ostream& out) {
     for (size_t i = 0; i < ws->pool->get_size(); i++) {
         auto obj = ws->pool->get(i);
 
-        if (obj && obj->is<std::shared_ptr<FunctionObject>>()) {
-            auto func_obj = obj->as<std::shared_ptr<FunctionObject>>();
+        if (obj && obj->is<std::shared_ptr<StaticFunctionObject>>())
+        {
+            auto func_obj = obj->as<std::shared_ptr<StaticFunctionObject>>();
 
             out << "--- Pool Index " << i << " (" << func_obj->name << ") ---\n";
             print(func_obj, out);

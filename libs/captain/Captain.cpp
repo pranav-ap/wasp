@@ -96,9 +96,10 @@ void Captain::type_check_and_link(const std::vector<Module_ptr>& build_order) {
 void Captain::compile(const std::vector<Module_ptr>& build_order) {
     for (const auto& module : build_order) {
         bool is_main = (module->file_path == entry_file);
+        auto module_name = module->get_name();
 
         Compiler compiler(workspace);
-        auto function_object = compiler.run(module->stmts, is_main);
+        auto function_object = compiler.run(module->stmts, module_name, is_main);
         module->blueprint = std::move(function_object);
 
         dump_build_artifacts(workspace, module->file_path, module->blueprint);

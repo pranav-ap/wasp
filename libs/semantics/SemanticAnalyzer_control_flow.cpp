@@ -3,7 +3,7 @@
 #include "Expression.h"
 #include "Objects.h"
 #include "Statement.h"
-#include "Symbol.h"
+
 #include "SymbolScope.h"
 
 #include <ctime>

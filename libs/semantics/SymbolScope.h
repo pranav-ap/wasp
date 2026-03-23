@@ -1,7 +1,8 @@
 #pragma once
 
-#include "Symbol.h"
-#include <algorithm>
+#include "Workspace.h"
+
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -31,7 +32,7 @@ private:
     int closure_depth;
     int lexical_depth;
 
-    SymbolVector symbols;
+    std::map<std::string, SymbolVector> symbols;
 
     Symbol_ptr define_function(Symbol_ptr symbol);
 
@@ -56,13 +57,7 @@ public:
     SymbolVector get_sibling_overloads(const std::string& name) const;
     Symbol_ptr get_parent_overload(const std::string& name) const;
 
-    bool contains_in_current_scope(const std::string& name) const
-    {
-        return std::any_of(
-            symbols.begin(),
-            symbols.end(),
-            [&](const Symbol_ptr& s) { return s->name == name; });
-    }
+    bool contains_in_current_scope(const std::string& name) const { return symbols.contains(name); }
 
     bool contains_in_any_scope(std::string name) const { return lookup(name) != nullptr; }
 

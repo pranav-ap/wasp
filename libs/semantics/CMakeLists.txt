@@ -15,6 +15,6 @@ add_library(
     SymbolHoister.cpp
 )
 
-target_link_libraries(SemanticAnalyzerLib PUBLIC TokenLib ASTLib SymbolLib ObjectSystemLib WorkspaceLib DoctorLib)
+target_link_libraries(SemanticAnalyzerLib PUBLIC TokenLib ASTLib  ObjectSystemLib WorkspaceLib DoctorLib)
 
 target_include_directories(SemanticAnalyzerLib PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR})

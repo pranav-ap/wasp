@@ -34,7 +34,8 @@ Compiler::Compiler(Compiler* parent)
     graph.set_entry_block(current_block_id);
 }
 
-FunctionObject_ptr Compiler::run(const StatementVector& block, bool is_main) {
+StaticFunctionObject_ptr Compiler::run(const StatementVector& block, std::string name, bool is_main)
+{
     if (is_main) {
         emit(OpCode::ENTER_WORKSPACE);
     }
@@ -57,9 +58,11 @@ FunctionObject_ptr Compiler::run(const StatementVector& block, bool is_main) {
     }
 
     CodeObject final_code = flatten();
-    auto function_object = std::make_shared<FunctionObject>(
-        std::move(final_code), "<main>", id_to_name_map, id_to_upvalue_name_map
-    );
+    auto function_object = std::make_shared<StaticFunctionObject>(
+        std::move(final_code),
+        name,
+        id_to_name_map,
+        id_to_upvalue_name_map);
 
     return function_object;
 }
