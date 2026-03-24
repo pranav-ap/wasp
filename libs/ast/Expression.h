@@ -147,10 +147,12 @@ struct Identifier : public Resolvable
 
 // a.b
 // a.b.c().d
-struct MemberAccess : public Resolvable
+struct MemberAccess
 {
     Expression_ptr left;
     Expression_ptr right;
+
+    int member_index = -1;
 
     MemberAccess() = default;
     MemberAccess(Expression_ptr left, Expression_ptr right)
@@ -164,7 +166,7 @@ struct MemberAccess : public Resolvable
 // a.b.process()
 // create_function()()
 // a.b().c()
-struct Call : public Resolvable
+struct Call
 {
     Expression_ptr callable;
     ExpressionVector arguments;

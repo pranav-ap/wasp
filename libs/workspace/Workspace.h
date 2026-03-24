@@ -159,7 +159,7 @@ public:
 
 struct Module
 {
-    const std::filesystem::path file_path;
+    const std::filesystem::path absolute_filepath;
 
     StatementVector stmts;
     CFGraph graph;
@@ -171,11 +171,11 @@ struct Module
     Module() = default;
 
     Module(std::filesystem::path file_path, StatementVector stmts)
-        : file_path(file_path), stmts(stmts)
+        : absolute_filepath(file_path), stmts(stmts)
     {
     }
 
-    std::string get_name() const { return file_path.stem().string(); }
+    std::string get_name() const { return absolute_filepath.stem().string(); }
 
     std::map<std::string, SymbolVector> get_exports() const
     {
@@ -187,7 +187,7 @@ struct Module
     {
         SymbolVector all_symbols;
 
-        for (const auto& [_, symbols] : get_exports())
+        for (const auto& [_, symbols] : hoisted_symbols)
         {
             all_symbols.insert(all_symbols.end(), symbols.begin(), symbols.end());
         }

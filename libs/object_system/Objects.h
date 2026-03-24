@@ -4,6 +4,7 @@
 #include "Doctor.h"
 
 #include <cstddef>
+#include <filesystem>
 #include <functional>
 #include <map>
 #include <memory>
@@ -170,6 +171,7 @@ struct StaticFunctionObject : public CompositeObject
     CodeObject code;
 
     std::vector<int> parameter_symbol_ids;
+    std::vector<int> exported_symbol_ids;
 
     std::string name;
     std::map<int, std::string> symbol_id_to_name_map;
@@ -180,10 +182,12 @@ struct StaticFunctionObject : public CompositeObject
     StaticFunctionObject(
         CodeObject code,
         std::vector<int> parameter_symbol_ids,
+        std::vector<int> exported_symbol_ids,
         std::string name,
         std::map<int, std::string> symbol_id_to_name_map,
         std::map<int, std::string> upvalue_index_to_name_map)
         : code(std::move(code)), name(std::move(name)), parameter_symbol_ids(parameter_symbol_ids),
+          exported_symbol_ids(std::move(exported_symbol_ids)),
           symbol_id_to_name_map(std::move(symbol_id_to_name_map)),
           upvalue_index_to_name_map(std::move(upvalue_index_to_name_map))
     {
@@ -244,15 +248,12 @@ struct NativeFunctionObject : public CompositeObject
 struct ModuleObject : public CompositeObject
 {
     std::string name;
-    std::map<std::string, Object_ptr> members;
+    ObjectVector members;
 
-    ModuleObject(std::string name, std::map<std::string, Object_ptr> members)
+    ModuleObject(std::string name, ObjectVector members)
         : name(std::move(name)), members(std::move(members))
     {
     }
-
-    Object_ptr get_member(const std::string& member_name);
-    void set_member(const std::string& member_name, Object_ptr value);
 };
 
 // Action Objects
@@ -422,30 +423,22 @@ struct RecordType
     }
 };
 
+struct Symbol;
+
 struct ModuleType : public CompositeType
 {
-    std::map<std::string, std::vector<Object_ptr>> exports;
+    std::string module_name;
+    std::filesystem::path absolute_filepath;
 
-    ModuleType() = default;
+    std::vector<std::shared_ptr<Symbol>> exported_symbols;
 
-    void add_member(const std::string& member_name, Object_ptr member_type)
+    ModuleType(
+        std::string module_name,
+        std::filesystem::path absolute_filepath,
+        std::vector<std::shared_ptr<Symbol>> exported_symbols)
+        : module_name(std::move(module_name)), absolute_filepath(std::move(absolute_filepath)),
+          exported_symbols(std::move(exported_symbols))
     {
-        exports[member_name].push_back(std::move(member_type));
-    }
-
-    bool contains_member(const std::string& member_name) const
-    {
-        return exports.contains(member_name);
-    }
-
-    std::vector<Object_ptr> get_member_type(const std::string& member_name) const
-    {
-        if (auto it = exports.find(member_name); it != exports.end())
-        {
-            return it->second;
-        }
-
-        return {};
     }
 };
 

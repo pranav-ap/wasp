@@ -5,7 +5,6 @@
 
 #include <memory>
 #include <utility>
-#include <vector>
 
 namespace Wasp
 {
@@ -25,7 +24,6 @@ public:
     {
     }
 
-    void run(const std::vector<Module_ptr>& build_order);
     void run(Module_ptr module);
 };
 

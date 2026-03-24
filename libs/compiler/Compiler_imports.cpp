@@ -21,7 +21,7 @@ void Compiler::visit(SimpleImport& import_stmt)
     auto module_symbol = import_stmt.symbol;
     auto module_payload = module_symbol->get_payload_as<ModuleData>();
 
-    int path_index = workspace->pool->allocate(module_payload.mod->file_path.string());
+    int path_index = workspace->pool->allocate(module_payload.mod->absolute_filepath.string());
 
     // Tell the VM to execute this module and push a ModuleObject onto the stack
     emit(OpCode::IMPORT, path_index);
@@ -40,7 +40,7 @@ void Compiler::visit(FromImport& import_stmt)
     auto module_symbol = import_stmt.symbol;
     auto module_payload = module_symbol->get_payload_as<ModuleData>();
 
-    int path_index = workspace->pool->allocate(module_payload.mod->file_path.string());
+    int path_index = workspace->pool->allocate(module_payload.mod->absolute_filepath.string());
 
     // Tell the VM to load the module onto the stack
     // Stack: [ Module ]
@@ -72,12 +72,9 @@ void Compiler::visit(FromImport& import_stmt)
                 original_id = overload_symbol->id;
             }
 
-            // Allocate the Integer ID to the constant pool instead of a string
-            int member_id_index = workspace->pool->allocate(workspace->pool->allocate(original_id));
-
             // Fetch the function from the module!
             // Stack: [ Module, Function ]
-            emit(OpCode::GET_MEMBER, member_id_index);
+            emit(OpCode::GET_MEMBER, original_id);
 
             // Save the function to the current scope using the NEW ALIAS ID
             symbol_id_to_name_map[overload_symbol->id] = overload_symbol->name;

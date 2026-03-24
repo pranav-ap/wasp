@@ -31,8 +31,8 @@ using ByteVector = std::vector<std::byte>;
     X(SET_LOCAL, 1)    /* [val] -> [] | <Symbol ID> (Assign to existing local) */                  \
     X(GET_LOCAL, 1)    /* [] -> [val] | <Symbol ID> (Read local onto stack) */                     \
     X(GET_NATIVE, 1)   /* [] -> [val] | <Symbol ID> or Native Registry Index */                    \
-    X(SET_MEMBER, 1)   /* [obj, val] -> [] | <Member ID> (Points to IntObject ID) */               \
-    X(GET_MEMBER, 1)   /* [obj] -> [val] | <Member ID> (Points to IntObject ID) */                 \
+    X(SET_MEMBER, 1)   /* [obj, val] -> [] | <Member ID>  */                                       \
+    X(GET_MEMBER, 1)   /* [obj] -> [val] | <Member ID>  */                                         \
     X(PUSH_SCOPE, 0)   /* Enter new lexical block scope */                                         \
     X(POP_SCOPE, 0)    /* Exit current lexical block scope */                                      \
     X(IMPORT, 1)       /* [] -> [Module] | <Constant Pool ID> (Points to String path) */           \

@@ -85,15 +85,8 @@ void SymbolHoister::hoist(Module_ptr mod)
 void SymbolHoister::run(Module_ptr mod)
 {
     hoist(mod);
-    mod->hoisted_symbols = current_scope->get_all_symbols();
-}
 
-void SymbolHoister::run(const std::vector<Module_ptr>& build_order)
-{
-    for (const auto& module : build_order)
-    {
-        run(module);
-    }
+    auto hoisted_symbols = current_scope->get_all_symbols();
+    mod->hoisted_symbols = hoisted_symbols;
 }
-
 } // namespace Wasp

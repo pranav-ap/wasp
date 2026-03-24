@@ -177,7 +177,8 @@ public:
     StaticFunctionObject_ptr run(
         const StatementVector& block,
         std::string name,
-        bool is_main = false);
+        bool is_main = false,
+        std::vector<int> exported_symbol_ids = {});
 };
 
 using Compiler_ptr = std::shared_ptr<Compiler>;

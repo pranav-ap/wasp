@@ -162,6 +162,7 @@ namespace Wasp
     int ConstantPool::allocate_function_definition(
         CodeObject code,
         std::vector<int> parameter_symbol_ids,
+        std::vector<int> exported_symbol_ids,
         std::string name,
         std::map<int, std::string> symbol_id_to_name_map,
         std::map<int, std::string> upvalue_index_to_name_map)
@@ -169,6 +170,7 @@ namespace Wasp
         auto func_obj = std::make_shared<StaticFunctionObject>(
             std::move(code),
             std::move(parameter_symbol_ids),
+            std::move(exported_symbol_ids),
             std::move(name),
             std::move(symbol_id_to_name_map),
             std::move(upvalue_index_to_name_map));

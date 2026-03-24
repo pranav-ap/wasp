@@ -8,7 +8,6 @@
 #include <cstddef>
 #include <map>
 #include <memory>
-#include <string>
 #include <utility>
 #include <vector>
 
@@ -64,8 +63,8 @@ class VM
     void execute_exit_module();
 
     void execute_member(OpCode op, CallFrame* frame);
-    Object_ptr perform_get_member(Object_ptr obj, const std::string& name);
-    void perform_set_member(Object_ptr obj, const std::string& name, Object_ptr value);
+    Object_ptr perform_get_member(Object_ptr obj, int member_index);
+    void perform_set_member(Object_ptr obj, int member_index, Object_ptr value);
 
     // Unary Ops
 

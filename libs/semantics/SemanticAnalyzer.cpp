@@ -7,10 +7,12 @@
 #include "SymbolScope.h"
 #include "Workspace.h"
 
+#include <algorithm>
 #include <ctime>
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -30,19 +32,28 @@ namespace Wasp
 
 void SemanticAnalyzer::extract_module_type(Module_ptr module)
 {
-    auto module_type = ModuleType();
+    auto exports = module->get_flat_exports();
 
-    for (const auto& symbol : module->get_flat_exports())
+    // Sort the exports by Symbol ID.
+    // This perfectly mirrors how the VM will pack its physical array!
+    std::sort(
+        exports.begin(),
+        exports.end(),
+        [](const Symbol_ptr& a, const Symbol_ptr& b) { return a->id < b->id; });
+
+    // Validate that everything has a type
+    for (const auto& symbol : exports)
     {
-        Object_ptr type = symbol->get_type();
-
         Doctor::get().fatal_if_nullptr(
-            type,
+            symbol->get_type(),
             WaspStage::Semantics,
             "Symbol '" + symbol->name + "' has no type information");
-
-        module_type.add_member(symbol->name, type);
     }
+
+    auto module_type = ModuleType(
+        module->get_name(),
+        module->absolute_filepath,
+        std::move(exports));
 
     module->type = make_object(module_type);
 }

@@ -15,11 +15,15 @@ TEST(Semantics, Simple) {
 
     auto module = std::make_shared<Wasp::Module>("test.wasp", stmts);
 
-    workspace->add_module(module->file_path, module);
+    workspace->add_module(module->absolute_filepath, module);
     std::vector<Wasp::Module_ptr> build_order = {module};
 
     Wasp::SymbolHoister hoister(workspace);
-    hoister.run(build_order);
+
+    for (const auto& mod : build_order)
+    {
+        hoister.run(mod);
+    }
 
     Wasp::SemanticAnalyzer semantic_analyzer(workspace);
 

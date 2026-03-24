@@ -48,6 +48,7 @@ void Compiler::visit(FunctionDefinition& function_definition)
     int const_id = workspace->pool->allocate_function_definition(
         std::move(code),
         std::move(func_compiler_parameter_symbol_ids),
+        std::vector<int>{},
         function_definition.name,
         std::move(func_compiler.symbol_id_to_name_map),
         std::move(func_compiler.upvalue_index_to_name_map));

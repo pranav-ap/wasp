@@ -309,24 +309,5 @@ namespace Wasp
     // VariantObject
     // ============================================================================
 
-    bool VariantObject::has_value()
-    {
-        return value != nullptr && !value->is<std::monostate>();
-    }
-
-    // ============================================================================
-    // ModuleObject
-    // ============================================================================
-
-    Object_ptr ModuleObject::get_member(const std::string& member_name) {
-        auto it = members.find(member_name);
-        if (it != members.end()) {
-            return it->second;
-        }
-        return nullptr;
-    }
-
-    void ModuleObject::set_member(const std::string& member_name, Object_ptr value) {
-        members[member_name] = value;
-    }
+    bool VariantObject::has_value() { return value != nullptr && !value->is<std::monostate>(); }
 }

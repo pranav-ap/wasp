@@ -138,13 +138,16 @@ void VM::execute_control_flow(OpCode op, CallFrame* frame)
 
 void VM::execute_make_function(CallFrame* frame)
 {
+    // How many upvalues to capture?
     int upvalue_count = static_cast<int>(frame->consume_byte());
+
+    // The StaticFunctionObject pushed by LOAD_CONST
     Object_ptr blueprint_obj = pop_from_stack();
 
     Doctor::get().assert(
         blueprint_obj->is<std::shared_ptr<StaticFunctionObject>>(),
         WaspStage::VM,
-        "MAKE_FUNCTION expects a FunctionObject to pop");
+        "MAKE_FUNCTION expects a StaticFunctionObject to pop");
 
     auto blueprint = blueprint_obj->as<std::shared_ptr<StaticFunctionObject>>();
 
@@ -154,24 +157,32 @@ void VM::execute_make_function(CallFrame* frame)
     for (int i = 0; i < upvalue_count; i++)
     {
         bool is_local_to_parent = (frame->consume_byte() == std::byte{1});
+
         int id_or_index = static_cast<int>(frame->consume_byte());
 
         if (is_local_to_parent)
         {
+            // Capture a variable from the current frame's stack
             Doctor::get().assert(
                 frame->symbol_id_to_stack_index.contains(id_or_index),
                 WaspStage::VM,
-                "Closure attempted to capture an uninitialized variable!");
+                "Closure attempted to capture an unknown symbol ID: " +
+                    std::to_string(id_or_index));
 
-            captured_upvalues.push_back(stack[frame->symbol_id_to_stack_index[id_or_index]]);
+            size_t stack_idx = frame->symbol_id_to_stack_index.at(id_or_index);
+            captured_upvalues.push_back(stack[stack_idx]);
         }
         else
         {
+            // Capture an upvalue that the current function already holds
             captured_upvalues.push_back(frame->function->upvalues[id_or_index]);
         }
     }
 
-    auto runtime_closure = std::make_shared<RuntimeFunctionObject>(blueprint, captured_upvalues);
+    auto runtime_closure = std::make_shared<RuntimeFunctionObject>(
+        blueprint,
+        std::move(captured_upvalues));
+
     push_to_stack(make_object(runtime_closure));
 }
 
@@ -280,32 +291,30 @@ void VM::execute_exit_module()
     CallFrame& frame = frames.back();
     size_t bp = frame.base_pointer;
 
-    std::map<std::string, Object_ptr> exported_members;
+    ObjectVector exported_members;
 
-    // Loop through the blueprint's list of declared symbols
-    for (const auto& [symbol_id, name] : frame.function->blueprint->symbol_id_to_name_map)
+    // We ONLY export what the compiler explicitly marked as an export.
+    // This perfectly matches the index calculation in the Semantic Analyzer.
+    for (int symbol_id : frame.function->blueprint->exported_symbol_ids)
     {
-        // Look up where this symbol is physically located on the stack right now
-        auto it = frame.symbol_id_to_stack_index.find(symbol_id);
-
         Doctor::get().assert(
-            it != frame.symbol_id_to_stack_index.end(),
+            frame.symbol_id_to_stack_index.contains(symbol_id),
             WaspStage::VM,
-            "Exported symbol not found in active locals");
+            "Exported symbol ID " + std::to_string(symbol_id) + " not found on stack");
 
-        size_t physical_stack_index = it->second;
-        Object_ptr value = stack[physical_stack_index];
+        size_t vm_stack_index = frame.symbol_id_to_stack_index.at(symbol_id);
+        Object_ptr value = stack[vm_stack_index];
 
-        Doctor::get().fatal_if_nullptr(value, WaspStage::VM, "Exported symbol has no value");
+        Doctor::get().fatal_if_nullptr(value, WaspStage::VM, "Exported symbol is null");
 
-        exported_members[name] = value;
+        exported_members.push_back(value);
     }
 
     auto exports = std::make_shared<ModuleObject>(
         frame.function->blueprint->name,
         std::move(exported_members));
 
-    // Clean up the stack and pop the module's CallFrame
+    // Stack cleanup
     stack.erase(stack.begin() + bp, stack.end());
     frames.pop_back();
 

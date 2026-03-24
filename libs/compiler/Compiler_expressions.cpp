@@ -97,10 +97,7 @@ void Compiler::visit(MemberAccess& expr)
 {
     visit(expr.left);
 
-    auto& right_identifier = expr.right->as<Identifier>();
-
-    int name_index = workspace->pool->allocate(right_identifier.name);
-    emit(OpCode::GET_MEMBER, name_index);
+    emit(OpCode::GET_MEMBER, expr.member_index);
 }
 
 void Compiler::visit(Call& expr)

@@ -127,19 +127,37 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
 
     std::string member_name = expr.right->as<Identifier>().name;
 
+    // --- STATIC ID ROUTING CALCULATION ---
+
+    int found_index = -1;
+    Symbol_ptr found_symbol = nullptr;
+    int match_count = 0;
+
+    for (size_t i = 0; i < module_type.exported_symbols.size(); i++)
+    {
+        if (module_type.exported_symbols[i]->name == member_name)
+        {
+            found_index = static_cast<int>(i);
+            found_symbol = module_type.exported_symbols[i];
+            match_count++;
+        }
+    }
+
     Doctor::get().assert(
-        module_type.contains_member(member_name),
+        match_count > 0,
         WaspStage::Semantics,
         "Module does not contain member '" + member_name + "'");
 
-    auto member_type = module_type.get_member_type(member_name);
-
     Doctor::get().assert(
-        member_type.size() == 1,
+        match_count == 1,
         WaspStage::Semantics,
-        "Only functions are allowed to overload");
+        "Cannot access overloaded function '" + member_name +
+            "' as a standalone variable without calling it.");
 
-    return member_type[0];
+    // BAKE THE STATIC INDEX INTO THE AST!
+    expr.member_index = found_index;
+
+    return found_symbol->get_type();
 }
 
 Object_ptr SemanticAnalyzer::visit(Call& call_expr)
@@ -192,31 +210,43 @@ Object_ptr SemanticAnalyzer::evaluate_member_access_call(
 {
     auto& mac = callable_expr->as<MemberAccess>();
 
+    // module.function()
     Doctor::get().assert(
         mac.left->is<Identifier>() && mac.right->is<Identifier>(),
         WaspStage::Semantics,
         "Supports calls of the form module.function()");
 
-    std::string module_name = mac.left->as<Identifier>().name;
-    std::string func_name = mac.right->as<Identifier>().name;
+    auto& left_id = mac.left->as<Identifier>();
+    auto& right_id = mac.right->as<Identifier>();
 
-    Symbol_ptr module_symbol = current_scope->lookup_solo(module_name);
+    Symbol_ptr module_symbol = current_scope->lookup_solo(left_id.name);
     Doctor::get().fatal_if_nullptr(module_symbol, WaspStage::Semantics);
 
-    mac.left->as<Identifier>().symbol = module_symbol;
-
-    if (module_symbol->should_be_captured(current_scope->get_closure_depth()))
-    {
-        mac.left->as<Identifier>().must_be_captured = true;
-    }
+    left_id.symbol = module_symbol;
 
     Symbol_ptr function_symbol = type_checker->resolve_module_function_overload(
         current_scope,
-        module_name,
-        func_name,
+        left_id.name,
+        right_id.name,
         arg_types);
 
-    mac.right->as<Identifier>().symbol = function_symbol;
+    // Map to Static Index
+    const auto& module_type = module_symbol->get_type()->as<ModuleType>();
+
+    bool found = false;
+    for (size_t i = 0; i < module_type.exported_symbols.size(); i++)
+    {
+        if (module_type.exported_symbols[i]->id == function_symbol->id)
+        {
+            mac.member_index = static_cast<int>(i);
+            found = true;
+            break;
+        }
+    }
+
+    Doctor::get().assert(found, WaspStage::Semantics, "Overload not found in module.");
+
+    right_id.symbol = function_symbol;
 
     return function_symbol->get_payload_as<FunctionData>().get_return_type();
 }

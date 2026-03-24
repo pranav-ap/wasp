@@ -9,10 +9,10 @@
 #include "VM.h"
 #include "Workspace.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <memory>
 #include <string>
-#include <utility>
 #include <vector>
 
 template <class... Ts> struct overloaded : Ts...
@@ -93,8 +93,12 @@ std::vector<Module_ptr> Captain::calculate_build_order()
 
 void Captain::hoist_symbols(const std::vector<Module_ptr>& build_order)
 {
-    SymbolHoister hoister(workspace);
-    hoister.run(build_order);
+
+    for (const auto& mod : build_order)
+    {
+        SymbolHoister hoister(workspace);
+        hoister.run(mod);
+    }
 }
 
 void Captain::type_check_and_link(const std::vector<Module_ptr>& build_order)
@@ -107,13 +111,23 @@ void Captain::compile(const std::vector<Module_ptr>& build_order)
 {
     for (const auto& module : build_order)
     {
-        bool is_main = (module->file_path == entry_file);
+        bool is_main = (module->absolute_filepath == entry_file);
         auto module_name = module->get_name();
 
-        Compiler compiler(workspace);
-        module->blueprint = compiler.run(module->stmts, module_name, is_main);
+        std::vector<int> export_ids;
 
-        dump_build_artifacts(workspace, module->file_path, module->blueprint);
+        for (const auto& sym : module->get_flat_exports())
+        {
+            export_ids.push_back(sym->id);
+        }
+
+        std::sort(export_ids.begin(), export_ids.end());
+
+        Compiler compiler(workspace);
+        // Pass the sorted export_ids into the blueprint!
+        module->blueprint = compiler.run(module->stmts, module_name, is_main, export_ids);
+
+        dump_build_artifacts(workspace, module->absolute_filepath, module->blueprint);
     }
 }
 
