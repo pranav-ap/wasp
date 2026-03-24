@@ -26,7 +26,7 @@ void VM::execute_member(OpCode op, CallFrame* frame)
         WaspStage::VM,
         "Member name in constant pool must be a string.");
 
-    std::string member_name = std::get<StringObject>(name_obj->value).value;
+    const std::string& member_name = std::get<StringObject>(name_obj->value).value;
 
     // Perform the operation
     if (op == OpCode::GET_MEMBER)

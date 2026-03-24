@@ -7,11 +7,11 @@ import my.dogs
 dogs.print_dogs()
 
 
-fun greet()
-    print('Yo!')
-
 fun greet(message: str)
     print(message)
+
+fun greet()
+    print('Yo!')
 
 
 greet('Hello again')

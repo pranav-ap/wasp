@@ -72,6 +72,9 @@ void SemanticAnalyzer::visit(FunctionDefinition& func_def)
     enter_scope(ScopeType::FUNCTION);
     return_type_stack.push_back(resolved_return_type);
 
+    // Ensure the AST vector is empty before we populate it
+    func_def.parameter_symbols.clear();
+
     // Define Parameters as Local Variables in the New Scope
     for (size_t i = 0; i < parameter_names.size(); ++i)
     {
@@ -83,6 +86,9 @@ void SemanticAnalyzer::visit(FunctionDefinition& func_def)
             current_scope->get_lexical_depth());
 
         current_scope->define(param_symbol);
+
+        // SAVE the resolved symbol directly onto the AST Node
+        func_def.parameter_symbols.push_back(param_symbol);
     }
 
     visit(func_def.body);

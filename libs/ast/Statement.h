@@ -66,7 +66,10 @@ struct EnumDefinition : public Definition {
 
 struct FunctionDefinition : public Definition {
     std::string name;
+
     std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters;
+    std::vector<std::shared_ptr<Symbol>> parameter_symbols;
+
     TypeAnnotation_ptr return_type;
     StatementVector body;
 

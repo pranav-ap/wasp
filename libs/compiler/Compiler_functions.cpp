@@ -28,6 +28,14 @@ void Compiler::visit(FunctionDefinition& function_definition)
     Compiler func_compiler(this);
 
     func_compiler.enter_scope();
+
+    std::vector<int> func_compiler_parameter_symbol_ids;
+    for (const auto& param_symbol : function_definition.parameter_symbols)
+    {
+        func_compiler_parameter_symbol_ids.push_back(param_symbol->id);
+        func_compiler.symbol_id_to_name_map[param_symbol->id] = param_symbol->name;
+    }
+
     func_compiler.visit(function_definition.body);
     func_compiler.leave_scope();
 
@@ -39,6 +47,7 @@ void Compiler::visit(FunctionDefinition& function_definition)
     // Store the code in the constant pool
     int const_id = workspace->pool->allocate_function_definition(
         std::move(code),
+        std::move(func_compiler_parameter_symbol_ids),
         function_definition.name,
         std::move(func_compiler.symbol_id_to_name_map),
         std::move(func_compiler.upvalue_index_to_name_map));

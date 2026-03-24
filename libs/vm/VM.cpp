@@ -50,7 +50,7 @@ void VM::execute_variable(OpCode op, CallFrame* frame)
     case OpCode::DEFINE_LOCAL:
     {
         int symbol_id = static_cast<int>(frame->consume_byte());
-        frame->active_locals[symbol_id] = stack.size() - 1;
+        frame->symbol_id_to_stack_index[symbol_id] = stack.size() - 1;
         break;
     }
     case OpCode::SET_LOCAL:
@@ -58,11 +58,11 @@ void VM::execute_variable(OpCode op, CallFrame* frame)
         int symbol_id = static_cast<int>(frame->consume_byte());
 
         Doctor::get().assert(
-            frame->active_locals.contains(symbol_id),
+            frame->symbol_id_to_stack_index.contains(symbol_id),
             WaspStage::VM,
             "Assignment to uninitialized local variable!");
 
-        stack[frame->active_locals[symbol_id]] = peek_tos();
+        stack[frame->symbol_id_to_stack_index[symbol_id]] = peek_tos();
         break;
     }
     case OpCode::GET_LOCAL:
@@ -70,11 +70,11 @@ void VM::execute_variable(OpCode op, CallFrame* frame)
         int symbol_id = static_cast<int>(frame->consume_byte());
 
         Doctor::get().assert(
-            frame->active_locals.contains(symbol_id),
+            frame->symbol_id_to_stack_index.contains(symbol_id),
             WaspStage::VM,
             "Read from uninitialized local variable!");
 
-        push_to_stack(stack[frame->active_locals[symbol_id]]);
+        push_to_stack(stack[frame->symbol_id_to_stack_index[symbol_id]]);
         break;
     }
 
@@ -119,6 +119,7 @@ void VM::execute_variable(OpCode op, CallFrame* frame)
         break;
     }
 }
+
 void VM::execute_control_flow(OpCode op, CallFrame* frame)
 {
     uint8_t low = static_cast<uint8_t>(frame->consume_byte());
@@ -138,8 +139,6 @@ void VM::execute_control_flow(OpCode op, CallFrame* frame)
 void VM::execute_make_function(CallFrame* frame)
 {
     int upvalue_count = static_cast<int>(frame->consume_byte());
-
-    // Pop the function blueprint from the stack (put there by LOAD_CONST)
     Object_ptr blueprint_obj = pop_from_stack();
 
     Doctor::get().assert(
@@ -149,30 +148,31 @@ void VM::execute_make_function(CallFrame* frame)
 
     auto blueprint = blueprint_obj->as<std::shared_ptr<StaticFunctionObject>>();
 
-    // Prepare the upvalues
-
     ObjectVector captured_upvalues;
     captured_upvalues.reserve(upvalue_count);
 
     for (int i = 0; i < upvalue_count; i++)
     {
-        bool is_local = (frame->consume_byte() == std::byte{1});
-        uint8_t index = static_cast<uint8_t>(frame->consume_byte());
+        bool is_local_to_parent = (frame->consume_byte() == std::byte{1});
+        int id_or_index = static_cast<int>(frame->consume_byte());
 
-        if (is_local)
+        if (is_local_to_parent)
         {
-            captured_upvalues.push_back(stack[frame->base_pointer + index]);
+            Doctor::get().assert(
+                frame->symbol_id_to_stack_index.contains(id_or_index),
+                WaspStage::VM,
+                "Closure attempted to capture an uninitialized variable!");
+
+            captured_upvalues.push_back(stack[frame->symbol_id_to_stack_index[id_or_index]]);
         }
         else
         {
-            captured_upvalues.push_back(frame->function->upvalues[index]);
+            captured_upvalues.push_back(frame->function->upvalues[id_or_index]);
         }
     }
 
     auto runtime_closure = std::make_shared<RuntimeFunctionObject>(blueprint, captured_upvalues);
-
-    Object_ptr closure_obj = make_object(runtime_closure);
-    push_to_stack(closure_obj);
+    push_to_stack(make_object(runtime_closure));
 }
 
 void VM::execute_call(CallFrame* frame)
@@ -185,7 +185,18 @@ void VM::execute_call(CallFrame* frame)
             [&](std::shared_ptr<RuntimeFunctionObject>& func)
             {
                 size_t new_base_pointer = stack.size() - arg_count;
+
+                // Create the new frame
                 frames.emplace_back(func, new_base_pointer);
+                CallFrame& new_frame = frames.back();
+
+                // Map the physical arguments to their Symbol IDs
+                for (int i = 0; i < arg_count; ++i)
+                {
+                    int param_symbol_id = func->blueprint->parameter_symbol_ids[i];
+                    new_frame.symbol_id_to_stack_index[param_symbol_id] = new_base_pointer + i;
+                }
+
                 // The main execution loop will automatically start reading
                 // the new function's bytecode on the next iteration
             },
@@ -275,10 +286,10 @@ void VM::execute_exit_module()
     for (const auto& [symbol_id, name] : frame.function->blueprint->symbol_id_to_name_map)
     {
         // Look up where this symbol is physically located on the stack right now
-        auto it = frame.active_locals.find(symbol_id);
+        auto it = frame.symbol_id_to_stack_index.find(symbol_id);
 
         Doctor::get().assert(
-            it != frame.active_locals.end(),
+            it != frame.symbol_id_to_stack_index.end(),
             WaspStage::VM,
             "Exported symbol not found in active locals");
 
@@ -422,6 +433,12 @@ void VM::run(StaticFunctionObject_ptr function_object)
 
         case OpCode::RETURN:
             execute_return(frame);
+
+            if (frames.empty())
+            {
+                return;
+            }
+
             break;
 
         default:

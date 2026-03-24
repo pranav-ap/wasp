@@ -169,6 +169,8 @@ struct StaticFunctionObject : public CompositeObject
 {
     CodeObject code;
 
+    std::vector<int> parameter_symbol_ids;
+
     std::string name;
     std::map<int, std::string> symbol_id_to_name_map;
     std::map<int, std::string> upvalue_index_to_name_map;
@@ -177,10 +179,11 @@ struct StaticFunctionObject : public CompositeObject
 
     StaticFunctionObject(
         CodeObject code,
+        std::vector<int> parameter_symbol_ids,
         std::string name,
         std::map<int, std::string> symbol_id_to_name_map,
         std::map<int, std::string> upvalue_index_to_name_map)
-        : code(std::move(code)), name(std::move(name)),
+        : code(std::move(code)), name(std::move(name)), parameter_symbol_ids(parameter_symbol_ids),
           symbol_id_to_name_map(std::move(symbol_id_to_name_map)),
           upvalue_index_to_name_map(std::move(upvalue_index_to_name_map))
     {

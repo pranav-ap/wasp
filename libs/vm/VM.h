@@ -24,7 +24,7 @@ struct CallFrame
     size_t base_pointer = 0;
 
     std::vector<size_t> scope_bases;
-    std::map<int, size_t> active_locals;
+    std::map<int, size_t> symbol_id_to_stack_index;
 
     CallFrame(RuntimeFunctionObject_ptr func, size_t bp)
         : function(std::move(func)), base_pointer(bp)

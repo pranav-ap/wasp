@@ -60,6 +60,7 @@ StaticFunctionObject_ptr Compiler::run(const StatementVector& block, std::string
 
     auto function_object = std::make_shared<StaticFunctionObject>(
         std::move(final_code),
+        std::vector<int>{},
         name,
         symbol_id_to_name_map,
         upvalue_index_to_name_map);
