@@ -103,7 +103,7 @@ Symbol_ptr SymbolScope::lookup_solo(const std::string& name) const
                 "Expected only one symbol with name '" + name + "' in this scope, but found " +
                     std::to_string(current->symbols.at(name).size()));
 
-            return current->symbols.at(name).front();
+            return current->symbols.at(name).front()->resolve();
         }
 
         current = current->enclosing_scope.get();

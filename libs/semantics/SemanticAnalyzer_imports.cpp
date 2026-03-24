@@ -16,13 +16,27 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp {
 
-void SemanticAnalyzer::visit(SimpleImport& import_stmt) {
+void SemanticAnalyzer::visit(SimpleImport& import_stmt)
+{
     auto mod = workspace->get_module(import_stmt.absolute_path);
     Doctor::get().fatal_if_nullptr(mod, WaspStage::Semantics, "Failed to load module");
 
     Symbol_ptr module_symbol = SymbolFactory::create_module(mod->get_name(), mod);
-    current_scope->define(module_symbol);
 
+    if (import_stmt.alias.has_value())
+    {
+        Symbol_ptr alias_symbol = SymbolFactory::create_alias(
+            import_stmt.alias.value(),
+            module_symbol);
+
+        current_scope->define(alias_symbol);
+
+        import_stmt.symbol = module_symbol;
+
+        return;
+    }
+
+    current_scope->define(module_symbol);
     import_stmt.symbol = module_symbol;
 }
 

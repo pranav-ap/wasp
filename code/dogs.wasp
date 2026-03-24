@@ -1,2 +1,5 @@
 fun print_dogs()
     print('dogs')
+
+fun print_dogs(a: int)
+    print('dogs integer')

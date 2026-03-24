@@ -4,6 +4,7 @@
 
 #include "SymbolScope.h"
 #include "Token.h"
+#include "Workspace.h"
 
 #include <algorithm>
 #include <cstddef>
