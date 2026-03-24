@@ -74,11 +74,12 @@ void SemanticAnalyzer::run(const std::vector<Module_ptr>& build_order)
 
 void SemanticAnalyzer::register_natives()
 {
-    std::unordered_map<std::string, int> native_names = native_registry->get_all_native_names();
+    std::unordered_map<std::string, int> native_names = workspace->native_registry
+                                                            ->get_all_native_names();
 
     for (const auto& [name, index] : native_names)
     {
-        auto symbol_type = native_registry->get_native_object_type(index);
+        auto symbol_type = workspace->native_registry->get_native_object_type(index);
 
         auto symbol = SymbolFactory::create_function(name, symbol_type, true);
         current_scope->define(symbol);

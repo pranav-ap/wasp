@@ -1,9 +1,7 @@
 #pragma once
 
 #include "AST.h"
-#include "ConstantPool.h"
 #include "Expression.h"
-#include "NativeRegistry.h"
 #include "Objects.h"
 #include "Statement.h"
 #include "SymbolScope.h"
@@ -16,13 +14,13 @@
 #include <vector>
 
 namespace Wasp {
+
 class SemanticAnalyzer {
-    ConstantPool_ptr pool;
+    Workspace_ptr workspace;
     TypeChecker_ptr type_checker;
-    NativeRegistry_ptr native_registry;
+
     SymbolScope_ptr current_scope;
     ObjectVector return_type_stack;
-    Workspace_ptr workspace;
 
     // ========================================================================
     // Statement Visitors
@@ -154,8 +152,7 @@ class SemanticAnalyzer {
 
 public:
     SemanticAnalyzer(Workspace_ptr workspace)
-        : pool(workspace->pool), type_checker(std::make_shared<TypeChecker>(workspace->pool)),
-          native_registry(workspace->native_registry), workspace(workspace) {};
+        : type_checker(std::make_shared<TypeChecker>(workspace->pool)), workspace(workspace) {};
 
     void run(const std::vector<Module_ptr>& build_order);
 };

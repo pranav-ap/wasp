@@ -69,7 +69,7 @@ while true do
 
       // --- Body ---
       B(Wasp::OpCode::PUSH_SCOPE),
-      
+
       // Expression: 25 + 25
       B(Wasp::OpCode::LOAD_CONST),    B(val_25),
       B(Wasp::OpCode::LOAD_CONST),    B(val_25),
@@ -102,7 +102,7 @@ while true do
 TEST_F(CompileLoops, ForLoop) {
     auto actual_bytes = compile(R"(
 for let x in [1, 2, 3] do
-    x 
+    x
 )");
 
     int val_1 = pool_size++;
@@ -126,8 +126,8 @@ for let x in [1, 2, 3] do
 
       // --- Body ---
       B(Wasp::OpCode::PUSH_SCOPE),
-      B(Wasp::OpCode::DEFINE_LOCAL),  B(0), // x
-      B(Wasp::OpCode::GET_LOCAL),     B(0),
+      B(Wasp::OpCode::DEFINE_LOCAL),  B(2), // x
+      B(Wasp::OpCode::GET_LOCAL),     B(2),
       B(Wasp::OpCode::POP),
       B(Wasp::OpCode::POP_SCOPE),
       B(Wasp::OpCode::JUMP),          B(12), B(0),

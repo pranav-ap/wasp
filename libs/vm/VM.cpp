@@ -14,14 +14,18 @@
 #include <variant>
 #include <vector>
 
-template <class... Ts> struct overloaded : Ts... {
+template <class... Ts> struct overloaded : Ts...
+{
     using Ts::operator()...;
 };
 template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
-namespace Wasp {
-void VM::execute_constant(OpCode op, CallFrame* frame) {
-    switch (op) {
+namespace Wasp
+{
+void VM::execute_constant(OpCode op, CallFrame* frame)
+{
+    switch (op)
+    {
     case OpCode::LOAD_CONST:
         push_to_stack(workspace->pool->get(static_cast<int>(frame->consume_byte())));
         break;
@@ -39,9 +43,12 @@ void VM::execute_constant(OpCode op, CallFrame* frame) {
     }
 }
 
-void VM::execute_variable(OpCode op, CallFrame* frame) {
-    switch (op) {
-    case OpCode::DEFINE_LOCAL: {
+void VM::execute_variable(OpCode op, CallFrame* frame)
+{
+    switch (op)
+    {
+    case OpCode::DEFINE_LOCAL:
+    {
         Object_ptr val = pop_from_stack();
 
         int index = static_cast<int>(frame->consume_byte());
@@ -53,38 +60,45 @@ void VM::execute_variable(OpCode op, CallFrame* frame) {
         stack[target_idx] = std::move(val);
         break;
     }
-    case OpCode::SET_LOCAL: {
+    case OpCode::SET_LOCAL:
+    {
         int index = static_cast<int>(frame->consume_byte());
         if (index >= stack.size())
             stack.resize(index + 1);
         stack[frame->base_pointer + index] = peek_tos();
         break;
     }
-    case OpCode::GET_LOCAL: {
+    case OpCode::GET_LOCAL:
+    {
         int index = static_cast<int>(frame->consume_byte());
         push_to_stack(stack[frame->base_pointer + index]);
         break;
     }
-    case OpCode::GET_NATIVE: {
+    case OpCode::GET_NATIVE:
+    {
         int index = static_cast<int>(frame->consume_byte());
         push_to_stack(workspace->native_registry->get_native_object(index));
         break;
     }
-    case OpCode::GET_UPVALUE: {
+    case OpCode::GET_UPVALUE:
+    {
         int index = static_cast<int>(frame->consume_byte());
         push_to_stack(frame->function->upvalues[index]);
         break;
     }
-    case OpCode::SET_UPVALUE: {
+    case OpCode::SET_UPVALUE:
+    {
         int index = static_cast<int>(frame->consume_byte());
         frame->function->upvalues[index] = peek_tos();
         break;
     }
-    case OpCode::PUSH_SCOPE: {
+    case OpCode::PUSH_SCOPE:
+    {
         frame->scope_bases.push_back(stack.size());
         break;
     }
-    case OpCode::POP_SCOPE: {
+    case OpCode::POP_SCOPE:
+    {
         size_t base = frame->scope_bases.back();
         frame->scope_bases.pop_back();
         while (stack.size() > base)
@@ -96,12 +110,14 @@ void VM::execute_variable(OpCode op, CallFrame* frame) {
     }
 }
 
-void VM::execute_control_flow(OpCode op, CallFrame* frame) {
+void VM::execute_control_flow(OpCode op, CallFrame* frame)
+{
     uint8_t low = static_cast<uint8_t>(frame->consume_byte());
     uint8_t high = static_cast<uint8_t>(frame->consume_byte());
     uint16_t target_ip = low | (high << 8);
 
-    if (op == OpCode::JUMP || (op == OpCode::JUMP_IF_FALSE && !is_truthy(peek_tos()))) {
+    if (op == OpCode::JUMP || (op == OpCode::JUMP_IF_FALSE && !is_truthy(peek_tos())))
+    {
         frame->ip = target_ip;
     }
 }
@@ -110,11 +126,13 @@ void VM::execute_control_flow(OpCode op, CallFrame* frame) {
 // Function Calls
 // --------------------------------------
 
-void VM::execute_make_function(CallFrame* frame) {
+void VM::execute_make_function(CallFrame* frame)
+{
     int upvalue_count = static_cast<int>(frame->consume_byte());
 
     // Pop the function blueprint from the stack (put there by LOAD_CONST)
     Object_ptr blueprint_obj = pop_from_stack();
+
     Doctor::get().assert(
         blueprint_obj->is<std::shared_ptr<StaticFunctionObject>>(),
         WaspStage::VM,
@@ -127,29 +145,29 @@ void VM::execute_make_function(CallFrame* frame) {
     ObjectVector captured_upvalues;
     captured_upvalues.reserve(upvalue_count);
 
-    for (int i = 0; i < upvalue_count; i++) {
+    for (int i = 0; i < upvalue_count; i++)
+    {
         bool is_local = (frame->consume_byte() == std::byte{1});
         uint8_t index = static_cast<uint8_t>(frame->consume_byte());
 
-        if (is_local) {
+        if (is_local)
+        {
             captured_upvalues.push_back(stack[frame->base_pointer + index]);
-        } else {
+        }
+        else
+        {
             captured_upvalues.push_back(frame->function->upvalues[index]);
         }
     }
 
-    auto runtime_closure = std::make_shared<RuntimeFunctionObject>(
-        blueprint->code,
-        blueprint->name,
-        blueprint->id_to_name_map,
-        blueprint->id_to_name_upvalues_map,
-        std::move(captured_upvalues));
+    auto runtime_closure = std::make_shared<RuntimeFunctionObject>(blueprint, captured_upvalues);
 
-    Object_ptr closure_obj = std::make_shared<Object>(runtime_closure);
+    Object_ptr closure_obj = make_object(runtime_closure);
     push_to_stack(closure_obj);
 }
 
-void VM::execute_call(CallFrame* frame) {
+void VM::execute_call(CallFrame* frame)
+{
     int arg_count = static_cast<int>(frame->consume_byte());
     Object_ptr callable = peek_tos(arg_count);
 
@@ -168,8 +186,7 @@ void VM::execute_call(CallFrame* frame) {
                 Doctor::get().assert(
                     native->arity == -1 || native->arity == arg_count,
                     WaspStage::VM,
-                    "Arity mismatch in native function call"
-                );
+                    "Arity mismatch in native function call");
 
                 // Collect arguments from the stack
                 std::vector<Object_ptr> args(arg_count);
@@ -190,7 +207,8 @@ void VM::execute_call(CallFrame* frame) {
         callable->value);
 }
 
-void VM::execute_return(CallFrame* frame) {
+void VM::execute_return(CallFrame* frame)
+{
     Object_ptr result = pop_from_stack();
 
     size_t bp = frame->base_pointer;
@@ -199,9 +217,12 @@ void VM::execute_return(CallFrame* frame) {
 
     // 'bp' points to arg1. 'bp - 1' is the RuntimeFunctionObject (the callable).
     // Remove the callable, all arguments, and all local variables.
-    if (bp > 0) {
+    if (bp > 0)
+    {
         stack.erase(stack.begin() + (bp - 1), stack.end());
-    } else {
+    }
+    else
+    {
         // Fallback for top-level module returns
         stack.clear();
     }
@@ -210,71 +231,70 @@ void VM::execute_return(CallFrame* frame) {
     push_to_stack(result);
 }
 
-void VM::execute_import(CallFrame* frame) {
+void VM::execute_import(CallFrame* frame)
+{
     int path_index = static_cast<int>(frame->consume_byte());
     Object_ptr path_obj = workspace->pool->get(path_index);
+
+    Doctor::get().assert(
+        path_obj->is<StringObject>(),
+        WaspStage::VM,
+        "IMPORT expects a string constant for the module path");
+
     std::string module_path = path_obj->as<StringObject>().value;
-    std::string module_name = std::filesystem::path(module_path).stem().string();
 
     auto target_module = workspace->get_module(module_path);
     Doctor::get().fatal_if_nullptr(
-        target_module, WaspStage::VM, "Module not found : " + module_path
-    );
+        target_module,
+        WaspStage::VM,
+        "Module not found : " + module_path);
 
-    auto module_func = std::make_shared<RuntimeFunctionObject>(
-        target_module->blueprint->code,
-        module_name,
-        target_module->blueprint->id_to_name_map,
-        target_module->blueprint->id_to_name_upvalues_map,
-        ObjectVector{} // Top-level modules don't have upvalues
-    );
+    auto module_func = std::make_shared<RuntimeFunctionObject>(target_module->blueprint);
 
     size_t export_base = stack.size();
     frames.emplace_back(module_func, export_base);
 }
 
-void VM::execute_exit_module() {
+void VM::execute_exit_module()
+{
     CallFrame& frame = frames.back();
     size_t bp = frame.base_pointer;
 
     std::map<std::string, Object_ptr> exported_members;
 
     // Collect Exports from the stack
-    for (size_t i = bp; i < stack.size(); ++i) {
-        std::string var_name = frame.function->get_name_for_index(i - bp);
+    for (size_t i = bp; i < stack.size(); ++i)
+    {
+        std::string var_name = frame.function->blueprint->get_name_for_symbol_id(i - bp);
 
-        if (!var_name.empty()) {
+        if (!var_name.empty())
+        {
             exported_members[var_name] = stack[i];
         }
     }
 
-    auto exports =
-        std::make_shared<ModuleObject>(frame.function->name, std::move(exported_members));
+    auto exports = std::make_shared<ModuleObject>(
+        frame.function->blueprint->name,
+        std::move(exported_members));
 
     // Clean up the stack and pop the module's CallFrame
     stack.erase(stack.begin() + bp, stack.end());
     frames.pop_back();
 
-    // Push the completed module object to the caller's stack
-    push_to_stack(std::make_shared<Object>(exports));
+    push_to_stack(make_object(exports));
 }
 
 void VM::run(StaticFunctionObject_ptr function_object)
 {
-    frames.emplace_back(
-        std::make_shared<RuntimeFunctionObject>(
-            function_object->code,
-            function_object->name,
-            function_object->id_to_name_map,
-            function_object->id_to_name_upvalues_map,
-            ObjectVector{}),
-        0);
+    frames.emplace_back(std::make_shared<RuntimeFunctionObject>(function_object), 0);
 
-    while (true) {
+    while (true)
+    {
         CallFrame* frame = &frames.back();
         OpCode instruction = static_cast<OpCode>(frame->consume_byte());
 
-        switch (instruction) {
+        switch (instruction)
+        {
             // Lifecycle
 
         case OpCode::NO_OP:
@@ -388,7 +408,8 @@ void VM::run(StaticFunctionObject_ptr function_object)
             break;
 
         default:
-            std::cerr << "Unknown OpCode encountered : " << stringify_opcode(instruction) << std::endl;
+            std::cerr << "Unknown OpCode encountered : " << stringify_opcode(instruction)
+                      << std::endl;
             Doctor::get().fatal(WaspStage::VM, "Unknown OpCode encountered");
         }
     }

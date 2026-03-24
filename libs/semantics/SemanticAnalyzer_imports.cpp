@@ -17,9 +17,7 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp {
 
 void SemanticAnalyzer::visit(SimpleImport& import_stmt) {
-    auto mod = workspace->get_module(
-        import_stmt.symbol->get_payload_as<ModuleData>().mod->file_path);
-
+    auto mod = workspace->get_module(import_stmt.absolute_path);
     Doctor::get().fatal_if_nullptr(mod, WaspStage::Semantics, "Failed to load module");
 
     Symbol_ptr module_symbol = SymbolFactory::create_module(mod->get_name(), mod);
@@ -30,9 +28,7 @@ void SemanticAnalyzer::visit(SimpleImport& import_stmt) {
 
 void SemanticAnalyzer::visit(FromImport& import_stmt)
 {
-    auto mod = workspace->get_module(
-        import_stmt.symbol->get_payload_as<ModuleData>().mod->file_path);
-
+    auto mod = workspace->get_module(import_stmt.absolute_path);
     Doctor::get().fatal_if_nullptr(mod, WaspStage::Semantics, "Failed to load module");
 
     Symbol_ptr module_symbol = SymbolFactory::create_module(mod->get_name(), mod);

@@ -1,7 +1,6 @@
 #include "Compiler.h"
 #include "AST.h"
 #include "CFGraph.h"
-#include "ConstantPool.h"
 #include "Doctor.h"
 #include "Objects.h"
 #include "OpCode.h"
@@ -21,15 +20,15 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp {
 Compiler::Compiler(Workspace_ptr workspace)
-    : workspace(workspace), pool(workspace->pool), current_block_id(InvalidBlockId),
-      parent(nullptr), compiler_depth(0), native_registry(workspace->native_registry) {
+    : workspace(workspace), current_block_id(InvalidBlockId), parent(nullptr), compiler_depth(0)
+{
     current_block_id = graph.create_block();
     graph.set_entry_block(current_block_id);
 }
 
 Compiler::Compiler(Compiler* parent)
-    : pool(parent->pool), parent(parent), compiler_depth(parent->compiler_depth + 1) {
-    native_registry = parent->native_registry;
+    : parent(parent), workspace(parent->workspace), compiler_depth(parent->compiler_depth + 1)
+{
     current_block_id = graph.create_block();
     graph.set_entry_block(current_block_id);
 }
@@ -58,11 +57,11 @@ StaticFunctionObject_ptr Compiler::run(const StatementVector& block, std::string
     }
 
     CodeObject final_code = flatten();
+
     auto function_object = std::make_shared<StaticFunctionObject>(
         std::move(final_code),
         name,
-        id_to_name_map,
-        id_to_upvalue_name_map);
+        id_to_name_map);
 
     return function_object;
 }

@@ -2,13 +2,10 @@
 
 #include "AST.h"
 #include "CFGraph.h"
-#include "ConstantPool.h"
 #include "Expression.h"
-#include "NativeRegistry.h"
 #include "Objects.h"
 #include "OpCode.h"
 #include "Statement.h"
-
 #include "Workspace.h"
 
 #include <cstddef>
@@ -18,36 +15,45 @@
 #include <tuple>
 #include <vector>
 
-namespace Wasp {
-struct Upvalue {
-    // The index of the variable to capture.
-    // If is_local is true: index into the parent's stack.
-    // If is_local is false: index into the parent's own upvalue array.
-    int index;
+namespace Wasp
+{
 
-    std::string name;
+struct Upvalue
+{
+    // TRUE:  The variable is a local variable on the immediate parent's stack.
+    // FALSE: The variable is an upvalue already captured by the immediate parent.
+    bool is_local_to_parent;
 
-    // Determines where the value is located at runtime during closure creation.
-    bool is_local;
+    // If is_local_to_parent == true:  Offset from the parent's stack Base Pointer.
+    // If is_local_to_parent == false: Offset into the parent's upvalue array.
+
+    union
+    {
+        // Use this when is_local_to_parent == true
+        int symbol_id;
+
+        // Use this when is_local_to_parent == false
+        int upvalue_index_in_parent;
+    };
 };
 
-class Compiler {
+class Compiler
+{
 private:
     Workspace_ptr workspace;
-    ConstantPool_ptr pool;
-    NativeRegistry_ptr native_registry;
 
     // ------------------------------------------------------------------------
     // Closure Support
     // ------------------------------------------------------------------------
 
     Compiler* parent;
+
     std::vector<Upvalue> upvalues;
 
     int compiler_depth = 0;
     int current_lexical_scope_depth = 0;
 
-    int add_upvalue(int index, std::string name, bool is_local);
+    int add_upvalue(const Upvalue& uv, const std::string& name);
     int resolve_upvalue(Compiler* current_compiler, Symbol_ptr symbol);
 
     // ------------------------------------------------------------------------
@@ -71,7 +77,6 @@ private:
     // Debugging
     // -----------------------------------------------------------------------
     std::map<int, std::string> id_to_name_map;
-    std::map<int, std::string> id_to_upvalue_name_map;
 
     // -----------------------------------------------------------------------
     // Emit

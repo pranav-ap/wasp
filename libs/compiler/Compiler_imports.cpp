@@ -21,7 +21,7 @@ void Compiler::visit(SimpleImport& import_stmt)
     auto module_symbol = import_stmt.symbol;
     auto module_payload = module_symbol->get_payload_as<ModuleData>();
 
-    int path_index = pool->allocate(module_payload.mod->file_path.string());
+    int path_index = workspace->pool->allocate(module_payload.mod->file_path.string());
 
     // Tell the VM to execute this module and push a ModuleObject onto the stack
     emit(OpCode::IMPORT, path_index);
@@ -40,7 +40,7 @@ void Compiler::visit(FromImport& import_stmt)
     auto module_symbol = import_stmt.symbol;
     auto module_payload = module_symbol->get_payload_as<ModuleData>();
 
-    int path_index = pool->allocate(module_payload.mod->file_path.string());
+    int path_index = workspace->pool->allocate(module_payload.mod->file_path.string());
 
     // Tell the VM to load the module onto the stack
     // Stack: [ Module ]
@@ -73,7 +73,7 @@ void Compiler::visit(FromImport& import_stmt)
             }
 
             // Allocate the Integer ID to the constant pool instead of a string
-            int member_id_index = pool->allocate(pool->allocate(original_id));
+            int member_id_index = workspace->pool->allocate(workspace->pool->allocate(original_id));
 
             // Fetch the function from the module!
             // Stack: [ Module, Function ]

@@ -224,6 +224,8 @@ struct AbstractImport : public Resolvable
     // ["engine", "fuel"]
     std::vector<std::string> path;
 
+    std::filesystem::path absolute_path;
+
     AbstractImport() = default;
 
     AbstractImport(std::optional<TokenType> access_token_type, std::vector<std::string> path)

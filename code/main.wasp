@@ -1,4 +1,5 @@
-import my.cats as c
-print('calling cats')
-c.print_cats()
+import my.dogs
 
+print('calling cats')
+
+dogs.print_dogs()

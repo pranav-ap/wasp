@@ -11,9 +11,13 @@
 #include <utility>
 #include <vector>
 
-namespace Wasp {
-struct CallFrame {
+namespace Wasp
+{
+
+struct CallFrame
+{
     RuntimeFunctionObject_ptr function;
+
     size_t ip = 0;
     // Where locals start on the VM stack
     size_t base_pointer = 0;
@@ -25,15 +29,16 @@ struct CallFrame {
     {
     }
 
-    std::byte consume_byte() { return function->code.data()[ip++]; }
+    std::byte consume_byte() { return function->blueprint->code.data()[ip++]; }
 };
 
 using CallFrame_ptr = std::shared_ptr<CallFrame>;
 
-class VM {
+class VM
+{
+    Workspace_ptr workspace;
     ObjectVector stack;
     std::vector<CallFrame> frames;
-    Workspace_ptr workspace;
 
     void push_to_stack(Object_ptr value);
     Object_ptr pop_from_stack();

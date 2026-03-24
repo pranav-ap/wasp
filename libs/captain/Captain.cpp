@@ -15,19 +15,24 @@
 #include <utility>
 #include <vector>
 
-template <class... Ts> struct overloaded : Ts... {
+template <class... Ts> struct overloaded : Ts...
+{
     using Ts::operator()...;
 };
 template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
-namespace Wasp {
-Captain::Captain(const std::filesystem::path& target_path) {
+namespace Wasp
+{
+Captain::Captain(const std::filesystem::path& target_path)
+{
     std::filesystem::path clean_target = std::filesystem::absolute(target_path).lexically_normal();
 
-    std::filesystem::path workspace_root =
-        std::filesystem::is_directory(clean_target) ? clean_target : clean_target.parent_path();
+    std::filesystem::path workspace_root = std::filesystem::is_directory(clean_target)
+                                               ? clean_target
+                                               : clean_target.parent_path();
 
-    if (workspace_root.empty()) {
+    if (workspace_root.empty())
+    {
         workspace_root = std::filesystem::current_path().lexically_normal();
     }
 
@@ -58,10 +63,12 @@ void Captain::parse_modules()
     }
 }
 
-void Captain::parse_module(const std::filesystem::path& file_path) {
+void Captain::parse_module(const std::filesystem::path& file_path)
+{
     auto abs_path = std::filesystem::absolute(file_path).lexically_normal();
 
-    if (workspace->get_module(abs_path) != nullptr) {
+    if (workspace->get_module(abs_path) != nullptr)
+    {
         return;
     }
 
@@ -77,36 +84,41 @@ void Captain::parse_module(const std::filesystem::path& file_path) {
     workspace->add_module(abs_path, module);
 }
 
-std::vector<Module_ptr> Captain::calculate_build_order() {
+std::vector<Module_ptr> Captain::calculate_build_order()
+{
     DependencyCrawler crawler(workspace);
     auto build_order = crawler.calculate_build_order(entry_file);
     return build_order;
 }
 
-void Captain::hoist_symbols(const std::vector<Module_ptr>& build_order) {
+void Captain::hoist_symbols(const std::vector<Module_ptr>& build_order)
+{
     SymbolHoister hoister(workspace);
     hoister.run(build_order);
 }
 
-void Captain::type_check_and_link(const std::vector<Module_ptr>& build_order) {
+void Captain::type_check_and_link(const std::vector<Module_ptr>& build_order)
+{
     SemanticAnalyzer sa(workspace);
     sa.run(build_order);
 }
 
-void Captain::compile(const std::vector<Module_ptr>& build_order) {
-    for (const auto& module : build_order) {
+void Captain::compile(const std::vector<Module_ptr>& build_order)
+{
+    for (const auto& module : build_order)
+    {
         bool is_main = (module->file_path == entry_file);
         auto module_name = module->get_name();
 
         Compiler compiler(workspace);
-        auto function_object = compiler.run(module->stmts, module_name, is_main);
-        module->blueprint = std::move(function_object);
+        module->blueprint = compiler.run(module->stmts, module_name, is_main);
 
         dump_build_artifacts(workspace, module->file_path, module->blueprint);
     }
 }
 
-Workspace_ptr Captain::build() {
+Workspace_ptr Captain::build()
+{
     parse_modules();
 
     auto build_order = calculate_build_order();
@@ -117,7 +129,8 @@ Workspace_ptr Captain::build() {
     return workspace;
 }
 
-void Captain::execute() {
+void Captain::execute()
+{
     auto main_module = workspace->get_module(entry_file);
     Doctor::get().fatal_if_nullptr(main_module, WaspStage::Captain);
 

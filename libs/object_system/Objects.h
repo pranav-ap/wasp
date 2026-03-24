@@ -171,22 +171,24 @@ struct StaticFunctionObject : public CompositeObject
 
     std::string name;
     std::map<int, std::string> id_to_name_map;
-    std::map<int, std::string> id_to_name_upvalues_map;
 
     StaticFunctionObject(CodeObject code) : code(std::move(code)) {}
 
     StaticFunctionObject(
         CodeObject code,
         std::string name,
-        std::map<int, std::string> id_to_name_map,
-        std::map<int, std::string> id_to_name_upvalues_map)
-        : code(std::move(code)), name(std::move(name)), id_to_name_map(std::move(id_to_name_map)),
-          id_to_name_upvalues_map(std::move(id_to_name_upvalues_map))
+        std::map<int, std::string> id_to_name_map)
+        : code(std::move(code)), name(std::move(name)), id_to_name_map(std::move(id_to_name_map))
     {
     }
 
-    std::string get_name_for_index(int index) const
+    std::string get_name_for_symbol_id(int index) const
     {
+        // Doctor::get().assert(
+        //     id_to_name_map.contains(index),
+        //     WaspStage::Compiler,
+        //     "Invalid symbol ID");
+
         auto it = id_to_name_map.find(index);
         return (it != id_to_name_map.end()) ? it->second : "";
     }
@@ -194,26 +196,17 @@ struct StaticFunctionObject : public CompositeObject
 
 using StaticFunctionObject_ptr = std::shared_ptr<StaticFunctionObject>;
 
-struct RuntimeFunctionObject : public StaticFunctionObject
+struct RuntimeFunctionObject
 {
+    StaticFunctionObject_ptr blueprint;
     ObjectVector upvalues;
 
-    RuntimeFunctionObject(CodeObject code) : StaticFunctionObject(code) {}
-
-    RuntimeFunctionObject(
-        CodeObject code,
-        std::string name,
-        std::map<int, std::string> id_to_name_map,
-        std::map<int, std::string> id_to_upvalue_name_map,
-        ObjectVector upvalues)
-        : StaticFunctionObject(
-              code,
-              std::move(name),
-              std::move(id_to_name_map),
-              std::move(id_to_upvalue_name_map)),
-          upvalues(std::move(upvalues))
+    RuntimeFunctionObject(StaticFunctionObject_ptr blueprint, ObjectVector upvalues = {})
+        : blueprint(std::move(blueprint)), upvalues(std::move(upvalues))
     {
     }
+
+    void set_upvalue(int index, Object_ptr value) { upvalues[index] = std::move(value); }
 };
 
 using RuntimeFunctionObject_ptr = std::shared_ptr<RuntimeFunctionObject>;

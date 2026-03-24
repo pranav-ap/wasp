@@ -19,37 +19,31 @@ using std::byte;
 using std::setw;
 using std::string;
 
-namespace Wasp {
+namespace Wasp
+{
 string InstructionPrinter::stringify_instruction(
     byte opcode,
     byte operand,
-    const std::map<int, std::string>& id_to_name_map,
-    const std::map<int, std::string>& id_to_upvalue_name_map
-) {
+    const std::map<int, std::string>& id_to_name_map)
+{
     int op_int = std::to_integer<int>(operand);
     std::stringstream ss;
 
     ss << std::left << setw(OPCODE_WIDTH) << stringify_opcode(opcode) << " " << op_int;
 
-    switch (static_cast<OpCode>(opcode)) {
+    switch (static_cast<OpCode>(opcode))
+    {
     case OpCode::LOAD_CONST:
-        if (ws) {
+        if (ws)
+        {
             ss << std::right << setw(OPERAND_WIDTH) << " ("
                << stringify_object(ws->pool->get(op_int)) << ")";
         }
         break;
-    case OpCode::GET_NATIVE: {
+    case OpCode::GET_NATIVE:
+    {
         std::string native_name = ws->native_registry->get_native_name(op_int);
         ss << std::right << setw(OPERAND_WIDTH) << " (" << native_name << ")";
-        break;
-    }
-
-    case OpCode::GET_UPVALUE:
-    case OpCode::SET_UPVALUE: {
-        if (id_to_upvalue_name_map.contains(op_int)) {
-            ss << std::right << setw(OPERAND_WIDTH) << " (" << id_to_upvalue_name_map.at(op_int)
-               << ")";
-        }
         break;
     }
 
@@ -57,8 +51,12 @@ string InstructionPrinter::stringify_instruction(
     case OpCode::SET_LOCAL:
     case OpCode::GET_LOCAL:
     case OpCode::GET_MEMBER:
-    case OpCode::SET_MEMBER: {
-        if (id_to_name_map.contains(op_int)) {
+    case OpCode::SET_MEMBER:
+    case OpCode::GET_UPVALUE:
+    case OpCode::SET_UPVALUE:
+    {
+        if (id_to_name_map.contains(op_int))
+        {
             ss << std::right << setw(OPERAND_WIDTH) << " (" << id_to_name_map.at(op_int) << ")";
         }
         break;
@@ -76,17 +74,19 @@ string InstructionPrinter::stringify_instruction(
     byte opcode,
     byte op1,
     byte op2,
-    const std::map<int, std::string>& id_to_name_map,
-    const std::map<int, std::string>& id_to_upvalue_name_map
-) {
+    const std::map<int, std::string>& id_to_name_map)
+{
     OpCode op = static_cast<OpCode>(opcode);
     std::stringstream ss;
 
-    if (op == OpCode::JUMP || op == OpCode::JUMP_IF_FALSE || op == OpCode::LOOP_ITER) {
+    if (op == OpCode::JUMP || op == OpCode::JUMP_IF_FALSE || op == OpCode::LOOP_ITER)
+    {
         int target_offset = std::to_integer<int>(op1) | (std::to_integer<int>(op2) << 8);
 
         ss << std::left << setw(OPCODE_WIDTH) << stringify_opcode(opcode) << " " << target_offset;
-    } else {
+    }
+    else
+    {
         int op1_int = std::to_integer<int>(op1);
         int op2_int = std::to_integer<int>(op2);
 
@@ -97,7 +97,8 @@ string InstructionPrinter::stringify_instruction(
     return ss.str();
 }
 
-void InstructionPrinter::print(const Object_ptr obj, std::ostream& out) {
+void InstructionPrinter::print(const Object_ptr obj, std::ostream& out)
+{
     Doctor::get().fatal_if_nullptr(obj, WaspStage::Compiler, "Cannot print a null object");
 
     Doctor::get().assert(
@@ -112,20 +113,21 @@ void InstructionPrinter::print(const Object_ptr obj, std::ostream& out) {
 void InstructionPrinter::print_bytecode(
     const CodeObject& code,
     const std::map<int, std::string>& id_to_name_map,
-    const std::map<int, std::string>& id_to_upvalue_name_map,
-    std::ostream& out
-) {
+    std::ostream& out)
+{
     int length = static_cast<int>(code.length());
     int index_width = std::to_string(length).size() + 2;
     const byte* data = code.data();
 
-    for (int index = 0; index < length;) {
+    for (int index = 0; index < length;)
+    {
         byte opcode = data[index];
         OpCode op = static_cast<OpCode>(opcode);
 
         out << std::right << setw(index_width) << index << ": ";
 
-        if (op == OpCode::MAKE_FUNCTION) {
+        if (op == OpCode::MAKE_FUNCTION)
+        {
             int upvalue_count = std::to_integer<int>(data[index + 1]);
 
             out << std::left << setw(OPCODE_WIDTH) << stringify_opcode(opcode) << " "
@@ -133,7 +135,8 @@ void InstructionPrinter::print_bytecode(
             out << std::right << setw(OPERAND_WIDTH) << " (" << upvalue_count << " upvalues)\n";
 
             int capture_offset = index + 2;
-            for (int i = 0; i < upvalue_count; i++) {
+            for (int i = 0; i < upvalue_count; i++)
+            {
                 bool is_local = std::to_integer<int>(data[capture_offset + (i * 2)]) == 1;
                 int upv_idx = std::to_integer<int>(data[capture_offset + (i * 2) + 1]);
 
@@ -148,21 +151,17 @@ void InstructionPrinter::print_bytecode(
         auto instruction = code.instruction_at(index);
         int arity = static_cast<int>(instruction.size()) - 1;
 
-        if (arity == 0) {
+        if (arity == 0)
+        {
             out << stringify_opcode(opcode) << "\n";
-        } else if (arity == 1) {
-            out << stringify_instruction(
-                       opcode, instruction[1], id_to_name_map, id_to_upvalue_name_map
-                   )
-                << "\n";
-        } else if (arity == 2) {
-            out << stringify_instruction(
-                       opcode,
-                       instruction[1],
-                       instruction[2],
-                       id_to_name_map,
-                       id_to_upvalue_name_map
-                   )
+        }
+        else if (arity == 1)
+        {
+            out << stringify_instruction(opcode, instruction[1], id_to_name_map) << "\n";
+        }
+        else if (arity == 2)
+        {
+            out << stringify_instruction(opcode, instruction[1], instruction[2], id_to_name_map)
                 << "\n";
         }
 
@@ -172,21 +171,22 @@ void InstructionPrinter::print_bytecode(
 
 void InstructionPrinter::print(const StaticFunctionObject_ptr function_obj, std::ostream& out)
 {
-    print_bytecode(
-        function_obj->code, function_obj->id_to_name_map, function_obj->id_to_name_upvalues_map, out
-    );
+    print_bytecode(function_obj->code, function_obj->id_to_name_map, out);
 }
 
-void InstructionPrinter::print(const CodeObject& code_object, std::ostream& out) {
-    print_bytecode(code_object, {}, {}, out);
+void InstructionPrinter::print(const CodeObject& code_object, std::ostream& out)
+{
+    print_bytecode(code_object, {}, out);
 }
 
-void InstructionPrinter::print_pool_functions(std::ostream& out) {
+void InstructionPrinter::print_pool_functions(std::ostream& out)
+{
     out << "\n=========================================\n";
     out << " CONSTANT POOL FUNCTIONS\n";
     out << "=========================================\n\n";
 
-    for (size_t i = 0; i < ws->pool->get_size(); i++) {
+    for (size_t i = 0; i < ws->pool->get_size(); i++)
+    {
         auto obj = ws->pool->get(i);
 
         if (obj && obj->is<std::shared_ptr<StaticFunctionObject>>())
@@ -200,20 +200,24 @@ void InstructionPrinter::print_pool_functions(std::ostream& out) {
     }
 }
 
-void InstructionPrinter::print(const CFGraph& graph, std::ostream& out) {
+void InstructionPrinter::print(const CFGraph& graph, std::ostream& out)
+{
     out << "digraph CFG {\n";
     out << "    node [shape=box, fontname=\"Courier\", style=filled, fillcolor=\"#f9f9f9\"];\n\n";
 
-    for (const auto& block : graph.get_all_blocks()) {
+    for (const auto& block : graph.get_all_blocks())
+    {
         out << "    block" << block.get_id() << " [label=\"Block " << block.get_id() << "\\l";
         out << "---------------------------------\\l";
 
-        if (block.get_code().length() > 0) {
+        if (block.get_code().length() > 0)
+        {
             std::stringstream ss;
             print(block.get_code(), ss);
             std::string code_str = ss.str();
 
-            for (char c : code_str) {
+            for (char c : code_str)
+            {
                 if (c == '\n')
                     out << "\\l";
                 else if (c == '\"')
@@ -223,15 +227,19 @@ void InstructionPrinter::print(const CFGraph& graph, std::ostream& out) {
                 else
                     out << c;
             }
-        } else {
+        }
+        else
+        {
             out << "(Empty)\\l";
         }
         out << "\"];\n";
     }
 
     out << "\n    // Edges\n";
-    for (const auto& block : graph.get_all_blocks()) {
-        for (auto succ : block.get_successors()) {
+    for (const auto& block : graph.get_all_blocks())
+    {
+        for (auto succ : block.get_successors())
+        {
             out << "    block" << block.get_id() << " -> block" << succ << ";\n";
         }
     }

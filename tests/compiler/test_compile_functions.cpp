@@ -44,8 +44,8 @@ fun add(a: int, b: int) => int
     // clang-format off
   std::vector<std::byte> expected_inner_bytes = {
       B(Wasp::OpCode::PUSH_SCOPE),
-      B(Wasp::OpCode::GET_LOCAL), B(0), // a
-      B(Wasp::OpCode::GET_LOCAL), B(1), // b
+      B(Wasp::OpCode::GET_LOCAL), B(3), // a
+      B(Wasp::OpCode::GET_LOCAL), B(4), // b
       B(Wasp::OpCode::ADD),
       B(Wasp::OpCode::RETURN),
       B(Wasp::OpCode::POP_SCOPE),
@@ -97,13 +97,13 @@ fun max(a: int, b: int) => int
 
       // if a > b
       B(Wasp::OpCode::PUSH_SCOPE),
-      B(Wasp::OpCode::GET_LOCAL), B(0), // a
-      B(Wasp::OpCode::GET_LOCAL), B(1), // b
+      B(Wasp::OpCode::GET_LOCAL), B(3), // a
+      B(Wasp::OpCode::GET_LOCAL), B(4), // b
       B(Wasp::OpCode::JUMP_IF_FALSE), B(22), B(0),
 
       // then
       B(Wasp::OpCode::JUMP), B(12), B(0),
-      B(Wasp::OpCode::GET_LOCAL), B(0), // return a
+      B(Wasp::OpCode::GET_LOCAL), B(3), // return a
       B(Wasp::OpCode::RETURN),
       B(Wasp::OpCode::POP_SCOPE),
       B(Wasp::OpCode::JUMP), B(19), B(0),
@@ -114,7 +114,7 @@ fun max(a: int, b: int) => int
 
       // else
       B(Wasp::OpCode::PUSH_SCOPE),
-      B(Wasp::OpCode::GET_LOCAL), B(1), // return b
+      B(Wasp::OpCode::GET_LOCAL), B(4), // return b
       B(Wasp::OpCode::RETURN),
       B(Wasp::OpCode::POP_SCOPE),
       B(Wasp::OpCode::JUMP), B(19), B(0)
@@ -162,9 +162,9 @@ fun outer(a: int) => any
   std::vector<std::byte> expected_outer_bytes = {
       B(Wasp::OpCode::PUSH_SCOPE),
       B(Wasp::OpCode::LOAD_CONST),    B(inner_func_pool_id),
-      B(Wasp::OpCode::MAKE_FUNCTION), B(1), B(1), B(0), // 1 upvalue, is_local=1, index=0
-      B(Wasp::OpCode::DEFINE_LOCAL),  B(1),             // define inner
-      B(Wasp::OpCode::GET_LOCAL),     B(1),             // return inner
+      B(Wasp::OpCode::MAKE_FUNCTION), B(1), B(1), B(3), // 1 upvalue, is_local=1, index=0
+      B(Wasp::OpCode::DEFINE_LOCAL),  B(4),             // define inner
+      B(Wasp::OpCode::GET_LOCAL),     B(4),             // return inner
       B(Wasp::OpCode::RETURN),
       B(Wasp::OpCode::POP_SCOPE),
       B(Wasp::OpCode::LOAD_NONE),
