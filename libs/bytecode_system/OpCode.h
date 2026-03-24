@@ -35,7 +35,16 @@ using ByteVector = std::vector<std::byte>;
     X(GET_MEMBER, 1)   /* [obj] -> [val] | <Member ID>  */                                         \
     X(PUSH_SCOPE, 0)   /* Enter new lexical block scope */                                         \
     X(POP_SCOPE, 0)    /* Exit current lexical block scope */                                      \
-    X(IMPORT, 1)       /* [] -> [Module] | <Constant Pool ID> (Points to String path) */           \
+    X(IMPORT, 1)       /* [] -> [Module] | <Module Index> */                                       \
+                                                                                                   \
+    /* --- Functions, Overloads & Closures --- */                                                  \
+    X(MAKE_FUNCTION, 1) /* [code] -> [func] | <Constant Pool ID> */                                \
+    X(ADD_FUNCTION, 1)  /* [func] -> [] | <Symbol ID> (add to Overload Group with Symbol ID) */    \
+    X(LOAD_FUNCTION, 2) /* [] -> [func] | <Symbol ID>, <Overload Index> (Push func from group) */  \
+    X(CALL, 1)          /* [func, args] -> [res] | <Count> (Number of args on stack) */            \
+    X(RETURN, 0)        /* Exit function with value on top of stack */                             \
+    X(GET_UPVALUE, 1)   /* [] -> [val] | <Upvalue Index> */                                        \
+    X(SET_UPVALUE, 1)   /* [val] -> [] | <Upvalue Index> */                                        \
                                                                                                    \
     /* --- Arithmetic --- */                                                                       \
     X(NEGATE, 0) /* [a] -> [-a] */                                                                 \
@@ -73,63 +82,55 @@ using ByteVector = std::vector<std::byte>;
     /* --- Collections & Iteration --- */                                                          \
     X(GET_ITER, 0) /* [iterable] -> [iterator] | Get iterator from iterable */                     \
                                                                                                    \
-    /* --- Functions & Closures --- */                                                             \
-    X(MAKE_FUNCTION, 1) /* [code] -> [func] | <Constant Pool ID> (Static Function Object) */       \
-    X(CALL, 1)          /* [func, args] -> [res] | <Count> (Number of arguments on stack) */       \
-    X(RETURN, 0)        /* Exit function with value on top of stack */                             \
-    X(YIELD, 0)         /* Suspend generator with value on top of stack */                         \
-    X(GET_UPVALUE, 1)   /* [] -> [val] | <Upvalue Index> (Index in the upvalues array) */          \
-    X(SET_UPVALUE, 1)   /* [val] -> [] | <Upvalue Index> (Index in the upvalues array) */          \
-    X(CLOSE_UPVALUE, 0) /* Move a local variable from stack to heap */                             \
-                                                                                                   \
     /* --- Diagnostics --- */                                                                      \
     X(ASSERT, 0) /* [cond, msg] -> [] | Throw error if cond is false */
 
 namespace Wasp
 {
 
-enum class OpCode : uint8_t {
+enum class OpCode : uint8_t
+{
 #define AS_ENUM(name, arity) name,
-  OPCODE_LIST(AS_ENUM)
+    OPCODE_LIST(AS_ENUM)
 #undef AS_ENUM
 };
 
-    constexpr int get_opcode_arity(OpCode opcode)
+constexpr int get_opcode_arity(OpCode opcode)
+{
+    switch (opcode)
     {
-        switch (opcode)
-        {
-#define AS_ARITY_CASE(name, arity) \
-    case OpCode::name:             \
+#define AS_ARITY_CASE(name, arity)                                                                 \
+    case OpCode::name:                                                                             \
         return arity;
-            OPCODE_LIST(AS_ARITY_CASE)
+        OPCODE_LIST(AS_ARITY_CASE)
 #undef AS_ARITY_CASE
-        default:
-            return -1;
-        }
+    default:
+        return -1;
     }
-
-    constexpr int get_opcode_arity(std::byte opcode)
-    {
-        return get_opcode_arity(static_cast<OpCode>(opcode));
-    }
-
-    inline std::string stringify_opcode(OpCode opcode)
-    {
-        switch (opcode)
-        {
-#define AS_STRING_CASE(name, arity) \
-    case OpCode::name:              \
-        return #name;
-            OPCODE_LIST(AS_STRING_CASE)
-#undef AS_STRING_CASE
-        default:
-            return "";
-        }
-    }
-
-    inline std::string stringify_opcode(std::byte opcode)
-    {
-        return stringify_opcode(static_cast<OpCode>(opcode));
-    }
-
 }
+
+constexpr int get_opcode_arity(std::byte opcode)
+{
+    return get_opcode_arity(static_cast<OpCode>(opcode));
+}
+
+inline std::string stringify_opcode(OpCode opcode)
+{
+    switch (opcode)
+    {
+#define AS_STRING_CASE(name, arity)                                                                \
+    case OpCode::name:                                                                             \
+        return #name;
+        OPCODE_LIST(AS_STRING_CASE)
+#undef AS_STRING_CASE
+    default:
+        return "";
+    }
+}
+
+inline std::string stringify_opcode(std::byte opcode)
+{
+    return stringify_opcode(static_cast<OpCode>(opcode));
+}
+
+} // namespace Wasp

@@ -10,7 +10,6 @@
 #include <map>
 #include <memory>
 #include <string>
-#include <utility>
 #include <variant>
 #include <vector>
 
@@ -24,9 +23,14 @@ namespace Wasp
 struct Symbol;
 using Symbol_ptr = std::shared_ptr<Symbol>;
 using SymbolVector = std::vector<Symbol_ptr>;
+using SymbolStringMap = std::map<std::string, Symbol_ptr>;
+using SymbolIntMap = std::map<int, Symbol_ptr>;
 
 struct Module;
 using Module_ptr = std::shared_ptr<Module>;
+
+struct Workspace;
+using Workspace_ptr = std::shared_ptr<Workspace>;
 
 // --------------------------------------------------------------------
 // Symbol Payloads
@@ -45,15 +49,15 @@ struct VariableData : public TypedSymbolData
 struct FunctionData : public TypedSymbolData
 {
     bool is_native;
-
-    SymbolVector sibling_overloads;
-    SymbolVector parent_overloads;
-
-    void add_sibling_overload(Symbol_ptr sibling);
-    void add_parent_overload(Symbol_ptr parent);
-
     Object_ptr get_return_type() const;
-    SymbolVector get_overloads() const;
+};
+
+struct OverloadGroupData
+{
+    SymbolVector siblings;
+    SymbolVector parents;
+
+    SymbolVector get_all_overloads() const;
 };
 
 struct ClassData : public TypedSymbolData
@@ -74,8 +78,14 @@ struct AliasData
     Symbol_ptr target;
 };
 
-using SymbolPayload = std::
-    variant<VariableData, FunctionData, ModuleData, ClassData, EnumData, AliasData>;
+using SymbolPayload = std::variant<
+    VariableData,
+    FunctionData,
+    ModuleData,
+    ClassData,
+    EnumData,
+    AliasData,
+    OverloadGroupData>;
 
 // --------------------------------------------------------------------
 // Symbol
@@ -91,20 +101,14 @@ struct Symbol : public std::enable_shared_from_this<Symbol>
 
     SymbolPayload payload;
 
-    Symbol(int id, std::string name, int closure_depth, int lexical_depth, SymbolPayload payload)
-        : id(id), name(std::move(name)), declaration_depth(closure_depth),
-          lexical_depth(lexical_depth), payload(std::move(payload))
-    {
-    }
+    Symbol(int id, std::string name, int closure_depth, int lexical_depth, SymbolPayload payload);
 
-    bool is_global() const { return lexical_depth == 0; }
+    bool is_global() const;
 
     Object_ptr get_type();
     void set_type(Object_ptr new_type);
 
-    // If it was declared in a shallower scope than we are currently in, it's an upvalue!
-    // only takes care at file level not inter file level
-    bool should_be_captured(int usage_depth) const { return declaration_depth < usage_depth; }
+    bool should_be_captured(int usage_depth) const;
 
     Symbol_ptr resolve();
 
@@ -151,6 +155,11 @@ public:
     static Symbol_ptr create_module(std::string name, Module_ptr mod);
 
     static Symbol_ptr create_alias(std::string name, Symbol_ptr target);
+
+    static Symbol_ptr create_overload_set(
+        std::string name,
+        int closure_depth = 0,
+        int lexical_depth = 0);
 };
 
 // ----------------------------------------------------------------
@@ -165,37 +174,14 @@ struct Module
     CFGraph graph;
     StaticFunctionObject_ptr blueprint;
 
-    std::map<std::string, SymbolVector> hoisted_symbols;
+    std::map<std::string, Symbol_ptr> exports;
     Object_ptr type;
 
     Module() = default;
+    Module(std::filesystem::path file_path, StatementVector stmts);
 
-    Module(std::filesystem::path file_path, StatementVector stmts)
-        : absolute_filepath(file_path), stmts(stmts)
-    {
-    }
-
-    std::string get_name() const { return absolute_filepath.stem().string(); }
-
-    std::map<std::string, SymbolVector> get_exports() const
-    {
-        // TODO: export only public symbols
-        return hoisted_symbols;
-    }
-
-    SymbolVector get_flat_hoists() const
-    {
-        SymbolVector all_symbols;
-
-        for (const auto& [_, symbols] : hoisted_symbols)
-        {
-            all_symbols.insert(all_symbols.end(), symbols.begin(), symbols.end());
-        }
-
-        return all_symbols;
-    }
-
-    SymbolVector get_flat_exports() const { return get_flat_hoists(); }
+    std::string get_name() const;
+    SymbolVector get_flat_exports() const;
 };
 
 // ----------------------------------------------------------------
@@ -205,7 +191,10 @@ struct Module
 class Workspace
 {
 private:
-    std::map<std::filesystem::path, Module_ptr> module_registry;
+    std::map<std::filesystem::path, int> absolute_path_to_module_index;
+    std::map<int, Module_ptr> module_registry;
+
+    int next_module_index = 0;
 
 public:
     const std::filesystem::path root_path;
@@ -215,32 +204,14 @@ public:
     ConstantPool_ptr pool;
     NativeRegistry_ptr native_registry;
 
-    Workspace(std::filesystem::path root)
-        : root_path(std::filesystem::absolute(root)), build_path(root_path / "build"),
-          libs_path(root_path / "libs"), pool(std::make_shared<ConstantPool>()),
-          native_registry(std::make_shared<NativeRegistry>(pool))
-    {
-        std::filesystem::create_directories(build_path);
-        std::filesystem::create_directories(libs_path);
-    }
+    Workspace(std::filesystem::path root);
 
-    Module_ptr get_module(const std::filesystem::path& path)
-    {
-        auto it = module_registry.find(std::filesystem::absolute(path));
-        return (it != module_registry.end()) ? it->second : nullptr;
-    }
+    Module_ptr get_module(const std::filesystem::path& path);
 
-    const std::map<std::filesystem::path, Module_ptr>& get_all_modules() const
-    {
-        return module_registry;
-    }
+    // Updated return type to match the new module_registry signature
+    const std::map<int, Module_ptr>& get_all_modules() const;
 
-    void add_module(const std::filesystem::path& path, Module_ptr module)
-    {
-        module_registry[std::filesystem::absolute(path)] = module;
-    }
+    void add_module(const std::filesystem::path& path, Module_ptr module);
 };
-
-using Workspace_ptr = std::shared_ptr<Workspace>;
 
 } // namespace Wasp

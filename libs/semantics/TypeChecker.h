@@ -2,9 +2,9 @@
 
 #include "ConstantPool.h"
 #include "Objects.h"
-
 #include "SymbolScope.h"
 #include "Token.h"
+#include "Workspace.h"
 
 #include <memory>
 #include <string>
@@ -13,64 +13,70 @@ namespace Wasp
 {
 class TypeChecker
 {
-    Symbol_ptr resolve_from_overload_list(
+    SymbolVector::iterator find_matching_signature(
         SymbolScope_ptr scope,
-        const SymbolVector& overloads,
-        const ObjectVector& arg_types) const;
+        SymbolVector& target_vector,
+        const ObjectVector& parameter_types);
+
+    void collect_assignable_signatures(
+        SymbolScope_ptr scope,
+        const SymbolVector& candidates,
+        const ObjectVector& argument_types,
+        SymbolVector& valid_matches) const;
 
 public:
     ConstantPool_ptr pool;
 
     TypeChecker(ConstantPool_ptr pool) : pool(pool) {};
 
-    Symbol_ptr resolve_function_overload(
+    void validate_overload_group(
         SymbolScope_ptr scope,
-        const std::string& func_name,
-        const ObjectVector& arg_types) const;
+        std::string& function_name,
+        const Symbol_ptr new_func_symbol);
 
-    Symbol_ptr resolve_module_function_overload(
+    Symbol_ptr resolve_function_call(
+        SymbolScope_ptr scope,
+        std::string& function_name,
+        const ObjectVector& argument_types) const;
+
+    Symbol_ptr resolve_method_call(
         SymbolScope_ptr scope,
         const std::string& module_name,
-        const std::string& func_name,
-        const ObjectVector& arg_types) const;
-
-    void validate_new_overload(
-        SymbolScope_ptr scope,
-        const std::string& func_name,
-        const ObjectVector& new_param_types) const;
+        const std::string& method_name,
+        const ObjectVector& argument_types) const;
 
     bool equal(SymbolScope_ptr scope, const Object_ptr type_1, const Object_ptr type_2) const;
 
     bool equal(
         SymbolScope_ptr scope,
-        const ObjectVector type_vector_1,
-        const ObjectVector type_vector_2) const;
+        const ObjectVector& type_vector_1,
+        const ObjectVector& type_vector_2) const;
 
     bool equal_unordered(
         SymbolScope_ptr scope,
-        const ObjectVector type_vector_1,
-        const ObjectVector type_vector_2) const;
+        const ObjectVector& type_vector_1,
+        const ObjectVector& type_vector_2) const;
 
     bool assignable(SymbolScope_ptr scope, const Object_ptr lhs_type, const Object_ptr rhs_type)
         const;
 
     bool assignable(
         SymbolScope_ptr scope,
-        const ObjectVector type_vector_1,
-        const ObjectVector type_vector_2) const;
+        const ObjectVector& type_vector_1,
+        const ObjectVector& type_vector_2) const;
 
     Object_ptr infer(
         SymbolScope_ptr scope,
         Object_ptr left_type,
         TokenType op,
         Object_ptr right_type);
-
     Object_ptr infer(SymbolScope_ptr scope, Object_ptr left_type, TokenType op);
 
     Object_ptr spread_type(Object_ptr type);
     Object_ptr extract_iterable_element(SymbolScope_ptr scope, const Object_ptr type) const;
 
-    // Is _ type?
+    // Type Checks
+
     bool is_boolean_type(const Object_ptr type) const;
     bool is_number_type(const Object_ptr type) const;
     bool is_int_type(const Object_ptr type) const;
@@ -82,7 +88,8 @@ public:
     bool is_iterable_type(SymbolScope_ptr scope, const Object_ptr type) const;
     bool is_key_type(SymbolScope_ptr scope, const Object_ptr type) const;
 
-    // assert type
+    // Assertions
+
     void expect_boolean_type(const Object_ptr type) const;
     void expect_number_type(const Object_ptr type) const;
     void expect_int_type(const Object_ptr type) const;
@@ -94,9 +101,10 @@ public:
     void expect_iterable_type(SymbolScope_ptr scope, const Object_ptr type) const;
     void expect_key_type(SymbolScope_ptr scope, const Object_ptr type) const;
 
-    // Type Utilities
-    bool any_eq(SymbolScope_ptr scope, const ObjectVector vec, const Object_ptr x) const;
-    ObjectVector remove_duplicates(SymbolScope_ptr scope, const ObjectVector vec) const;
+    // Utilities
+
+    bool any_eq(SymbolScope_ptr scope, const ObjectVector& vec, const Object_ptr x) const;
+    ObjectVector remove_duplicates(SymbolScope_ptr scope, const ObjectVector& vec) const;
 };
 
 using TypeChecker_ptr = std::shared_ptr<TypeChecker>;

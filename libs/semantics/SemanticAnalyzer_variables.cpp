@@ -14,65 +14,72 @@
 
 #define MAKE_OBJECT_VARIANT(x) std::make_shared<Object>(x)
 
-template <class... Ts> struct overloaded : Ts... {
+template <class... Ts> struct overloaded : Ts...
+{
     using Ts::operator()...;
 };
 template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
-namespace Wasp {
+namespace Wasp
+{
 
 // ---------------------------------------------------------------------------
 // Variable Definitions & Assignments
 // --------------------------------------------------------------------------
 
-void SemanticAnalyzer::visit(VariableDefinition& statement) {
+void SemanticAnalyzer::visit(VariableDefinition& statement)
+{
     define_variable(statement.expression, statement.is_mutable);
 }
 
-Object_ptr SemanticAnalyzer::visit(VariableDefinitionExpression& expr) {
+Object_ptr SemanticAnalyzer::visit(VariableDefinitionExpression& expr)
+{
     return define_variable(expr.assignment, expr.is_mutable);
 }
 
-Object_ptr SemanticAnalyzer::visit(UntypedAssignment& expr) {
+Object_ptr SemanticAnalyzer::visit(UntypedAssignment& expr)
+{
     return mutate_variable(expr.lhs_expression, expr.rhs_expression);
 }
 
-Object_ptr SemanticAnalyzer::visit(TypedAssignment& expr) {
+Object_ptr SemanticAnalyzer::visit(TypedAssignment& expr)
+{
     Doctor::get().fatal(
-        WaspStage::Semantics, "Internal Semantic Error: TypedAssignment visited directly."
-    );
+        WaspStage::Semantics,
+        "Internal Semantic Error: TypedAssignment visited directly.");
 
     return nullptr;
 }
 
-Object_ptr SemanticAnalyzer::define_variable(Expression_ptr assignment_node, bool is_mutable) {
+Object_ptr SemanticAnalyzer::define_variable(Expression_ptr assignment_node, bool is_mutable)
+{
     Expression_ptr identifier_expr = nullptr;
     Expression_ptr initializer_expr = nullptr;
     Object_ptr declared_type = nullptr;
 
     std::visit(
         overloaded{
-            [&](UntypedAssignment& assign) {
+            [&](UntypedAssignment& assign)
+            {
                 identifier_expr = assign.lhs_expression;
                 initializer_expr = assign.rhs_expression;
             },
-            [&](TypedAssignment& assign) {
+            [&](TypedAssignment& assign)
+            {
                 identifier_expr = assign.lhs_expression;
                 initializer_expr = assign.rhs_expression;
                 declared_type = visit(assign.type_node);
             },
-            [](auto&) {
+            [](auto&)
+            {
                 Doctor::get().fatal(WaspStage::Semantics, "Invalid variable definition expression");
-            }
-        },
-        assignment_node->data
-    );
+            }},
+        assignment_node->data);
 
     Doctor::get().assert(
         identifier_expr->is<Identifier>(),
         WaspStage::Semantics,
-        "Left-hand side of definition must be an Identifier."
-    );
+        "Left-hand side of definition must be an Identifier.");
 
     std::string symbol_name = identifier_expr->as<Identifier>().name;
 
@@ -81,22 +88,23 @@ Object_ptr SemanticAnalyzer::define_variable(Expression_ptr assignment_node, boo
     Object_ptr resolved_type = initializer_type;
 
     // Check whether it is assignable
-    if (declared_type) {
+    if (declared_type)
+    {
         Doctor::get().assert(
             type_checker->assignable(current_scope, declared_type, initializer_type),
             WaspStage::Semantics,
-            "Type mismatch in variable definition for '" + symbol_name);
+            "Type mismatch in variable definition for " + symbol_name);
 
         resolved_type = declared_type;
     }
 
     // Hoister Usage
 
-    if (Symbol_ptr hoisted_symbol = current_scope->lookup_solo(symbol_name))
+    if (Symbol_ptr hoisted_symbol = current_scope->lookup(symbol_name))
     {
         // If it exists, it must be a hoisted global waiting for its type.
-        Doctor::get().assert(
-            hoisted_symbol->get_type() == nullptr,
+        Doctor::get().fatal_if_nullptr(
+            hoisted_symbol->get_type(),
             WaspStage::Semantics,
             "Variable '" + symbol_name + "' is hoisted but already has a type!");
 
@@ -113,8 +121,7 @@ Object_ptr SemanticAnalyzer::define_variable(Expression_ptr assignment_node, boo
         resolved_type,
         is_mutable,
         current_scope->get_closure_depth(),
-        current_scope->get_lexical_depth()
-    );
+        current_scope->get_lexical_depth());
 
     current_scope->define(local_symbol);
     identifier_expr->as<Identifier>().symbol = local_symbol;
@@ -123,28 +130,28 @@ Object_ptr SemanticAnalyzer::define_variable(Expression_ptr assignment_node, boo
 }
 
 Object_ptr SemanticAnalyzer::mutate_variable(
-    Expression_ptr identifier_expr, Expression_ptr assigned_expr
-) {
+    Expression_ptr identifier_expr,
+    Expression_ptr assigned_expr)
+{
     Doctor::get().assert(
         identifier_expr->is<Identifier>(),
         WaspStage::Semantics,
-        "Left-hand side of assignment must be an Identifier."
-    );
+        "Left-hand side of assignment must be an Identifier.");
 
     auto& identifier_node = identifier_expr->as<Identifier>();
     std::string symbol_name = identifier_node.name;
 
-    Symbol_ptr target_symbol = current_scope->lookup_solo(symbol_name);
+    Symbol_ptr target_symbol = current_scope->lookup(symbol_name);
 
     Doctor::get().fatal_if_nullptr(
-        target_symbol, WaspStage::Semantics, "Cannot assign to undefined variable '" + symbol_name
-    );
+        target_symbol,
+        WaspStage::Semantics,
+        "Cannot assign to undefined variable '" + symbol_name);
 
     Doctor::get().assert(
         target_symbol->payload_is<VariableData>(),
         WaspStage::Semantics,
-        "Cannot assign to non-variable symbol '" + symbol_name
-    );
+        "Cannot assign to non-variable symbol '" + symbol_name);
 
     auto& var_data = target_symbol->get_payload_as<VariableData>();
 

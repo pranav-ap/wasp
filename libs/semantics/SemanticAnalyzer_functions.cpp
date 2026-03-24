@@ -23,75 +23,77 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-void SemanticAnalyzer::visit(FunctionDefinition& func_def)
+void SemanticAnalyzer::visit(FunctionDefinition& function_definition)
 {
-    Object_ptr resolved_return_type = func_def.return_type ? visit(func_def.return_type)
-                                                           : MAKE_OBJECT_VARIANT(NoneType());
+    Object_ptr return_type = function_definition.return_type
+                                 ? visit(function_definition.return_type)
+                                 : MAKE_OBJECT_VARIANT(NoneType());
 
-    ObjectVector parameter_types;
     std::vector<std::string> parameter_names;
+    ObjectVector parameter_types;
 
-    // Resolve Parameter Types
-    for (const auto& [param_name, type_annotation] : func_def.parameters)
+    for (const auto& [parameter_name, type_annotation] : function_definition.parameters)
     {
-        Object_ptr resolved_param_type = MAKE_OBJECT_VARIANT(AnyType());
-
+        Object_ptr parameter_type = MAKE_OBJECT_VARIANT(AnyType());
         if (type_annotation)
         {
-            resolved_param_type = visit(type_annotation);
+            parameter_type = visit(type_annotation);
         }
-
-        parameter_names.push_back(param_name);
-        parameter_types.push_back(resolved_param_type);
+        parameter_names.push_back(parameter_name);
+        parameter_types.push_back(parameter_type);
     }
 
-    type_checker->validate_new_overload(current_scope, func_def.name, parameter_types);
+    auto function_signature = MAKE_OBJECT_VARIANT(FunctionType(parameter_types, return_type));
 
-    auto function_signature = MAKE_OBJECT_VARIANT(
-        FunctionType(parameter_types, resolved_return_type));
+    Symbol_ptr actual_function_symbol;
 
-    if (func_def.symbol)
+    if (function_definition.symbol)
     {
-        // Top Level Function, so we update the hoisted symbol created by the Hoister
-        func_def.symbol->set_type(function_signature);
+        // Top Level Function: Hoister already defined it. Just apply the resolved type.
+        actual_function_symbol = function_definition.symbol;
+        actual_function_symbol->set_type(function_signature);
     }
     else
     {
-        // Local nested function, so we create a new symbol
-        auto local_symbol = SymbolFactory::create_function(
-            func_def.name,
+        // Local nested function: Create and define it.
+        actual_function_symbol = SymbolFactory::create_function(
+            function_definition.name,
             function_signature,
             false,
             current_scope->get_closure_depth(),
             current_scope->get_lexical_depth());
 
-        current_scope->define(local_symbol);
-        func_def.symbol = local_symbol;
+        current_scope->define(actual_function_symbol);
+        function_definition.symbol = actual_function_symbol;
     }
 
+    // Validate Overloads and Shadow Parents
+
+    type_checker->validate_overload_group(
+        current_scope,
+        function_definition.name,
+        actual_function_symbol);
+
+    // Enter Scope and Process Body
     enter_scope(ScopeType::FUNCTION);
-    return_type_stack.push_back(resolved_return_type);
+    return_type_stack.push_back(return_type);
 
-    // Ensure the AST vector is empty before we populate it
-    func_def.parameter_symbols.clear();
+    function_definition.parameter_symbols.clear();
 
-    // Define Parameters as Local Variables in the New Scope
     for (size_t i = 0; i < parameter_names.size(); ++i)
     {
-        auto param_symbol = SymbolFactory::create_variable(
+        auto parameter_symbol = SymbolFactory::create_variable(
             parameter_names[i],
             parameter_types[i],
             true,
             current_scope->get_closure_depth(),
             current_scope->get_lexical_depth());
 
-        current_scope->define(param_symbol);
-
-        // SAVE the resolved symbol directly onto the AST Node
-        func_def.parameter_symbols.push_back(param_symbol);
+        current_scope->define(parameter_symbol);
+        function_definition.parameter_symbols.push_back(parameter_symbol);
     }
 
-    visit(func_def.body);
+    visit(function_definition.body);
 
     return_type_stack.pop_back();
     leave_scope();
@@ -105,13 +107,14 @@ void SemanticAnalyzer::visit(Return& statement)
         "'return' statement used outside of a function.");
 
     Object_ptr expected_type = return_type_stack.back();
+
     Object_ptr actual_type = statement.expression.has_value() ? visit(statement.expression.value())
                                                               : MAKE_OBJECT_VARIANT(NoneType());
 
     Doctor::get().assert(
         type_checker->assignable(current_scope, expected_type, actual_type),
         WaspStage::Semantics,
-        "Return type mismatch. Expected " + Wasp::stringify_object(expected_type) + ", got " +
+        "Return type mismatch. Expected " + stringify_object(expected_type) + ", got " +
             Wasp::stringify_object(actual_type));
 }
 

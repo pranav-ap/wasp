@@ -4,7 +4,6 @@
 #include "Expression.h"
 #include "Resolvable.h"
 #include "Token.h"
-#include "TypeAnnotation.h"
 
 #include <filesystem>
 #include <map>

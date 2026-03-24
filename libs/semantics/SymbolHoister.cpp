@@ -2,12 +2,10 @@
 #include "Doctor.h"
 #include "Expression.h"
 #include "Statement.h"
-
 #include "Workspace.h"
 
 #include <string>
 #include <variant>
-#include <vector>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -87,6 +85,8 @@ void SymbolHoister::run(Module_ptr mod)
     hoist(mod);
 
     auto hoisted_symbols = current_scope->get_all_symbols();
-    mod->hoisted_symbols = hoisted_symbols;
+
+    // TODO: separate exports from hoisted symbols
+    mod->exports = hoisted_symbols;
 }
 } // namespace Wasp

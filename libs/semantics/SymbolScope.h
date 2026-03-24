@@ -2,7 +2,6 @@
 
 #include "Workspace.h"
 
-#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -32,7 +31,7 @@ private:
     int closure_depth;
     int lexical_depth;
 
-    std::map<std::string, SymbolVector> symbols;
+    SymbolStringMap symbols;
 
     Symbol_ptr define_function(Symbol_ptr symbol);
 
@@ -43,41 +42,21 @@ public:
     SymbolScope& operator=(const SymbolScope&) = delete;
 
     Symbol_ptr define(Symbol_ptr symbol);
+    Symbol_ptr lookup(const std::string& name) const;
 
-    Symbol_ptr lookup_solo(const std::string& name) const;
-    SymbolVector lookup(const std::string& name) const;
-
-    SymbolVector get_function_overloads(const std::string& name) const;
-
-    SymbolVector get_function_overloads_from_module(
-        const std::string& module_name,
-        const std::string& function_name) const;
-
-    SymbolVector assemble_overload_family(Symbol_ptr base_symbol, const std::string& error_message)
-        const;
-
-    Symbol_ptr get_parent_overload(const std::string& name) const;
-
-    bool contains_in_current_scope(const std::string& name) const { return symbols.contains(name); }
-
-    bool contains_in_any_scope(std::string name) const { return lookup(name).size() > 0; }
+    bool contains_in_current_scope(const std::string& name) const;
+    bool contains_in_any_scope(const std::string& name) const;
 
     bool enclosed_in(ScopeType target_type) const;
     bool enclosed_in(const std::vector<ScopeType>& types) const;
 
-    ScopeType get_type() const { return type; }
-    SymbolScope_ptr get_enclosing() const { return enclosing_scope; }
+    ScopeType get_type() const;
+    SymbolScope_ptr get_enclosing() const;
 
-    int get_closure_depth() const { return closure_depth; }
-    int get_lexical_depth() const { return lexical_depth; }
+    int get_closure_depth() const;
+    int get_lexical_depth() const;
+    int get_function_distance(int target_closure_depth) const;
 
-    int get_function_distance(int target_closure_depth) const
-    {
-        // 0 = local to the current function
-        // 1 = in the immediate parent function
-        return this->closure_depth - target_closure_depth;
-    }
-
-    std::map<std::string, SymbolVector> get_all_symbols() const { return symbols; }
+    SymbolStringMap get_all_symbols() const;
 };
 } // namespace Wasp

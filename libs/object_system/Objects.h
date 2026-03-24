@@ -20,6 +20,9 @@ namespace Wasp
 struct Object;
 using Object_ptr = std::shared_ptr<Object>;
 using ObjectVector = std::vector<Object_ptr>;
+using ObjectStringMap = std::map<std::string, Object_ptr>;
+using ObjectIntMap = std::map<int, Object_ptr>;
+
 using StringVector = std::vector<std::string>;
 
 // Base Classes
@@ -171,7 +174,6 @@ struct StaticFunctionObject : public CompositeObject
     CodeObject code;
 
     std::vector<int> parameter_symbol_ids;
-    std::vector<int> exported_symbol_ids;
 
     std::string name;
     std::map<int, std::string> symbol_id_to_name_map;
@@ -182,12 +184,10 @@ struct StaticFunctionObject : public CompositeObject
     StaticFunctionObject(
         CodeObject code,
         std::vector<int> parameter_symbol_ids,
-        std::vector<int> exported_symbol_ids,
         std::string name,
         std::map<int, std::string> symbol_id_to_name_map,
         std::map<int, std::string> upvalue_index_to_name_map)
         : code(std::move(code)), name(std::move(name)), parameter_symbol_ids(parameter_symbol_ids),
-          exported_symbol_ids(std::move(exported_symbol_ids)),
           symbol_id_to_name_map(std::move(symbol_id_to_name_map)),
           upvalue_index_to_name_map(std::move(upvalue_index_to_name_map))
     {
@@ -245,12 +245,31 @@ struct NativeFunctionObject : public CompositeObject
     }
 };
 
+struct OverloadsSet : public CompositeObject
+{
+    ObjectVector overloads;
+
+    OverloadsSet(ObjectVector overloads) : overloads(std::move(overloads)) {};
+
+    void add_overload(Object_ptr object) { overloads.push_back(std::move(object)); }
+};
+
+struct OverloadedObjectsSet : public OverloadsSet
+{
+    OverloadedObjectsSet(ObjectVector overloads) : OverloadsSet(std::move(overloads)) {};
+};
+
+struct OverloadedTypesSet : public OverloadsSet
+{
+    OverloadedTypesSet(ObjectVector overloads) : OverloadsSet(std::move(overloads)) {};
+};
+
 struct ModuleObject : public CompositeObject
 {
     std::string name;
-    ObjectVector members;
+    ObjectStringMap members;
 
-    ModuleObject(std::string name, ObjectVector members)
+    ModuleObject(std::string name, ObjectStringMap members)
         : name(std::move(name)), members(std::move(members))
     {
     }
@@ -401,11 +420,11 @@ struct FunctionType : public AnyType
           return_type(std::make_optional(std::move(return_type))) {};
 };
 
-struct RecordType
+struct RecordType : public CompositeType
 {
-    std::map<std::string, Object_ptr> members;
+    ObjectStringMap members;
 
-    RecordType(std::map<std::string, Object_ptr> members) : members(std::move(members)) {};
+    RecordType(ObjectStringMap members) : members(std::move(members)) {};
 
     bool contains_member(const std::string& member_name) const
     {
@@ -423,21 +442,15 @@ struct RecordType
     }
 };
 
-struct Symbol;
-
 struct ModuleType : public CompositeType
 {
     std::string module_name;
     std::filesystem::path absolute_filepath;
 
-    std::vector<std::shared_ptr<Symbol>> exported_symbols;
+    ObjectStringMap members;
 
-    ModuleType(
-        std::string module_name,
-        std::filesystem::path absolute_filepath,
-        std::vector<std::shared_ptr<Symbol>> exported_symbols)
-        : module_name(std::move(module_name)), absolute_filepath(std::move(absolute_filepath)),
-          exported_symbols(std::move(exported_symbols))
+    ModuleType(std::string module_name, std::filesystem::path absolute_filepath)
+        : module_name(std::move(module_name)), absolute_filepath(std::move(absolute_filepath))
     {
     }
 };
@@ -467,6 +480,8 @@ struct Object
         std::shared_ptr<RuntimeFunctionObject>,
         std::shared_ptr<NativeFunctionObject>,
         std::shared_ptr<ModuleObject>,
+        std::shared_ptr<OverloadedObjectsSet>,
+        std::shared_ptr<OverloadedTypesSet>,
 
         std::shared_ptr<BreakObject>,
         std::shared_ptr<ContinueObject>,

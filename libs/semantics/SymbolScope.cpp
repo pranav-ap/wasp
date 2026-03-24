@@ -2,6 +2,8 @@
 #include "Doctor.h"
 #include "Workspace.h"
 
+#include <map>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -31,9 +33,9 @@ Symbol_ptr SymbolScope::define(Symbol_ptr symbol)
     Doctor::get().assert(
         !contains_in_current_scope(symbol->name),
         WaspStage::Semantics,
-        symbol->name + "' already declared in this scope");
+        "'" + symbol->name + "' already declared in this scope");
 
-    symbols[symbol->name].push_back(symbol);
+    symbols[symbol->name] = symbol;
 
     return symbol;
 }
@@ -45,40 +47,66 @@ Symbol_ptr SymbolScope::define_function(Symbol_ptr new_symbol)
         WaspStage::Semantics,
         "Expected a function symbol");
 
-    auto& new_payload = new_symbol->get_payload_as<FunctionData>();
+    // Overload Group already exists locally
 
-    auto& siblings = symbols[new_symbol->name];
-
-    for (auto& sibling : siblings)
+    if (contains_in_current_scope(new_symbol->name))
     {
-        sibling->get_payload_as<FunctionData>().add_sibling_overload(new_symbol);
-        new_payload.add_sibling_overload(sibling);
+        Symbol_ptr existing_local = symbols[new_symbol->name];
+
+        Doctor::get().assert(
+            existing_local->payload_is<OverloadGroupData>(),
+            WaspStage::Semantics,
+            new_symbol->name + " already declared in this scope and is not an overload set");
+
+        existing_local->get_payload_as<OverloadGroupData>().siblings.push_back(new_symbol);
+        return new_symbol;
     }
 
-    if (auto parent = get_parent_overload(new_symbol->name))
+    // Create a new Overload Group
+
+    auto new_overload_set = SymbolFactory::create_overload_set(
+        new_symbol->name,
+        closure_depth,
+        lexical_depth);
+
+    auto& set_data = new_overload_set->get_payload_as<OverloadGroupData>();
+    set_data.siblings.push_back(new_symbol);
+
+    symbols[new_symbol->name] = new_overload_set;
+
+    // Inherit from parent scope
+
+    if (enclosing_scope)
     {
-        new_payload.add_parent_overload(parent);
-
-        auto parents = parent->get_payload_as<FunctionData>().get_overloads();
-
-        for (auto p : parents)
+        if (Symbol_ptr existing_parent = enclosing_scope->lookup(new_symbol->name);
+            existing_parent->payload_is<OverloadGroupData>())
         {
-            new_symbol->get_payload_as<FunctionData>().add_parent_overload(p);
+            const auto& parent_data = existing_parent->get_payload_as<OverloadGroupData>();
+
+            // Pull in the parent's siblings and the parent's parents into our local parents vector
+
+            set_data.parents.insert(
+                set_data.parents.end(),
+                parent_data.siblings.begin(),
+                parent_data.siblings.end());
+
+            set_data.parents.insert(
+                set_data.parents.end(),
+                parent_data.parents.begin(),
+                parent_data.parents.end());
         }
     }
-
-    symbols[new_symbol->name].push_back(new_symbol);
 
     return new_symbol;
 }
 
-SymbolVector SymbolScope::lookup(const std::string& name) const
+Symbol_ptr SymbolScope::lookup(const std::string& name) const
 {
     const SymbolScope* current = this;
 
     while (current)
     {
-        if (current->symbols.contains(name) && !current->symbols.at(name).empty())
+        if (current->symbols.contains(name))
         {
             return current->symbols.at(name);
         }
@@ -86,136 +114,17 @@ SymbolVector SymbolScope::lookup(const std::string& name) const
         current = current->enclosing_scope.get();
     }
 
-    return {};
-}
-
-Symbol_ptr SymbolScope::lookup_solo(const std::string& name) const
-{
-    const SymbolScope* current = this;
-
-    while (current)
-    {
-        if (current->symbols.contains(name) && !current->symbols.at(name).empty())
-        {
-            Doctor::get().assert(
-                current->symbols.at(name).size() == 1,
-                WaspStage::Semantics,
-                "Expected only one symbol with name '" + name + "' in this scope, but found " +
-                    std::to_string(current->symbols.at(name).size()));
-
-            return current->symbols.at(name).front()->resolve();
-        }
-
-        current = current->enclosing_scope.get();
-    }
-
-    return {};
-}
-
-SymbolVector SymbolScope::assemble_overload_family(
-    Symbol_ptr base_symbol,
-    const std::string& error_message) const
-{
-    base_symbol = base_symbol->resolve();
-
-    Doctor::get().assert(
-        base_symbol->payload_is<FunctionData>(),
-        WaspStage::Semantics,
-        error_message);
-
-    auto& function_data = base_symbol->get_payload_as<FunctionData>();
-
-    SymbolVector result;
-
-    result.reserve(
-        1 + function_data.parent_overloads.size() + function_data.sibling_overloads.size());
-
-    result.push_back(base_symbol);
-
-    result.insert(
-        result.end(),
-        function_data.parent_overloads.begin(),
-        function_data.parent_overloads.end());
-
-    result.insert(
-        result.end(),
-        function_data.sibling_overloads.begin(),
-        function_data.sibling_overloads.end());
-
-    return result;
-}
-
-SymbolVector SymbolScope::get_function_overloads_from_module(
-    const std::string& module_name,
-    const std::string& function_name) const
-{
-    Symbol_ptr module_symbol = lookup_solo(module_name);
-
-    if (!module_symbol)
-    {
-        return {};
-    }
-
-    module_symbol = module_symbol->resolve();
-
-    Doctor::get().assert(
-        module_symbol->payload_is<ModuleData>(),
-        WaspStage::Semantics,
-        "Symbol '" + module_name + "' is not a module");
-
-    const auto& module_data = module_symbol->get_payload_as<ModuleData>();
-
-    Symbol_ptr base_symbol = nullptr;
-
-    for (const auto& exported_sym : module_data.mod->get_flat_exports())
-    {
-        if (exported_sym->name == function_name)
-        {
-            base_symbol = exported_sym;
-            break;
-        }
-    }
-
-    if (!base_symbol)
-    {
-        return {};
-    }
-
-    return assemble_overload_family(
-        base_symbol,
-        "Symbol '" + function_name + "' in module '" + module_name +
-            "' is not a function and cannot have overloads");
-}
-
-SymbolVector SymbolScope::get_function_overloads(const std::string& name) const
-{
-    SymbolVector matched_symbols = lookup(name);
-
-    if (matched_symbols.empty())
-    {
-        return {};
-    }
-
-    return assemble_overload_family(
-        matched_symbols.front(),
-        "Symbol '" + name + "' is not a function and cannot have overloads");
-}
-
-Symbol_ptr SymbolScope::get_parent_overload(const std::string& name) const
-{
-    if (!enclosing_scope)
-    {
-        return nullptr;
-    }
-
-    SymbolVector parent_symbols = enclosing_scope->lookup(name);
-
-    if (!parent_symbols.empty() && parent_symbols.front()->payload_is<FunctionData>())
-    {
-        return parent_symbols.front();
-    }
-
     return nullptr;
+}
+
+bool SymbolScope::contains_in_current_scope(const std::string& name) const
+{
+    return symbols.contains(name);
+}
+
+bool SymbolScope::contains_in_any_scope(const std::string& name) const
+{
+    return lookup(name) != nullptr;
 }
 
 bool SymbolScope::enclosed_in(ScopeType target_type) const
@@ -247,5 +156,20 @@ bool SymbolScope::enclosed_in(const std::vector<ScopeType>& types) const
     }
     return false;
 }
+
+ScopeType SymbolScope::get_type() const { return type; }
+
+SymbolScope_ptr SymbolScope::get_enclosing() const { return enclosing_scope; }
+
+int SymbolScope::get_closure_depth() const { return closure_depth; }
+
+int SymbolScope::get_lexical_depth() const { return lexical_depth; }
+
+int SymbolScope::get_function_distance(int target_closure_depth) const
+{
+    return this->closure_depth - target_closure_depth;
+}
+
+std::map<std::string, Symbol_ptr> SymbolScope::get_all_symbols() const { return symbols; }
 
 } // namespace Wasp

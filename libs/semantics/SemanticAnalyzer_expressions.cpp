@@ -4,12 +4,12 @@
 #include "Objects.h"
 #include "SemanticAnalyzer.h"
 #include "Statement.h"
-
 #include "SymbolScope.h"
 #include "Token.h"
 #include "Workspace.h"
 
 #include <ctime>
+#include <iterator>
 #include <map>
 #include <memory>
 #include <string>
@@ -94,7 +94,7 @@ Object_ptr SemanticAnalyzer::visit(const Expression_ptr expr)
 
 Object_ptr SemanticAnalyzer::visit(Identifier& expr)
 {
-    Symbol_ptr target_symbol = current_scope->lookup_solo(expr.name);
+    Symbol_ptr target_symbol = current_scope->lookup(expr.name);
     Doctor::get().fatal_if_nullptr(target_symbol, WaspStage::Semantics);
 
     expr.symbol = target_symbol;
@@ -109,7 +109,6 @@ Object_ptr SemanticAnalyzer::visit(Identifier& expr)
 
 Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
 {
-    // For `a.b.c`, this naturally evaluates `a.b` first, which evaluates `a`
     Object_ptr left_type = visit(expr.left);
 
     Doctor::get().assert(
@@ -119,7 +118,6 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
 
     const auto& module_type = left_type->as<ModuleType>();
 
-    // The right side MUST be an identifier (e.g., 'c' in a.b.c)
     Doctor::get().assert(
         expr.right->is<Identifier>(),
         WaspStage::Semantics,
@@ -127,37 +125,17 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
 
     std::string member_name = expr.right->as<Identifier>().name;
 
-    // --- STATIC ID ROUTING CALCULATION ---
-
-    int found_index = -1;
-    Symbol_ptr found_symbol = nullptr;
-    int match_count = 0;
-
-    for (size_t i = 0; i < module_type.exported_symbols.size(); i++)
-    {
-        if (module_type.exported_symbols[i]->name == member_name)
-        {
-            found_index = static_cast<int>(i);
-            found_symbol = module_type.exported_symbols[i];
-            match_count++;
-        }
-    }
+    auto it = module_type.members.find(member_name);
 
     Doctor::get().assert(
-        match_count > 0,
+        it != module_type.members.end(),
         WaspStage::Semantics,
-        "Module does not contain member '" + member_name + "'");
+        "Module '" + module_type.module_name + "' does not contain member '" + member_name + "'");
 
-    Doctor::get().assert(
-        match_count == 1,
-        WaspStage::Semantics,
-        "Cannot access overloaded function '" + member_name +
-            "' as a standalone variable without calling it.");
+    // Calculate distance using the iterator
+    expr.member_index = static_cast<int>(std::distance(module_type.members.begin(), it));
 
-    // BAKE THE STATIC INDEX INTO THE AST!
-    expr.member_index = found_index;
-
-    return found_symbol->get_type();
+    return it->second;
 }
 
 Object_ptr SemanticAnalyzer::visit(Call& call_expr)
@@ -189,7 +167,7 @@ Object_ptr SemanticAnalyzer::evaluate_identifier_call(
     Identifier& callable_identifier,
     const ObjectVector& arg_types)
 {
-    Symbol_ptr function_symbol = type_checker->resolve_function_overload(
+    Symbol_ptr function_symbol = type_checker->resolve_function_call(
         current_scope,
         callable_identifier.name,
         arg_types);
@@ -219,32 +197,27 @@ Object_ptr SemanticAnalyzer::evaluate_member_access_call(
     auto& left_id = mac.left->as<Identifier>();
     auto& right_id = mac.right->as<Identifier>();
 
-    Symbol_ptr module_symbol = current_scope->lookup_solo(left_id.name);
+    Symbol_ptr module_symbol = current_scope->lookup(left_id.name);
     Doctor::get().fatal_if_nullptr(module_symbol, WaspStage::Semantics);
 
     left_id.symbol = module_symbol;
 
-    Symbol_ptr function_symbol = type_checker->resolve_module_function_overload(
+    // Resolve the exact function overload to call
+    Symbol_ptr function_symbol = type_checker->resolve_method_call(
         current_scope,
         left_id.name,
         right_id.name,
         arg_types);
 
-    // Map to Static Index
     const auto& module_type = module_symbol->get_type()->as<ModuleType>();
+    auto it = module_type.members.find(right_id.name);
 
-    bool found = false;
-    for (size_t i = 0; i < module_type.exported_symbols.size(); i++)
-    {
-        if (module_type.exported_symbols[i]->id == function_symbol->id)
-        {
-            mac.member_index = static_cast<int>(i);
-            found = true;
-            break;
-        }
-    }
+    Doctor::get().assert(
+        it != module_type.members.end(),
+        WaspStage::Semantics,
+        "Overload group '" + right_id.name + "' not found in module exports");
 
-    Doctor::get().assert(found, WaspStage::Semantics, "Overload not found in module.");
+    mac.member_index = static_cast<int>(std::distance(module_type.members.begin(), it));
 
     right_id.symbol = function_symbol;
 

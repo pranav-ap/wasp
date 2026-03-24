@@ -93,7 +93,6 @@ std::vector<Module_ptr> Captain::calculate_build_order()
 
 void Captain::hoist_symbols(const std::vector<Module_ptr>& build_order)
 {
-
     for (const auto& mod : build_order)
     {
         SymbolHoister hoister(workspace);

@@ -7,7 +7,6 @@
 #include "SymbolScope.h"
 #include "Workspace.h"
 
-#include <algorithm>
 #include <ctime>
 #include <memory>
 #include <string>
@@ -34,14 +33,8 @@ void SemanticAnalyzer::extract_module_type(Module_ptr module)
 {
     auto exports = module->get_flat_exports();
 
-    // Sort the exports by Symbol ID.
-    // This perfectly mirrors how the VM will pack its physical array!
-    std::sort(
-        exports.begin(),
-        exports.end(),
-        [](const Symbol_ptr& a, const Symbol_ptr& b) { return a->id < b->id; });
-
     // Validate that everything has a type
+
     for (const auto& symbol : exports)
     {
         Doctor::get().fatal_if_nullptr(

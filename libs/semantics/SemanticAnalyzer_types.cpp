@@ -89,7 +89,7 @@ Object_ptr SemanticAnalyzer::visit(const TypeAnnotation_ptr type_node) {
 
     Object_ptr SemanticAnalyzer::visit(TypeIdentifierNode &expr)
     {
-        auto symbol = current_scope->lookup_solo(expr.name);
+        auto symbol = current_scope->lookup(expr.name);
         Doctor::get().fatal_if_nullptr(symbol, WaspStage::Semantics);
         return symbol->get_type();
     }
