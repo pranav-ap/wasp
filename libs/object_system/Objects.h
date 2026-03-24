@@ -170,27 +170,40 @@ struct StaticFunctionObject : public CompositeObject
     CodeObject code;
 
     std::string name;
-    std::map<int, std::string> id_to_name_map;
+    std::map<int, std::string> symbol_id_to_name_map;
+    std::map<int, std::string> upvalue_index_to_name_map;
 
     StaticFunctionObject(CodeObject code) : code(std::move(code)) {}
 
     StaticFunctionObject(
         CodeObject code,
         std::string name,
-        std::map<int, std::string> id_to_name_map)
-        : code(std::move(code)), name(std::move(name)), id_to_name_map(std::move(id_to_name_map))
+        std::map<int, std::string> symbol_id_to_name_map,
+        std::map<int, std::string> upvalue_index_to_name_map)
+        : code(std::move(code)), name(std::move(name)),
+          symbol_id_to_name_map(std::move(symbol_id_to_name_map)),
+          upvalue_index_to_name_map(std::move(upvalue_index_to_name_map))
     {
     }
 
     std::string get_name_for_symbol_id(int index) const
     {
-        // Doctor::get().assert(
-        //     id_to_name_map.contains(index),
-        //     WaspStage::Compiler,
-        //     "Invalid symbol ID");
+        Doctor::get().assert(
+            symbol_id_to_name_map.contains(index),
+            WaspStage::Compiler,
+            "Invalid symbol ID");
 
-        auto it = id_to_name_map.find(index);
-        return (it != id_to_name_map.end()) ? it->second : "";
+        return symbol_id_to_name_map.at(index);
+    }
+
+    std::string get_name_for_upvalue_index(int index) const
+    {
+        Doctor::get().assert(
+            upvalue_index_to_name_map.contains(index),
+            WaspStage::Compiler,
+            "Invalid Upvalue Index");
+
+        return upvalue_index_to_name_map.at(index);
     }
 };
 
@@ -414,11 +427,6 @@ struct ModuleType : public CompositeType
 
     void add_member(const std::string& member_name, Object_ptr member_type)
     {
-        Doctor::get().assert(
-            !contains_member(member_name),
-            WaspStage::Semantics,
-            "Module member ID already exists");
-
         exports[member_name].push_back(std::move(member_type));
     }
 

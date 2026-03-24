@@ -6,6 +6,7 @@
 #include "Workspace.h"
 
 #include <cstddef>
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
@@ -23,6 +24,7 @@ struct CallFrame
     size_t base_pointer = 0;
 
     std::vector<size_t> scope_bases;
+    std::map<int, size_t> active_locals;
 
     CallFrame(RuntimeFunctionObject_ptr func, size_t bp)
         : function(std::move(func)), base_pointer(bp)
@@ -37,6 +39,7 @@ using CallFrame_ptr = std::shared_ptr<CallFrame>;
 class VM
 {
     Workspace_ptr workspace;
+
     ObjectVector stack;
     std::vector<CallFrame> frames;
 

@@ -1,5 +1,19 @@
+print('Hello world')
+
+let x = 25
+print(x)
+
 import my.dogs
-
-print('calling cats')
-
 dogs.print_dogs()
+
+
+fun greet()
+    print('Yo!')
+
+fun greet(message: str)
+    print(message)
+
+
+greet('Hello again')
+greet()
+

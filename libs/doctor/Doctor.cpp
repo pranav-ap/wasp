@@ -1,5 +1,7 @@
 #include "Doctor.h"
 
+#include <cpptrace/basic.hpp>
+#include <cpptrace/cpptrace.hpp>
 #include <cstdlib>
 #include <iostream>
 #include <source_location>
@@ -62,6 +64,8 @@ void Doctor::fatal(
     };
 
     print_error(err);
+
+    cpptrace::generate_trace().print();
 
     std::cerr << "\033[31mCompilation aborted due to fatal errors.\033[0m\n";
     std::exit(EXIT_FAILURE);

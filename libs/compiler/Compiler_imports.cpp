@@ -31,7 +31,7 @@ void Compiler::visit(SimpleImport& import_stmt)
         WaspStage::Compiler,
         "Simple Import must have a resolved symbol.");
 
-    id_to_name_map[module_symbol->id] = module_symbol->name;
+    symbol_id_to_name_map[module_symbol->id] = module_symbol->name;
     emit(OpCode::DEFINE_LOCAL, import_stmt.symbol->id);
 }
 
@@ -80,7 +80,7 @@ void Compiler::visit(FromImport& import_stmt)
             emit(OpCode::GET_MEMBER, member_id_index);
 
             // Save the function to the current scope using the NEW ALIAS ID
-            id_to_name_map[overload_symbol->id] = overload_symbol->name;
+            symbol_id_to_name_map[overload_symbol->id] = overload_symbol->name;
             // Stack: [ Module ]
             emit(OpCode::DEFINE_LOCAL, overload_symbol->id);
         }

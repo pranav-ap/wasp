@@ -24,7 +24,8 @@ namespace Wasp
 string InstructionPrinter::stringify_instruction(
     byte opcode,
     byte operand,
-    const std::map<int, std::string>& id_to_name_map)
+    const std::map<int, std::string>& symbol_id_to_name_map,
+    const std::map<int, std::string>& upvalue_index_to_name_map)
 {
     int op_int = std::to_integer<int>(operand);
     std::stringstream ss;
@@ -47,17 +48,27 @@ string InstructionPrinter::stringify_instruction(
         break;
     }
 
+    case OpCode::GET_UPVALUE:
+    case OpCode::SET_UPVALUE:
+    {
+        if (upvalue_index_to_name_map.contains(op_int))
+        {
+            ss << std::right << setw(OPERAND_WIDTH) << " (" << upvalue_index_to_name_map.at(op_int)
+               << ")";
+        }
+        break;
+    }
+
     case OpCode::DEFINE_LOCAL:
     case OpCode::SET_LOCAL:
     case OpCode::GET_LOCAL:
     case OpCode::GET_MEMBER:
     case OpCode::SET_MEMBER:
-    case OpCode::GET_UPVALUE:
-    case OpCode::SET_UPVALUE:
     {
-        if (id_to_name_map.contains(op_int))
+        if (symbol_id_to_name_map.contains(op_int))
         {
-            ss << std::right << setw(OPERAND_WIDTH) << " (" << id_to_name_map.at(op_int) << ")";
+            ss << std::right << setw(OPERAND_WIDTH) << " (" << symbol_id_to_name_map.at(op_int)
+               << ")";
         }
         break;
     }
@@ -74,7 +85,8 @@ string InstructionPrinter::stringify_instruction(
     byte opcode,
     byte op1,
     byte op2,
-    const std::map<int, std::string>& id_to_name_map)
+    const std::map<int, std::string>& symbol_id_to_name_map,
+    const std::map<int, std::string>& upvalue_index_to_name_map)
 {
     OpCode op = static_cast<OpCode>(opcode);
     std::stringstream ss;
@@ -104,7 +116,7 @@ void InstructionPrinter::print(const Object_ptr obj, std::ostream& out)
     Doctor::get().assert(
         obj->is<StaticFunctionObject_ptr>(),
         WaspStage::Compiler,
-        "Can only print FunctionObjects");
+        "Can only print StaticFunctionObjects");
 
     auto function_obj = obj->as<StaticFunctionObject_ptr>();
     print(function_obj, out);
@@ -112,7 +124,8 @@ void InstructionPrinter::print(const Object_ptr obj, std::ostream& out)
 
 void InstructionPrinter::print_bytecode(
     const CodeObject& code,
-    const std::map<int, std::string>& id_to_name_map,
+    const std::map<int, std::string>& symbol_id_to_name_map,
+    const std::map<int, std::string>& upvalue_index_to_name_map,
     std::ostream& out)
 {
     int length = static_cast<int>(code.length());
@@ -157,11 +170,21 @@ void InstructionPrinter::print_bytecode(
         }
         else if (arity == 1)
         {
-            out << stringify_instruction(opcode, instruction[1], id_to_name_map) << "\n";
+            out << stringify_instruction(
+                       opcode,
+                       instruction[1],
+                       symbol_id_to_name_map,
+                       upvalue_index_to_name_map)
+                << "\n";
         }
         else if (arity == 2)
         {
-            out << stringify_instruction(opcode, instruction[1], instruction[2], id_to_name_map)
+            out << stringify_instruction(
+                       opcode,
+                       instruction[1],
+                       instruction[2],
+                       symbol_id_to_name_map,
+                       upvalue_index_to_name_map)
                 << "\n";
         }
 
@@ -171,12 +194,16 @@ void InstructionPrinter::print_bytecode(
 
 void InstructionPrinter::print(const StaticFunctionObject_ptr function_obj, std::ostream& out)
 {
-    print_bytecode(function_obj->code, function_obj->id_to_name_map, out);
+    print_bytecode(
+        function_obj->code,
+        function_obj->symbol_id_to_name_map,
+        function_obj->upvalue_index_to_name_map,
+        out);
 }
 
 void InstructionPrinter::print(const CodeObject& code_object, std::ostream& out)
 {
-    print_bytecode(code_object, {}, out);
+    print_bytecode(code_object, {}, {}, out);
 }
 
 void InstructionPrinter::print_pool_functions(std::ostream& out)

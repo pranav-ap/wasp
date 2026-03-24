@@ -162,7 +162,7 @@ void Compiler::visit(ForInLoop& statement) {
     if (statement.lhs->is<Identifier>()) {
         auto symbol = statement.lhs->as<Identifier>().symbol;
         if (symbol) {
-            id_to_name_map[symbol->id] = symbol->name;
+            symbol_id_to_name_map[symbol->id] = symbol->name;
             emit(OpCode::DEFINE_LOCAL, symbol->id);
         }
     } else {

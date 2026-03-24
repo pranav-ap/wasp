@@ -11,24 +11,29 @@
 #include <ostream>
 #include <string>
 
-namespace Wasp {
-class InstructionPrinter {
+namespace Wasp
+{
+class InstructionPrinter
+{
     Workspace_ptr ws;
 
     std::string stringify_instruction(
         std::byte opcode,
         std::byte operand,
-        const std::map<int, std::string>& id_to_name_map);
+        const std::map<int, std::string>& symbol_id_to_name_map,
+        const std::map<int, std::string>& upvalue_index_to_id_name_map);
 
     std::string stringify_instruction(
         std::byte opcode,
         std::byte operand_1,
         std::byte operand_2,
-        const std::map<int, std::string>& id_to_name_map);
+        const std::map<int, std::string>& symbol_id_to_name_map,
+        const std::map<int, std::string>& upvalue_index_to_id_name_map);
 
     void print_bytecode(
         const CodeObject& code,
-        const std::map<int, std::string>& id_to_name_map,
+        const std::map<int, std::string>& symbol_id_to_name_map,
+        const std::map<int, std::string>& upvalue_index_to_id_name_map,
         std::ostream& out);
 
 public:

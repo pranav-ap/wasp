@@ -56,7 +56,7 @@ int Compiler::add_upvalue(const Upvalue& uv, const std::string& name)
     upvalues.push_back(uv);
 
     int id = static_cast<int>(upvalues.size()) - 1;
-    id_to_name_map[id] = name;
+    upvalue_index_to_name_map[id] = name;
 
     return id;
 }

@@ -40,7 +40,8 @@ void Compiler::visit(FunctionDefinition& function_definition)
     int const_id = workspace->pool->allocate_function_definition(
         std::move(code),
         function_definition.name,
-        std::move(func_compiler.id_to_name_map));
+        std::move(func_compiler.symbol_id_to_name_map),
+        std::move(func_compiler.upvalue_index_to_name_map));
 
     emit(OpCode::LOAD_CONST, const_id);
 
@@ -63,7 +64,7 @@ void Compiler::visit(FunctionDefinition& function_definition)
         }
     }
 
-    id_to_name_map[function_definition.symbol->id] = function_definition.name;
+    symbol_id_to_name_map[function_definition.symbol->id] = function_definition.name;
     emit(OpCode::DEFINE_LOCAL, function_definition.symbol->id);
 }
 

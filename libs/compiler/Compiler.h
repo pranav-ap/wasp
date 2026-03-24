@@ -41,12 +41,11 @@ class Compiler
 {
 private:
     Workspace_ptr workspace;
+    Compiler* parent;
 
     // ------------------------------------------------------------------------
     // Closure Support
     // ------------------------------------------------------------------------
-
-    Compiler* parent;
 
     std::vector<Upvalue> upvalues;
 
@@ -55,6 +54,13 @@ private:
 
     int add_upvalue(const Upvalue& uv, const std::string& name);
     int resolve_upvalue(Compiler* current_compiler, Symbol_ptr symbol);
+
+    // -----------------------------------------------------------------------
+    // Debugging
+    // -----------------------------------------------------------------------
+
+    std::map<int, std::string> symbol_id_to_name_map;
+    std::map<int, std::string> upvalue_index_to_name_map;
 
     // ------------------------------------------------------------------------
     // Control Flow Graph
@@ -72,11 +78,6 @@ private:
 
     void enter_scope();
     void leave_scope();
-
-    // -----------------------------------------------------------------------
-    // Debugging
-    // -----------------------------------------------------------------------
-    std::map<int, std::string> id_to_name_map;
 
     // -----------------------------------------------------------------------
     // Emit
@@ -166,7 +167,12 @@ public:
     Compiler(Compiler* parent);
 
     const CFGraph& get_graph() const { return graph; }
-    const std::map<int, std::string>& get_name_map() const { return id_to_name_map; }
+
+    const std::map<int, std::string>& get_symbol_name_map() const { return symbol_id_to_name_map; }
+    const std::map<int, std::string>& get_upvalue_name_map() const
+    {
+        return upvalue_index_to_name_map;
+    }
 
     StaticFunctionObject_ptr run(
         const StatementVector& block,

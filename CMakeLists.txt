@@ -44,6 +44,18 @@ endif()
 add_library(CLI11 INTERFACE)
 target_include_directories(CLI11 INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
+# cpptrace
+include(FetchContent)
+FetchContent_Declare(
+  cpptrace
+  GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
+  GIT_TAG        v0.7.5 # Stable release
+)
+
+# Force it to use libbacktrace, which is the standard on Linux
+set(CPPTRACE_GET_SYMBOLS_WITH_LIBBACKTRACE ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(cpptrace)
+
 # ==========================================
 # Wasp Modules
 # ==========================================

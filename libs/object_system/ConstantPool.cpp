@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #define MAKE_OBJECT_VARIANT(x) std::make_shared<Object>(x)
 #define MAKE_SHARED_OBJECT_VARIANT(Type, ...) std::make_shared<Object>(std::make_shared<Type>(__VA_ARGS__))
@@ -161,12 +162,14 @@ namespace Wasp
     int ConstantPool::allocate_function_definition(
         CodeObject code,
         std::string name,
-        std::map<int, std::string> id_to_name_map)
+        std::map<int, std::string> symbol_id_to_name_map,
+        std::map<int, std::string> upvalue_index_to_name_map)
     {
         auto func_obj = std::make_shared<StaticFunctionObject>(
             std::move(code),
             std::move(name),
-            std::move(id_to_name_map));
+            std::move(symbol_id_to_name_map),
+            std::move(upvalue_index_to_name_map));
 
         return allocate_function_definition(func_obj);
     }

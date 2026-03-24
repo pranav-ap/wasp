@@ -62,7 +62,8 @@ namespace Wasp
         int allocate_function_definition(
             CodeObject code,
             std::string name,
-            std::map<int, std::string> id_to_name_map);
+            std::map<int, std::string> symbol_id_to_name_map,
+            std::map<int, std::string> upvalue_index_to_name_map);
 
         int allocate_type(Object_ptr value);
     };

@@ -49,37 +49,42 @@ void VM::execute_variable(OpCode op, CallFrame* frame)
     {
     case OpCode::DEFINE_LOCAL:
     {
-        Object_ptr val = pop_from_stack();
-
-        int index = static_cast<int>(frame->consume_byte());
-        size_t target_idx = frame->base_pointer + index;
-
-        if (target_idx >= stack.size())
-            stack.resize(target_idx + 1);
-
-        stack[target_idx] = std::move(val);
+        int symbol_id = static_cast<int>(frame->consume_byte());
+        frame->active_locals[symbol_id] = stack.size() - 1;
         break;
     }
     case OpCode::SET_LOCAL:
     {
-        int index = static_cast<int>(frame->consume_byte());
-        if (index >= stack.size())
-            stack.resize(index + 1);
-        stack[frame->base_pointer + index] = peek_tos();
+        int symbol_id = static_cast<int>(frame->consume_byte());
+
+        Doctor::get().assert(
+            frame->active_locals.contains(symbol_id),
+            WaspStage::VM,
+            "Assignment to uninitialized local variable!");
+
+        stack[frame->active_locals[symbol_id]] = peek_tos();
         break;
     }
     case OpCode::GET_LOCAL:
     {
-        int index = static_cast<int>(frame->consume_byte());
-        push_to_stack(stack[frame->base_pointer + index]);
+        int symbol_id = static_cast<int>(frame->consume_byte());
+
+        Doctor::get().assert(
+            frame->active_locals.contains(symbol_id),
+            WaspStage::VM,
+            "Read from uninitialized local variable!");
+
+        push_to_stack(stack[frame->active_locals[symbol_id]]);
         break;
     }
+
     case OpCode::GET_NATIVE:
     {
         int index = static_cast<int>(frame->consume_byte());
         push_to_stack(workspace->native_registry->get_native_object(index));
         break;
     }
+
     case OpCode::GET_UPVALUE:
     {
         int index = static_cast<int>(frame->consume_byte());
@@ -92,6 +97,7 @@ void VM::execute_variable(OpCode op, CallFrame* frame)
         frame->function->upvalues[index] = peek_tos();
         break;
     }
+
     case OpCode::PUSH_SCOPE:
     {
         frame->scope_bases.push_back(stack.size());
@@ -101,15 +107,18 @@ void VM::execute_variable(OpCode op, CallFrame* frame)
     {
         size_t base = frame->scope_bases.back();
         frame->scope_bases.pop_back();
+
         while (stack.size() > base)
+        {
             pop_from_stack();
+        }
+
         break;
     }
     default:
         break;
     }
 }
-
 void VM::execute_control_flow(OpCode op, CallFrame* frame)
 {
     uint8_t low = static_cast<uint8_t>(frame->consume_byte());
@@ -262,15 +271,23 @@ void VM::execute_exit_module()
 
     std::map<std::string, Object_ptr> exported_members;
 
-    // Collect Exports from the stack
-    for (size_t i = bp; i < stack.size(); ++i)
+    // Loop through the blueprint's list of declared symbols
+    for (const auto& [symbol_id, name] : frame.function->blueprint->symbol_id_to_name_map)
     {
-        std::string var_name = frame.function->blueprint->get_name_for_symbol_id(i - bp);
+        // Look up where this symbol is physically located on the stack right now
+        auto it = frame.active_locals.find(symbol_id);
 
-        if (!var_name.empty())
-        {
-            exported_members[var_name] = stack[i];
-        }
+        Doctor::get().assert(
+            it != frame.active_locals.end(),
+            WaspStage::VM,
+            "Exported symbol not found in active locals");
+
+        size_t physical_stack_index = it->second;
+        Object_ptr value = stack[physical_stack_index];
+
+        Doctor::get().fatal_if_nullptr(value, WaspStage::VM, "Exported symbol has no value");
+
+        exported_members[name] = value;
     }
 
     auto exports = std::make_shared<ModuleObject>(
