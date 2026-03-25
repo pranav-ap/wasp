@@ -78,8 +78,9 @@ Symbol_ptr SymbolScope::define_function(Symbol_ptr new_symbol)
 
     if (enclosing_scope)
     {
-        if (Symbol_ptr existing_parent = enclosing_scope->lookup(new_symbol->name);
-            existing_parent->payload_is<OverloadGroupData>())
+        Symbol_ptr existing_parent = enclosing_scope->lookup(new_symbol->name);
+
+        if (existing_parent && existing_parent->payload_is<OverloadGroupData>())
         {
             const auto& parent_data = existing_parent->get_payload_as<OverloadGroupData>();
 

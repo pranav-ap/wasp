@@ -129,7 +129,7 @@ if let x = true then
       // Variable Definition
       B(Wasp::OpCode::LOAD_TRUE),
       B(Wasp::OpCode::DUP),
-      B(Wasp::OpCode::DEFINE_LOCAL),  B(2),
+      B(Wasp::OpCode::DEFINE_LOCAL),  B(4),
 
       B(Wasp::OpCode::JUMP_IF_FALSE), B(22), B(0),
       B(Wasp::OpCode::JUMP),          B(12), B(0),

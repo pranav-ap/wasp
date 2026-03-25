@@ -5,7 +5,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <filesystem>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -28,7 +27,8 @@ void VM::execute_constant(OpCode op, CallFrame* frame)
     {
     case OpCode::LOAD_CONST: {
         push_to_stack(
-            workspace->pool->get(static_cast<int>(frame->consume_byte())));
+            workspace->pool->get(static_cast<int>(frame->consume_byte()))
+        );
         break;
     }
     case OpCode::LOAD_TRUE: {
@@ -63,7 +63,8 @@ void VM::execute_variable(OpCode op, CallFrame* frame)
         Doctor::get().assert(
             frame->symbol_id_to_stack_index.contains(symbol_id),
             WaspStage::VM,
-            "Assignment to uninitialized local variable!");
+            "Assignment to uninitialized local variable!"
+        );
 
         stack[frame->symbol_id_to_stack_index[symbol_id]] = peek_tos();
         break;
@@ -74,7 +75,8 @@ void VM::execute_variable(OpCode op, CallFrame* frame)
         Doctor::get().assert(
             frame->symbol_id_to_stack_index.contains(symbol_id),
             WaspStage::VM,
-            "Read from uninitialized local variable!");
+            "Read from uninitialized local variable!"
+        );
 
         push_to_stack(stack[frame->symbol_id_to_stack_index[symbol_id]]);
         break;
@@ -154,7 +156,8 @@ void VM::execute_member(OpCode op, CallFrame* frame)
         Doctor::get().fatal_if_nullptr(
             obj,
             WaspStage::VM,
-            "Cannot read property of null.");
+            "Cannot read property of null."
+        );
 
         push_to_stack(perform_get_member(obj, member_index));
     }
@@ -166,7 +169,8 @@ void VM::execute_member(OpCode op, CallFrame* frame)
         Doctor::get().fatal_if_nullptr(
             obj,
             WaspStage::VM,
-            "Cannot set property on null.");
+            "Cannot set property on null."
+        );
 
         perform_set_member(obj, member_index, val);
 
@@ -189,10 +193,13 @@ Object_ptr VM::perform_get_member(Object_ptr obj, int member_index)
                 Doctor::get().fatal(
                     WaspStage::VM,
                     "Object of this type does not support reading "
-                    "properties.");
+                    "properties."
+                );
                 return nullptr;
-            }},
-        obj->value);
+            }
+        },
+        obj->value
+    );
 }
 
 void VM::perform_set_member(Object_ptr obj, int member_index, Object_ptr value)
@@ -207,18 +214,17 @@ void VM::perform_set_member(Object_ptr obj, int member_index, Object_ptr value)
             {
                 Doctor::get().fatal(
                     WaspStage::VM,
-                    "Object does not support setting properties.");
-            }},
-        obj->value);
+                    "Object does not support setting properties."
+                );
+            }
+        },
+        obj->value
+    );
 }
 
 // --------------------------------------
 // Function Calls
 // --------------------------------------
-
-void VM::execute_add_function(CallFrame* frame)
-{
-}
 
 void VM::execute_make_function(CallFrame* frame)
 {
@@ -231,7 +237,8 @@ void VM::execute_make_function(CallFrame* frame)
     Doctor::get().assert(
         blueprint_obj->is<std::shared_ptr<StaticFunctionObject>>(),
         WaspStage::VM,
-        "MAKE_FUNCTION expects a StaticFunctionObject to pop");
+        "MAKE_FUNCTION expects a StaticFunctionObject to pop"
+    );
 
     auto blueprint = blueprint_obj->as<std::shared_ptr<StaticFunctionObject>>();
 
@@ -241,7 +248,6 @@ void VM::execute_make_function(CallFrame* frame)
     for (int i = 0; i < upvalue_count; i++)
     {
         bool is_local_to_parent = (frame->consume_byte() == std::byte{1});
-
         int id_or_index = static_cast<int>(frame->consume_byte());
 
         if (is_local_to_parent)
@@ -251,7 +257,8 @@ void VM::execute_make_function(CallFrame* frame)
                 frame->symbol_id_to_stack_index.contains(id_or_index),
                 WaspStage::VM,
                 "Closure attempted to capture an unknown symbol ID: " +
-                    std::to_string(id_or_index));
+                    std::to_string(id_or_index)
+            );
 
             size_t stack_idx = frame->symbol_id_to_stack_index.at(id_or_index);
             captured_upvalues.push_back(stack[stack_idx]);
@@ -265,9 +272,78 @@ void VM::execute_make_function(CallFrame* frame)
 
     auto runtime_closure = std::make_shared<RuntimeFunctionObject>(
         blueprint,
-        std::move(captured_upvalues));
+        std::move(captured_upvalues)
+    );
 
     push_to_stack(make_object(runtime_closure));
+}
+
+void VM::execute_overload_function(CallFrame* frame)
+{
+    int symbol_id = static_cast<int>(frame->consume_byte());
+    Object_ptr new_func = pop_from_stack();
+
+    auto it = frame->symbol_id_to_stack_index.find(symbol_id);
+
+    if (it == frame->symbol_id_to_stack_index.end())
+    {
+        // First time defining this function: Create the Overload Group
+        ObjectVector initial_overloads;
+        initial_overloads.push_back(new_func);
+
+        auto group = make_object(
+            std::make_shared<OverloadedObjectsSet>(std::move(initial_overloads))
+        );
+
+        push_to_stack(group);
+        frame->symbol_id_to_stack_index[symbol_id] = stack.size() - 1;
+
+        return;
+    }
+
+    Object_ptr existing_obj = stack[it->second];
+
+    Doctor::get().assert(
+        existing_obj->is<std::shared_ptr<OverloadedObjectsSet>>(),
+        WaspStage::VM,
+        "Cannot add overload to a symbol that is not a function group."
+    );
+
+    auto group = existing_obj->as<std::shared_ptr<OverloadedObjectsSet>>();
+    group->overloads.push_back(new_func);
+}
+
+void VM::execute_resolve_function(CallFrame* frame)
+{
+    int symbol_id = static_cast<int>(frame->consume_byte());
+    int overload_index = static_cast<int>(frame->consume_byte());
+
+    auto it = frame->symbol_id_to_stack_index.find(symbol_id);
+
+    Doctor::get().assert(
+        it != frame->symbol_id_to_stack_index.end(),
+        WaspStage::VM,
+        "LOAD_LOCAL_FUNCTION: Symbol ID not found in current frame."
+    );
+
+    Object_ptr group_obj = stack[it->second];
+
+    Doctor::get().assert(
+        group_obj->is<std::shared_ptr<OverloadedObjectsSet>>(),
+        WaspStage::VM,
+        "Expected an Overload Group"
+    );
+
+    auto group = group_obj->as<std::shared_ptr<OverloadedObjectsSet>>();
+
+    Doctor::get().assert(
+        overload_index >= 0 && overload_index < group->overloads.size(),
+        WaspStage::VM,
+        "Overload index out of bounds!"
+    );
+
+    // Push the specific resolved RuntimeFunctionObject onto the stack for CALL
+    push_to_stack(group->overloads[overload_index]);
 }
 
 void VM::execute_call(CallFrame* frame)
@@ -303,7 +379,8 @@ void VM::execute_call(CallFrame* frame)
                 Doctor::get().assert(
                     native->arity == -1 || native->arity == arg_count,
                     WaspStage::VM,
-                    "Arity mismatch in native function call");
+                    "Arity mismatch in native function call"
+                );
 
                 // Collect arguments from the stack
                 std::vector<Object_ptr> args(arg_count);
@@ -323,9 +400,12 @@ void VM::execute_call(CallFrame* frame)
             {
                 Doctor::get().fatal(
                     WaspStage::VM,
-                    "Attempted to call a non-callable object");
-            }},
-        callable->value);
+                    "Attempted to call a non-callable object"
+                );
+            }
+        },
+        callable->value
+    );
 }
 
 void VM::execute_return(CallFrame* frame)
@@ -353,29 +433,28 @@ void VM::execute_return(CallFrame* frame)
     push_to_stack(result);
 }
 
+// ------------------------------------------------
+// Module
+// ------------------------------------------------
+
 void VM::execute_import_module(CallFrame* frame)
 {
     int module_index = static_cast<int>(frame->consume_byte());
-    // Object_ptr path_obj = workspace->
 
-    Doctor::get().assert(
-        path_obj->is<StringObject>(),
-        WaspStage::VM,
-        "IMPORT expects a string constant for the module path");
+    auto target_module = workspace->get_module(module_index);
 
-    std::string module_path = path_obj->as<StringObject>().value;
-
-    auto target_module = workspace->get_module(module_path);
     Doctor::get().fatal_if_nullptr(
         target_module,
         WaspStage::VM,
-        "Module not found : " + module_path);
+        "Module not found at registry index: " + std::to_string(module_index)
+    );
 
     auto module_func = std::make_shared<RuntimeFunctionObject>(
-        target_module->blueprint);
+        target_module->blueprint
+    );
 
-    size_t export_base = stack.size();
-    frames.emplace_back(module_func, export_base);
+    size_t stack_base_pointer = stack.size();
+    frames.emplace_back(module_func, stack_base_pointer);
 }
 
 void VM::execute_exit_module()
@@ -388,14 +467,14 @@ void VM::execute_exit_module()
     for (const auto& [symbol_id, name] :
          frame.function->blueprint->symbol_id_to_name_map)
     {
-        // Look up where this symbol is physically located on the stack
-        // right now
+        // Find where this symbol is physically located on the stack
         auto it = frame.symbol_id_to_stack_index.find(symbol_id);
 
         Doctor::get().assert(
             it != frame.symbol_id_to_stack_index.end(),
             WaspStage::VM,
-            "Exported symbol not found in active locals");
+            "Exported symbol not found in active locals"
+        );
 
         size_t physical_stack_index = it->second;
         Object_ptr value = stack[physical_stack_index];
@@ -403,19 +482,22 @@ void VM::execute_exit_module()
         Doctor::get().fatal_if_nullptr(
             value,
             WaspStage::VM,
-            "Exported symbol has no value");
+            "Exported symbol has no value"
+        );
 
         members[name] = value;
     }
 
     auto exports = std::make_shared<ModuleObject>(
         frame.function->blueprint->name,
-        std::move(members));
+        std::move(members)
+    );
 
-    // Stack cleanup
+    // Cleanup
     stack.erase(stack.begin() + bp, stack.end());
     frames.pop_back();
 
+    // make module object available to importer if any
     push_to_stack(make_object(exports));
 }
 
@@ -427,7 +509,8 @@ void VM::run(StaticFunctionObject_ptr function_object)
 {
     frames.emplace_back(
         std::make_shared<RuntimeFunctionObject>(function_object),
-        0);
+        0
+    );
 
     while (true)
     {
@@ -553,13 +636,13 @@ void VM::run(StaticFunctionObject_ptr function_object)
             break;
         }
 
-        case OpCode::ADD_FUNCTION: {
-            execute_add_function(frame);
+        case OpCode::OVERLOAD_FUNCTION: {
+            execute_overload_function(frame);
             break;
         }
 
-        case OpCode::LOAD_FUNCTION: {
-            execute_load_function(frame);
+        case OpCode::RESOLVE_FUNCTION: {
+            execute_resolve_function(frame);
             break;
         }
 
@@ -582,7 +665,8 @@ void VM::run(StaticFunctionObject_ptr function_object)
         default: {
             Doctor::get().fatal(
                 WaspStage::VM,
-                "Unknown OpCode encountered: " + stringify_opcode(instruction));
+                "Unknown OpCode encountered: " + stringify_opcode(instruction)
+            );
         }
         }
     }

@@ -5,7 +5,9 @@
 #include "NativeRegistry.h"
 #include "Objects.h"
 
+#include <algorithm>
 #include <filesystem>
+#include <iterator>
 #include <map>
 #include <memory>
 #include <string>
@@ -46,28 +48,53 @@ Symbol::Symbol(
     std::string name,
     int closure_depth,
     int lexical_depth,
-    SymbolPayload payload)
-    : id(id), name(std::move(name)), declaration_depth(closure_depth), lexical_depth(lexical_depth),
-      payload(std::move(payload))
+    SymbolPayload payload
+)
+    : id(id), name(std::move(name)), declaration_depth(closure_depth),
+      lexical_depth(lexical_depth), payload(std::move(payload))
 {
 }
 
-bool Symbol::is_global() const { return lexical_depth == 0; }
+bool Symbol::is_global() const
+{
+    return lexical_depth == 0;
+}
 
-bool Symbol::should_be_captured(int usage_depth) const { return declaration_depth < usage_depth; }
+bool Symbol::should_be_captured(int usage_depth) const
+{
+    return declaration_depth < usage_depth;
+}
 
 Object_ptr Symbol::get_type()
 {
     return std::visit(
         ::overloaded{
-            [](const VariableData& d) { return d.type; },
-            [](const FunctionData& d) { return d.type; },
-            [](const ClassData& d) { return d.type; },
-            [](const EnumData& d) { return d.type; },
+            [](const VariableData& d)
+            {
+                return d.type;
+            },
+            [](const FunctionData& d)
+            {
+                return d.type;
+            },
+            [](const ClassData& d)
+            {
+                return d.type;
+            },
+            [](const EnumData& d)
+            {
+                return d.type;
+            },
 
-            [](const ModuleData& d) -> Object_ptr { return d.mod->type; },
+            [](const ModuleData& d) -> Object_ptr
+            {
+                return d.mod->type;
+            },
 
-            [](const AliasData& d) { return d.target->get_type(); },
+            [](const AliasData& d)
+            {
+                return d.target->get_type();
+            },
 
             [](OverloadGroupData& d)
             {
@@ -84,7 +111,10 @@ Object_ptr Symbol::get_type()
                 }
 
                 d.type = make_object(
-                    std::make_shared<OverloadedTypesSet>(std::move(overload_types)));
+                    std::make_shared<OverloadedTypesSet>(
+                        std::move(overload_types)
+                    )
+                );
 
                 return d.type;
             },
@@ -94,26 +124,45 @@ Object_ptr Symbol::get_type()
                     WaspStage::Semantics,
                     "This symbol does not have type information");
                 return nullptr;
-            }},
-        payload);
+            }
+        },
+        payload
+    );
 }
 
 void Symbol::set_type(Object_ptr new_type)
 {
     std::visit(
         ::overloaded{
-            [&](VariableData& d) { d.type = std::move(new_type); },
-            [&](FunctionData& d) { d.type = std::move(new_type); },
-            [&](ClassData& d) { d.type = std::move(new_type); },
-            [&](EnumData& d) { d.type = std::move(new_type); },
-            [&](AliasData& d) { d.target->set_type(std::move(new_type)); },
+            [&](VariableData& d)
+            {
+                d.type = std::move(new_type);
+            },
+            [&](FunctionData& d)
+            {
+                d.type = std::move(new_type);
+            },
+            [&](ClassData& d)
+            {
+                d.type = std::move(new_type);
+            },
+            [&](EnumData& d)
+            {
+                d.type = std::move(new_type);
+            },
+            [&](AliasData& d)
+            {
+                d.target->set_type(std::move(new_type));
+            },
             [](auto) -> void
             {
                 Doctor::get().fatal(
                     WaspStage::Semantics,
                     "You are not allowed to set type for this object");
-            }},
-        payload);
+            }
+        },
+        payload
+    );
 }
 
 Symbol_ptr Symbol::resolve()
@@ -128,7 +177,7 @@ Symbol_ptr Symbol::resolve()
 }
 
 // --------------------------------------------------------------------
-// FunctionData
+// Payloads
 // --------------------------------------------------------------------
 
 Object_ptr FunctionData::get_return_type() const
@@ -146,6 +195,20 @@ Object_ptr FunctionData::get_return_type() const
     }
 
     return make_object(NoneType());
+}
+
+int OverloadGroupData::get_overload_index(const Symbol_ptr& target) const
+{
+    SymbolVector all_overloads = get_all_overloads();
+    auto it = std::find(all_overloads.begin(), all_overloads.end(), target);
+
+    Doctor::get().assert(
+        it != all_overloads.end(),
+        WaspStage::Semantics,
+        "Target symbol not found in overload group"
+    );
+
+    return static_cast<int>(std::distance(all_overloads.begin(), it));
 }
 
 // --------------------------------------------------------------------
@@ -256,7 +319,10 @@ Module::Module(std::filesystem::path file_path, StatementVector stmts)
 {
 }
 
-std::string Module::get_name() const { return absolute_filepath.stem().string(); }
+std::string Module::get_name() const
+{
+    return absolute_filepath.stem().string();
+}
 
 SymbolVector Module::get_flat_exports() const
 {
@@ -275,8 +341,9 @@ SymbolVector Module::get_flat_exports() const
 // --------------------------------------------------------------------
 
 Workspace::Workspace(std::filesystem::path root)
-    : root_path(std::filesystem::absolute(root)), build_path(root_path / "build"),
-      libs_path(root_path / "libs"), pool(std::make_shared<ConstantPool>()),
+    : root_path(std::filesystem::absolute(root)),
+      build_path(root_path / "build"), libs_path(root_path / "libs"),
+      pool(std::make_shared<ConstantPool>()),
       native_registry(std::make_shared<NativeRegistry>(pool))
 {
     std::filesystem::create_directories(build_path);
@@ -287,41 +354,59 @@ Module_ptr Workspace::get_module(const std::filesystem::path& path)
 {
     auto abs_path = std::filesystem::absolute(path);
 
-    if (absolute_path_to_module_index.contains(abs_path))
+    if (module_registry.contains(abs_path))
     {
-        int module_index = absolute_path_to_module_index.at(abs_path);
-        return module_registry.at(module_index);
+        return module_registry.at(abs_path);
     }
 
     return nullptr;
 }
 
-const std::map<int, Module_ptr>& Workspace::get_all_modules() const { return module_registry; }
+Module_ptr Workspace::get_module(int module_index)
+{
+    auto it = module_registry.begin();
+    std::advance(it, module_index);
+    return it->second;
+}
+
+const std::map<std::filesystem::path, Module_ptr>& Workspace::
+    get_all_modules() const
+{
+    return module_registry;
+}
 
 void Workspace::add_module(const std::filesystem::path& path, Module_ptr module)
 {
     auto abs_path = std::filesystem::absolute(path);
 
-    if (absolute_path_to_module_index.contains(abs_path))
-    {
-        return;
-    }
+    Doctor::get().assert(
+        !module_registry.contains(abs_path),
+        WaspStage::Compiler,
+        "Module already exists in workspace: " + abs_path.string()
+    );
 
-    int index = next_module_index++;
-    absolute_path_to_module_index[abs_path] = index;
-    module_registry[index] = std::move(module);
+    module_registry[abs_path] = std::move(module);
 }
 
 int Workspace::get_module_index(const std::filesystem::path& path) const
 {
     auto abs_path = std::filesystem::absolute(path);
 
+    auto it = module_registry.find(abs_path);
     Doctor::get().assert(
-        absolute_path_to_module_index.contains(abs_path),
+        it != module_registry.end(),
         WaspStage::Compiler,
-        "Module not found in workspace: " + abs_path.string());
+        "Module not found in workspace: " + abs_path.string()
+    );
 
-    return absolute_path_to_module_index.at(abs_path);
+    return std::distance(module_registry.begin(), it);
+}
+
+std::string Workspace::get_module_path(int module_index) const
+{
+    auto it = module_registry.begin();
+    std::advance(it, module_index);
+    return it->first.string();
 }
 
 } // namespace Wasp

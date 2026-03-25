@@ -8,6 +8,8 @@
 
 #include <memory>
 #include <string>
+#include <tuple>
+#include <utility>
 
 namespace Wasp
 {
@@ -34,16 +36,18 @@ public:
         std::string& function_name,
         const Symbol_ptr new_func_symbol);
 
-    Symbol_ptr resolve_function_call(
+    std::pair<Symbol_ptr, int> resolve_function_call(
         SymbolScope_ptr scope,
         std::string& function_name,
-        const ObjectVector& argument_types) const;
+        const ObjectVector& argument_types
+    ) const;
 
-    Symbol_ptr resolve_method_call(
+    std::tuple<Symbol_ptr, int, int> resolve_method_call(
         SymbolScope_ptr scope,
         const std::string& module_name,
         const std::string& method_name,
-        const ObjectVector& argument_types) const;
+        const ObjectVector& argument_types
+    ) const;
 
     bool equal(SymbolScope_ptr scope, const Object_ptr type_1, const Object_ptr type_2) const;
 

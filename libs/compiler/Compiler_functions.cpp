@@ -74,8 +74,9 @@ void Compiler::visit(FunctionDefinition& function_definition)
     }
 
     // It's an overload! Merge the func on the stack into the existing group
-    emit(OpCode::ADD_FUNCTION, function_definition.symbol->id);
-    symbol_id_to_name_map[function_definition.symbol->id] = function_definition.name;
+    emit(OpCode::OVERLOAD_FUNCTION, function_definition.symbol->id);
+    symbol_id_to_name_map[function_definition.symbol->id] = function_definition
+                                                                .name;
 }
 
 void Compiler::visit(Return& statement)

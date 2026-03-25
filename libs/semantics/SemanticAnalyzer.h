@@ -13,18 +13,20 @@
 #include <string>
 #include <vector>
 
-namespace Wasp {
+namespace Wasp
+{
 
-class SemanticAnalyzer {
+class SemanticAnalyzer
+{
     Workspace_ptr workspace;
     TypeChecker_ptr type_checker;
 
     SymbolScope_ptr current_scope;
     ObjectVector return_type_stack;
 
-    // ========================================================================
+    // -------------------------------------------------------------------------
     // Statement Visitors
-    // ========================================================================
+    // -------------------------------------------------------------------------
 
     void visit(const Statement_ptr statement);
     void visit(std::vector<Statement_ptr>& statements);
@@ -49,9 +51,9 @@ class SemanticAnalyzer {
     void visit(Pass& statement);
     void visit(Return& statement);
 
-    // ========================================================================
+    // ------------------------------------------------------------------------
     // Imports Visitors
-    // ========================================================================
+    // ------------------------------------------------------------------------
 
     void visit(SimpleImport& statement);
     void visit(FromImport& statement);
@@ -61,7 +63,10 @@ class SemanticAnalyzer {
     // ------------------------------------------------------------------------
 
     Object_ptr define_variable(Expression_ptr assignment_expr, bool is_mutable);
-    Object_ptr mutate_variable(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
+    Object_ptr mutate_variable(
+        Expression_ptr lhs_expr,
+        Expression_ptr rhs_expr
+    );
 
     void visit(VariableDefinition& statement);
 
@@ -86,11 +91,17 @@ class SemanticAnalyzer {
     Object_ptr visit(Identifier& expr);
     Object_ptr visit(MemberAccess& expr);
 
-    Object_ptr evaluate_identifier_call(Identifier& callable, const ObjectVector& arg_types);
+    Object_ptr evaluate_identifier_call(
+        Call& call_expr,
+        Identifier& callable_identifier,
+        const ObjectVector& arg_types
+    );
 
-    Object_ptr evaluate_member_access_call(
-        const Expression_ptr& callable_expr,
-        const ObjectVector& arg_types);
+    Object_ptr evaluate_module_member_access_call(
+        Call& call_expr,
+        MemberAccess& mac,
+        const ObjectVector& arg_types
+    );
 
     Object_ptr visit(Call& expr);
 
@@ -152,7 +163,8 @@ class SemanticAnalyzer {
 
 public:
     SemanticAnalyzer(Workspace_ptr workspace)
-        : type_checker(std::make_shared<TypeChecker>(workspace->pool)), workspace(workspace) {};
+        : type_checker(std::make_shared<TypeChecker>(workspace->pool)),
+          workspace(workspace) {};
 
     void run(const std::vector<Module_ptr>& build_order);
 };

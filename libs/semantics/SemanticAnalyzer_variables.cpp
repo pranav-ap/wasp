@@ -103,10 +103,11 @@ Object_ptr SemanticAnalyzer::define_variable(Expression_ptr assignment_node, boo
     if (Symbol_ptr hoisted_symbol = current_scope->lookup(symbol_name))
     {
         // If it exists, it must be a hoisted global waiting for its type.
-        Doctor::get().fatal_if_nullptr(
-            hoisted_symbol->get_type(),
+        Doctor::get().assert(
+            hoisted_symbol->get_type() == nullptr,
             WaspStage::Semantics,
-            "Variable '" + symbol_name + "' is hoisted but already has a type!");
+            "Variable '" + symbol_name + "' is hoisted but already has a type!"
+        );
 
         hoisted_symbol->set_type(resolved_type);
         identifier_expr->as<Identifier>().symbol = hoisted_symbol;

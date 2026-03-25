@@ -107,6 +107,8 @@ void Compiler::visit(Call& expr)
     for (const auto& arg : expr.arguments)
         visit(arg);
 
+    emit(OpCode::RESOLVE_FUNCTION, expr.overload_index);
+
     emit(OpCode::CALL, static_cast<int>(expr.arguments.size()));
 }
 

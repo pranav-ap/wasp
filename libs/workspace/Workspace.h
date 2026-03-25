@@ -58,6 +58,7 @@ struct OverloadGroupData : public TypedSymbolData
     SymbolVector parents;
 
     SymbolVector get_all_overloads() const;
+    int get_overload_index(const Symbol_ptr& target) const;
 };
 
 struct ClassData : public TypedSymbolData
@@ -193,8 +194,6 @@ class Workspace
 private:
     std::map<std::filesystem::path, Module_ptr> module_registry;
 
-    int next_module_index = 0;
-
 public:
     const std::filesystem::path root_path;
     const std::filesystem::path build_path;
@@ -206,12 +205,14 @@ public:
     Workspace(std::filesystem::path root);
 
     Module_ptr get_module(const std::filesystem::path& path);
+    Module_ptr get_module(int module_index);
 
-    const std::map<int, Module_ptr>& get_all_modules() const;
+    const std::map<std::filesystem::path, Module_ptr>& get_all_modules() const;
 
     void add_module(const std::filesystem::path& path, Module_ptr module);
 
     int get_module_index(const std::filesystem::path& path) const;
+    std::string get_module_path(int module_index) const;
 };
 
 } // namespace Wasp

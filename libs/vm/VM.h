@@ -7,7 +7,6 @@
 
 #include <cstddef>
 #include <map>
-#include <memory>
 #include <utility>
 #include <vector>
 
@@ -33,8 +32,6 @@ struct CallFrame
     std::byte consume_byte() { return function->blueprint->code.data()[ip++]; }
 };
 
-using CallFrame_ptr = std::shared_ptr<CallFrame>;
-
 class VM
 {
     Workspace_ptr workspace;
@@ -57,8 +54,8 @@ class VM
     void execute_variable(OpCode op, CallFrame* frame);
 
     void execute_make_function(CallFrame* frame);
-    void execute_add_function(CallFrame* frame);
-    void execute_load_function(CallFrame* frame);
+    void execute_overload_function(CallFrame* frame);
+    void execute_resolve_function(CallFrame* frame);
 
     void execute_call(CallFrame* frame);
     void execute_return(CallFrame* frame);

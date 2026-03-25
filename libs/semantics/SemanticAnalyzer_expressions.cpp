@@ -9,7 +9,6 @@
 #include "Workspace.h"
 
 #include <ctime>
-#include <iterator>
 #include <map>
 #include <memory>
 #include <string>
@@ -92,137 +91,9 @@ Object_ptr SemanticAnalyzer::visit(const Expression_ptr expr)
         expr->data);
 }
 
-Object_ptr SemanticAnalyzer::visit(Identifier& expr)
-{
-    Symbol_ptr target_symbol = current_scope->lookup(expr.name);
-    Doctor::get().fatal_if_nullptr(target_symbol, WaspStage::Semantics);
-
-    expr.symbol = target_symbol;
-
-    if (target_symbol->should_be_captured(current_scope->get_closure_depth()))
-    {
-        expr.must_be_captured = true;
-    }
-
-    return target_symbol->get_type();
-}
-
-Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
-{
-    Object_ptr left_type = visit(expr.left);
-
-    Doctor::get().assert(
-        left_type->is<ModuleType>(),
-        WaspStage::Semantics,
-        "LHS of member access is not a module");
-
-    const auto& module_type = left_type->as<ModuleType>();
-
-    Doctor::get().assert(
-        expr.right->is<Identifier>(),
-        WaspStage::Semantics,
-        "RHS of member access must be an identifier.");
-
-    std::string member_name = expr.right->as<Identifier>().name;
-
-    auto it = module_type.members.find(member_name);
-
-    Doctor::get().assert(
-        it != module_type.members.end(),
-        WaspStage::Semantics,
-        "Module '" + module_type.module_name + "' does not contain member '" + member_name + "'");
-
-    // Calculate distance using the iterator
-    expr.member_index = module_type.get_member_index(member_name);
-
-    return it->second;
-}
-
-Object_ptr SemanticAnalyzer::visit(Call& call_expr)
-{
-    ObjectVector arg_types;
-
-    for (auto& arg : call_expr.arguments)
-    {
-        arg_types.push_back(visit(arg));
-    }
-
-    return std::visit(
-        overloaded{
-            [&](Identifier& id) -> Object_ptr { return evaluate_identifier_call(id, arg_types); },
-
-            [&](MemberAccess& ma) -> Object_ptr
-            { return evaluate_member_access_call(call_expr.callable, arg_types); },
-
-            [](auto&) -> Object_ptr
-            {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "Expected an Identifier or MemberAccess as the callable.");
-            }},
-        call_expr.callable->data);
-}
-
-Object_ptr SemanticAnalyzer::evaluate_identifier_call(
-    Identifier& callable_identifier,
-    const ObjectVector& arg_types)
-{
-    Symbol_ptr function_symbol = type_checker->resolve_function_call(
-        current_scope,
-        callable_identifier.name,
-        arg_types);
-
-    callable_identifier.symbol = function_symbol;
-
-    if (function_symbol->should_be_captured(current_scope->get_closure_depth()))
-    {
-        callable_identifier.must_be_captured = true;
-    }
-
-    return function_symbol->get_payload_as<FunctionData>().get_return_type();
-}
-
-Object_ptr SemanticAnalyzer::evaluate_member_access_call(
-    const Expression_ptr& callable_expr,
-    const ObjectVector& arg_types)
-{
-    auto& mac = callable_expr->as<MemberAccess>();
-
-    // module.function()
-    Doctor::get().assert(
-        mac.left->is<Identifier>() && mac.right->is<Identifier>(),
-        WaspStage::Semantics,
-        "Supports calls of the form module.function()");
-
-    auto& left_id = mac.left->as<Identifier>();
-    auto& right_id = mac.right->as<Identifier>();
-
-    Symbol_ptr module_symbol = current_scope->lookup(left_id.name);
-    Doctor::get().fatal_if_nullptr(module_symbol, WaspStage::Semantics);
-
-    left_id.symbol = module_symbol;
-
-    // Resolve the exact function overload to call
-    Symbol_ptr function_symbol = type_checker->resolve_method_call(
-        current_scope,
-        left_id.name,
-        right_id.name,
-        arg_types);
-
-    const auto& module_type = module_symbol->get_type()->as<ModuleType>();
-    auto it = module_type.members.find(right_id.name);
-
-    Doctor::get().assert(
-        it != module_type.members.end(),
-        WaspStage::Semantics,
-        "Overload group '" + right_id.name + "' not found in module exports");
-
-    mac.member_index = static_cast<int>(std::distance(module_type.members.begin(), it));
-
-    right_id.symbol = function_symbol;
-
-    return function_symbol->get_payload_as<FunctionData>().get_return_type();
-}
+// -----------------------------------------------
+// Simple Boring Expressions
+// -----------------------------------------------
 
 Object_ptr SemanticAnalyzer::visit(int expr) { return MAKE_OBJECT_VARIANT(IntType()); }
 
@@ -354,4 +225,167 @@ Object_ptr SemanticAnalyzer::visit(RangeLiteral& expr)
 }
 
 Object_ptr SemanticAnalyzer::visit(TypePattern& expr) { return nullptr; }
+
+// -----------------------------------------------
+// Identifiers, Member Access & Calls
+// -----------------------------------------------
+
+Object_ptr SemanticAnalyzer::visit(Identifier& expr)
+{
+    Symbol_ptr target_symbol = current_scope->lookup(expr.name);
+    Doctor::get().fatal_if_nullptr(target_symbol, WaspStage::Semantics);
+
+    expr.symbol = target_symbol;
+
+    if (target_symbol->should_be_captured(current_scope->get_closure_depth()))
+    {
+        expr.must_be_captured = true;
+    }
+
+    return target_symbol->get_type();
+}
+
+Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
+{
+    Object_ptr left_type = visit(expr.left);
+
+    Doctor::get().assert(
+        left_type->is<ModuleType>(),
+        WaspStage::Semantics,
+        "LHS of member access is not a module"
+    );
+
+    const auto& module_type = left_type->as<ModuleType>();
+
+    Doctor::get().assert(
+        expr.right->is<Identifier>(),
+        WaspStage::Semantics,
+        "RHS of member access must be an identifier."
+    );
+
+    std::string member_name = expr.right->as<Identifier>().name;
+
+    auto it = module_type.members.find(member_name);
+
+    Doctor::get().assert(
+        it != module_type.members.end(),
+        WaspStage::Semantics,
+        "Module '" + module_type.module_name + "' does not contain member '" +
+            member_name + "'"
+    );
+
+    expr.member_index = module_type.get_member_index(member_name);
+
+    return it->second;
+}
+
+Object_ptr SemanticAnalyzer::visit(Call& call_expr)
+{
+    ObjectVector arg_types;
+
+    for (auto& arg : call_expr.arguments)
+    {
+        arg_types.push_back(visit(arg));
+    }
+
+    return std::visit(
+        overloaded{
+            [&](Identifier& id) -> Object_ptr
+            {
+                return evaluate_identifier_call(call_expr, id, arg_types);
+            },
+
+            [&](MemberAccess& ma) -> Object_ptr
+            {
+                return evaluate_module_member_access_call(
+                    call_expr,
+                    ma,
+                    arg_types
+                );
+            },
+
+            [](auto&) -> Object_ptr
+            {
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Expected an Identifier or MemberAccess as the callable."
+                );
+                return nullptr;
+            }
+        },
+        call_expr.callable->data
+    );
+}
+
+Object_ptr SemanticAnalyzer::evaluate_identifier_call(
+    Call& call_expr,
+    Identifier& callable_identifier,
+    const ObjectVector& arg_types
+)
+{
+    auto [function_symbol, overload_index] = type_checker
+                                                 ->resolve_function_call(
+                                                     current_scope,
+                                                     callable_identifier.name,
+                                                     arg_types
+                                                 );
+
+    Symbol_ptr group_symbol = current_scope->lookup(callable_identifier.name);
+
+    Doctor::get().assert(
+        group_symbol->payload_is<OverloadGroupData>(),
+        WaspStage::Semantics,
+        "Symbol '" + callable_identifier.name + "' is not an overload group"
+    );
+
+    callable_identifier.symbol = group_symbol;
+
+    if (function_symbol->should_be_captured(current_scope->get_closure_depth()))
+    {
+        callable_identifier.must_be_captured = true;
+    }
+
+    call_expr.overload_index = overload_index;
+
+    return function_symbol->get_payload_as<FunctionData>().get_return_type();
+}
+
+Object_ptr SemanticAnalyzer::evaluate_module_member_access_call(
+    Call& call_expr,
+    MemberAccess& mac,
+    const ObjectVector& arg_types
+)
+{
+    Doctor::get().assert(
+        mac.left->is<Identifier>() && mac.right->is<Identifier>(),
+        WaspStage::Semantics,
+        "Supports calls of the form module.function()"
+    );
+
+    auto& left_id = mac.left->as<Identifier>();
+    auto& right_id = mac.right->as<Identifier>();
+
+    Symbol_ptr module_symbol = current_scope->lookup(left_id.name);
+    Doctor::get().fatal_if_nullptr(module_symbol, WaspStage::Semantics);
+
+    left_id.symbol = module_symbol;
+
+    auto
+        [function_symbol,
+         overload_index,
+         member_index] = type_checker
+                             ->resolve_method_call(
+                                 current_scope,
+                                 left_id.name,
+                                 right_id.name,
+                                 arg_types
+                             );
+
+    mac.member_index = member_index;
+    call_expr.overload_index = overload_index;
+    right_id.symbol = function_symbol;
+
+    return function_symbol->get_payload_as<FunctionData>().get_return_type();
+}
+
 } // namespace Wasp

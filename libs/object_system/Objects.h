@@ -63,12 +63,13 @@ struct MemberedCompositeObject : public CompositeObject
 
     Object_ptr get_member(const std::string& member_name) const
     {
-        if (auto it = members.find(member_name); it != members.end())
-        {
-            return it->second;
-        }
+        Doctor::get().assert(
+            contains_member(member_name),
+            WaspStage::VM,
+            "Member '" + member_name + "' not found!"
+        );
 
-        return nullptr;
+        return members.at(member_name);
     }
 
     void set_member(const std::string& member_name, Object_ptr value)
@@ -102,13 +103,13 @@ struct MemberedCompositeObject : public CompositeObject
 
     int get_member_index(const std::string& member_name) const
     {
+        Doctor::get().assert(
+            contains_member(member_name),
+            WaspStage::VM,
+            "Member '" + member_name + "' not found!"
+        );
+
         auto it = members.find(member_name);
-
-        if (it == members.end())
-        {
-            return -1;
-        }
-
         return static_cast<int>(std::distance(members.begin(), it));
     }
 };

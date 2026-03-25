@@ -32,47 +32,66 @@ void SemanticAnalyzer::visit(FunctionDefinition& function_definition)
     std::vector<std::string> parameter_names;
     ObjectVector parameter_types;
 
-    for (const auto& [parameter_name, type_annotation] : function_definition.parameters)
+    for (const auto& [parameter_name, type_annotation] :
+         function_definition.parameters)
     {
         Object_ptr parameter_type = MAKE_OBJECT_VARIANT(AnyType());
+
         if (type_annotation)
         {
             parameter_type = visit(type_annotation);
         }
+
         parameter_names.push_back(parameter_name);
         parameter_types.push_back(parameter_type);
     }
 
-    auto function_signature = MAKE_OBJECT_VARIANT(FunctionType(parameter_types, return_type));
+    auto function_signature = MAKE_OBJECT_VARIANT(
+        FunctionType(parameter_types, return_type)
+    );
 
     Symbol_ptr actual_function_symbol;
 
     if (function_definition.symbol)
     {
-        // Top Level Function: Hoister already defined it. Just apply the resolved type.
+        // Top Level Function: Hoister already defined it.
         actual_function_symbol = function_definition.symbol;
         actual_function_symbol->set_type(function_signature);
+
+        type_checker->validate_overload_group(
+            current_scope,
+            function_definition.name,
+            actual_function_symbol
+        );
     }
     else
     {
-        // Local nested function: Create and define it.
+        // Local nested function: Create the raw function symbol
         actual_function_symbol = SymbolFactory::create_function(
             function_definition.name,
             function_signature,
             false,
             current_scope->get_closure_depth(),
-            current_scope->get_lexical_depth());
+            current_scope->get_lexical_depth()
+        );
 
+        // Validate it BEFORE defining it in the current scope
+        if (current_scope->contains_in_current_scope(function_definition.name))
+        {
+            type_checker->validate_overload_group(
+                current_scope,
+                function_definition.name,
+                actual_function_symbol
+            );
+        }
+
+        // Define it (this creates or appends to the Overload Group)
         current_scope->define(actual_function_symbol);
-        function_definition.symbol = actual_function_symbol;
+
+        function_definition.symbol = current_scope->lookup(
+            function_definition.name
+        );
     }
-
-    // Validate Overloads and Shadow Parents
-
-    type_checker->validate_overload_group(
-        current_scope,
-        function_definition.name,
-        actual_function_symbol);
 
     // Enter Scope and Process Body
     enter_scope(ScopeType::FUNCTION);
@@ -87,7 +106,8 @@ void SemanticAnalyzer::visit(FunctionDefinition& function_definition)
             parameter_types[i],
             true,
             current_scope->get_closure_depth(),
-            current_scope->get_lexical_depth());
+            current_scope->get_lexical_depth()
+        );
 
         current_scope->define(parameter_symbol);
         function_definition.parameter_symbols.push_back(parameter_symbol);

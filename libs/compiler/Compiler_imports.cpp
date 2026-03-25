@@ -30,7 +30,8 @@ void Compiler::visit(SimpleImport& import_stmt)
     Doctor::get().fatal_if_nullptr(
         import_stmt.symbol,
         WaspStage::Compiler,
-        "Simple Import must have a resolved symbol");
+        "Simple Import must have a resolved symbol"
+    );
 
     symbol_id_to_name_map[module_symbol->id] = module_symbol->name;
     emit(OpCode::DEFINE_LOCAL, import_stmt.symbol->id);

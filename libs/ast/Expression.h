@@ -171,6 +171,8 @@ struct Call
     Expression_ptr callable;
     ExpressionVector arguments;
 
+    int overload_index;
+
     Call() = default;
 
     Call(Expression_ptr callable, ExpressionVector arguments)
