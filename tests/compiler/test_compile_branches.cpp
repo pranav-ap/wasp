@@ -23,7 +23,7 @@ if false then 25 else 10
   std::vector<std::byte> expected_bytes = {
       B(Wasp::OpCode::ENTER_MODULE),
       B(Wasp::OpCode::PUSH_SCOPE),                        // Scope 1 (Test Scope)
-      B(Wasp::OpCode::LOAD_FALSE), 
+      B(Wasp::OpCode::LOAD_FALSE),
       B(Wasp::OpCode::JUMP_IF_FALSE), B(15), B(0),
       B(Wasp::OpCode::JUMP),          B(9),  B(0),
 
@@ -41,7 +41,7 @@ if false then 25 else 10
 
       // Converge (End of Statement)
       B(Wasp::OpCode::POP),                               // Pop the result
-      B(Wasp::OpCode::JUMP),          B(27), B(0), 
+      B(Wasp::OpCode::JUMP),          B(27), B(0),
       B(Wasp::OpCode::EXIT_MODULE)
   };
     // clang-format on
@@ -51,12 +51,12 @@ if false then 25 else 10
 
 TEST_F(CompileBranches, IfElIfElse) {
     auto actual_bytes = compile(R"(
-if false then 
-    25 
+if false then
+    25
 elif true then
-    25 
+    25
 else
-    25 
+    25
 )");
 
     int val_25 = pool_size++;
@@ -103,7 +103,7 @@ else
       B(Wasp::OpCode::POP),
       B(Wasp::OpCode::POP_SCOPE),                         // Pop Scope 3
       B(Wasp::OpCode::JUMP),          B(35), B(0),        // Jump to Elif End (35)
-      
+
       B(Wasp::OpCode::EXIT_MODULE)
   };
     // clang-format on
@@ -114,7 +114,7 @@ else
 TEST_F(CompileBranches, IfLet) {
     auto actual_bytes = compile(R"(
 if let x = true then
-    25 
+    25
 )");
 
     int val_25 = pool_size++;
@@ -129,7 +129,7 @@ if let x = true then
       // Variable Definition
       B(Wasp::OpCode::LOAD_TRUE),
       B(Wasp::OpCode::DUP),
-      B(Wasp::OpCode::DEFINE_LOCAL),  B(0),
+      B(Wasp::OpCode::DEFINE_LOCAL),  B(4),
 
       B(Wasp::OpCode::JUMP_IF_FALSE), B(22), B(0),
       B(Wasp::OpCode::JUMP),          B(12), B(0),
@@ -144,7 +144,7 @@ if let x = true then
       // False Path (Trampoline)
       B(Wasp::OpCode::POP_SCOPE),                         // Pop Condition Scope
       B(Wasp::OpCode::JUMP),          B(19), B(0),
-      
+
       B(Wasp::OpCode::EXIT_MODULE)
   };
     // clang-format on

@@ -2,63 +2,42 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug Wasp",
-            "type": "cppdbg",
+            "name": "Wasp",
+            "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/build/src/wasp",
-            "args": [],
-            "stopAtEntry": false,
+            "args": [
+                "run",
+                "./code/main.wasp"
+            ],
             "cwd": "${workspaceFolder}",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "gdb",
             "preLaunchTask": "Build",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                }
-            ]
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen"
         },
         {
-            "name": "Debug Unit Tests",
-            "type": "cppdbg",
+            "name": "Unit Tests",
+            "type": "lldb",
             "request": "launch",
-            // This variables looks at the 'inputs' array at the bottom!
             "program": "${workspaceFolder}/build/tests/${input:testTarget}",
-            // TIP: If you only want to debug one specific test, add it here!
-            // Example: ["--gtest_filter=CompileFunctions.Print"]
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
-            "MIMode": "gdb",
-            "preLaunchTask": "Build",
-            "sourceFileMap": {
-                "/workspaces/wasp": "${workspaceFolder}"
-            },
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                }
-            ]
+            "preLaunchTask": "Build"
         }
     ],
     "inputs": [
         {
             "id": "testTarget",
             "type": "pickString",
-            "description": "Which test suite do you want to debug?",
+            "description": "Which Test Suite do you want to debug?",
             "options": [
                 "lexer_tests",
                 "parser_tests",
                 "semantics_tests",
                 "compiler_tests",
-                "vm_tests"
             ],
-            "default": "vm_tests"
+            "default": "compiler_tests"
         }
     ]
 }

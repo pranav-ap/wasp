@@ -9,22 +9,22 @@
 #include <string>
 #include <vector>
 
-Wasp::Block parse(const std::string& code);
+Wasp::StatementVector parse(const std::string& code);
 
 template<typename T>
 const T& check(const Wasp::Expression_ptr& ptr) {
     auto* val = ptr->try_as<T>();
-    
+
     if (val) {
-        return *val;  
+        return *val;
     }
 
-    ADD_FAILURE() << "AST Node Type Mismatch"; 
-    
-    // We must return a T&. 
-    // This lives forever, so the reference remains "valid" 
+    ADD_FAILURE() << "AST Node Type Mismatch";
+
+    // We must return a T&.
+    // This lives forever, so the reference remains "valid"
     // long enough for the test runner to report the failure.
-    static T dummy{}; 
+    static T dummy{};
     return dummy;
 }
 
@@ -39,14 +39,14 @@ const T& check(const PtrType& ptr) {
 
     // Use 'template' keyword here because try_as is a dependent template member
     auto* val = ptr->template try_as<T>();
-    
+
     if (val) {
-        return *val;  
+        return *val;
     }
 
-    ADD_FAILURE() << "AST Node Type Mismatch"; 
-    
-    static T dummy{}; 
+    ADD_FAILURE() << "AST Node Type Mismatch";
+
+    static T dummy{};
     return dummy;
 }
 
@@ -61,13 +61,13 @@ template<typename T, typename U>
 void check_sequence(const Wasp::Expression_ptr& expr, const std::vector<U>& expected_values) {
     // Check the container type (ListLiteral, TupleLiteral, etc.)
     const auto& seq = check<T>(expr);
-    
+
     // Check Length
     ASSERT_EQ(seq.expressions.size(), expected_values.size()) << "Sequence size mismatch";
 
     // Check each element against the expected type U
     for (size_t i = 0; i < expected_values.size(); ++i) {
-        EXPECT_EQ(check<U>(seq.expressions[i]), expected_values[i]) 
+        EXPECT_EQ(check<U>(seq.expressions[i]), expected_values[i])
             << "Value mismatch at index " << i;
     }
 }
@@ -77,10 +77,12 @@ void check_sequence(const Wasp::Expression_ptr& expr, std::initializer_list<U> e
     check_sequence<T, U>(expr, std::vector<U>(expected));
 }
 
-template<typename T>
-void check_sequence_custom(const Wasp::Expression_ptr& expr, 
-                           size_t expected_size, 
-                           std::function<void(const Wasp::Expression_ptr&, size_t)> element_checker) {
+template <typename T>
+void check_sequence_custom(
+    const Wasp::Expression_ptr& expr,
+    size_t expected_size,
+    std::function<void(const Wasp::Expression_ptr&, size_t)> element_checker
+) {
     const auto& seq = check<T>(expr);
     ASSERT_EQ(seq.expressions.size(), expected_size);
 
@@ -88,4 +90,3 @@ void check_sequence_custom(const Wasp::Expression_ptr& expr,
         element_checker(seq.expressions[i], i);
     }
 }
-

@@ -1,18 +1,31 @@
-#include "ConstantPool.h"
-#include "NativeRegistry.h"
 #include "SemanticAnalyzer.h"
+#include "SymbolHoister.h"
+#include "Workspace.h"
 #include "test_utils.h"
 
+#include <filesystem>
 #include <gtest/gtest.h>
 #include <memory>
+#include <vector>
 
-TEST(Semantics, Simple)
-{
-    auto mod = parse("25");
+TEST(Semantics, Simple) {
+    auto workspace = std::make_shared<Wasp::Workspace>(std::filesystem::current_path());
 
-    auto pool = std::make_shared<Wasp::ConstantPool>();
-    auto native_registry = std::make_shared<Wasp::NativeRegistry>(pool);
+    auto stmts = parse("let x = 25");
 
-    auto semantic_analyzer = Wasp::SemanticAnalyzer(native_registry);
-    semantic_analyzer.run(mod);
+    auto module = std::make_shared<Wasp::Module>("test.wasp", stmts);
+
+    workspace->add_module(module->absolute_filepath, module);
+    std::vector<Wasp::Module_ptr> build_order = {module};
+
+    Wasp::SymbolHoister hoister(workspace);
+
+    for (const auto& mod : build_order)
+    {
+        hoister.run(mod);
+    }
+
+    Wasp::SemanticAnalyzer semantic_analyzer(workspace);
+
+    semantic_analyzer.run(build_order);
 }

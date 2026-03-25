@@ -9,6 +9,7 @@ namespace Wasp
     struct Resolvable
     {
         mutable std::shared_ptr<Symbol> symbol = nullptr;
+        bool must_be_captured = false;
         virtual ~Resolvable() = default;
     };
 }

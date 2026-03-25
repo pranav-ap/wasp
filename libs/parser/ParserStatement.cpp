@@ -1,3 +1,4 @@
+#include "AST.h"
 #include "Doctor.h"
 #include "Parser.h"
 #include "Statement.h"
@@ -81,13 +82,13 @@ Statement_ptr Parser::parse_statement(int expected_indent_level) {
     }
 }
 
-Block Parser::parse_statements_block(int expected_indent_level) {
+StatementVector Parser::parse_statements_block(int expected_indent_level) {
     token_pipe.ignore_empty_lines();
 
     auto s = parse_statement(expected_indent_level);
     Doctor::get().fatal_if_nullptr(s, WaspStage::Parser);
 
-    Block statements{std::move(s)};
+    StatementVector statements{std::move(s)};
 
     while (true) {
         token_pipe.ignore_empty_lines();
@@ -126,28 +127,28 @@ Statement_ptr Parser::parse_expression_statement() {
     const auto expression = parse_expression();
     token_pipe.require_in_line(TokenType::EOL);
 
-    return std::make_shared<Statement>(ExpressionStatement{expression});
+    return make_statement(ExpressionStatement{expression});
 }
 
 Statement_ptr Parser::parse_pass_statement() {
     token_pipe.advance_pointer();
     token_pipe.require_in_line(TokenType::EOL);
 
-    return std::make_shared<Statement>(Pass{});
+    return make_statement(Pass{});
 }
 
 Statement_ptr Parser::parse_return_statement() {
     token_pipe.advance_pointer();
 
     if (token_pipe.consume_optional_in_line(TokenType::EOL)) {
-        return std::make_shared<Statement>(Return{});
+        return make_statement(Return{});
     }
 
     token_pipe.ignore_spaces_tabs();
 
     auto expression = parse_expression();
     token_pipe.require_in_line(TokenType::EOL);
-    return std::make_shared<Statement>(Return{expression});
+    return make_statement(Return{expression});
 }
 
 // Imports
@@ -222,9 +223,7 @@ Statement_ptr Parser::parse_import() {
 
     token_pipe.require_in_line(TokenType::EOL);
 
-    return std::make_shared<Statement>(
-        SimpleImport(access_token, std::move(path), std::move(alias))
-    );
+    return make_statement(SimpleImport(access_token, std::move(path), std::move(alias)));
 }
 
 ImportedSymbol Parser::parse_imported_symbol() {
@@ -265,8 +264,6 @@ Statement_ptr Parser::parse_from_import() {
 
     token_pipe.require_in_line(TokenType::EOL);
 
-    return std::make_shared<Statement>(
-        FromImport(access_token, std::move(path), std::move(symbols))
-    );
+    return make_statement(FromImport(access_token, std::move(path), std::move(symbols)));
 }
 } // namespace Wasp

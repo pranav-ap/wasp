@@ -1,27 +1,65 @@
 {
+    // -----------------------------------------------------------------
+    // AI & Copilot
+    // -----------------------------------------------------------------
     "github.copilot.enable": {
         "*": false,
         "plaintext": false,
-        "markdown": true,
+        "markdown": false,
         "scminput": false,
-        "python": true,
-        "cpp": true
+        "python": false,
+        "cpp": true,
+        "c": true
     },
-    
+    // -----------------------------------------------------------------
+    // Build System (CMake)
+    // -----------------------------------------------------------------
+    "cmake.generator": "Ninja",
+    "cmake.configureOnOpen": true,
+    "cmake.exportCompileCommandsFile": true,
+    // -----------------------------------------------------------------
+    // Language Server (Clangd)
+    // -----------------------------------------------------------------
+    // Hard-disable all Microsoft C++ features so they don't fight Clangd
     "C_Cpp.intelliSenseEngine": "disabled",
-    
+    "C_Cpp.autocomplete": "disabled",
+    "C_Cpp.errorSquiggles": "disabled",
     "clangd.arguments": [
-        "--log=verbose",
-        "--pretty",
         "--background-index",
-        "--compile-commands-dir=${workspaceFolder}/build"
+        "--compile-commands-dir=${workspaceFolder}/build",
+        "--clang-tidy", // Enables strict static analysis & linting
+        "--header-insertion=iwyu", // Automatically adds missing #includes
+        "--completion-style=detailed", // Shows full signatures in autocomplete dropdowns
+        "--function-arg-placeholders", // Auto-fills argument names when you autocomplete a function
+        "--fallback-style=LLVM", // Base formatting style if no .clang-format file is found
+        "-j=4" // Use 4 background threads for faster indexing
     ],
-
+    "files.eol": "\n",
+    "files.insertFinalNewline": true, // Adds a blank line at the end of the file automatically
+    "files.trimTrailingWhitespace": true, // Deletes invisible spaces at the end of lines
+    // -----------------------------------------------------------------
+    // Debugger
+    // -----------------------------------------------------------------
+    "lldb-dap.executable-path": "/usr/bin/lldb-vscode-14",
+    // -----------------------------------------------------------------
+    // Editor QoL & Formatting
+    // -----------------------------------------------------------------
+    // Shows deduced types (auto) and parameter names inline without hovering!
+    "editor.inlayHints.enabled": "onUnlessPressed",
     "[cpp]": {
         "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
         "editor.formatOnSave": true,
         "editor.tabSize": 4,
         "editor.insertSpaces": true,
-        "editor.detectIndentation": false
+        "editor.detectIndentation": false,
+        "editor.semanticHighlighting.enabled": true
+    },
+    "[c]": {
+        "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
+        "editor.formatOnSave": true,
+        "editor.tabSize": 4,
+        "editor.insertSpaces": true,
+        "editor.detectIndentation": false,
+        "editor.semanticHighlighting.enabled": true
     }
 }

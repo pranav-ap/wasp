@@ -1,4 +1,0 @@
-if 4 > 3 then
-    print('hello')
-else
-    print('bye')

@@ -1,43 +1,71 @@
 #pragma once
 
-#include "ConstantPool.h"
-#include "NativeRegistry.h"
+#include "CFGraph.h"
 #include "Objects.h"
+#include "OpCode.h"
+#include "Workspace.h"
 
 #include <cstddef>
-#include <memory>
+#include <map>
 #include <utility>
 #include <vector>
 
-namespace Wasp {
-struct CallFrame {
-    std::shared_ptr<FunctionObject> function;
+namespace Wasp
+{
+
+struct CallFrame
+{
+    RuntimeFunctionObject_ptr function;
+
     size_t ip = 0;
     // Where locals start on the VM stack
     size_t base_pointer = 0;
 
     std::vector<size_t> scope_bases;
+    std::map<int, size_t> symbol_id_to_stack_index;
 
-    CallFrame(std::shared_ptr<FunctionObject> func, size_t bp)
-        : function(std::move(func)), base_pointer(bp) {}
+    CallFrame(RuntimeFunctionObject_ptr func, size_t bp)
+        : function(std::move(func)), base_pointer(bp)
+    {
+    }
 
-    std::byte consume_byte() { return function->code.data()[ip++]; }
+    std::byte consume_byte() { return function->blueprint->code.data()[ip++]; }
 };
 
-using CallFrame_ptr = std::shared_ptr<CallFrame>;
+class VM
+{
+    Workspace_ptr workspace;
 
-class VM {
     ObjectVector stack;
     std::vector<CallFrame> frames;
-    ConstantPool_ptr pool;
-    NativeRegistry_ptr native_registry;
 
     void push_to_stack(Object_ptr value);
     Object_ptr pop_from_stack();
     ObjectVector pop_n_from_stack(size_t n);
     Object_ptr peek_tos(size_t distance = 0) const;
 
-    void execute();
+    void execute_binary_op(OpCode op);
+    void execute_unary_op(OpCode op);
+    void execute_stack_op(OpCode op);
+    void execute_scope_op(OpCode op, CallFrame* frame);
+
+    void execute_constant(OpCode op, CallFrame* frame);
+    void execute_control_flow(OpCode op, CallFrame* frame);
+    void execute_variable(OpCode op, CallFrame* frame);
+
+    void execute_make_function(CallFrame* frame);
+    void execute_overload_function(CallFrame* frame);
+    void execute_resolve_function(CallFrame* frame);
+
+    void execute_call(CallFrame* frame);
+    void execute_return(CallFrame* frame);
+
+    void execute_import_module(CallFrame* frame);
+    void execute_exit_module();
+
+    void execute_member(OpCode op, CallFrame* frame);
+    Object_ptr perform_get_member(Object_ptr obj, int member_index);
+    void perform_set_member(Object_ptr obj, int member_index, Object_ptr value);
 
     // Unary Ops
 
@@ -72,15 +100,8 @@ class VM {
     bool is_truthy(Object_ptr obj) const;
 
 public:
-    VM(std::shared_ptr<ConstantPool> pool, NativeRegistry_ptr native_registry)
-        : pool(std::move(pool)), native_registry(native_registry) {
-        stack.reserve(256);
-    }
+    VM(Workspace_ptr workspace) : workspace(workspace) { stack.reserve(256); }
 
-    void run(std::shared_ptr<FunctionObject> main_module) {
-        // Push the initial frame for the entry point
-        frames.emplace_back(main_module, 0);
-        execute();
-    }
+    void run(StaticFunctionObject_ptr main_function);
 };
 } // namespace Wasp

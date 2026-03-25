@@ -200,7 +200,7 @@ void TokenPipe::expect_no_indents_or_spaces() const {
     const auto token = current();
 
     if (token) {
-        Doctor::get().assert_true(
+        Doctor::get().assert(
             token->type != TokenType::TAB && token->type != TokenType::SPACE,
             WaspStage::Parser,
             "Unexpected indent or space",
@@ -216,7 +216,7 @@ void TokenPipe::expect_n_indents(const int n) {
 
         Doctor::get().fatal_if_nullopt(token, WaspStage::Parser);
 
-        Doctor::get().assert_true(
+        Doctor::get().assert(
             token->type == TokenType::TAB,
             WaspStage::Parser,
             "Expected " + std::to_string(n) + " indents but got " + std::to_string(i),

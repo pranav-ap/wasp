@@ -5,8 +5,11 @@
 #include "ConstantPool.h"
 #include "InstructionPrinter.h"
 #include "NativeRegistry.h"
+#include "Objects.h"
 #include "OpCode.h"
 #include "SemanticAnalyzer.h"
+#include "SymbolHoister.h"
+#include "Workspace.h"
 #include "test_utils.h"
 
 #include <cstddef>
@@ -15,6 +18,7 @@
 #include <gtest/gtest.h>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 class CompilerTestBase : public ::testing::Test {
@@ -22,8 +26,9 @@ protected:
     std::string log_dir;
     bool enable_logging = true;
 
+    std::shared_ptr<Wasp::Workspace> workspace;
     Wasp::ConstantPool_ptr pool;
-    Wasp::CodeObject current_bytecode;
+    Wasp::StaticFunctionObject_ptr function_object;
     Wasp::CFGraph current_graph;
 
     int pool_size = 0;
@@ -52,26 +57,39 @@ protected:
     static std::byte B(int operand) { return static_cast<std::byte>(operand); }
 
     std::vector<std::byte> compile(const std::string& source) {
-        auto block = parse(source);
+        workspace = std::make_shared<Wasp::Workspace>(std::filesystem::current_path());
 
-        pool = std::make_shared<Wasp::ConstantPool>();
+        pool = workspace->pool;
         pool_size = pool->get_size();
 
-        auto native_registry = std::make_shared<Wasp::NativeRegistry>(pool);
+        auto stmts = parse(source);
 
-        auto semantic_analyzer = Wasp::SemanticAnalyzer(native_registry);
-        semantic_analyzer.run(block);
+        auto module = std::make_shared<Wasp::Module>("test_module.wasp", stmts);
 
-        Wasp::Compiler compiler(pool, native_registry);
-        current_bytecode = compiler.run(block);
+        workspace->add_module(module->absolute_filepath, module);
+        std::vector<Wasp::Module_ptr> build_order = {module};
+
+        Wasp::SymbolHoister hoister(workspace);
+
+        for (const auto& mod : build_order)
+        {
+            hoister.run(mod);
+        }
+
+        Wasp::SemanticAnalyzer semantic_analyzer(workspace);
+        semantic_analyzer.run(build_order);
+
+        Wasp::Compiler compiler(workspace);
+
+        function_object = compiler.run(module->stmts, "<test>");
         current_graph = compiler.get_graph();
 
         if (enable_logging) {
             log();
         }
 
-        const std::byte* data = current_bytecode.data();
-        return std::vector<std::byte>(data, data + current_bytecode.length());
+        const std::byte* data = function_object->code.data();
+        return std::vector<std::byte>(data, data + function_object->code.length());
     }
 
     void log() {
@@ -85,15 +103,15 @@ protected:
         std::string dot_file_path = log_dir + "/dots/" + test_name + ".dot";
         std::ofstream dot_file(dot_file_path);
 
-        Wasp::InstructionPrinter printer(pool);
+        Wasp::InstructionPrinter printer(workspace);
 
         if (dot_file.is_open()) {
             printer.print(current_graph, dot_file);
         }
 
         if (log_file.is_open()) {
-            printer.print(current_bytecode, log_file);
-            printer.print_pool(log_file);
+            printer.print(function_object, log_file);
+            printer.print_pool_functions(log_file);
         }
     }
 };

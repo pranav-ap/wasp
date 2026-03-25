@@ -4,7 +4,7 @@
 #include "Statement.h"
 #include <string>
 
-Wasp::Block parse(const std::string& code) {
+Wasp::StatementVector parse(const std::string& code) {
     Wasp::Lexer lexer;
     Wasp::Parser parser;
 

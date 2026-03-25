@@ -35,18 +35,5 @@
                 "focus": true
             }
         },
-        {
-            "label": "Run Benchmarks",
-            "type": "shell",
-            "command": "cmake --build build --target bench_lexer && ./build/benchmarks/bench_lexer",
-            "group": "test",
-            "presentation": {
-                "reveal": "silent",
-                "panel": "shared",
-                "close": false,
-                "clear": true,
-                "focus": true
-            }
-        },
     ],
 }

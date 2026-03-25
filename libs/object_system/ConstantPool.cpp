@@ -5,9 +5,11 @@
 
 #include <algorithm>
 #include <iterator>
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #define MAKE_OBJECT_VARIANT(x) std::make_shared<Object>(x)
 #define MAKE_SHARED_OBJECT_VARIANT(Type, ...) std::make_shared<Object>(std::make_shared<Type>(__VA_ARGS__))
@@ -35,7 +37,7 @@ namespace Wasp
     }
 
     Object_ptr ConstantPool::get(int id) const {
-        Doctor::get().assert_true(
+        Doctor::get().assert(
             id >= 0 && id < objects.size(), WaspStage::VM, "ID out of bounds in ConstantPool", 0, 0
         );
 
@@ -145,10 +147,32 @@ namespace Wasp
         return id;
     }
 
-    int ConstantPool::allocate_function_definition(CodeObject func_code)
+    int ConstantPool::allocate_function_definition(StaticFunctionObject_ptr func_obj)
     {
         int id = objects.size();
-        objects.push_back(MAKE_SHARED_OBJECT_VARIANT(FunctionObject, std::move(func_code)));
+        objects.push_back(MAKE_OBJECT_VARIANT(func_obj));
         return id;
+    }
+
+    int ConstantPool::allocate_function_definition(CodeObject code) {
+        auto func_obj = std::make_shared<StaticFunctionObject>(std::move(code));
+        return allocate_function_definition(func_obj);
+    }
+
+    int ConstantPool::allocate_function_definition(
+        CodeObject code,
+        std::vector<int> parameter_symbol_ids,
+        std::string name,
+        std::map<int, std::string> symbol_id_to_name_map,
+        std::map<int, std::string> upvalue_index_to_name_map)
+    {
+        auto func_obj = std::make_shared<StaticFunctionObject>(
+            std::move(code),
+            std::move(parameter_symbol_ids),
+            std::move(name),
+            std::move(symbol_id_to_name_map),
+            std::move(upvalue_index_to_name_map));
+
+        return allocate_function_definition(func_obj);
     }
 }

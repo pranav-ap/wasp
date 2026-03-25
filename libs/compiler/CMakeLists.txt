@@ -1,3 +1,29 @@
-add_library(CompilerLib Compiler.cpp InstructionPrinter.cpp)
-target_link_libraries(CompilerLib PUBLIC ObjectSystemLib BytecodeSystemLib SymbolLib ASTLib TokenLib DoctorLib)
-target_include_directories(CompilerLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+add_library(
+    CompilerLib
+    Compiler.cpp
+    Compiler_imports.cpp
+    Compiler_control_flow.cpp
+    Compiler_expressions.cpp
+    Compiler_variables.cpp
+    Compiler_functions.cpp
+    Compiler_utils.cpp
+    InstructionPrinter.cpp
+)
+
+target_link_libraries(
+    CompilerLib
+    PUBLIC
+    WorkspaceLib
+    ObjectSystemLib
+    BytecodeSystemLib
+
+    ASTLib
+    TokenLib
+    DoctorLib
+)
+
+target_include_directories(
+    CompilerLib
+    PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)

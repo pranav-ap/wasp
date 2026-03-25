@@ -1,10 +1,11 @@
 #pragma once
 
+#include "AST.h"
 #include "Expression.h"
 #include "Resolvable.h"
 #include "Token.h"
-#include "TypeAnnotation.h"
 
+#include <filesystem>
 #include <map>
 #include <memory>
 #include <optional>
@@ -15,11 +16,7 @@
 
 namespace Wasp {
 
-struct Statement;
 struct ExpressionStatement;
-
-using Statement_ptr = std::shared_ptr<Statement>;
-using Block = std::vector<Statement_ptr>;
 
 struct ExpressionStatement {
     Expression_ptr expression;
@@ -68,9 +65,14 @@ struct EnumDefinition : public Definition {
 
 struct FunctionDefinition : public Definition {
     std::string name;
+
     std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters;
+    std::vector<std::shared_ptr<Symbol>> parameter_symbols;
+
     TypeAnnotation_ptr return_type;
-    Block body;
+    StatementVector body;
+
+    std::shared_ptr<Symbol> group_symbol;
 
     FunctionDefinition() = default;
 
@@ -78,7 +80,7 @@ struct FunctionDefinition : public Definition {
         std::string name,
         std::vector<std::pair<std::string, TypeAnnotation_ptr>> params,
         TypeAnnotation_ptr ret_type,
-        Block body
+        StatementVector body
     )
         : name(std::move(name)), parameters(std::move(params)), return_type(std::move(ret_type)),
           body(std::move(body)) {};
@@ -138,7 +140,7 @@ struct ImplDefinition : public Definition {
 // Branching
 
 struct Branch {
-    Block body;
+    StatementVector body;
 };
 
 struct IfBranch : Branch {
@@ -147,22 +149,22 @@ struct IfBranch : Branch {
 
     IfBranch() = default;
 
-    IfBranch(Expression_ptr test, Block body)
+    IfBranch(Expression_ptr test, StatementVector body)
         : Branch(body), test(test), alternative(std::nullopt) {};
 
-    IfBranch(Expression_ptr test, Block body, Statement_ptr alternative)
+    IfBranch(Expression_ptr test, StatementVector body, Statement_ptr alternative)
         : Branch(body), test(test), alternative(std::make_optional(alternative)) {};
 };
 
 struct ElseBranch : Branch {
     ElseBranch() = default;
-    ElseBranch(Block body) : Branch(body) {};
+    ElseBranch(StatementVector body) : Branch(body) {};
 };
 
 // Looping
 
 struct Loop {
-    Block body;
+    StatementVector body;
 };
 
 struct SimpleLoop : public Loop {
@@ -171,7 +173,7 @@ struct SimpleLoop : public Loop {
 
     SimpleLoop() = default;
 
-    SimpleLoop(Block body, Expression_ptr condition, TokenType style)
+    SimpleLoop(StatementVector body, Expression_ptr condition, TokenType style)
         : Loop(body), condition(std::move(condition)), style(style) {};
 };
 
@@ -183,7 +185,10 @@ struct ForInLoop : public Loop {
     ForInLoop() = default;
 
     ForInLoop(
-        Block body, Expression_ptr lhs, Expression_ptr iterable_expression, bool lhs_is_mutable
+        StatementVector body,
+        Expression_ptr lhs,
+        Expression_ptr iterable_expression,
+        bool lhs_is_mutable
     )
         : Loop(body), lhs_is_mutable(lhs_is_mutable), lhs(std::move(lhs)),
           iterable_expression(std::move(iterable_expression)) {};
@@ -214,13 +219,16 @@ struct LoopControl {
 
 // Imports
 
-struct AbstractImport {
+struct AbstractImport : public Resolvable
+{
     // std::nullopt means it's a 3rd party lib (like 'math3d')
     // Otherwise it holds the keyword: my, our, pkg, top, or up
     std::optional<TokenType> access_token_type;
 
     // ["engine", "fuel"]
     std::vector<std::string> path;
+
+    std::filesystem::path absolute_path;
 
     AbstractImport() = default;
 
@@ -231,7 +239,8 @@ struct AbstractImport {
 };
 
 // import top.engine.fuel as f
-struct SimpleImport : public AbstractImport {
+struct SimpleImport : public AbstractImport
+{
     std::optional<std::string> alias;
 
     SimpleImport() = default;
@@ -245,13 +254,22 @@ struct SimpleImport : public AbstractImport {
 };
 
 // Tank as FuelTank
-struct ImportedSymbol {
+struct ImportedSymbol
+{
     std::string name;
     std::optional<std::string> alias;
+
+    std::vector<std::shared_ptr<Symbol>> resolved_symbols;
+
+    ImportedSymbol() = default;
+
+    ImportedSymbol(std::string name, std::optional<std::string> alias = std::nullopt)
+        : name(std::move(name)), alias(std::move(alias)) {}
 };
 
 // from top.engine import Tank, Pump
-struct FromImport : public AbstractImport {
+struct FromImport : public AbstractImport
+{
     std::vector<ImportedSymbol> symbols;
 
     FromImport() = default;
@@ -266,44 +284,50 @@ struct FromImport : public AbstractImport {
 
 // Statement Variant
 
-struct Statement {
-    using StatementData = std::variant<
-        std::monostate,
-        ExpressionStatement,
+// 1. Define the variant payload FIRST
+using StatementVariant = std::variant<
+    std::monostate,
+    ExpressionStatement,
 
-        VariableDefinition,
-        AliasDefinition,
-        EnumDefinition,
-        FunctionDefinition,
-        ClassDefinition,
-        TraitDefinition,
-        ImplDefinition,
+    VariableDefinition,
+    AliasDefinition,
+    EnumDefinition,
+    FunctionDefinition,
+    ClassDefinition,
+    TraitDefinition,
+    ImplDefinition,
 
-        AnnotationDefinition,
+    AnnotationDefinition,
 
-        SimpleImport,
-        FromImport,
+    SimpleImport,
+    FromImport,
 
-        IfBranch,
-        ElseBranch,
-        SimpleLoop,
-        ForInLoop,
-        LoopControl,
+    IfBranch,
+    ElseBranch,
+    SimpleLoop,
+    ForInLoop,
+    LoopControl,
 
-        Pass,
-        Return>;
+    Pass,
+    Return>;
 
-    StatementData data;
+// STATEMENT
 
-    Statement() = default;
+struct Statement : public AstNode<StatementVariant> {
+    using AstNode::AstNode;
 
-    template <typename T> Statement(T&& val) : data(std::forward<T>(val)) {}
-
-    template <typename T> bool is() const { return std::holds_alternative<T>(data); }
-
-    template <typename T> const T& as() const { return std::get<T>(data); }
-
-    template <typename T> const T* try_as() const { return std::get_if<T>(&data); }
+    Token start_token;
+    Token end_token;
 };
+
+template <typename T> inline Statement_ptr make_statement(T&& data) {
+    return std::make_shared<Statement>(std::forward<T>(data));
+}
+
+template <typename T> inline Statement_ptr make_statement(T&& data, int statement_number) {
+    auto stmt = std::make_shared<Statement>(std::forward<T>(data));
+    stmt->statement_number = statement_number;
+    return stmt;
+}
 
 } // namespace Wasp

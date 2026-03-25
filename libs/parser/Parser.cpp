@@ -9,9 +9,9 @@
 namespace Wasp {
 Parser::Parser() { register_all_parselets(); }
 
-Block Parser::run(const std::vector<Token>& tokens) {
+StatementVector Parser::run(const std::vector<Token>& tokens) {
     token_pipe = TokenPipe(tokens);
-    Block block;
+    StatementVector block;
 
     const auto tokens_count = token_pipe.get_size();
     auto current_index = token_pipe.get_current_index();

@@ -21,7 +21,7 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp {
 Object_ptr NativeRegistry::get_native_object(int index) const {
-    Doctor::get().assert_true(
+    Doctor::get().assert(
         index >= 0 && index < static_cast<int>(native_objects.size()),
         WaspStage::VM,
         "Native function index out of bounds"
@@ -31,7 +31,7 @@ Object_ptr NativeRegistry::get_native_object(int index) const {
 }
 
 Object_ptr NativeRegistry::get_native_object_type(int index) const {
-    Doctor::get().assert_true(
+    Doctor::get().assert(
         index >= 0 && index < static_cast<int>(native_object_types.size()),
         WaspStage::VM,
         "Native function index out of bounds"
@@ -43,7 +43,7 @@ Object_ptr NativeRegistry::get_native_object_type(int index) const {
 int NativeRegistry::get_native_index(const std::string& name) const {
     auto it = native_names.find(name);
 
-    Doctor::get().assert_true(
+    Doctor::get().assert(
         it != native_names.end(), WaspStage::VM, "Native function not found" + name
     );
 
@@ -74,18 +74,19 @@ void NativeRegistry::load_stdlib() {
     add_native(
         "print",
         // Arity -1 means it can take any number of arguments!
-        -1,
-        [&](const std::vector<Object_ptr>& args) -> Object_ptr {
-            for (const auto& arg : args) {
+        1,
+        [&](const std::vector<Object_ptr>& args) -> Object_ptr
+        {
+            for (const auto& arg : args)
+            {
                 std::visit(
                     overloaded{
                         [](const IntObject& i) { std::cout << i.value; },
                         [](const StringObject& s) { std::cout << s.value; },
                         [](const BooleanObject& b) { std::cout << (b.value ? "true" : "false"); },
-                        [](const auto&) { std::cout << "<object>"; }
-                    },
-                    arg->value
-                );
+                        [](const NoneObject&) { std::cout << "none"; },
+                        [](const auto&) { std::cout << "Unhandled type in print"; }},
+                    arg->value);
             }
 
             std::cout << std::endl;
@@ -95,8 +96,7 @@ void NativeRegistry::load_stdlib() {
         // Input Types
         {pool->get_any_type()},
         // Return Type
-        pool->get_none_type()
-    );
+        pool->get_none_type());
 
     add_native(
         "input",
