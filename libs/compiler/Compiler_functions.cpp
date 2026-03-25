@@ -1,5 +1,6 @@
 #include "CFGraph.h"
 #include "Compiler.h"
+#include "Objects.h"
 #include "OpCode.h"
 #include "Statement.h"
 
@@ -29,11 +30,9 @@ void Compiler::visit(FunctionDefinition& function_definition)
 
     func_compiler.enter_scope();
 
-    std::vector<int> func_compiler_parameter_symbol_ids;
     for (const auto& param_symbol : function_definition.parameter_symbols)
     {
-        func_compiler_parameter_symbol_ids.push_back(param_symbol->id);
-        func_compiler.symbol_id_to_name_map[param_symbol->id] = param_symbol->name;
+        func_compiler.locals.push_back(param_symbol);
     }
 
     func_compiler.visit(function_definition.body);
@@ -46,10 +45,8 @@ void Compiler::visit(FunctionDefinition& function_definition)
 
     int const_id = workspace->pool->allocate_function_definition(
         std::move(code),
-        std::move(func_compiler_parameter_symbol_ids),
-        function_definition.name,
-        std::move(func_compiler.symbol_id_to_name_map),
-        std::move(func_compiler.upvalue_index_to_name_map)
+        StringVector{},
+        function_definition.name
     );
 
     // Push the StaticFunctionObject onto the stack
@@ -75,9 +72,6 @@ void Compiler::visit(FunctionDefinition& function_definition)
     }
 
     emit(OpCode::OVERLOAD_FUNCTION, function_definition.group_symbol->id);
-
-    symbol_id_to_name_map[function_definition.group_symbol->id] = function_definition.name;
-    symbol_id_to_name_map[function_definition.symbol->id] = function_definition.name;
 }
 
 void Compiler::visit(Return& statement)

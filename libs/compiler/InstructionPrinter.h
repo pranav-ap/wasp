@@ -6,7 +6,6 @@
 
 #include <cstddef>
 #include <iostream>
-#include <map>
 #include <memory>
 #include <ostream>
 #include <string>
@@ -20,21 +19,17 @@ class InstructionPrinter
     std::string stringify_instruction(
         std::byte opcode,
         std::byte operand,
-        const std::map<int, std::string>& symbol_id_to_name_map,
-        const std::map<int, std::string>& upvalue_index_to_id_name_map);
+        const std::string& comment
+    );
 
     std::string stringify_instruction(
         std::byte opcode,
         std::byte operand_1,
         std::byte operand_2,
-        const std::map<int, std::string>& symbol_id_to_name_map,
-        const std::map<int, std::string>& upvalue_index_to_id_name_map);
+        const std::string& comment
+    );
 
-    void print_bytecode(
-        const CodeObject& code,
-        const std::map<int, std::string>& symbol_id_to_name_map,
-        const std::map<int, std::string>& upvalue_index_to_id_name_map,
-        std::ostream& out);
+    void print_bytecode(const CodeObject& code, std::ostream& out);
 
 public:
     InstructionPrinter(Workspace_ptr ws) : ws(ws) {};

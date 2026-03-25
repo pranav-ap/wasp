@@ -1,12 +1,10 @@
 #pragma once
 
 #include "CFGraph.h"
-#include "Doctor.h"
 
 #include <cstddef>
 #include <filesystem>
 #include <functional>
-#include <iterator>
 #include <map>
 #include <memory>
 #include <optional>
@@ -26,7 +24,9 @@ using ObjectIntMap = std::map<int, Object_ptr>;
 
 using StringVector = std::vector<std::string>;
 
+// ============================================================================
 // Base Classes
+// ============================================================================
 
 struct AbstractObject
 {
@@ -52,66 +52,15 @@ struct NoneObject : public AbstractObject
 
 struct MemberedCompositeObject : public CompositeObject
 {
-    ObjectStringMap members;
+    ObjectVector members;
 
-    MemberedCompositeObject(ObjectStringMap members) : members(std::move(members)) {}
-
-    bool contains_member(const std::string& member_name) const
+    MemberedCompositeObject(ObjectVector members) : members(std::move(members))
     {
-        return members.contains(member_name);
     }
 
-    Object_ptr get_member(const std::string& member_name) const
-    {
-        Doctor::get().assert(
-            contains_member(member_name),
-            WaspStage::VM,
-            "Member '" + member_name + "' not found!"
-        );
-
-        return members.at(member_name);
-    }
-
-    void set_member(const std::string& member_name, Object_ptr value)
-    {
-        members[member_name] = std::move(value);
-    }
-
-    Object_ptr get_member(int member_id) const
-    {
-        Doctor::get().assert(
-            member_id >= 0 && member_id < static_cast<int>(members.size()),
-            WaspStage::VM,
-            "Member index out of bounds!");
-
-        auto it = members.begin();
-        std::advance(it, member_id);
-        return it->second;
-    }
-
-    void set_member(int member_id, Object_ptr value)
-    {
-        Doctor::get().assert(
-            member_id >= 0 && member_id < static_cast<int>(members.size()),
-            WaspStage::VM,
-            "Member index out of bounds!");
-
-        auto it = members.begin();
-        std::advance(it, member_id);
-        it->second = std::move(value);
-    }
-
-    int get_member_index(const std::string& member_name) const
-    {
-        Doctor::get().assert(
-            contains_member(member_name),
-            WaspStage::VM,
-            "Member '" + member_name + "' not found!"
-        );
-
-        auto it = members.find(member_name);
-        return static_cast<int>(std::distance(members.begin(), it));
-    }
+    Object_ptr get_member(int member_id) const;
+    void set_member(int member_id, Object_ptr value);
+    int get_member_count() const;
 };
 
 struct DefinitionObject : public AbstractObject
@@ -120,9 +69,9 @@ struct DefinitionObject : public AbstractObject
     DefinitionObject(std::string name) : name(std::move(name)) {};
 };
 
-// Objects
-
+// ============================================================================
 // Scalar Objects
+// ============================================================================
 
 struct IntObject : public ScalarObject
 {
@@ -149,14 +98,18 @@ struct BooleanObject : public ScalarObject
     BooleanObject(bool value) : value(value) {};
 };
 
+// ============================================================================
 // Composite Objects
+// ============================================================================
 
 struct IteratorObject : public CompositeObject
 {
     ObjectVector vec;
     size_t index;
 
-    IteratorObject(ObjectVector v) : vec(std::move(v)), index(0) {}
+    IteratorObject(ObjectVector v) : vec(std::move(v)), index(0)
+    {
+    }
 
     std::optional<Object_ptr> get_next();
     void reset_iter();
@@ -165,6 +118,8 @@ struct IteratorObject : public CompositeObject
 struct ListObject : public CompositeObject, public IterableAbstractObject
 {
     std::vector<Object_ptr> values;
+
+    ListObject(ObjectVector values);
 
     Object_ptr append(Object_ptr value);
     Object_ptr prepend(Object_ptr value);
@@ -180,8 +135,6 @@ struct ListObject : public CompositeObject, public IterableAbstractObject
     int get_length();
 
     virtual Object_ptr get_iter() override;
-
-    ListObject(ObjectVector values);
 };
 
 struct TupleObject : public CompositeObject
@@ -237,45 +190,17 @@ struct VariantObject : public CompositeObject
 struct StaticFunctionObject : public CompositeObject
 {
     CodeObject code;
-
-    std::vector<int> parameter_symbol_ids;
+    StringVector comments;
 
     std::string name;
-    std::map<int, std::string> symbol_id_to_name_map;
-    std::map<int, std::string> upvalue_index_to_name_map;
 
-    StaticFunctionObject(CodeObject code) : code(std::move(code)) {}
-
-    StaticFunctionObject(
-        CodeObject code,
-        std::vector<int> parameter_symbol_ids,
-        std::string name,
-        std::map<int, std::string> symbol_id_to_name_map,
-        std::map<int, std::string> upvalue_index_to_name_map)
-        : code(std::move(code)), name(std::move(name)), parameter_symbol_ids(parameter_symbol_ids),
-          symbol_id_to_name_map(std::move(symbol_id_to_name_map)),
-          upvalue_index_to_name_map(std::move(upvalue_index_to_name_map))
+    StaticFunctionObject(CodeObject code) : code(std::move(code))
     {
     }
 
-    std::string get_name_for_symbol_id(int index) const
+    StaticFunctionObject(CodeObject code, StringVector comments, std::string name)
+        : code(std::move(code)), comments(std::move(comments)), name(std::move(name))
     {
-        Doctor::get().assert(
-            symbol_id_to_name_map.contains(index),
-            WaspStage::Compiler,
-            "Invalid symbol ID");
-
-        return symbol_id_to_name_map.at(index);
-    }
-
-    std::string get_name_for_upvalue_index(int index) const
-    {
-        Doctor::get().assert(
-            upvalue_index_to_name_map.contains(index),
-            WaspStage::Compiler,
-            "Invalid Upvalue Index");
-
-        return upvalue_index_to_name_map.at(index);
     }
 };
 
@@ -291,7 +216,10 @@ struct RuntimeFunctionObject
     {
     }
 
-    void set_upvalue(int index, Object_ptr value) { upvalues[index] = std::move(value); }
+    void set_upvalue(int index, Object_ptr value)
+    {
+        upvalues[index] = std::move(value);
+    }
 };
 
 using RuntimeFunctionObject_ptr = std::shared_ptr<RuntimeFunctionObject>;
@@ -316,7 +244,10 @@ struct OverloadsSet : public CompositeObject
 
     OverloadsSet(ObjectVector overloads) : overloads(std::move(overloads)) {};
 
-    void add_overload(Object_ptr object) { overloads.push_back(std::move(object)); }
+    void add_overload(Object_ptr object)
+    {
+        overloads.push_back(std::move(object));
+    }
 };
 
 struct OverloadedObjectsSet : public OverloadsSet
@@ -333,22 +264,22 @@ struct ModuleObject : public MemberedCompositeObject
 {
     std::string name;
 
-    ModuleObject(std::string name, ObjectStringMap members)
+    ModuleObject(std::string name, ObjectVector members)
         : name(std::move(name)), MemberedCompositeObject(std::move(members))
     {
     }
 };
 
+// ============================================================================
 // Action Objects
+// ============================================================================
 
 struct BreakObject : public ActionObject
 {
 };
-
 struct ContinueObject : public ActionObject
 {
 };
-
 struct RedoObject : public ActionObject
 {
 };
@@ -369,24 +300,22 @@ struct ErrorObject : public ActionObject
     ErrorObject(std::string message) : message(std::move(message)) {};
 };
 
+// ============================================================================
 // Type Objects
+// ============================================================================
 
 struct AnyType : public AbstractObject
 {
 };
-
 struct NoneType : public AnyType
 {
 };
-
 struct ScalarType : public AnyType
 {
 };
-
 struct LiteralType : public AnyType
 {
 };
-
 struct CompositeType : public AnyType
 {
 };
@@ -394,8 +323,24 @@ struct CompositeType : public AnyType
 struct NamedDefinitionType : public AnyType
 {
     std::string name;
-
     NamedDefinitionType(std::string name) : name(std::move(name)) {};
+};
+
+struct MemberedCompositeType : public CompositeType
+{
+    ObjectStringMap members;
+
+    MemberedCompositeType(ObjectStringMap members) : members(std::move(members))
+    {
+    }
+
+    bool contains_member(const std::string& member_name) const;
+    Object_ptr get_member(const std::string& member_name) const;
+    void set_member(const std::string& member_name, Object_ptr value);
+
+    Object_ptr get_member(int member_id) const;
+    void set_member(int member_id, Object_ptr value);
+    int get_member_index(const std::string& member_name) const;
 };
 
 // Scalar Types
@@ -403,7 +348,6 @@ struct IntType : public ScalarType
 {
     std::string name = "int";
 };
-
 struct FloatType : public ScalarType
 {
 };
@@ -486,12 +430,14 @@ struct FunctionType : public AnyType
           return_type(std::make_optional(std::move(return_type))) {};
 };
 
-struct RecordType : public MemberedCompositeObject
+struct RecordType : public MemberedCompositeType
 {
-    RecordType(ObjectStringMap members) : MemberedCompositeObject{std::move(members)} {}
+    RecordType(ObjectStringMap members) : MemberedCompositeType{std::move(members)}
+    {
+    }
 };
 
-struct ModuleType : public MemberedCompositeObject
+struct ModuleType : public MemberedCompositeType
 {
     std::string module_name;
     std::filesystem::path absolute_filepath;
@@ -499,14 +445,17 @@ struct ModuleType : public MemberedCompositeObject
     ModuleType(
         std::string module_name,
         std::filesystem::path absolute_filepath,
-        ObjectStringMap members)
+        ObjectStringMap members
+    )
         : module_name(std::move(module_name)), absolute_filepath(std::move(absolute_filepath)),
-          MemberedCompositeObject(std::move(members))
+          MemberedCompositeType(std::move(members))
     {
     }
 };
 
-// Object STRUCT
+// ============================================================================
+// The Core Object Struct
+// ============================================================================
 
 struct Object
 {
@@ -564,15 +513,32 @@ struct Object
 
     Object() = default;
 
-    template <typename T> Object(T&& val) : value(std::forward<T>(val)) {}
+    template <typename T> Object(T&& val) : value(std::forward<T>(val))
+    {
+    }
 
-    template <typename T> bool is() const { return std::holds_alternative<T>(value); }
+    template <typename T> bool is() const
+    {
+        return std::holds_alternative<T>(value);
+    }
 
-    template <typename T> const T& as() const { return std::get<T>(value); }
-    template <typename T> T& as() { return std::get<T>(value); }
+    template <typename T> const T& as() const
+    {
+        return std::get<T>(value);
+    }
+    template <typename T> T& as()
+    {
+        return std::get<T>(value);
+    }
 
-    template <typename T> const T* try_as() const { return std::get_if<T>(&value); }
-    template <typename T> T* try_as() { return std::get_if<T>(&value); }
+    template <typename T> const T* try_as() const
+    {
+        return std::get_if<T>(&value);
+    }
+    template <typename T> T* try_as()
+    {
+        return std::get_if<T>(&value);
+    }
 };
 
 template <typename T> inline Object_ptr make_object(T&& val)
@@ -580,15 +546,15 @@ template <typename T> inline Object_ptr make_object(T&& val)
     return std::make_shared<Object>(std::forward<T>(val));
 }
 
+// ============================================================================
 // Utils
+// ============================================================================
 
 std::string stringify_object(Object_ptr value);
-
 ObjectVector to_vector(std::string text);
-
 bool are_equal_types(Object_ptr left, Object_ptr right);
 bool are_equal_types(ObjectVector left_vector, ObjectVector right_vector);
 bool are_equal_types_unordered(ObjectVector left_vector, ObjectVector right_vector);
-
 Object_ptr convert_type(Object_ptr type, Object_ptr operand);
+
 } // namespace Wasp

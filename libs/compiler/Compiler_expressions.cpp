@@ -236,7 +236,15 @@ void Compiler::visit(Identifier& expr)
     }
     else
     {
-        emit(OpCode::GET_LOCAL, symbol->id);
+        int physical_index = resolve_local(symbol->id);
+
+        Doctor::get().assert(
+            physical_index != -1,
+            WaspStage::Compiler,
+            "Attempted to read an unresolved local variable: " + symbol->name
+        );
+
+        emit(OpCode::GET_LOCAL, physical_index);
     }
 }
 
@@ -284,7 +292,15 @@ void Compiler::compile_identifier_assignment(
     }
     else
     {
-        emit(OpCode::SET_LOCAL, symbol->id);
+        int physical_index = resolve_local(symbol->id);
+
+        Doctor::get().assert(
+            physical_index != -1,
+            WaspStage::Compiler,
+            "Attempted to assign to an unresolved local variable: " + symbol->name
+        );
+
+        emit(OpCode::SET_LOCAL, physical_index);
     }
 }
 

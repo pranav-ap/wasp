@@ -6,9 +6,9 @@
 
 #include <cstddef>
 #include <iomanip>
-#include <iostream>
-#include <map>
+#include <ios>
 #include <memory>
+#include <ostream>
 #include <sstream>
 #include <string>
 
@@ -24,60 +24,45 @@ namespace Wasp
 string InstructionPrinter::stringify_instruction(
     byte opcode,
     byte operand,
-    const std::map<int, std::string>& symbol_id_to_name_map,
-    const std::map<int, std::string>& upvalue_index_to_name_map)
+    const std::string& comment
+)
 {
     int op_int = std::to_integer<int>(operand);
     std::stringstream ss;
 
     ss << std::left << setw(OPCODE_WIDTH) << stringify_opcode(opcode) << " " << op_int;
 
+    std::string metadata = "";
     switch (static_cast<OpCode>(opcode))
     {
     case OpCode::LOAD_CONST:
+    case OpCode::SET_MEMBER:
         if (ws)
-        {
-            ss << std::right << setw(OPERAND_WIDTH) << " ("
-               << stringify_object(ws->pool->get(op_int)) << ")";
-        }
+            metadata = " (" + stringify_object(ws->pool->get(op_int)) + ")";
         break;
     case OpCode::GET_NATIVE:
-    {
-        std::string native_name = ws->native_registry->get_native_name(op_int);
-        ss << std::right << setw(OPERAND_WIDTH) << " (" << native_name << ")";
+        if (ws)
+            metadata = " (" + ws->native_registry->get_native_name(op_int) + ")";
         break;
-    }
-
-    case OpCode::GET_UPVALUE:
-    case OpCode::SET_UPVALUE:
-    {
-        if (upvalue_index_to_name_map.contains(op_int))
-        {
-            ss << std::right << setw(OPERAND_WIDTH) << " (" << upvalue_index_to_name_map.at(op_int)
-               << ")";
-        }
-        break;
-    }
-
-    case OpCode::DEFINE_LOCAL:
-    case OpCode::SET_LOCAL:
     case OpCode::GET_LOCAL:
-    case OpCode::GET_MEMBER:
-    case OpCode::SET_MEMBER:
-    {
-        if (symbol_id_to_name_map.contains(op_int))
-        {
-            ss << std::right << setw(OPERAND_WIDTH) << " (" << symbol_id_to_name_map.at(op_int)
-               << ")";
-        }
+    case OpCode::SET_LOCAL:
+        metadata = " (slot " + std::to_string(op_int) + ")";
         break;
-    }
     case OpCode::CALL:
-        ss << std::right << setw(OPERAND_WIDTH) << " (" << op_int << " args)";
+        metadata = " (" + std::to_string(op_int) + " args)";
         break;
     default:
         break;
     }
+
+    ss << std::left << setw(OPERAND_WIDTH + 10) << metadata;
+
+    if (!comment.empty())
+    {
+        // Aligning to a fixed column (e.g., column 40)
+        ss << " ; " << comment;
+    }
+
     return ss.str();
 }
 
@@ -85,8 +70,8 @@ string InstructionPrinter::stringify_instruction(
     byte opcode,
     byte op1,
     byte op2,
-    const std::map<int, std::string>& symbol_id_to_name_map,
-    const std::map<int, std::string>& upvalue_index_to_name_map)
+    const std::string& comment
+)
 {
     OpCode op = static_cast<OpCode>(opcode);
     std::stringstream ss;
@@ -94,39 +79,26 @@ string InstructionPrinter::stringify_instruction(
     if (op == OpCode::JUMP || op == OpCode::JUMP_IF_FALSE || op == OpCode::LOOP_ITER)
     {
         int target_offset = std::to_integer<int>(op1) | (std::to_integer<int>(op2) << 8);
-
-        ss << std::left << setw(OPCODE_WIDTH) << stringify_opcode(opcode) << " " << target_offset;
+        ss << std::left << setw(OPCODE_WIDTH) << stringify_opcode(opcode) << " "
+           << setw(OPERAND_WIDTH + 10) << target_offset;
     }
     else
     {
         int op1_int = std::to_integer<int>(op1);
         int op2_int = std::to_integer<int>(op2);
-
         ss << std::left << setw(OPCODE_WIDTH) << stringify_opcode(opcode) << " " << op1_int << " "
-           << op2_int;
+           << setw(OPERAND_WIDTH + 7) << op2_int;
+    }
+
+    if (!comment.empty())
+    {
+        ss << " ; " << comment;
     }
 
     return ss.str();
 }
 
-void InstructionPrinter::print(const Object_ptr obj, std::ostream& out)
-{
-    Doctor::get().fatal_if_nullptr(obj, WaspStage::Compiler, "Cannot print a null object");
-
-    Doctor::get().assert(
-        obj->is<StaticFunctionObject_ptr>(),
-        WaspStage::Compiler,
-        "Can only print StaticFunctionObjects");
-
-    auto function_obj = obj->as<StaticFunctionObject_ptr>();
-    print(function_obj, out);
-}
-
-void InstructionPrinter::print_bytecode(
-    const CodeObject& code,
-    const std::map<int, std::string>& symbol_id_to_name_map,
-    const std::map<int, std::string>& upvalue_index_to_name_map,
-    std::ostream& out)
+void InstructionPrinter::print_bytecode(const CodeObject& code, std::ostream& out)
 {
     int length = static_cast<int>(code.length());
     int index_width = std::to_string(length).size() + 2;
@@ -136,6 +108,7 @@ void InstructionPrinter::print_bytecode(
     {
         byte opcode = data[index];
         OpCode op = static_cast<OpCode>(opcode);
+        std::string comment = code.get_comment_at(index); // Extract the inline comment!
 
         out << std::right << setw(index_width) << index << ": ";
 
@@ -153,6 +126,8 @@ void InstructionPrinter::print_bytecode(
                 bool is_local = std::to_integer<int>(data[capture_offset + (i * 2)]) == 1;
                 int upv_idx = std::to_integer<int>(data[capture_offset + (i * 2) + 1]);
 
+                // If you pass comments to the capture bytes during compile, you could print them
+                // here!
                 out << std::right << setw(index_width) << " " << "  | capture "
                     << (is_local ? "local " : "upvalue ") << upv_idx << "\n";
             }
@@ -170,41 +145,40 @@ void InstructionPrinter::print_bytecode(
         }
         else if (arity == 1)
         {
-            out << stringify_instruction(
-                       opcode,
-                       instruction[1],
-                       symbol_id_to_name_map,
-                       upvalue_index_to_name_map)
-                << "\n";
+            out << stringify_instruction(opcode, instruction[1], comment) << "\n";
         }
         else if (arity == 2)
         {
-            out << stringify_instruction(
-                       opcode,
-                       instruction[1],
-                       instruction[2],
-                       symbol_id_to_name_map,
-                       upvalue_index_to_name_map)
-                << "\n";
+            out << stringify_instruction(opcode, instruction[1], instruction[2], comment) << "\n";
         }
 
         index += static_cast<int>(instruction.size());
     }
 }
 
+void InstructionPrinter::print(const Object_ptr obj, std::ostream& out)
+{
+    Doctor::get().fatal_if_nullptr(obj, WaspStage::Compiler, "Cannot print a null object");
+    Doctor::get().assert(
+        obj->is<StaticFunctionObject_ptr>(),
+        WaspStage::Compiler,
+        "Can only print StaticFunctionObjects"
+    );
+
+    print(obj->as<StaticFunctionObject_ptr>(), out);
+}
+
 void InstructionPrinter::print(const StaticFunctionObject_ptr function_obj, std::ostream& out)
 {
-    print_bytecode(
-        function_obj->code,
-        function_obj->symbol_id_to_name_map,
-        function_obj->upvalue_index_to_name_map,
-        out);
+    print_bytecode(function_obj->code, out);
 }
 
 void InstructionPrinter::print(const CodeObject& code_object, std::ostream& out)
 {
-    print_bytecode(code_object, {}, {}, out);
+    print_bytecode(code_object, out);
 }
+
+// ... print_pool_functions and print(CFGraph) stay exactly the same ...
 
 void InstructionPrinter::print_pool_functions(std::ostream& out)
 {

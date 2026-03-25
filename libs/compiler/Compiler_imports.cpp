@@ -1,11 +1,9 @@
 #include "Compiler.h"
 #include "Doctor.h"
-#include "Objects.h"
 #include "OpCode.h"
 #include "Statement.h"
 #include "Workspace.h"
 
-#include <map>
 #include <memory>
 #include <string>
 
@@ -33,8 +31,7 @@ void Compiler::visit(SimpleImport& import_stmt)
         "Simple Import must have a resolved symbol"
     );
 
-    symbol_id_to_name_map[module_symbol->id] = module_symbol->name;
-    emit(OpCode::DEFINE_LOCAL, import_stmt.symbol->id);
+    locals.push_back(module_symbol);
 }
 
 void Compiler::visit(FromImport& import_stmt)
@@ -73,17 +70,14 @@ void Compiler::visit(FromImport& import_stmt)
             // Stack: [ Module, Function ]
             emit(OpCode::GET_MEMBER, member_id);
 
-            // Save the function to the current scope using the NEW ALIAS ID
-            symbol_id_to_name_map[symbol->id] = symbol->name;
-
             // Stack: [ Module ]
-            emit(OpCode::DEFINE_LOCAL, symbol->id);
+            locals.push_back(symbol);
         }
     }
 
     // Now that we have extracted all functions, throw away the module object!
     // Stack: []
-    emit(OpCode::POP);
+    emit(OpCode::POP); // FIXME: remove it??
 }
 
 } // namespace Wasp

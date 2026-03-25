@@ -6,8 +6,6 @@
 #include "Statement.h"
 #include "Token.h"
 
-
-#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -162,8 +160,7 @@ void Compiler::visit(ForInLoop& statement) {
     if (statement.lhs->is<Identifier>()) {
         auto symbol = statement.lhs->as<Identifier>().symbol;
         if (symbol) {
-            symbol_id_to_name_map[symbol->id] = symbol->name;
-            emit(OpCode::DEFINE_LOCAL, symbol->id);
+            locals.push_back(symbol);
         }
     } else {
         Doctor::get().fatal(WaspStage::Compiler, "For-in loop LHS must be a simple Identifier");
