@@ -20,7 +20,7 @@ fun add(a: int, b: int) => int
 )");
 
     int func_id = pool_size++;
-    int var_add = 0;
+    int var_add = 1;
 
     // clang-format off
   std::vector<std::byte> expected_bytes = {
@@ -72,7 +72,7 @@ fun max(a: int, b: int) => int
 )");
 
     int max_func_pool_id = pool_size++;
-    int max_func_var_id = 0;
+    int max_func_var_id = 1;
 
     // clang-format off
   std::vector<std::byte> expected_bytes = {
@@ -141,7 +141,7 @@ fun outer(a: int) => any
 
     int inner_func_pool_id = pool_size++;
     int outer_func_pool_id = pool_size++;
-    int outer_func_var_id = 0;
+    int outer_func_var_id = 1;
 
     // clang-format off
   std::vector<std::byte> expected_bytes = {
@@ -175,7 +175,10 @@ fun outer(a: int) => any
     std::vector<std::byte> expected_outer_bytes = {
         B(Wasp::OpCode::PUSH_SCOPE),
         B(Wasp::OpCode::LOAD_CONST),    B(inner_func_pool_id),
-        B(Wasp::OpCode::MAKE_FUNCTION), B(1), B(1), B(6), // 1 upval, is_local=1, idx=6
+        // 1 upval
+        B(Wasp::OpCode::MAKE_FUNCTION), B(1),
+        // is_local=1, idx=6
+        B(1), B(6),
         B(Wasp::OpCode::OVERLOAD_FUNCTION),  B(8),             // define inner
         B(Wasp::OpCode::GET_LOCAL),     B(8),             // return inner (as a variable!)
         B(Wasp::OpCode::RETURN),
@@ -201,11 +204,11 @@ print(1)
     // clang-format off
   std::vector<std::byte> expected_bytes = {
       B(Wasp::OpCode::ENTER_MODULE),
-      B(Wasp::OpCode::GET_NATIVE),   B(print_func_var_id),
-      B(Wasp::OpCode::LOAD_CONST),  B(const_one_id),
-      B(Wasp::OpCode::CALL),        B(1), // 1 argument
+      B(Wasp::OpCode::GET_NATIVE),        B(print_func_var_id),
+      B(Wasp::OpCode::LOAD_CONST),       B(const_one_id),
+      B(Wasp::OpCode::CALL),             B(1),
       B(Wasp::OpCode::POP),
-      B(Wasp::OpCode::JUMP),        B(11), B(0),
+      B(Wasp::OpCode::JUMP),             B(11), B(0),
       B(Wasp::OpCode::EXIT_MODULE)
   };
     // clang-format on

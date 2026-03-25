@@ -1,8 +1,4 @@
-fun greet()
-    print('Yo!')
 
-fun greet(message: str)
-    print(message)
+import my.cats
 
-greet('Hello again')
-greet()
+cats.print_cats()

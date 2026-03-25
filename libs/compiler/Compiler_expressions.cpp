@@ -72,83 +72,6 @@ void Compiler::visit(std::string expr)
 
 void Compiler::visit(bool expr) { emit(expr ? OpCode::LOAD_TRUE : OpCode::LOAD_FALSE); }
 
-void Compiler::visit(Identifier& expr)
-{
-    auto symbol = expr.symbol;
-    Doctor::get().fatal_if_nullptr(symbol, WaspStage::Compiler);
-
-    if (symbol->payload_is<FunctionData>() && symbol->get_payload_as<FunctionData>().is_native)
-    {
-        auto native_registry_id = workspace->native_registry->get_native_index(symbol->name);
-        emit(OpCode::GET_NATIVE, native_registry_id);
-    }
-    else if (expr.must_be_captured)
-    {
-        int upval_index = resolve_upvalue(this, symbol);
-        emit(OpCode::GET_UPVALUE, upval_index);
-    }
-    else
-    {
-        emit(OpCode::GET_LOCAL, symbol->id);
-    }
-}
-
-void Compiler::visit(MemberAccess& expr)
-{
-    visit(expr.left);
-
-    emit(OpCode::GET_MEMBER, expr.member_index);
-}
-
-void Compiler::visit(Call& expr)
-{
-    visit(expr.callable);
-
-    for (const auto& arg : expr.arguments)
-        visit(arg);
-
-    emit(OpCode::RESOLVE_FUNCTION, expr.overload_index);
-
-    emit(OpCode::CALL, static_cast<int>(expr.arguments.size()));
-}
-
-void Compiler::compile_identifier_assignment(Identifier& id, const Expression_ptr& rhs)
-{
-    visit(rhs);
-
-    auto symbol = id.symbol;
-    Doctor::get().fatal_if_nullptr(symbol, WaspStage::Compiler);
-
-    if (id.must_be_captured)
-    {
-        int idx = resolve_upvalue(this, symbol);
-        emit(OpCode::SET_UPVALUE, idx);
-    }
-    else
-    {
-        emit(OpCode::SET_LOCAL, symbol->id);
-    }
-}
-
-void Compiler::compile_member_assignment(MemberAccess& mac, const Expression_ptr& rhs)
-{
-    // Evaluate the object first (Stack: [obj])
-    visit(mac.left);
-
-    // Evaluate the value second (Stack: [obj, val])
-    visit(rhs);
-
-    // Extract the property name
-    Doctor::get().assert(
-        mac.right->is<Identifier>(),
-        WaspStage::Compiler,
-        "Right side of member assignment must be an Identifier");
-
-    std::string member_name = mac.right->as<Identifier>().name;
-    int name_index = workspace->pool->allocate(member_name);
-    emit(OpCode::SET_MEMBER, name_index);
-}
-
 void Compiler::visit(UntypedAssignment& expr)
 {
     Doctor::get().fatal_if_nullptr(expr.lhs_expression, WaspStage::Compiler);
@@ -268,5 +191,124 @@ void Compiler::visit(DotLiteral& expr) {}
 void Compiler::visit(TypePattern& expr) {}
 
 void Compiler::visit(Postfix& expr) {}
+
+// ----------------------------------------------
+// Identifiers, Member Access & Calls
+// ----------------------------------------------
+
+void Compiler::visit(Identifier& expr)
+{
+    auto symbol = expr.symbol;
+    Doctor::get().fatal_if_nullptr(symbol, WaspStage::Compiler);
+
+    bool is_native = false;
+
+    if (symbol->payload_is<FunctionData>())
+    {
+        is_native = symbol->get_payload_as<FunctionData>().is_native;
+    }
+    else if (symbol->payload_is<OverloadGroupData>())
+    {
+        const auto& siblings = symbol->get_payload_as<OverloadGroupData>()
+                                   .siblings;
+
+        // Native functions are never overloaded
+        if (!siblings.empty() && siblings.front()->payload_is<FunctionData>())
+        {
+            is_native = siblings.front()
+                            ->get_payload_as<FunctionData>()
+                            .is_native;
+        }
+    }
+
+    if (is_native)
+    {
+        auto native_registry_id = workspace->native_registry->get_native_index(
+            symbol->name
+        );
+
+        emit(OpCode::GET_NATIVE, native_registry_id);
+    }
+    else if (expr.must_be_captured)
+    {
+        int upval_index = resolve_upvalue(this, symbol);
+        emit(OpCode::GET_UPVALUE, upval_index);
+    }
+    else
+    {
+        emit(OpCode::GET_LOCAL, symbol->id);
+    }
+}
+
+void Compiler::visit(MemberAccess& expr)
+{
+    visit(expr.left);
+
+    emit(OpCode::GET_MEMBER, expr.member_index);
+}
+
+void Compiler::visit(Call& expr)
+{
+    visit(expr.callable);
+
+    // Only emit RESOLVE_FUNCTION if we have an Overload Group
+    if (expr.overload_index != -1)
+    {
+        emit(OpCode::RESOLVE_FUNCTION, expr.overload_index);
+    }
+
+    // Evaluate arguments
+    for (const auto& arg : expr.arguments)
+    {
+        visit(arg);
+    }
+
+    // Call it
+    emit(OpCode::CALL, static_cast<int>(expr.arguments.size()));
+}
+
+void Compiler::compile_identifier_assignment(
+    Identifier& id,
+    const Expression_ptr& rhs
+)
+{
+    visit(rhs);
+
+    auto symbol = id.symbol;
+    Doctor::get().fatal_if_nullptr(symbol, WaspStage::Compiler);
+
+    if (id.must_be_captured)
+    {
+        int idx = resolve_upvalue(this, symbol);
+        emit(OpCode::SET_UPVALUE, idx);
+    }
+    else
+    {
+        emit(OpCode::SET_LOCAL, symbol->id);
+    }
+}
+
+void Compiler::compile_member_assignment(
+    MemberAccess& mac,
+    const Expression_ptr& rhs
+)
+{
+    // Evaluate the object first (Stack: [obj])
+    visit(mac.left);
+
+    // Evaluate the value second (Stack: [obj, val])
+    visit(rhs);
+
+    // Extract the property name
+    Doctor::get().assert(
+        mac.right->is<Identifier>(),
+        WaspStage::Compiler,
+        "Right side of member assignment must be an Identifier"
+    );
+
+    std::string member_name = mac.right->as<Identifier>().name;
+    int name_index = workspace->pool->allocate(member_name);
+    emit(OpCode::SET_MEMBER, name_index);
+}
 
 } // namespace Wasp

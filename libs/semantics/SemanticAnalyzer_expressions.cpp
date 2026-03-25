@@ -232,17 +232,17 @@ Object_ptr SemanticAnalyzer::visit(TypePattern& expr) { return nullptr; }
 
 Object_ptr SemanticAnalyzer::visit(Identifier& expr)
 {
-    Symbol_ptr target_symbol = current_scope->lookup(expr.name);
-    Doctor::get().fatal_if_nullptr(target_symbol, WaspStage::Semantics);
+    Symbol_ptr symbol = current_scope->lookup(expr.name);
+    Doctor::get().fatal_if_nullptr(symbol, WaspStage::Semantics);
 
-    expr.symbol = target_symbol;
+    expr.symbol = symbol;
 
-    if (target_symbol->should_be_captured(current_scope->get_closure_depth()))
+    if (symbol->should_be_captured(current_scope->get_closure_depth()))
     {
         expr.must_be_captured = true;
     }
 
-    return target_symbol->get_type();
+    return symbol->get_type();
 }
 
 Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
@@ -330,14 +330,8 @@ Object_ptr SemanticAnalyzer::evaluate_identifier_call(
                                                      arg_types
                                                  );
 
+    // 2. Bind the Group symbol to the AST node
     Symbol_ptr group_symbol = current_scope->lookup(callable_identifier.name);
-
-    Doctor::get().assert(
-        group_symbol->payload_is<OverloadGroupData>(),
-        WaspStage::Semantics,
-        "Symbol '" + callable_identifier.name + "' is not an overload group"
-    );
-
     callable_identifier.symbol = group_symbol;
 
     if (function_symbol->should_be_captured(current_scope->get_closure_depth()))
@@ -345,7 +339,14 @@ Object_ptr SemanticAnalyzer::evaluate_identifier_call(
         callable_identifier.must_be_captured = true;
     }
 
-    call_expr.overload_index = overload_index;
+    if (function_symbol->get_payload_as<FunctionData>().is_native)
+    {
+        call_expr.overload_index = -1;
+    }
+    else
+    {
+        call_expr.overload_index = overload_index;
+    }
 
     return function_symbol->get_payload_as<FunctionData>().get_return_type();
 }

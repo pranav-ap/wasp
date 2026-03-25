@@ -63,6 +63,11 @@ void SemanticAnalyzer::visit(FunctionDefinition& function_definition)
             function_definition.name,
             actual_function_symbol
         );
+
+        // Bind the group symbol for the Compiler
+        function_definition.group_symbol = current_scope->lookup(
+            function_definition.name
+        );
     }
     else
     {
@@ -75,7 +80,7 @@ void SemanticAnalyzer::visit(FunctionDefinition& function_definition)
             current_scope->get_lexical_depth()
         );
 
-        // Validate it BEFORE defining it in the current scope
+        // Validate it if an overload group already exists with this name
         if (current_scope->contains_in_current_scope(function_definition.name))
         {
             type_checker->validate_overload_group(
@@ -85,10 +90,13 @@ void SemanticAnalyzer::visit(FunctionDefinition& function_definition)
             );
         }
 
-        // Define it (this creates or appends to the Overload Group)
+        // Define it (creates or appends to the Overload Group)
         current_scope->define(actual_function_symbol);
 
-        function_definition.symbol = current_scope->lookup(
+        // Keep the raw symbol in `symbol`, and the wrapper in `group_symbol`
+        function_definition.symbol = actual_function_symbol;
+
+        function_definition.group_symbol = current_scope->lookup(
             function_definition.name
         );
     }

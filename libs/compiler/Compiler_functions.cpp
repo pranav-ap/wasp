@@ -49,7 +49,8 @@ void Compiler::visit(FunctionDefinition& function_definition)
         std::move(func_compiler_parameter_symbol_ids),
         function_definition.name,
         std::move(func_compiler.symbol_id_to_name_map),
-        std::move(func_compiler.upvalue_index_to_name_map));
+        std::move(func_compiler.upvalue_index_to_name_map)
+    );
 
     // Push the StaticFunctionObject onto the stack
     emit(OpCode::LOAD_CONST, const_id);
@@ -73,10 +74,10 @@ void Compiler::visit(FunctionDefinition& function_definition)
         emit_raw_byte(static_cast<std::byte>(uv.index));
     }
 
-    // It's an overload! Merge the func on the stack into the existing group
-    emit(OpCode::OVERLOAD_FUNCTION, function_definition.symbol->id);
-    symbol_id_to_name_map[function_definition.symbol->id] = function_definition
-                                                                .name;
+    emit(OpCode::OVERLOAD_FUNCTION, function_definition.group_symbol->id);
+
+    symbol_id_to_name_map[function_definition.group_symbol->id] = function_definition.name;
+    symbol_id_to_name_map[function_definition.symbol->id] = function_definition.name;
 }
 
 void Compiler::visit(Return& statement)

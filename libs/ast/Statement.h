@@ -72,6 +72,8 @@ struct FunctionDefinition : public Definition {
     TypeAnnotation_ptr return_type;
     StatementVector body;
 
+    std::shared_ptr<Symbol> group_symbol;
+
     FunctionDefinition() = default;
 
     FunctionDefinition(

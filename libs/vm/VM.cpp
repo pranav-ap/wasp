@@ -315,23 +315,14 @@ void VM::execute_overload_function(CallFrame* frame)
 
 void VM::execute_resolve_function(CallFrame* frame)
 {
-    int symbol_id = static_cast<int>(frame->consume_byte());
     int overload_index = static_cast<int>(frame->consume_byte());
 
-    auto it = frame->symbol_id_to_stack_index.find(symbol_id);
-
-    Doctor::get().assert(
-        it != frame->symbol_id_to_stack_index.end(),
-        WaspStage::VM,
-        "LOAD_LOCAL_FUNCTION: Symbol ID not found in current frame."
-    );
-
-    Object_ptr group_obj = stack[it->second];
+    Object_ptr group_obj = pop_from_stack();
 
     Doctor::get().assert(
         group_obj->is<std::shared_ptr<OverloadedObjectsSet>>(),
         WaspStage::VM,
-        "Expected an Overload Group"
+        "RESOLVE_FUNCTION expects an Overload Group on the stack!"
     );
 
     auto group = group_obj->as<std::shared_ptr<OverloadedObjectsSet>>();
@@ -342,7 +333,6 @@ void VM::execute_resolve_function(CallFrame* frame)
         "Overload index out of bounds!"
     );
 
-    // Push the specific resolved RuntimeFunctionObject onto the stack for CALL
     push_to_stack(group->overloads[overload_index]);
 }
 
@@ -464,26 +454,20 @@ void VM::execute_exit_module()
 
     ObjectStringMap members;
 
-    for (const auto& [symbol_id, name] :
-         frame.function->blueprint->symbol_id_to_name_map)
+    for (const auto& [symbol_id, name] : frame.function->blueprint->symbol_id_to_name_map)
     {
         // Find where this symbol is physically located on the stack
         auto it = frame.symbol_id_to_stack_index.find(symbol_id);
 
-        Doctor::get().assert(
-            it != frame.symbol_id_to_stack_index.end(),
-            WaspStage::VM,
-            "Exported symbol not found in active locals"
-        );
+        if (it == frame.symbol_id_to_stack_index.end())
+        {
+            continue;
+        }
 
         size_t physical_stack_index = it->second;
         Object_ptr value = stack[physical_stack_index];
 
-        Doctor::get().fatal_if_nullptr(
-            value,
-            WaspStage::VM,
-            "Exported symbol has no value"
-        );
+        Doctor::get().fatal_if_nullptr(value, WaspStage::VM, "Exported symbol has no value");
 
         members[name] = value;
     }
