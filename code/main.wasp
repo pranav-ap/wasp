@@ -2,3 +2,4 @@
 import my.cats
 
 cats.print_cats()
+cats.print_cats(12)

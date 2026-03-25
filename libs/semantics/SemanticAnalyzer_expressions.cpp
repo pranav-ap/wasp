@@ -371,6 +371,11 @@ Object_ptr SemanticAnalyzer::evaluate_module_member_access_call(
 
     left_id.symbol = module_symbol;
 
+    if (module_symbol->should_be_captured(current_scope->get_closure_depth()))
+    {
+        left_id.must_be_captured = true;
+    }
+
     auto
         [function_symbol,
          overload_index,

@@ -447,6 +447,7 @@ void VM::execute_import_module(CallFrame* frame)
     frames.emplace_back(module_func, stack_base_pointer);
 }
 
+/*
 void VM::execute_exit_module()
 {
     CallFrame& frame = frames.back();
@@ -466,6 +467,52 @@ void VM::execute_exit_module()
 
         size_t physical_stack_index = it->second;
         Object_ptr value = stack[physical_stack_index];
+
+        Doctor::get().fatal_if_nullptr(value, WaspStage::VM, "Exported symbol has no value");
+
+        members[name] = value;
+    }
+
+    auto exports = std::make_shared<ModuleObject>(
+        frame.function->blueprint->name,
+        std::move(members)
+    );
+
+    // Cleanup
+    stack.erase(stack.begin() + bp, stack.end());
+    frames.pop_back();
+
+    // make module object available to importer if any
+    push_to_stack(make_object(exports));
+}
+
+*/
+
+void VM::execute_exit_module()
+{
+    CallFrame& frame = frames.back();
+    size_t bp = frame.base_pointer;
+
+    ObjectStringMap members;
+
+    for (const auto& [symbol_id, name] : frame.function->blueprint->symbol_id_to_name_map)
+    {
+        // Find where this symbol is physically located on the stack
+        auto it = frame.symbol_id_to_stack_index.find(symbol_id);
+
+        // 1. Skip raw functions that were folded into Overload Groups
+        if (it == frame.symbol_id_to_stack_index.end())
+        {
+            continue;
+        }
+
+        size_t physical_stack_index = it->second;
+        Object_ptr value = stack[physical_stack_index];
+
+        if (value->is<std::shared_ptr<ModuleObject>>())
+        {
+            continue;
+        }
 
         Doctor::get().fatal_if_nullptr(value, WaspStage::VM, "Exported symbol has no value");
 

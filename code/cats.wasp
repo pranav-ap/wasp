@@ -6,5 +6,5 @@ fun print_cats()
 
 fun print_cats(a: int)
     print('integer yay!')
-    dogs.print_dogs()
+    dogs.print_dogs(a)
 
