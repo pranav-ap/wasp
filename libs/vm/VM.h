@@ -50,16 +50,20 @@ class VM
     void execute_binary_op(OpCode op);
     void execute_unary_op(OpCode op);
     void execute_stack_op(OpCode op);
+    void execute_scope_op(OpCode op, CallFrame* frame);
 
     void execute_constant(OpCode op, CallFrame* frame);
     void execute_control_flow(OpCode op, CallFrame* frame);
     void execute_variable(OpCode op, CallFrame* frame);
 
     void execute_make_function(CallFrame* frame);
+    void execute_add_function(CallFrame* frame);
+    void execute_load_function(CallFrame* frame);
+
     void execute_call(CallFrame* frame);
     void execute_return(CallFrame* frame);
 
-    void execute_import(CallFrame* frame);
+    void execute_import_module(CallFrame* frame);
     void execute_exit_module();
 
     void execute_member(OpCode op, CallFrame* frame);

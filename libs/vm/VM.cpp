@@ -26,18 +26,23 @@ void VM::execute_constant(OpCode op, CallFrame* frame)
 {
     switch (op)
     {
-    case OpCode::LOAD_CONST:
-        push_to_stack(workspace->pool->get(static_cast<int>(frame->consume_byte())));
+    case OpCode::LOAD_CONST: {
+        push_to_stack(
+            workspace->pool->get(static_cast<int>(frame->consume_byte())));
         break;
-    case OpCode::LOAD_TRUE:
+    }
+    case OpCode::LOAD_TRUE: {
         push_to_stack(workspace->pool->get_true_object());
         break;
-    case OpCode::LOAD_FALSE:
+    }
+    case OpCode::LOAD_FALSE: {
         push_to_stack(workspace->pool->get_false_object());
         break;
-    case OpCode::LOAD_NONE:
+    }
+    case OpCode::LOAD_NONE: {
         push_to_stack(workspace->pool->get_none_object());
         break;
+    }
     default:
         break;
     }
@@ -47,14 +52,12 @@ void VM::execute_variable(OpCode op, CallFrame* frame)
 {
     switch (op)
     {
-    case OpCode::DEFINE_LOCAL:
-    {
+    case OpCode::DEFINE_LOCAL: {
         int symbol_id = static_cast<int>(frame->consume_byte());
         frame->symbol_id_to_stack_index[symbol_id] = stack.size() - 1;
         break;
     }
-    case OpCode::SET_LOCAL:
-    {
+    case OpCode::SET_LOCAL: {
         int symbol_id = static_cast<int>(frame->consume_byte());
 
         Doctor::get().assert(
@@ -65,8 +68,7 @@ void VM::execute_variable(OpCode op, CallFrame* frame)
         stack[frame->symbol_id_to_stack_index[symbol_id]] = peek_tos();
         break;
     }
-    case OpCode::GET_LOCAL:
-    {
+    case OpCode::GET_LOCAL: {
         int symbol_id = static_cast<int>(frame->consume_byte());
 
         Doctor::get().assert(
@@ -78,33 +80,37 @@ void VM::execute_variable(OpCode op, CallFrame* frame)
         break;
     }
 
-    case OpCode::GET_NATIVE:
-    {
+    case OpCode::GET_NATIVE: {
         int index = static_cast<int>(frame->consume_byte());
         push_to_stack(workspace->native_registry->get_native_object(index));
         break;
     }
 
-    case OpCode::GET_UPVALUE:
-    {
+    case OpCode::GET_UPVALUE: {
         int index = static_cast<int>(frame->consume_byte());
         push_to_stack(frame->function->upvalues[index]);
         break;
     }
-    case OpCode::SET_UPVALUE:
-    {
+    case OpCode::SET_UPVALUE: {
         int index = static_cast<int>(frame->consume_byte());
         frame->function->upvalues[index] = peek_tos();
         break;
     }
 
-    case OpCode::PUSH_SCOPE:
+    default:
+        break;
+    }
+}
+
+void VM::execute_scope_op(OpCode op, CallFrame* frame)
+{
+    switch (op)
     {
+    case OpCode::PUSH_SCOPE: {
         frame->scope_bases.push_back(stack.size());
         break;
     }
-    case OpCode::POP_SCOPE:
-    {
+    case OpCode::POP_SCOPE: {
         size_t base = frame->scope_bases.back();
         frame->scope_bases.pop_back();
 
@@ -126,15 +132,93 @@ void VM::execute_control_flow(OpCode op, CallFrame* frame)
     uint8_t high = static_cast<uint8_t>(frame->consume_byte());
     uint16_t target_ip = low | (high << 8);
 
-    if (op == OpCode::JUMP || (op == OpCode::JUMP_IF_FALSE && !is_truthy(peek_tos())))
+    if (op == OpCode::JUMP ||
+        (op == OpCode::JUMP_IF_FALSE && !is_truthy(peek_tos())))
     {
         frame->ip = target_ip;
     }
 }
 
+// ----------------------------------------------
+// Member Access
+// ----------------------------------------------
+
+void VM::execute_member(OpCode op, CallFrame* frame)
+{
+    int member_index = static_cast<int>(frame->consume_byte());
+
+    if (op == OpCode::GET_MEMBER)
+    {
+        Object_ptr obj = pop_from_stack();
+
+        Doctor::get().fatal_if_nullptr(
+            obj,
+            WaspStage::VM,
+            "Cannot read property of null.");
+
+        push_to_stack(perform_get_member(obj, member_index));
+    }
+    else if (op == OpCode::SET_MEMBER)
+    {
+        Object_ptr val = pop_from_stack();
+        Object_ptr obj = pop_from_stack();
+
+        Doctor::get().fatal_if_nullptr(
+            obj,
+            WaspStage::VM,
+            "Cannot set property on null.");
+
+        perform_set_member(obj, member_index, val);
+
+        // Put the value back on the stack so expression cleanups (POP)
+        // work correctly
+        push_to_stack(val);
+    }
+}
+
+Object_ptr VM::perform_get_member(Object_ptr obj, int member_index)
+{
+    return std::visit(
+        overloaded{
+            [&](std::shared_ptr<ModuleObject>& mod) -> Object_ptr
+            {
+                return mod->get_member(member_index);
+            },
+            [&](auto&) -> Object_ptr
+            {
+                Doctor::get().fatal(
+                    WaspStage::VM,
+                    "Object of this type does not support reading "
+                    "properties.");
+                return nullptr;
+            }},
+        obj->value);
+}
+
+void VM::perform_set_member(Object_ptr obj, int member_index, Object_ptr value)
+{
+    std::visit(
+        overloaded{
+            [&](std::shared_ptr<ModuleObject>& mod)
+            {
+                mod->set_member(member_index, value);
+            },
+            [&](auto&)
+            {
+                Doctor::get().fatal(
+                    WaspStage::VM,
+                    "Object does not support setting properties.");
+            }},
+        obj->value);
+}
+
 // --------------------------------------
 // Function Calls
 // --------------------------------------
+
+void VM::execute_add_function(CallFrame* frame)
+{
+}
 
 void VM::execute_make_function(CallFrame* frame)
 {
@@ -204,8 +288,10 @@ void VM::execute_call(CallFrame* frame)
                 // Map the physical arguments to their Symbol IDs
                 for (int i = 0; i < arg_count; ++i)
                 {
-                    int param_symbol_id = func->blueprint->parameter_symbol_ids[i];
-                    new_frame.symbol_id_to_stack_index[param_symbol_id] = new_base_pointer + i;
+                    int param_symbol_id = func->blueprint
+                                              ->parameter_symbol_ids[i];
+                    new_frame.symbol_id_to_stack_index
+                        [param_symbol_id] = new_base_pointer + i;
                 }
 
                 // The main execution loop will automatically start reading
@@ -234,7 +320,11 @@ void VM::execute_call(CallFrame* frame)
             },
 
             [](auto&)
-            { Doctor::get().fatal(WaspStage::VM, "Attempted to call a non-callable object"); }},
+            {
+                Doctor::get().fatal(
+                    WaspStage::VM,
+                    "Attempted to call a non-callable object");
+            }},
         callable->value);
 }
 
@@ -246,8 +336,9 @@ void VM::execute_return(CallFrame* frame)
 
     frames.pop_back();
 
-    // 'bp' points to arg1. 'bp - 1' is the RuntimeFunctionObject (the callable).
-    // Remove the callable, all arguments, and all local variables.
+    // 'bp' points to arg1. 'bp - 1' is the RuntimeFunctionObject (the
+    // callable). Remove the callable, all arguments, and all local
+    // variables.
     if (bp > 0)
     {
         stack.erase(stack.begin() + (bp - 1), stack.end());
@@ -262,10 +353,10 @@ void VM::execute_return(CallFrame* frame)
     push_to_stack(result);
 }
 
-void VM::execute_import(CallFrame* frame)
+void VM::execute_import_module(CallFrame* frame)
 {
-    int path_index = static_cast<int>(frame->consume_byte());
-    Object_ptr path_obj = workspace->pool->get(path_index);
+    int module_index = static_cast<int>(frame->consume_byte());
+    // Object_ptr path_obj = workspace->
 
     Doctor::get().assert(
         path_obj->is<StringObject>(),
@@ -280,7 +371,8 @@ void VM::execute_import(CallFrame* frame)
         WaspStage::VM,
         "Module not found : " + module_path);
 
-    auto module_func = std::make_shared<RuntimeFunctionObject>(target_module->blueprint);
+    auto module_func = std::make_shared<RuntimeFunctionObject>(
+        target_module->blueprint);
 
     size_t export_base = stack.size();
     frames.emplace_back(module_func, export_base);
@@ -291,28 +383,34 @@ void VM::execute_exit_module()
     CallFrame& frame = frames.back();
     size_t bp = frame.base_pointer;
 
-    ObjectVector exported_members;
+    ObjectStringMap members;
 
-    // We ONLY export what the compiler explicitly marked as an export.
-    // This perfectly matches the index calculation in the Semantic Analyzer.
-    for (int symbol_id : frame.function->blueprint->exported_symbol_ids)
+    for (const auto& [symbol_id, name] :
+         frame.function->blueprint->symbol_id_to_name_map)
     {
+        // Look up where this symbol is physically located on the stack
+        // right now
+        auto it = frame.symbol_id_to_stack_index.find(symbol_id);
+
         Doctor::get().assert(
-            frame.symbol_id_to_stack_index.contains(symbol_id),
+            it != frame.symbol_id_to_stack_index.end(),
             WaspStage::VM,
-            "Exported symbol ID " + std::to_string(symbol_id) + " not found on stack");
+            "Exported symbol not found in active locals");
 
-        size_t vm_stack_index = frame.symbol_id_to_stack_index.at(symbol_id);
-        Object_ptr value = stack[vm_stack_index];
+        size_t physical_stack_index = it->second;
+        Object_ptr value = stack[physical_stack_index];
 
-        Doctor::get().fatal_if_nullptr(value, WaspStage::VM, "Exported symbol is null");
+        Doctor::get().fatal_if_nullptr(
+            value,
+            WaspStage::VM,
+            "Exported symbol has no value");
 
-        exported_members.push_back(value);
+        members[name] = value;
     }
 
     auto exports = std::make_shared<ModuleObject>(
         frame.function->blueprint->name,
-        std::move(exported_members));
+        std::move(members));
 
     // Stack cleanup
     stack.erase(stack.begin() + bp, stack.end());
@@ -321,9 +419,15 @@ void VM::execute_exit_module()
     push_to_stack(make_object(exports));
 }
 
+// --------------------------------------------------------------
+// Main Execution Loop
+// --------------------------------------------------------------
+
 void VM::run(StaticFunctionObject_ptr function_object)
 {
-    frames.emplace_back(std::make_shared<RuntimeFunctionObject>(function_object), 0);
+    frames.emplace_back(
+        std::make_shared<RuntimeFunctionObject>(function_object),
+        0);
 
     while (true)
     {
@@ -339,45 +443,49 @@ void VM::run(StaticFunctionObject_ptr function_object)
 
         case OpCode::ENTER_WORKSPACE:
             break;
-        case OpCode::EXIT_WORKSPACE:
+
+        case OpCode::EXIT_WORKSPACE: {
             frames.pop_back();
             break;
-
-        case OpCode::IMPORT:
-            execute_import(frame);
-            break;
+        }
 
         case OpCode::ENTER_MODULE:
             break;
 
-        case OpCode::EXIT_MODULE:
+        case OpCode::EXIT_MODULE: {
             execute_exit_module();
             // If you exit from the main module, stop the VM.
             if (frames.empty())
                 return;
 
             break;
+        }
 
-        case OpCode::HALT:
+        case OpCode::IMPORT_MODULE: {
+            execute_import_module(frame);
+            break;
+        }
+
+        case OpCode::HALT: {
             std::cerr << "Execution halted by HALT instruction.\n";
             return;
-
+        }
             // Stack Manipulations
 
         case OpCode::POP:
-        case OpCode::DUP:
+        case OpCode::DUP: {
             execute_stack_op(instruction);
             break;
-
+        }
             // Constants
 
         case OpCode::LOAD_CONST:
         case OpCode::LOAD_TRUE:
         case OpCode::LOAD_FALSE:
-        case OpCode::LOAD_NONE:
+        case OpCode::LOAD_NONE: {
             execute_constant(instruction, frame);
             break;
-
+        }
             // Variables & Scope
 
         case OpCode::DEFINE_LOCAL:
@@ -385,24 +493,32 @@ void VM::run(StaticFunctionObject_ptr function_object)
         case OpCode::GET_LOCAL:
         case OpCode::GET_NATIVE:
         case OpCode::GET_UPVALUE:
-        case OpCode::SET_UPVALUE:
-        case OpCode::PUSH_SCOPE:
-        case OpCode::POP_SCOPE:
+        case OpCode::SET_UPVALUE: {
             execute_variable(instruction, frame);
             break;
+        }
 
-        // Members
+        case OpCode::PUSH_SCOPE:
+        case OpCode::POP_SCOPE: {
+            execute_scope_op(instruction, frame);
+            break;
+        }
+
+            // Members
+
         case OpCode::GET_MEMBER:
-        case OpCode::SET_MEMBER:
+        case OpCode::SET_MEMBER: {
             execute_member(instruction, frame);
             break;
+        }
 
             // Control Flow
 
         case OpCode::JUMP:
-        case OpCode::JUMP_IF_FALSE:
+        case OpCode::JUMP_IF_FALSE: {
             execute_control_flow(instruction, frame);
             break;
+        }
 
             // Binary Math, Comparisons, Logic
 
@@ -419,28 +535,40 @@ void VM::run(StaticFunctionObject_ptr function_object)
         case OpCode::GT:
         case OpCode::GE:
         case OpCode::LOGICAL_AND:
-        case OpCode::LOGICAL_OR:
+        case OpCode::LOGICAL_OR: {
             execute_binary_op(instruction);
             break;
-
+        }
             // Unary
 
         case OpCode::NEGATE:
-        case OpCode::NOT:
+        case OpCode::NOT: {
             execute_unary_op(instruction);
             break;
-
+        }
             // FUNCTION
 
-        case OpCode::MAKE_FUNCTION:
+        case OpCode::MAKE_FUNCTION: {
             execute_make_function(frame);
             break;
+        }
 
-        case OpCode::CALL:
+        case OpCode::ADD_FUNCTION: {
+            execute_add_function(frame);
+            break;
+        }
+
+        case OpCode::LOAD_FUNCTION: {
+            execute_load_function(frame);
+            break;
+        }
+
+        case OpCode::CALL: {
             execute_call(frame);
             break;
+        }
 
-        case OpCode::RETURN:
+        case OpCode::RETURN: {
             execute_return(frame);
 
             if (frames.empty())
@@ -449,11 +577,13 @@ void VM::run(StaticFunctionObject_ptr function_object)
             }
 
             break;
+        }
 
-        default:
-            std::cerr << "Unknown OpCode encountered : " << stringify_opcode(instruction)
-                      << std::endl;
-            Doctor::get().fatal(WaspStage::VM, "Unknown OpCode encountered");
+        default: {
+            Doctor::get().fatal(
+                WaspStage::VM,
+                "Unknown OpCode encountered: " + stringify_opcode(instruction));
+        }
         }
     }
 }

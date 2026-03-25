@@ -3,7 +3,6 @@
 #include "Doctor.h"
 #include "Objects.h"
 #include "Statement.h"
-
 #include "SymbolScope.h"
 #include "Workspace.h"
 
@@ -11,7 +10,6 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
-#include <utility>
 #include <variant>
 #include <vector>
 
@@ -33,7 +31,7 @@ void SemanticAnalyzer::extract_module_type(Module_ptr module)
 {
     auto exports = module->get_flat_exports();
 
-    // Validate that everything has a type
+    ObjectStringMap members;
 
     for (const auto& symbol : exports)
     {
@@ -41,12 +39,11 @@ void SemanticAnalyzer::extract_module_type(Module_ptr module)
             symbol->get_type(),
             WaspStage::Semantics,
             "Symbol '" + symbol->name + "' has no type information");
+
+        members[symbol->name] = symbol->get_type();
     }
 
-    auto module_type = ModuleType(
-        module->get_name(),
-        module->absolute_filepath,
-        std::move(exports));
+    auto module_type = ModuleType(module->get_name(), module->absolute_filepath, members);
 
     module->type = make_object(module_type);
 }
@@ -62,7 +59,7 @@ void SemanticAnalyzer::run(const std::vector<Module_ptr>& build_order)
 
         // Push this module's hoisted symbols into its scope before visiting the statements,
         // so that they can be referenced in the module body
-        for (auto& symbol : module->get_flat_hoists())
+        for (auto& symbol : module->get_flat_exports())
         {
             current_scope->define(symbol);
         }

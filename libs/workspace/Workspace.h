@@ -52,7 +52,7 @@ struct FunctionData : public TypedSymbolData
     Object_ptr get_return_type() const;
 };
 
-struct OverloadGroupData
+struct OverloadGroupData : public TypedSymbolData
 {
     SymbolVector siblings;
     SymbolVector parents;
@@ -191,8 +191,7 @@ struct Module
 class Workspace
 {
 private:
-    std::map<std::filesystem::path, int> absolute_path_to_module_index;
-    std::map<int, Module_ptr> module_registry;
+    std::map<std::filesystem::path, Module_ptr> module_registry;
 
     int next_module_index = 0;
 
@@ -208,10 +207,11 @@ public:
 
     Module_ptr get_module(const std::filesystem::path& path);
 
-    // Updated return type to match the new module_registry signature
     const std::map<int, Module_ptr>& get_all_modules() const;
 
     void add_module(const std::filesystem::path& path, Module_ptr module);
+
+    int get_module_index(const std::filesystem::path& path) const;
 };
 
 } // namespace Wasp

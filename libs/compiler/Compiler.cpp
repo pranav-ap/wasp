@@ -33,11 +33,7 @@ Compiler::Compiler(Compiler* parent)
     graph.set_entry_block(current_block_id);
 }
 
-StaticFunctionObject_ptr Compiler::run(
-    const StatementVector& block,
-    std::string name,
-    bool is_main,
-    std::vector<int> exported_symbol_ids)
+StaticFunctionObject_ptr Compiler::run(const StatementVector& block, std::string name, bool is_main)
 {
     if (is_main) {
         emit(OpCode::ENTER_WORKSPACE);
@@ -65,7 +61,6 @@ StaticFunctionObject_ptr Compiler::run(
     auto function_object = std::make_shared<StaticFunctionObject>(
         std::move(final_code),
         std::vector<int>{},
-        std::move(exported_symbol_ids),
         name,
         symbol_id_to_name_map,
         upvalue_index_to_name_map);

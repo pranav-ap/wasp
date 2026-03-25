@@ -69,8 +69,13 @@ Object_ptr Symbol::get_type()
 
             [](const AliasData& d) { return d.target->get_type(); },
 
-            [](const OverloadGroupData& d)
+            [](OverloadGroupData& d)
             {
+                if (d.type)
+                {
+                    return d.type;
+                }
+
                 ObjectVector overload_types;
 
                 for (const auto& overload : d.get_all_overloads())
@@ -78,7 +83,10 @@ Object_ptr Symbol::get_type()
                     overload_types.push_back(overload->get_type());
                 }
 
-                return make_object(OverloadedTypesSet(overload_types));
+                d.type = make_object(
+                    std::make_shared<OverloadedTypesSet>(std::move(overload_types)));
+
+                return d.type;
             },
             [](auto) -> Object_ptr
             {
@@ -303,4 +311,17 @@ void Workspace::add_module(const std::filesystem::path& path, Module_ptr module)
     absolute_path_to_module_index[abs_path] = index;
     module_registry[index] = std::move(module);
 }
+
+int Workspace::get_module_index(const std::filesystem::path& path) const
+{
+    auto abs_path = std::filesystem::absolute(path);
+
+    Doctor::get().assert(
+        absolute_path_to_module_index.contains(abs_path),
+        WaspStage::Compiler,
+        "Module not found in workspace: " + abs_path.string());
+
+    return absolute_path_to_module_index.at(abs_path);
+}
+
 } // namespace Wasp

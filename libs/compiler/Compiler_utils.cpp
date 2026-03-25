@@ -40,13 +40,12 @@ int Compiler::add_upvalue(const Upvalue& uv, const std::string& name)
     {
         if (upvalues[i].is_local_to_parent == uv.is_local_to_parent)
         {
-            if (uv.is_local_to_parent && upvalues[i].symbol_id == uv.symbol_id)
+            if (uv.is_local_to_parent && upvalues[i].index == uv.index)
             {
                 return i;
             }
 
-            if (!uv.is_local_to_parent &&
-                upvalues[i].upvalue_index_in_parent == uv.upvalue_index_in_parent)
+            if (!uv.is_local_to_parent && upvalues[i].index == uv.index)
             {
                 return i;
             }
@@ -70,7 +69,7 @@ int Compiler::resolve_upvalue(Compiler* current_compiler, Symbol_ptr symbol)
     {
         Upvalue uv;
         uv.is_local_to_parent = true;
-        uv.symbol_id = symbol->id;
+        uv.index = symbol->id;
 
         return current_compiler->add_upvalue(uv, symbol->name);
     }
@@ -80,7 +79,7 @@ int Compiler::resolve_upvalue(Compiler* current_compiler, Symbol_ptr symbol)
 
     Upvalue uv;
     uv.is_local_to_parent = false;
-    uv.upvalue_index_in_parent = index;
+    uv.index = index;
 
     return current_compiler->add_upvalue(uv, symbol->name);
 }

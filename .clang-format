@@ -5,7 +5,7 @@ TabWidth: 4
 UseTab: Never
 
 # Column limit before wrapping lines
-ColumnLimit: 100
+ColumnLimit: 80
 
 # Keeps your pointer stars glued to the type (e.g., Object_ptr*)
 PointerAlignment: Left
@@ -19,7 +19,7 @@ BinPackParameters: false
 AccessModifierOffset: -4
 
 # Forces line breaks after the opening brace and before the closing brace
-AlignAfterOpenBracket: AlwaysBreak # BlockIndent
+AlignAfterOpenBracket: AlwaysBreak
 ContinuationIndentWidth: 4
 
 AlwaysBreakAfterReturnType: None
@@ -27,10 +27,36 @@ AlwaysBreakAfterDefinitionReturnType: None
 PenaltyReturnTypeOnItsOwnLine: 100000
 PenaltyBreakAssignment: 1000
 
-BreakBeforeBraces: Allman
-
 # Prevents dropping the entire parameter list onto the next line
 AllowAllParametersOfDeclarationOnNextLine: false
 
 # Prevents dropping all arguments onto the next line when CALLING a function
 AllowAllArgumentsOnNextLine: false
+
+# --- The Magic for Lambdas & Allman Braces ---
+
+# Prevent collapsing short blocks, functions, and lambdas onto a single line
+AllowShortBlocksOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
+AllowShortLambdasOnASingleLine: None
+
+# Custom Brace Wrapping to enforce Allman everywhere, INCLUDING Lambdas
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterClass: true
+  AfterControlStatement: Always
+  AfterEnum: true
+  AfterFunction: true
+  AfterNamespace: true
+  AfterObjCDeclaration: true
+  AfterStruct: true
+  AfterUnion: true
+  AfterExternBlock: true
+  BeforeCatch: true
+  BeforeElse: true
+  BeforeLambdaBody: true  # <--- This is the crucial line for std::visit
+  BeforeWhile: true
+  IndentBraces: false
+  SplitEmptyFunction: true
+  SplitEmptyRecord: true
+  SplitEmptyNamespace: true

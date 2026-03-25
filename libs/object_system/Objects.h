@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <functional>
+#include <iterator>
 #include <map>
 #include <memory>
 #include <optional>
@@ -47,6 +48,69 @@ struct ActionObject : public AbstractObject
 };
 struct NoneObject : public AbstractObject
 {
+};
+
+struct MemberedCompositeObject : public CompositeObject
+{
+    ObjectStringMap members;
+
+    MemberedCompositeObject(ObjectStringMap members) : members(std::move(members)) {}
+
+    bool contains_member(const std::string& member_name) const
+    {
+        return members.contains(member_name);
+    }
+
+    Object_ptr get_member(const std::string& member_name) const
+    {
+        if (auto it = members.find(member_name); it != members.end())
+        {
+            return it->second;
+        }
+
+        return nullptr;
+    }
+
+    void set_member(const std::string& member_name, Object_ptr value)
+    {
+        members[member_name] = std::move(value);
+    }
+
+    Object_ptr get_member(int member_id) const
+    {
+        Doctor::get().assert(
+            member_id >= 0 && member_id < static_cast<int>(members.size()),
+            WaspStage::VM,
+            "Member index out of bounds!");
+
+        auto it = members.begin();
+        std::advance(it, member_id);
+        return it->second;
+    }
+
+    void set_member(int member_id, Object_ptr value)
+    {
+        Doctor::get().assert(
+            member_id >= 0 && member_id < static_cast<int>(members.size()),
+            WaspStage::VM,
+            "Member index out of bounds!");
+
+        auto it = members.begin();
+        std::advance(it, member_id);
+        it->second = std::move(value);
+    }
+
+    int get_member_index(const std::string& member_name) const
+    {
+        auto it = members.find(member_name);
+
+        if (it == members.end())
+        {
+            return -1;
+        }
+
+        return static_cast<int>(std::distance(members.begin(), it));
+    }
 };
 
 struct DefinitionObject : public AbstractObject
@@ -264,13 +328,12 @@ struct OverloadedTypesSet : public OverloadsSet
     OverloadedTypesSet(ObjectVector overloads) : OverloadsSet(std::move(overloads)) {};
 };
 
-struct ModuleObject : public CompositeObject
+struct ModuleObject : public MemberedCompositeObject
 {
     std::string name;
-    ObjectStringMap members;
 
     ModuleObject(std::string name, ObjectStringMap members)
-        : name(std::move(name)), members(std::move(members))
+        : name(std::move(name)), MemberedCompositeObject(std::move(members))
     {
     }
 };
@@ -318,9 +381,11 @@ struct NoneType : public AnyType
 struct ScalarType : public AnyType
 {
 };
+
 struct LiteralType : public AnyType
 {
 };
+
 struct CompositeType : public AnyType
 {
 };
@@ -420,37 +485,22 @@ struct FunctionType : public AnyType
           return_type(std::make_optional(std::move(return_type))) {};
 };
 
-struct RecordType : public CompositeType
+struct RecordType : public MemberedCompositeObject
 {
-    ObjectStringMap members;
-
-    RecordType(ObjectStringMap members) : members(std::move(members)) {};
-
-    bool contains_member(const std::string& member_name) const
-    {
-        return members.contains(member_name);
-    }
-
-    Object_ptr get_member_type(const std::string& member_name) const
-    {
-        if (auto it = members.find(member_name); it != members.end())
-        {
-            return it->second;
-        }
-
-        return nullptr;
-    }
+    RecordType(ObjectStringMap members) : MemberedCompositeObject{std::move(members)} {}
 };
 
-struct ModuleType : public CompositeType
+struct ModuleType : public MemberedCompositeObject
 {
     std::string module_name;
     std::filesystem::path absolute_filepath;
 
-    ObjectStringMap members;
-
-    ModuleType(std::string module_name, std::filesystem::path absolute_filepath)
-        : module_name(std::move(module_name)), absolute_filepath(std::move(absolute_filepath))
+    ModuleType(
+        std::string module_name,
+        std::filesystem::path absolute_filepath,
+        ObjectStringMap members)
+        : module_name(std::move(module_name)), absolute_filepath(std::move(absolute_filepath)),
+          MemberedCompositeObject(std::move(members))
     {
     }
 };

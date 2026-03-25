@@ -44,38 +44,38 @@ void Compiler::visit(FunctionDefinition& function_definition)
 
     CodeObject code = func_compiler.flatten();
 
-    // Store the code in the constant pool
     int const_id = workspace->pool->allocate_function_definition(
         std::move(code),
         std::move(func_compiler_parameter_symbol_ids),
-        std::vector<int>{},
         function_definition.name,
         std::move(func_compiler.symbol_id_to_name_map),
         std::move(func_compiler.upvalue_index_to_name_map));
 
+    // Push the StaticFunctionObject onto the stack
     emit(OpCode::LOAD_CONST, const_id);
 
-    // Make the function & capture upvalues
-
+    // Transform it into a RuntimeFunctionObject & capture upvalues
     int upvalue_count = static_cast<int>(func_compiler.upvalues.size());
     emit(OpCode::MAKE_FUNCTION, upvalue_count);
 
+    // Emit closure routing bytes for the VM
     for (const auto& uv : func_compiler.upvalues)
     {
         if (uv.is_local_to_parent)
         {
             emit_raw_byte(std::byte{1});
-            emit_raw_byte(static_cast<std::byte>(uv.symbol_id));
         }
         else
         {
             emit_raw_byte(std::byte{0});
-            emit_raw_byte(static_cast<std::byte>(uv.upvalue_index_in_parent));
         }
+
+        emit_raw_byte(static_cast<std::byte>(uv.index));
     }
 
+    // It's an overload! Merge the func on the stack into the existing group
+    emit(OpCode::ADD_FUNCTION, function_definition.symbol->id);
     symbol_id_to_name_map[function_definition.symbol->id] = function_definition.name;
-    emit(OpCode::DEFINE_LOCAL, function_definition.symbol->id);
 }
 
 void Compiler::visit(Return& statement)

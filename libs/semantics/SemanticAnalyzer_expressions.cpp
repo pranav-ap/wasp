@@ -133,7 +133,7 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
         "Module '" + module_type.module_name + "' does not contain member '" + member_name + "'");
 
     // Calculate distance using the iterator
-    expr.member_index = static_cast<int>(std::distance(module_type.members.begin(), it));
+    expr.member_index = module_type.get_member_index(member_name);
 
     return it->second;
 }

@@ -113,18 +113,9 @@ void Captain::compile(const std::vector<Module_ptr>& build_order)
         bool is_main = (module->absolute_filepath == entry_file);
         auto module_name = module->get_name();
 
-        std::vector<int> export_ids;
-
-        for (const auto& sym : module->get_flat_exports())
-        {
-            export_ids.push_back(sym->id);
-        }
-
-        std::sort(export_ids.begin(), export_ids.end());
-
         Compiler compiler(workspace);
         // Pass the sorted export_ids into the blueprint!
-        module->blueprint = compiler.run(module->stmts, module_name, is_main, export_ids);
+        module->blueprint = compiler.run(module->stmts, module_name, is_main);
 
         dump_build_artifacts(workspace, module->absolute_filepath, module->blueprint);
     }

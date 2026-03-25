@@ -26,15 +26,7 @@ struct Upvalue
 
     // If is_local_to_parent == true:  Offset from the parent's stack Base Pointer.
     // If is_local_to_parent == false: Offset into the parent's upvalue array.
-
-    union
-    {
-        // Use this when is_local_to_parent == true
-        int symbol_id;
-
-        // Use this when is_local_to_parent == false
-        int upvalue_index_in_parent;
-    };
+    int index;
 };
 
 class Compiler
@@ -169,6 +161,7 @@ public:
     const CFGraph& get_graph() const { return graph; }
 
     const std::map<int, std::string>& get_symbol_name_map() const { return symbol_id_to_name_map; }
+
     const std::map<int, std::string>& get_upvalue_name_map() const
     {
         return upvalue_index_to_name_map;
@@ -177,8 +170,7 @@ public:
     StaticFunctionObject_ptr run(
         const StatementVector& block,
         std::string name,
-        bool is_main = false,
-        std::vector<int> exported_symbol_ids = {});
+        bool is_main = false);
 };
 
 using Compiler_ptr = std::shared_ptr<Compiler>;

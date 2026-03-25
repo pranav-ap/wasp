@@ -27,18 +27,18 @@ using ByteVector = std::vector<std::byte>;
     X(LOAD_NONE, 0)  /* [] -> [none] */                                                            \
                                                                                                    \
     /* --- Variables & Scoping --- */                                                              \
-    X(DEFINE_LOCAL, 1) /* [val] -> [] | <Symbol ID> (Create local variable) */                     \
-    X(SET_LOCAL, 1)    /* [val] -> [] | <Symbol ID> (Assign to existing local) */                  \
-    X(GET_LOCAL, 1)    /* [] -> [val] | <Symbol ID> (Read local onto stack) */                     \
-    X(GET_NATIVE, 1)   /* [] -> [val] | <Symbol ID> or Native Registry Index */                    \
-    X(SET_MEMBER, 1)   /* [obj, val] -> [] | <Member ID>  */                                       \
-    X(GET_MEMBER, 1)   /* [obj] -> [val] | <Member ID>  */                                         \
-    X(PUSH_SCOPE, 0)   /* Enter new lexical block scope */                                         \
-    X(POP_SCOPE, 0)    /* Exit current lexical block scope */                                      \
-    X(IMPORT, 1)       /* [] -> [Module] | <Module Index> */                                       \
+    X(DEFINE_LOCAL, 1)  /* [val] -> [] | <Symbol ID> (Create local variable) */                    \
+    X(SET_LOCAL, 1)     /* [val] -> [] | <Symbol ID> (Assign to existing local) */                 \
+    X(GET_LOCAL, 1)     /* [] -> [val] | <Symbol ID> (Read local onto stack) */                    \
+    X(GET_NATIVE, 1)    /* [] -> [val] | <Symbol ID> */                                            \
+    X(SET_MEMBER, 1)    /* [obj, val] -> [] | <Member ID>  */                                      \
+    X(GET_MEMBER, 1)    /* [obj] -> [val] | <Member ID>  */                                        \
+    X(PUSH_SCOPE, 0)    /* Enter new lexical block scope */                                        \
+    X(POP_SCOPE, 0)     /* Exit current lexical block scope */                                     \
+    X(IMPORT_MODULE, 1) /* [] -> [Module] | <Module Index> */                                      \
                                                                                                    \
     /* --- Functions, Overloads & Closures --- */                                                  \
-    X(MAKE_FUNCTION, 1) /* [code] -> [func] | <Constant Pool ID> */                                \
+    X(MAKE_FUNCTION, 1) /* [code] -> [func] | <number of upvalues */                               \
     X(ADD_FUNCTION, 1)  /* [func] -> [] | <Symbol ID> (add to Overload Group with Symbol ID) */    \
     X(LOAD_FUNCTION, 2) /* [] -> [func] | <Symbol ID>, <Overload Index> (Push func from group) */  \
     X(CALL, 1)          /* [func, args] -> [res] | <Count> (Number of args on stack) */            \
