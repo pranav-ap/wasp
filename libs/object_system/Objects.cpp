@@ -406,8 +406,9 @@ int MemberedCompositeType::get_member_index(const std::string& member_name) cons
     Doctor::get().assert(
         contains_member(member_name),
         WaspStage::Semantics,
-        "Type Member '" + member_name + "' not found!"
+        "Member '" + member_name + "' not found!"
     );
+
     auto it = members.find(member_name);
     return static_cast<int>(std::distance(members.begin(), it));
 }

@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <memory>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -32,7 +33,8 @@ namespace Wasp
 SymbolVector::iterator TypeChecker::find_matching_signature(
     SymbolScope_ptr scope,
     SymbolVector& target_vector,
-    const ObjectVector& parameter_types)
+    const ObjectVector& parameter_types
+)
 {
     return std::find_if(
         target_vector.begin(),
@@ -57,7 +59,8 @@ SymbolVector::iterator TypeChecker::find_matching_signature(
             }
 
             return true;
-        });
+        }
+    );
 }
 
 void TypeChecker::validate_overload_group(
@@ -74,10 +77,9 @@ void TypeChecker::validate_overload_group(
         "Symbol is not an overload group"
     );
 
-    auto new_type_obj = new_function_symbol->get_type();
-    const auto& parameter_types = new_type_obj->as<FunctionType>().input_types;
-    auto& group_data = overload_group_symbol
-                           ->get_payload_as<OverloadGroupData>();
+    const auto& parameter_types = new_function_symbol->get_type()->as<FunctionType>().input_types;
+
+    auto& group_data = overload_group_symbol->get_payload_as<OverloadGroupData>();
 
     // Sibling Duplicate Check
 
@@ -111,18 +113,13 @@ void TypeChecker::validate_overload_group(
         {
             Doctor::get().fatal(
                 WaspStage::Semantics,
-                "Duplicate function signatures for '" + function_name +
-                    "' defined in same scope"
+                "Duplicate function signatures for '" + function_name + "' defined in same scope"
             );
         }
     }
 
     // Shadow Parents
-    auto parent_match = find_matching_signature(
-        scope,
-        group_data.parents,
-        parameter_types
-    );
+    auto parent_match = find_matching_signature(scope, group_data.parents, parameter_types);
 
     if (parent_match != group_data.parents.end())
     {
@@ -134,7 +131,8 @@ void TypeChecker::collect_assignable_signatures(
     SymbolScope_ptr scope,
     const SymbolVector& candidates,
     const ObjectVector& argument_types,
-    SymbolVector& valid_matches) const
+    SymbolVector& valid_matches
+) const
 {
     for (const auto& candidate : candidates)
     {
@@ -167,10 +165,10 @@ std::pair<Symbol_ptr, int> TypeChecker::resolve_function_call(
         "Symbol is not an overload group"
     );
 
-    const auto& group_data = overload_group_symbol
-                                 ->get_payload_as<OverloadGroupData>();
+    const auto& group_data = overload_group_symbol->get_payload_as<OverloadGroupData>();
 
     SymbolVector valid_matches;
+
     collect_assignable_signatures(
         scope,
         group_data.get_all_overloads(),
@@ -181,8 +179,7 @@ std::pair<Symbol_ptr, int> TypeChecker::resolve_function_call(
     Doctor::get().assert(
         !valid_matches.empty(),
         WaspStage::Semantics,
-        "No matching function signature found for " +
-            overload_group_symbol->name
+        "No matching function signature found for " + overload_group_symbol->name
     );
 
     Doctor::get().assert(
@@ -191,9 +188,9 @@ std::pair<Symbol_ptr, int> TypeChecker::resolve_function_call(
         "Ambiguous function call to " + overload_group_symbol->name
     );
 
-    int index = group_data.get_overload_index(valid_matches[0]);
+    int index = group_data.get_overload_index(valid_matches.front());
 
-    return {valid_matches[0], index};
+    return {valid_matches.front(), index};
 }
 
 std::tuple<Symbol_ptr, int, int> TypeChecker::resolve_method_call(
@@ -211,12 +208,11 @@ std::tuple<Symbol_ptr, int, int> TypeChecker::resolve_method_call(
         "Module '" + module_name + "' not found in current scope"
     );
 
-    const auto& module_type = module_symbol->get_type()->as<ModuleType>();
-    int member_index = module_type.get_member_index(method_name);
+    int member_index = module_symbol->get_type()->as<ModuleType>().get_member_index(method_name);
 
-    Symbol_ptr overload_group_symbol = module_symbol
-                                           ->get_payload_as<ModuleData>()
-                                           .mod->exports.at(method_name);
+    Symbol_ptr overload_group_symbol = module_symbol->get_payload_as<ModuleData>().mod->exports.at(
+        method_name
+    );
 
     Doctor::get().fatal_if_nullptr(
         overload_group_symbol,
@@ -230,8 +226,7 @@ std::tuple<Symbol_ptr, int, int> TypeChecker::resolve_method_call(
         "Symbol '" + method_name + "' is not an overload group"
     );
 
-    const auto& group_data = overload_group_symbol
-                                 ->get_payload_as<OverloadGroupData>();
+    const auto& group_data = overload_group_symbol->get_payload_as<OverloadGroupData>();
 
     SymbolVector valid_matches;
 
@@ -245,8 +240,7 @@ std::tuple<Symbol_ptr, int, int> TypeChecker::resolve_method_call(
     Doctor::get().assert(
         !valid_matches.empty(),
         WaspStage::Semantics,
-        "No matching method signature found for '" + module_name + "." +
-            method_name + "()'"
+        "No matching method signature found for '" + module_name + "." + method_name + "()'"
     );
 
     Doctor::get().assert(
@@ -255,17 +249,20 @@ std::tuple<Symbol_ptr, int, int> TypeChecker::resolve_method_call(
         "Ambiguous method call to '" + module_name + "." + method_name + "()'"
     );
 
-    int overload_index = group_data.get_overload_index(valid_matches[0]);
+    int overload_index = group_data.get_overload_index(valid_matches.front());
 
-    return {valid_matches[0], overload_index, member_index};
+    return {valid_matches.front(), overload_index, member_index};
 }
 
 // ============================================================================
 // Equal Checks
 // ============================================================================
 
-bool TypeChecker::equal(SymbolScope_ptr scope, const Object_ptr type_1, const Object_ptr type_2)
-    const
+bool TypeChecker::equal(
+    SymbolScope_ptr scope,
+    const Object_ptr type_1,
+    const Object_ptr type_2
+) const
 {
     if (!type_1 || !type_2)
         return false;
@@ -277,51 +274,90 @@ bool TypeChecker::equal(SymbolScope_ptr scope, const Object_ptr type_1, const Ob
         return equal_unordered(
             scope,
             type_1->as<VariantType>().types,
-            type_2->as<VariantType>().types);
+            type_2->as<VariantType>().types
+        );
     }
 
     return std::visit(
         ::overloaded{
             // Standard Types
-            [&](AnyType const&, AnyType const&) -> bool { return true; },
-            [&](IntType const&, IntType const&) -> bool { return true; },
-            [&](FloatType const&, FloatType const&) -> bool { return true; },
-            [&](BooleanType const&, BooleanType const&) -> bool { return true; },
-            [&](StringType const&, StringType const&) -> bool { return true; },
-            [&](NoneType const&, NoneType const&) -> bool { return true; },
+            [&](AnyType const&, AnyType const&) -> bool
+            {
+                return true;
+            },
+            [&](IntType const&, IntType const&) -> bool
+            {
+                return true;
+            },
+            [&](FloatType const&, FloatType const&) -> bool
+            {
+                return true;
+            },
+            [&](BooleanType const&, BooleanType const&) -> bool
+            {
+                return true;
+            },
+            [&](StringType const&, StringType const&) -> bool
+            {
+                return true;
+            },
+            [&](NoneType const&, NoneType const&) -> bool
+            {
+                return true;
+            },
 
             // Literal Types
             [&](IntLiteralType const& t1, IntLiteralType const& t2) -> bool
-            { return t1.value == t2.value; },
+            {
+                return t1.value == t2.value;
+            },
             [&](FloatLiteralType const& t1, FloatLiteralType const& t2) -> bool
-            { return t1.value == t2.value; },
+            {
+                return t1.value == t2.value;
+            },
             [&](BooleanLiteralType const& t1, BooleanLiteralType const& t2) -> bool
-            { return t1.value == t2.value; },
+            {
+                return t1.value == t2.value;
+            },
             [&](StringLiteralType const& t1, StringLiteralType const& t2) -> bool
-            { return t1.value == t2.value; },
+            {
+                return t1.value == t2.value;
+            },
 
             // Composites
             [&](ListType const& t1, ListType const& t2) -> bool
-            { return equal(scope, t1.element_type, t2.element_type); },
+            {
+                return equal(scope, t1.element_type, t2.element_type);
+            },
             [&](SetType const& t1, SetType const& t2) -> bool
-            { return equal(scope, t1.element_type, t2.element_type); },
+            {
+                return equal(scope, t1.element_type, t2.element_type);
+            },
             [&](TupleType const& t1, TupleType const& t2) -> bool
-            { return equal(scope, t1.element_types, t2.element_types); },
+            {
+                return equal(scope, t1.element_types, t2.element_types);
+            },
             [&](MapType const& t1, MapType const& t2) -> bool
             {
                 return equal(scope, t1.key_type, t2.key_type) &&
                        equal(scope, t1.value_type, t2.value_type);
             },
 
-            [](const auto&, const auto&) -> bool { return false; }},
+            [](const auto&, const auto&) -> bool
+            {
+                return false;
+            }
+        },
         type_1->value,
-        type_2->value);
+        type_2->value
+    );
 }
 
 bool TypeChecker::equal(
     SymbolScope_ptr scope,
     const ObjectVector& type_vector_1,
-    const ObjectVector& type_vector_2) const
+    const ObjectVector& type_vector_2
+) const
 {
     if (type_vector_1.size() != type_vector_2.size())
         return false;
@@ -330,13 +366,18 @@ bool TypeChecker::equal(
         type_vector_1.begin(),
         type_vector_1.end(),
         type_vector_2.begin(),
-        [&](const auto& a, const auto& b) { return equal(scope, a, b); });
+        [&](const auto& a, const auto& b)
+        {
+            return equal(scope, a, b);
+        }
+    );
 }
 
 bool TypeChecker::equal_unordered(
     SymbolScope_ptr scope,
     const ObjectVector& left_vector,
-    const ObjectVector& right_vector) const
+    const ObjectVector& right_vector
+) const
 {
     if (left_vector.size() != right_vector.size())
         return false;
@@ -349,8 +390,13 @@ bool TypeChecker::equal_unordered(
             return std::any_of(
                 right_vector.begin(),
                 right_vector.end(),
-                [&](const auto& right) { return equal(scope, left, right); });
-        });
+                [&](const auto& right)
+                {
+                    return equal(scope, left, right);
+                }
+            );
+        }
+    );
 }
 
 // ============================================================================
@@ -360,7 +406,8 @@ bool TypeChecker::equal_unordered(
 bool TypeChecker::assignable(
     SymbolScope_ptr scope,
     const Object_ptr lhs_type,
-    const Object_ptr rhs_type) const
+    const Object_ptr rhs_type
+) const
 {
     if (!lhs_type || !rhs_type)
         return false;
@@ -373,7 +420,11 @@ bool TypeChecker::assignable(
         return std::all_of(
             rhs_var.types.begin(),
             rhs_var.types.end(),
-            [&](Object_ptr t) { return assignable(scope, lhs_type, t); });
+            [&](Object_ptr t)
+            {
+                return assignable(scope, lhs_type, t);
+            }
+        );
     }
 
     if (lhs_type->is<VariantType>())
@@ -382,45 +433,88 @@ bool TypeChecker::assignable(
         return std::any_of(
             lhs_var.types.begin(),
             lhs_var.types.end(),
-            [&](Object_ptr t) { return assignable(scope, t, rhs_type); });
+            [&](Object_ptr t)
+            {
+                return assignable(scope, t, rhs_type);
+            }
+        );
     }
 
     return std::visit(
         ::overloaded{
-            [](AnyType const&, const auto&) -> bool { return true; },
-            [](IntType const&, IntType const&) -> bool { return true; },
-            [](FloatType const&, FloatType const&) -> bool { return true; },
-            [](BooleanType const&, BooleanType const&) -> bool { return true; },
-            [](StringType const&, StringType const&) -> bool { return true; },
+            [](AnyType const&, const auto&) -> bool
+            {
+                return true;
+            },
+            [](IntType const&, IntType const&) -> bool
+            {
+                return true;
+            },
+            [](FloatType const&, FloatType const&) -> bool
+            {
+                return true;
+            },
+            [](BooleanType const&, BooleanType const&) -> bool
+            {
+                return true;
+            },
+            [](StringType const&, StringType const&) -> bool
+            {
+                return true;
+            },
 
             // Accept literals
-            [](IntType const&, IntLiteralType const&) -> bool { return true; },
-            [](FloatType const&, FloatLiteralType const&) -> bool { return true; },
-            [](BooleanType const&, BooleanLiteralType const&) -> bool { return true; },
-            [](StringType const&, StringLiteralType const&) -> bool { return true; },
+            [](IntType const&, IntLiteralType const&) -> bool
+            {
+                return true;
+            },
+            [](FloatType const&, FloatLiteralType const&) -> bool
+            {
+                return true;
+            },
+            [](BooleanType const&, BooleanLiteralType const&) -> bool
+            {
+                return true;
+            },
+            [](StringType const&, StringLiteralType const&) -> bool
+            {
+                return true;
+            },
 
             // Handle nested composites
             [&](ListType const& t1, ListType const& t2) -> bool
-            { return assignable(scope, t1.element_type, t2.element_type); },
+            {
+                return assignable(scope, t1.element_type, t2.element_type);
+            },
             [&](SetType const& t1, SetType const& t2) -> bool
-            { return assignable(scope, t1.element_type, t2.element_type); },
+            {
+                return assignable(scope, t1.element_type, t2.element_type);
+            },
             [&](TupleType const& t1, TupleType const& t2) -> bool
-            { return assignable(scope, t1.element_types, t2.element_types); },
+            {
+                return assignable(scope, t1.element_types, t2.element_types);
+            },
             [&](MapType const& t1, MapType const& t2) -> bool
             {
                 return assignable(scope, t1.key_type, t2.key_type) &&
                        assignable(scope, t1.value_type, t2.value_type);
             },
 
-            [](const auto&, const auto&) -> bool { return false; }},
+            [](const auto&, const auto&) -> bool
+            {
+                return false;
+            }
+        },
         lhs_type->value,
-        rhs_type->value);
+        rhs_type->value
+    );
 }
 
 bool TypeChecker::assignable(
     SymbolScope_ptr scope,
     const ObjectVector& type_vector_1,
-    const ObjectVector& type_vector_2) const
+    const ObjectVector& type_vector_2
+) const
 {
     if (type_vector_1.size() != type_vector_2.size())
         return false;
@@ -429,7 +523,11 @@ bool TypeChecker::assignable(
         type_vector_1.begin(),
         type_vector_1.end(),
         type_vector_2.begin(),
-        [&](const auto& a, const auto& b) { return assignable(scope, a, b); });
+        [&](const auto& a, const auto& b)
+        {
+            return assignable(scope, a, b);
+        }
+    );
 }
 
 // ============================================================================
@@ -440,7 +538,8 @@ Object_ptr TypeChecker::infer(
     SymbolScope_ptr scope,
     Object_ptr left_type,
     TokenType op,
-    Object_ptr right_type)
+    Object_ptr right_type
+)
 {
     switch (op)
     {
@@ -450,15 +549,15 @@ Object_ptr TypeChecker::infer(
             Doctor::get().assert(
                 is_string_type(right_type) || is_number_type(right_type), // Fixed logical AND to OR
                 WaspStage::Semantics,
-                "Cannot concatenate string with this type");
+                "Cannot concatenate string with this type"
+            );
             return pool->get_string_type();
         }
     case TokenType::STAR:
     case TokenType::POWER:
     case TokenType::MINUS:
     case TokenType::DIVISION:
-    case TokenType::REMINDER:
-    {
+    case TokenType::REMINDER: {
         expect_number_type(left_type);
         expect_number_type(right_type);
         return (is_float_type(left_type) || is_float_type(right_type)) ? pool->get_float_type()
@@ -467,15 +566,13 @@ Object_ptr TypeChecker::infer(
     case TokenType::LESSER_THAN:
     case TokenType::LESSER_THAN_EQUAL:
     case TokenType::GREATER_THAN:
-    case TokenType::GREATER_THAN_EQUAL:
-    {
+    case TokenType::GREATER_THAN_EQUAL: {
         expect_number_type(left_type);
         expect_number_type(right_type);
         return pool->get_boolean_type();
     }
     case TokenType::EQUAL_EQUAL:
-    case TokenType::BANG_EQUAL:
-    {
+    case TokenType::BANG_EQUAL: {
         if (is_number_type(left_type))
             expect_number_type(right_type);
         else if (is_string_type(left_type))
@@ -487,8 +584,7 @@ Object_ptr TypeChecker::infer(
         return pool->get_boolean_type();
     }
     case TokenType::AND:
-    case TokenType::OR:
-    {
+    case TokenType::OR: {
         expect_boolean_type(left_type);
         expect_boolean_type(right_type);
         return pool->get_boolean_type();
@@ -527,16 +623,26 @@ Object_ptr TypeChecker::spread_type(Object_ptr type)
 
     return std::visit(
         ::overloaded{
-            [&](ListType const& t) { return t.element_type; },
-            [&](TupleType const& t) { return MAKE_OBJECT_VARIANT(VariantType(t.element_types)); },
+            [&](ListType const& t)
+            {
+                return t.element_type;
+            },
+            [&](TupleType const& t)
+            {
+                return MAKE_OBJECT_VARIANT(VariantType(t.element_types));
+            },
             [&](MapType const& t)
-            { return MAKE_OBJECT_VARIANT(TupleType({t.key_type, t.value_type})); },
+            {
+                return MAKE_OBJECT_VARIANT(TupleType({t.key_type, t.value_type}));
+            },
             [&](const auto&) -> Object_ptr
             {
                 Doctor::get().fatal(WaspStage::Semantics, "Cannot spread a non-iterable type");
                 return pool->get_none_type();
-            }},
-        type->value);
+            }
+        },
+        type->value
+    );
 }
 
 Object_ptr TypeChecker::extract_iterable_element(SymbolScope_ptr scope, const Object_ptr type) const
@@ -558,18 +664,34 @@ Object_ptr TypeChecker::extract_iterable_element(SymbolScope_ptr scope, const Ob
 
     return std::visit(
         ::overloaded{
-            [](ListType const& t) -> Object_ptr { return t.element_type; },
-            [](SetType const& t) -> Object_ptr { return t.element_type; },
+            [](ListType const& t) -> Object_ptr
+            {
+                return t.element_type;
+            },
+            [](SetType const& t) -> Object_ptr
+            {
+                return t.element_type;
+            },
             [](MapType const& t) -> Object_ptr
-            { return MAKE_OBJECT_VARIANT(TupleType({t.key_type, t.value_type})); },
+            {
+                return MAKE_OBJECT_VARIANT(TupleType({t.key_type, t.value_type}));
+            },
             [&](TupleType const& t) -> Object_ptr
             {
                 ObjectVector unique = remove_duplicates(scope, t.element_types);
                 return unique.size() == 1 ? unique[0] : MAKE_OBJECT_VARIANT(VariantType(unique));
             },
-            [&](StringType const&) -> Object_ptr { return pool->get_string_type(); },
-            [&](const auto&) -> Object_ptr { return pool->get_any_type(); }},
-        type->value);
+            [&](StringType const&) -> Object_ptr
+            {
+                return pool->get_string_type();
+            },
+            [&](const auto&) -> Object_ptr
+            {
+                return pool->get_any_type();
+            }
+        },
+        type->value
+    );
 }
 
 // ============================================================================
@@ -611,23 +733,56 @@ bool TypeChecker::is_condition_type(SymbolScope_ptr scope, const Object_ptr cond
         return false;
     return std::visit(
         ::overloaded{
-            [](BooleanType const&) { return true; },
-            [](BooleanLiteralType const&) { return true; },
-            [](StringType const&) { return true; },
-            [](StringLiteralType const&) { return true; },
-            [](ListType const&) { return true; },
-            [](TupleType const&) { return true; },
-            [](SetType const&) { return true; },
-            [](MapType const&) { return true; },
+            [](BooleanType const&)
+            {
+                return true;
+            },
+            [](BooleanLiteralType const&)
+            {
+                return true;
+            },
+            [](StringType const&)
+            {
+                return true;
+            },
+            [](StringLiteralType const&)
+            {
+                return true;
+            },
+            [](ListType const&)
+            {
+                return true;
+            },
+            [](TupleType const&)
+            {
+                return true;
+            },
+            [](SetType const&)
+            {
+                return true;
+            },
+            [](MapType const&)
+            {
+                return true;
+            },
             [&](VariantType const& t)
             {
                 return std::all_of(
                     t.types.begin(),
                     t.types.end(),
-                    [&](Object_ptr o) { return is_condition_type(scope, o); });
+                    [&](Object_ptr o)
+                    {
+                        return is_condition_type(scope, o);
+                    }
+                );
             },
-            [](const auto&) { return false; }},
-        condition_type->value);
+            [](const auto&)
+            {
+                return false;
+            }
+        },
+        condition_type->value
+    );
 }
 
 bool TypeChecker::is_spreadable_type(SymbolScope_ptr scope, const Object_ptr candidate_type) const
@@ -636,18 +791,36 @@ bool TypeChecker::is_spreadable_type(SymbolScope_ptr scope, const Object_ptr can
         return false;
     return std::visit(
         ::overloaded{
-            [&](ListType const&) { return true; },
-            [&](TupleType const&) { return true; },
-            [&](MapType const&) { return true; },
+            [&](ListType const&)
+            {
+                return true;
+            },
+            [&](TupleType const&)
+            {
+                return true;
+            },
+            [&](MapType const&)
+            {
+                return true;
+            },
             [&](VariantType const& t)
             {
                 return std::all_of(
                     t.types.begin(),
                     t.types.end(),
-                    [&](Object_ptr o) { return is_spreadable_type(scope, o); });
+                    [&](Object_ptr o)
+                    {
+                        return is_spreadable_type(scope, o);
+                    }
+                );
             },
-            [](const auto&) { return false; }},
-        candidate_type->value);
+            [](const auto&)
+            {
+                return false;
+            }
+        },
+        candidate_type->value
+    );
 }
 
 bool TypeChecker::is_iterable_type(SymbolScope_ptr scope, const Object_ptr candidate_type) const
@@ -693,28 +866,29 @@ void TypeChecker::expect_condition_type(SymbolScope_ptr scope, const Object_ptr 
     Doctor::get().assert(
         is_condition_type(scope, type),
         WaspStage::Semantics,
-        "Expected a valid condition type (boolean)");
+        "Expected a valid condition type (boolean)"
+    );
 }
 void TypeChecker::expect_spreadable_type(SymbolScope_ptr scope, const Object_ptr type) const
 {
     Doctor::get().assert(
         is_spreadable_type(scope, type),
         WaspStage::Semantics,
-        "Expected a spreadable collection type");
+        "Expected a spreadable collection type"
+    );
 }
 void TypeChecker::expect_iterable_type(SymbolScope_ptr scope, const Object_ptr type) const
 {
-    Doctor::get().assert(
-        is_iterable_type(scope, type),
-        WaspStage::Semantics,
-        "Expected an iterable type");
+    Doctor::get()
+        .assert(is_iterable_type(scope, type), WaspStage::Semantics, "Expected an iterable type");
 }
 void TypeChecker::expect_key_type(SymbolScope_ptr scope, const Object_ptr type) const
 {
     Doctor::get().assert(
         is_key_type(scope, type),
         WaspStage::Semantics,
-        "Type cannot be used as a Dictionary/Map key");
+        "Type cannot be used as a Dictionary/Map key"
+    );
 }
 
 // ============================================================================
@@ -726,7 +900,11 @@ bool TypeChecker::any_eq(SymbolScope_ptr scope, const ObjectVector& vec, const O
     return std::any_of(
         vec.begin(),
         vec.end(),
-        [&](const auto& item) { return equal(scope, item, x); });
+        [&](const auto& item)
+        {
+            return equal(scope, item, x);
+        }
+    );
 }
 
 ObjectVector TypeChecker::remove_duplicates(SymbolScope_ptr scope, const ObjectVector& vec) const

@@ -4,7 +4,9 @@
 #include "Statement.h"
 #include "Workspace.h"
 
+#include <memory>
 #include <string>
+#include <utility>
 #include <variant>
 
 template <class... Ts> struct overloaded : Ts...
@@ -22,21 +24,21 @@ void SymbolHoister::hoist(Module_ptr mod)
     {
         std::visit(
             overloaded{
-                [&](const FunctionDefinition& func_def)
+                [&](FunctionDefinition& func_def)
                 {
                     auto symbol = SymbolFactory::create_function(func_def.name, nullptr, false);
                     current_scope->define(symbol);
                     func_def.symbol = symbol;
                 },
 
-                [&](const ClassDefinition& class_def)
+                [&](ClassDefinition& class_def)
                 {
                     auto symbol = SymbolFactory::create_class(class_def.name, nullptr);
                     current_scope->define(symbol);
                     class_def.symbol = symbol;
                 },
 
-                [&](const VariableDefinition& var_def)
+                [&](VariableDefinition& var_def)
                 {
                     std::string var_name = "";
 
@@ -67,7 +69,7 @@ void SymbolHoister::hoist(Module_ptr mod)
                     var_def.symbol = symbol;
                 },
 
-                [&](const EnumDefinition& enum_def)
+                [&](EnumDefinition& enum_def)
                 {
                     auto symbol = SymbolFactory::create_enum(enum_def.name, nullptr);
                     current_scope->define(symbol);
@@ -75,8 +77,12 @@ void SymbolHoister::hoist(Module_ptr mod)
                 },
 
                 // Ignore other statements
-                [](const auto&) {}},
-            stmt_ptr->data);
+                [](auto&)
+                {
+                }
+            },
+            stmt_ptr->data
+        );
     }
 }
 
@@ -87,6 +93,6 @@ void SymbolHoister::run(Module_ptr mod)
     auto hoisted_symbols = current_scope->get_all_symbols();
 
     // TODO: separate exports from hoisted symbols
-    mod->exports = hoisted_symbols;
+    mod->exports = std::move(hoisted_symbols);
 }
 } // namespace Wasp

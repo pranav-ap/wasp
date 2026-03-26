@@ -264,19 +264,9 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
     );
 
     std::string member_name = expr.right->as<Identifier>().name;
-
-    auto it = module_type.members.find(member_name);
-
-    Doctor::get().assert(
-        it != module_type.members.end(),
-        WaspStage::Semantics,
-        "Module '" + module_type.module_name + "' does not contain member '" +
-            member_name + "'"
-    );
-
     expr.member_index = module_type.get_member_index(member_name);
 
-    return it->second;
+    return module_type.get_member(member_name);
 }
 
 Object_ptr SemanticAnalyzer::visit(Call& call_expr)
@@ -310,7 +300,6 @@ Object_ptr SemanticAnalyzer::visit(Call& call_expr)
                     WaspStage::Semantics,
                     "Expected an Identifier or MemberAccess as the callable."
                 );
-                return nullptr;
             }
         },
         call_expr.callable->data
@@ -330,7 +319,6 @@ Object_ptr SemanticAnalyzer::evaluate_identifier_call(
                                                      arg_types
                                                  );
 
-    // 2. Bind the Group symbol to the AST node
     Symbol_ptr group_symbol = current_scope->lookup(callable_identifier.name);
     callable_identifier.symbol = group_symbol;
 
