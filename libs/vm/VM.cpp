@@ -220,6 +220,7 @@ void VM::perform_set_member(Object_ptr obj, int member_index, Object_ptr value)
 // --------------------------------------
 // Function Calls
 // --------------------------------------
+
 void VM::execute_make_function(CallFrame* frame)
 {
     // 1. How many upvalues to capture?
@@ -348,6 +349,7 @@ void VM::execute_resolve_function(CallFrame* frame)
 
     push_to_stack(group->overloads[overload_index]);
 }
+
 void VM::execute_call(CallFrame* frame)
 {
     int arg_count = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
@@ -463,7 +465,14 @@ void VM::execute_exit_module()
 
     for (size_t i = bp; i < stack.size(); i++)
     {
-        exported_members.push_back(stack[i]);
+        auto obj = stack[i];
+
+        if (obj->is<std::shared_ptr<ModuleObject>>())
+        {
+            continue;
+        }
+
+        exported_members.push_back(obj);
     }
 
     auto exports = std::make_shared<ModuleObject>(

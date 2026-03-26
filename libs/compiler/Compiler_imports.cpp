@@ -77,7 +77,7 @@ void Compiler::visit(FromImport& import_stmt)
 
     // Now that we have extracted all functions, throw away the module object!
     // Stack: []
-    emit(OpCode::POP); // FIXME: remove it??
+    emit(OpCode::POP);
 }
 
 } // namespace Wasp

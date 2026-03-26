@@ -121,20 +121,19 @@ for let x in [1, 2, 3] do
       B(Wasp::OpCode::JUMP),          B(12), B(0),
 
       // --- Header ---
-      B(Wasp::OpCode::LOOP_ITER),     B(28), B(0),
+      B(Wasp::OpCode::LOOP_ITER),     B(26), B(0),
       B(Wasp::OpCode::JUMP),          B(18), B(0),
 
       // --- Body ---
       B(Wasp::OpCode::PUSH_SCOPE),
-      B(Wasp::OpCode::DEFINE_LOCAL),  B(4), // x
-      B(Wasp::OpCode::GET_LOCAL),     B(4),
+      B(Wasp::OpCode::GET_LOCAL),     B(0),
       B(Wasp::OpCode::POP),
       B(Wasp::OpCode::POP_SCOPE),
       B(Wasp::OpCode::JUMP),          B(12), B(0),
 
       // --- End ---
       B(Wasp::OpCode::POP),
-      B(Wasp::OpCode::JUMP),          B(32), B(0),
+      B(Wasp::OpCode::JUMP),          B(30), B(0),
       B(Wasp::OpCode::EXIT_MODULE)
   };
     // clang-format on

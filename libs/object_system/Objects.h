@@ -190,16 +190,14 @@ struct VariantObject : public CompositeObject
 struct StaticFunctionObject : public CompositeObject
 {
     CodeObject code;
-    StringVector comments;
-
     std::string name;
 
     StaticFunctionObject(CodeObject code) : code(std::move(code))
     {
     }
 
-    StaticFunctionObject(CodeObject code, StringVector comments, std::string name)
-        : code(std::move(code)), comments(std::move(comments)), name(std::move(name))
+    StaticFunctionObject(CodeObject code, std::string name)
+        : code(std::move(code)), name(std::move(name))
     {
     }
 };

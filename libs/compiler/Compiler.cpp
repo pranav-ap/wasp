@@ -58,11 +58,7 @@ StaticFunctionObject_ptr Compiler::run(const StatementVector& block, std::string
 
     CodeObject final_code = flatten();
 
-    auto function_object = std::make_shared<StaticFunctionObject>(
-        std::move(final_code),
-        StringVector{},
-        name
-    );
+    auto function_object = std::make_shared<StaticFunctionObject>(std::move(final_code), name);
 
     return function_object;
 }

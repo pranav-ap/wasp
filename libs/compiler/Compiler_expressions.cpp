@@ -322,9 +322,7 @@ void Compiler::compile_member_assignment(
         "Right side of member assignment must be an Identifier"
     );
 
-    std::string member_name = mac.right->as<Identifier>().name;
-    int name_index = workspace->pool->allocate(member_name);
-    emit(OpCode::SET_MEMBER, name_index);
+    emit(OpCode::SET_MEMBER, mac.member_index);
 }
 
 } // namespace Wasp

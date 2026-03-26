@@ -10,6 +10,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <variant>
 #include <vector>
 
@@ -23,8 +24,8 @@ namespace Wasp
 struct Symbol;
 using Symbol_ptr = std::shared_ptr<Symbol>;
 using SymbolVector = std::vector<Symbol_ptr>;
-using SymbolStringMap = std::map<std::string, Symbol_ptr>;
-using SymbolIntMap = std::map<int, Symbol_ptr>;
+using SymbolStringMap = std::unordered_map<std::string, Symbol_ptr>;
+using SymbolIntMap = std::unordered_map<int, Symbol_ptr>;
 
 struct Module;
 using Module_ptr = std::shared_ptr<Module>;
@@ -95,8 +96,8 @@ using SymbolPayload = std::variant<
 struct Symbol : public std::enable_shared_from_this<Symbol>
 {
     std::string name;
-
     int id = -1;
+
     int declaration_depth = 0;
     int lexical_depth = 0;
 
@@ -175,7 +176,7 @@ struct Module
     CFGraph graph;
     StaticFunctionObject_ptr blueprint;
 
-    std::map<std::string, Symbol_ptr> exports;
+    std::unordered_map<std::string, Symbol_ptr> exports;
     Object_ptr type;
 
     Module() = default;

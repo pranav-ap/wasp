@@ -352,4 +352,64 @@ bool VariantObject::has_value()
 {
     return value != nullptr && !value->is<std::monostate>();
 }
+
+// ============================================================================
+// MemberedCompositeType (Compile-Time Type Tracking)
+// ============================================================================
+
+bool MemberedCompositeType::contains_member(const std::string& member_name) const
+{
+    return members.contains(member_name);
+}
+
+Object_ptr MemberedCompositeType::get_member(const std::string& member_name) const
+{
+    Doctor::get().assert(
+        contains_member(member_name),
+        WaspStage::Semantics,
+        "Type Member '" + member_name + "' not found!"
+    );
+    return members.at(member_name);
+}
+
+void MemberedCompositeType::set_member(const std::string& member_name, Object_ptr value)
+{
+    members[member_name] = std::move(value);
+}
+
+Object_ptr MemberedCompositeType::get_member(int member_id) const
+{
+    Doctor::get().assert(
+        member_id >= 0 && member_id < static_cast<int>(members.size()),
+        WaspStage::Semantics,
+        "Type Member index out of bounds!"
+    );
+    auto it = members.begin();
+    std::advance(it, member_id);
+    return it->second;
+}
+
+void MemberedCompositeType::set_member(int member_id, Object_ptr value)
+{
+    Doctor::get().assert(
+        member_id >= 0 && member_id < static_cast<int>(members.size()),
+        WaspStage::Semantics,
+        "Type Member index out of bounds!"
+    );
+    auto it = members.begin();
+    std::advance(it, member_id);
+    it->second = std::move(value);
+}
+
+int MemberedCompositeType::get_member_index(const std::string& member_name) const
+{
+    Doctor::get().assert(
+        contains_member(member_name),
+        WaspStage::Semantics,
+        "Type Member '" + member_name + "' not found!"
+    );
+    auto it = members.find(member_name);
+    return static_cast<int>(std::distance(members.begin(), it));
+}
+
 } // namespace Wasp

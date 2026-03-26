@@ -1,11 +1,9 @@
 #include "CFGraph.h"
 #include "Compiler.h"
-#include "Objects.h"
 #include "OpCode.h"
 #include "Statement.h"
 
 #include <cstddef>
-#include <map>
 #include <optional>
 #include <string>
 #include <utility>
@@ -45,7 +43,6 @@ void Compiler::visit(FunctionDefinition& function_definition)
 
     int const_id = workspace->pool->allocate_function_definition(
         std::move(code),
-        StringVector{},
         function_definition.name
     );
 
@@ -71,7 +68,15 @@ void Compiler::visit(FunctionDefinition& function_definition)
         emit_raw_byte(static_cast<std::byte>(uv.index));
     }
 
-    emit(OpCode::OVERLOAD_FUNCTION, function_definition.group_symbol->id);
+    int physical_index = resolve_local(function_definition.group_symbol->id);
+
+    if (physical_index == -1)
+    {
+        physical_index = static_cast<int>(locals.size());
+        locals.push_back(function_definition.group_symbol);
+    }
+
+    emit(OpCode::OVERLOAD_FUNCTION, physical_index, function_definition.name);
 }
 
 void Compiler::visit(Return& statement)

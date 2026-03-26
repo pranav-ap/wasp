@@ -115,7 +115,14 @@ int Compiler::resolve_upvalue(Compiler* current_compiler, Symbol_ptr symbol)
 // Emit
 // ----------------------------------------------------------------------
 
-// Update wrappers to support the new comment parameter
+void Compiler::emit_raw_byte(std::byte b)
+{
+    ByteVector bv = {b};
+    // The push method will automatically add the empty string padding
+    // to the comments vector to keep everything aligned!
+    graph.get_block(current_block_id).get_code().push(bv);
+}
+
 void Compiler::emit(OpCode opcode, std::string comment)
 {
     graph.get_block(current_block_id).get_code().emit(opcode, std::move(comment));

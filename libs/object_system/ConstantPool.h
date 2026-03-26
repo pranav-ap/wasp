@@ -58,7 +58,7 @@ namespace Wasp
 
         int allocate_function_definition(StaticFunctionObject_ptr func_obj);
         int allocate_function_definition(CodeObject code);
-        int allocate_function_definition(CodeObject code, StringVector comments, std::string name);
+        int allocate_function_definition(CodeObject code, std::string name);
 
         int allocate_type(Object_ptr value);
     };

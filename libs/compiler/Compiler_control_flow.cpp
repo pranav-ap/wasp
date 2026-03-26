@@ -68,7 +68,8 @@ void Compiler::visit(ElseTernaryBranch& expr) {
     leave_scope();
 }
 
-void Compiler::visit(IfBranch& statement) {
+void Compiler::visit(IfBranch& statement)
+{
     enter_scope();
 
     visit(statement.test);
@@ -77,45 +78,56 @@ void Compiler::visit(IfBranch& statement) {
 
     BlockId true_block = graph.create_block();
     BlockId end_block = graph.create_block();
-    BlockId false_block = has_alternative ? graph.create_block() : end_block;
 
-    // If no alternative, we need a separate block just to POP the condition scope
-    // before ending.
-    BlockId cleanup_block = has_alternative ? false_block : graph.create_block();
+    BlockId false_block = graph.create_block();
 
     graph.add_edge(current_block_id, true_block);
-    graph.add_edge(current_block_id, cleanup_block);
+    graph.add_edge(current_block_id, false_block);
 
-    emit(OpCode::JUMP_IF_FALSE, static_cast<int>(cleanup_block));
+    emit(OpCode::JUMP_IF_FALSE, static_cast<int>(false_block));
     emit(OpCode::JUMP, static_cast<int>(true_block));
 
-    // --- True Branch ---
+    // ========================================================================
+    // True Branch
+    // ========================================================================
     set_current_block(true_block);
+
+    enter_scope(); // The body gets its own isolated sub-scope
     visit(statement.body);
-    leave_scope();
+    leave_scope(); // Pop body scope
+
+    leave_scope(); // Pop the condition scope ('if let' variables die here)
 
     emit(OpCode::JUMP, static_cast<int>(end_block));
     graph.add_edge(true_block, end_block);
 
-    // --- False Branch / Exit Trampoline ---
-    set_current_block(cleanup_block);
-    leave_scope();
+    // ========================================================================
+    // False Branch & Cleanup
+    // ========================================================================
+    set_current_block(false_block);
 
-    if (has_alternative) {
+    // leave_scope(); // Pop the condition scope BEFORE running the alternative
+
+    if (has_alternative)
+    {
         auto& alt_variant = statement.alternative.value()->data;
 
-        if (std::holds_alternative<IfBranch>(alt_variant)) {
+        if (std::holds_alternative<IfBranch>(alt_variant))
+        {
+            // "else if" chain - it will handle its own scoping!
             visit(std::get<IfBranch>(alt_variant));
-        } else if (std::holds_alternative<ElseBranch>(alt_variant)) {
-            visit(std::get<ElseBranch>(alt_variant));
         }
-
-        emit(OpCode::JUMP, static_cast<int>(end_block));
-        graph.add_edge(cleanup_block, end_block);
-    } else {
-        emit(OpCode::JUMP, static_cast<int>(end_block));
-        graph.add_edge(cleanup_block, end_block);
+        else if (std::holds_alternative<ElseBranch>(alt_variant))
+        {
+            // "else" block gets an isolated scope
+            enter_scope();
+            visit(std::get<ElseBranch>(alt_variant));
+            leave_scope();
+        }
     }
+
+    emit(OpCode::JUMP, static_cast<int>(end_block));
+    graph.add_edge(false_block, end_block);
 
     set_current_block(end_block);
 }
