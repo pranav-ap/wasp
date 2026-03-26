@@ -6,7 +6,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
-#include <map>
 #include <memory>
 #include <string>
 #include <utility>
@@ -47,54 +46,50 @@ void VM::execute_constant(OpCode op, CallFrame* frame)
         break;
     }
 }
-
 void VM::execute_variable(OpCode op, CallFrame* frame)
 {
     switch (op)
     {
-    case OpCode::DEFINE_LOCAL: {
-        int symbol_id = static_cast<int>(frame->consume_byte());
-        frame->symbol_id_to_stack_index[symbol_id] = stack.size() - 1;
-        break;
-    }
     case OpCode::SET_LOCAL: {
-        int symbol_id = static_cast<int>(frame->consume_byte());
+        int slot_index = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
 
         Doctor::get().assert(
-            frame->symbol_id_to_stack_index.contains(symbol_id),
+            frame->base_pointer + slot_index < stack.size(),
             WaspStage::VM,
-            "Assignment to uninitialized local variable!"
+            "Stack overflow: Assignment to invalid local slot!"
         );
 
-        stack[frame->symbol_id_to_stack_index[symbol_id]] = peek_tos();
+        stack[frame->base_pointer + slot_index] = peek_tos();
         break;
     }
+
     case OpCode::GET_LOCAL: {
-        int symbol_id = static_cast<int>(frame->consume_byte());
+        int slot_index = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
 
         Doctor::get().assert(
-            frame->symbol_id_to_stack_index.contains(symbol_id),
+            frame->base_pointer + slot_index < stack.size(),
             WaspStage::VM,
-            "Read from uninitialized local variable!"
+            "Stack underflow: Read from invalid local slot!"
         );
 
-        push_to_stack(stack[frame->symbol_id_to_stack_index[symbol_id]]);
+        push_to_stack(stack[frame->base_pointer + slot_index]);
         break;
     }
 
     case OpCode::GET_NATIVE: {
-        int index = static_cast<int>(frame->consume_byte());
+        int index = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
         push_to_stack(workspace->native_registry->get_native_object(index));
         break;
     }
 
     case OpCode::GET_UPVALUE: {
-        int index = static_cast<int>(frame->consume_byte());
+        int index = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
         push_to_stack(frame->function->upvalues[index]);
         break;
     }
+
     case OpCode::SET_UPVALUE: {
-        int index = static_cast<int>(frame->consume_byte());
+        int index = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
         frame->function->upvalues[index] = peek_tos();
         break;
     }
@@ -228,16 +223,16 @@ void VM::perform_set_member(Object_ptr obj, int member_index, Object_ptr value)
 
 void VM::execute_make_function(CallFrame* frame)
 {
-    // How many upvalues to capture?
+    // 1. How many upvalues to capture?
     int upvalue_count = static_cast<int>(frame->consume_byte());
 
-    // The StaticFunctionObject pushed by LOAD_CONST
+    // 2. The StaticFunctionObject (blueprint) is on the stack
     Object_ptr blueprint_obj = pop_from_stack();
 
     Doctor::get().assert(
         blueprint_obj->is<std::shared_ptr<StaticFunctionObject>>(),
         WaspStage::VM,
-        "MAKE_FUNCTION expects a StaticFunctionObject to pop"
+        "MAKE_FUNCTION expects a StaticFunctionObject on the stack"
     );
 
     auto blueprint = blueprint_obj->as<std::shared_ptr<StaticFunctionObject>>();
@@ -245,31 +240,37 @@ void VM::execute_make_function(CallFrame* frame)
     ObjectVector captured_upvalues;
     captured_upvalues.reserve(upvalue_count);
 
+    // 3. Capture the variables
     for (int i = 0; i < upvalue_count; i++)
     {
         bool is_local_to_parent = (frame->consume_byte() == std::byte{1});
-        int id_or_index = static_cast<int>(frame->consume_byte());
+        int slot_or_index = static_cast<int>(frame->consume_byte());
 
         if (is_local_to_parent)
         {
-            // Capture a variable from the current frame's stack
+            // THE FIX: The compiler now emits the physical slot index relative
+            // to the current frame's base pointer.
+            size_t absolute_idx = frame->base_pointer + slot_or_index;
+
             Doctor::get().assert(
-                frame->symbol_id_to_stack_index.contains(id_or_index),
+                absolute_idx < stack.size(),
                 WaspStage::VM,
-                "Closure attempted to capture an unknown symbol ID: " +
-                    std::to_string(id_or_index)
+                "Closure attempted to capture an invalid stack slot: " +
+                    std::to_string(slot_or_index)
             );
 
-            size_t stack_idx = frame->symbol_id_to_stack_index.at(id_or_index);
-            captured_upvalues.push_back(stack[stack_idx]);
+            // We grab the value directly from the stack
+            captured_upvalues.push_back(stack[absolute_idx]);
         }
         else
         {
-            // Capture an upvalue that the current function already holds
-            captured_upvalues.push_back(frame->function->upvalues[id_or_index]);
+            // Capturing an upvalue that the current function already holds.
+            // This was already index-based, so it stays simple.
+            captured_upvalues.push_back(frame->function->upvalues[slot_or_index]);
         }
     }
 
+    // 4. Create the runtime closure with the actual captured values
     auto runtime_closure = std::make_shared<RuntimeFunctionObject>(
         blueprint,
         std::move(captured_upvalues)
@@ -280,14 +281,26 @@ void VM::execute_make_function(CallFrame* frame)
 
 void VM::execute_overload_function(CallFrame* frame)
 {
-    int symbol_id = static_cast<int>(frame->consume_byte());
+    // The operand is now the physical slot index (0, 1, 2...)
+    int slot_index = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
+
+    // The new function version (pushed by LOAD_CONST or MAKE_FUNCTION)
     Object_ptr new_func = pop_from_stack();
 
-    auto it = frame->symbol_id_to_stack_index.find(symbol_id);
+    size_t absolute_idx = frame->base_pointer + slot_index;
 
-    if (it == frame->symbol_id_to_stack_index.end())
+    // Ensure the stack is physically large enough to hold this slot
+    // (Usually handles the very first definition in a module/function)
+    if (absolute_idx >= stack.size())
     {
-        // First time defining this function: Create the Overload Group
+        stack.resize(absolute_idx + 1, nullptr);
+    }
+
+    Object_ptr existing_obj = stack[absolute_idx];
+
+    if (existing_obj == nullptr)
+    {
+        // First version of this function: Create the Overload Group container
         ObjectVector initial_overloads;
         initial_overloads.push_back(new_func);
 
@@ -295,22 +308,23 @@ void VM::execute_overload_function(CallFrame* frame)
             std::make_shared<OverloadedObjectsSet>(std::move(initial_overloads))
         );
 
-        push_to_stack(group);
-        frame->symbol_id_to_stack_index[symbol_id] = stack.size() - 1;
-
-        return;
+        // Store the group container directly in its assigned slot
+        stack[absolute_idx] = group;
     }
+    else
+    {
+        // The group already exists in this slot!
+        Doctor::get().assert(
+            existing_obj->is<std::shared_ptr<OverloadedObjectsSet>>(),
+            WaspStage::VM,
+            "Cannot add overload to a slot that contains a non-function object."
+        );
 
-    Object_ptr existing_obj = stack[it->second];
+        auto group = existing_obj->as<std::shared_ptr<OverloadedObjectsSet>>();
 
-    Doctor::get().assert(
-        existing_obj->is<std::shared_ptr<OverloadedObjectsSet>>(),
-        WaspStage::VM,
-        "Cannot add overload to a symbol that is not a function group."
-    );
-
-    auto group = existing_obj->as<std::shared_ptr<OverloadedObjectsSet>>();
-    group->overloads.push_back(new_func);
+        // Simply append the new version to the existing set
+        group->overloads.push_back(new_func);
+    }
 }
 
 void VM::execute_resolve_function(CallFrame* frame)
@@ -338,30 +352,24 @@ void VM::execute_resolve_function(CallFrame* frame)
 
 void VM::execute_call(CallFrame* frame)
 {
-    int arg_count = static_cast<int>(frame->consume_byte());
+    int arg_count = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
+
+    // The callable sits just below the arguments on the stack
     Object_ptr callable = peek_tos(arg_count);
 
     std::visit(
         overloaded{
             [&](std::shared_ptr<RuntimeFunctionObject>& func)
             {
+                // The new base pointer points to the first argument.
+                // Slot 0 in the new function will now physically point to Argument 0.
                 size_t new_base_pointer = stack.size() - arg_count;
 
-                // Create the new frame
+                // Create the new frame. No symbol mapping required!
                 frames.emplace_back(func, new_base_pointer);
-                CallFrame& new_frame = frames.back();
 
-                // Map the physical arguments to their Symbol IDs
-                for (int i = 0; i < arg_count; ++i)
-                {
-                    int param_symbol_id = func->blueprint
-                                              ->parameter_symbol_ids[i];
-                    new_frame.symbol_id_to_stack_index
-                        [param_symbol_id] = new_base_pointer + i;
-                }
-
-                // The main execution loop will automatically start reading
-                // the new function's bytecode on the next iteration
+                // On the next VM cycle, it will start executing the first
+                // instruction of 'func' using the arguments already on the stack.
             },
 
             [&](std::shared_ptr<NativeFunctionObject>& native)
@@ -369,29 +377,28 @@ void VM::execute_call(CallFrame* frame)
                 Doctor::get().assert(
                     native->arity == -1 || native->arity == arg_count,
                     WaspStage::VM,
-                    "Arity mismatch in native function call"
+                    "Arity mismatch in native function call: expected " +
+                        std::to_string(native->arity) + " but got " + std::to_string(arg_count)
                 );
 
-                // Collect arguments from the stack
+                // Collect arguments
                 std::vector<Object_ptr> args(arg_count);
                 for (int i = arg_count - 1; i >= 0; i--)
                 {
                     args[i] = pop_from_stack();
                 }
 
-                // Pop the native function object off the stack
+                // Remove the native function object itself
                 pop_from_stack();
 
+                // Execute and push result
                 Object_ptr result = native->function(args);
                 push_to_stack(result);
             },
 
             [](auto&)
             {
-                Doctor::get().fatal(
-                    WaspStage::VM,
-                    "Attempted to call a non-callable object"
-                );
+                Doctor::get().fatal(WaspStage::VM, "Attempted to call a non-callable object");
             }
         },
         callable->value
@@ -447,88 +454,37 @@ void VM::execute_import_module(CallFrame* frame)
     frames.emplace_back(module_func, stack_base_pointer);
 }
 
-/*
 void VM::execute_exit_module()
 {
     CallFrame& frame = frames.back();
     size_t bp = frame.base_pointer;
 
-    ObjectStringMap members;
+    // Allocate exact size to avoid reallocation overhead
+    ObjectVector exported_members;
+    exported_members.reserve(stack.size() - bp);
 
-    for (const auto& [symbol_id, name] : frame.function->blueprint->symbol_id_to_name_map)
+    for (size_t i = bp; i < stack.size(); i++)
     {
-        // Find where this symbol is physically located on the stack
-        auto it = frame.symbol_id_to_stack_index.find(symbol_id);
+        auto obj = stack[i];
 
-        if (it == frame.symbol_id_to_stack_index.end())
+        if (obj->is<std::shared_ptr<ModuleObject>>())
         {
             continue;
         }
 
-        size_t physical_stack_index = it->second;
-        Object_ptr value = stack[physical_stack_index];
-
-        Doctor::get().fatal_if_nullptr(value, WaspStage::VM, "Exported symbol has no value");
-
-        members[name] = value;
+        exported_members.push_back(obj);
     }
 
     auto exports = std::make_shared<ModuleObject>(
         frame.function->blueprint->name,
-        std::move(members)
+        std::move(exported_members)
     );
 
-    // Cleanup
+    // Cleanup the frame
     stack.erase(stack.begin() + bp, stack.end());
     frames.pop_back();
 
-    // make module object available to importer if any
-    push_to_stack(make_object(exports));
-}
-
-*/
-
-void VM::execute_exit_module()
-{
-    CallFrame& frame = frames.back();
-    size_t bp = frame.base_pointer;
-
-    ObjectStringMap members;
-
-    for (const auto& [symbol_id, name] : frame.function->blueprint->symbol_id_to_name_map)
-    {
-        // Find where this symbol is physically located on the stack
-        auto it = frame.symbol_id_to_stack_index.find(symbol_id);
-
-        // 1. Skip raw functions that were folded into Overload Groups
-        if (it == frame.symbol_id_to_stack_index.end())
-        {
-            continue;
-        }
-
-        size_t physical_stack_index = it->second;
-        Object_ptr value = stack[physical_stack_index];
-
-        if (value->is<std::shared_ptr<ModuleObject>>())
-        {
-            continue;
-        }
-
-        Doctor::get().fatal_if_nullptr(value, WaspStage::VM, "Exported symbol has no value");
-
-        members[name] = value;
-    }
-
-    auto exports = std::make_shared<ModuleObject>(
-        frame.function->blueprint->name,
-        std::move(members)
-    );
-
-    // Cleanup
-    stack.erase(stack.begin() + bp, stack.end());
-    frames.pop_back();
-
-    // make module object available to importer if any
+    // Make module object available to importer
     push_to_stack(make_object(exports));
 }
 
@@ -602,7 +558,6 @@ void VM::run(StaticFunctionObject_ptr function_object)
         }
             // Variables & Scope
 
-        case OpCode::DEFINE_LOCAL:
         case OpCode::SET_LOCAL:
         case OpCode::GET_LOCAL:
         case OpCode::GET_NATIVE:

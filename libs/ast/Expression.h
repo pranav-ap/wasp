@@ -12,8 +12,6 @@
 
 namespace Wasp {
 
-struct Symbol;
-
 struct DotLiteral {};
 
 struct Prefix {
@@ -176,7 +174,7 @@ struct Call
     Call() = default;
 
     Call(Expression_ptr callable, ExpressionVector arguments)
-        : callable(callable), arguments(std::move(arguments))
+        : callable(callable), arguments(std::move(arguments)), overload_index(-1)
     {
     }
 };

@@ -4,7 +4,6 @@
 #include "Objects.h"
 
 #include <cstddef>
-#include <map>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -59,12 +58,7 @@ namespace Wasp
 
         int allocate_function_definition(StaticFunctionObject_ptr func_obj);
         int allocate_function_definition(CodeObject code);
-        int allocate_function_definition(
-            CodeObject code,
-            std::vector<int> parameter_symbol_ids,
-            std::string name,
-            std::map<int, std::string> symbol_id_to_name_map,
-            std::map<int, std::string> upvalue_index_to_name_map);
+        int allocate_function_definition(CodeObject code, std::string name);
 
         int allocate_type(Object_ptr value);
     };

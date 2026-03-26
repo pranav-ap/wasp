@@ -22,13 +22,12 @@ x + 1
   std::vector<std::byte> expected_bytes = {
       B(Wasp::OpCode::ENTER_MODULE),
       B(Wasp::OpCode::LOAD_CONST),    B(val_42), // 42
-      B(Wasp::OpCode::DEFINE_LOCAL),  B(var_x),
 
       B(Wasp::OpCode::GET_LOCAL),     B(var_x),  // "x"
       B(Wasp::OpCode::LOAD_CONST),    B(val_1),  // 1
       B(Wasp::OpCode::ADD),
       B(Wasp::OpCode::POP),
-      B(Wasp::OpCode::JUMP),          B(14), B(0),
+      B(Wasp::OpCode::JUMP),          B(12), B(0),
       B(Wasp::OpCode::EXIT_MODULE)
   };
     // clang-format on
@@ -51,15 +50,14 @@ x = x + 1
   std::vector<std::byte> expected_bytes = {
       B(Wasp::OpCode::ENTER_MODULE),
       B(Wasp::OpCode::LOAD_CONST),    B(val_42),
-      B(Wasp::OpCode::DEFINE_LOCAL),  B(var_x),
-      
+
       B(Wasp::OpCode::GET_LOCAL),     B(var_x),
       B(Wasp::OpCode::LOAD_CONST),    B(val_1),
       B(Wasp::OpCode::ADD),
       B(Wasp::OpCode::SET_LOCAL),     B(var_x),
       B(Wasp::OpCode::POP),
-      
-      B(Wasp::OpCode::JUMP),          B(16), B(0),
+
+      B(Wasp::OpCode::JUMP),          B(14), B(0),
       B(Wasp::OpCode::EXIT_MODULE)
   };
     // clang-format on

@@ -2,9 +2,9 @@
 #include "Doctor.h"
 #include "Workspace.h"
 
-#include <map>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -171,6 +171,9 @@ int SymbolScope::get_function_distance(int target_closure_depth) const
     return this->closure_depth - target_closure_depth;
 }
 
-std::map<std::string, Symbol_ptr> SymbolScope::get_all_symbols() const { return symbols; }
+std::unordered_map<std::string, Symbol_ptr> SymbolScope::get_all_symbols() const
+{
+    return symbols;
+}
 
 } // namespace Wasp

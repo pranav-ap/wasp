@@ -20,7 +20,7 @@ fun add(a: int, b: int) => int
 )");
 
     int func_id = pool_size++;
-    int var_add = 1;
+    int var_add = 0;
 
     // clang-format off
   std::vector<std::byte> expected_bytes = {
@@ -48,8 +48,8 @@ fun add(a: int, b: int) => int
     // clang-format off
   std::vector<std::byte> expected_inner_bytes = {
       B(Wasp::OpCode::PUSH_SCOPE),
-      B(Wasp::OpCode::GET_LOCAL), B(6), // a
-      B(Wasp::OpCode::GET_LOCAL), B(7), // b
+      B(Wasp::OpCode::GET_LOCAL), B(0), // a
+      B(Wasp::OpCode::GET_LOCAL), B(1), // b
       B(Wasp::OpCode::ADD),
       B(Wasp::OpCode::RETURN),
       B(Wasp::OpCode::POP_SCOPE),
@@ -178,9 +178,9 @@ fun outer(a: int) => any
         // 1 upval
         B(Wasp::OpCode::MAKE_FUNCTION), B(1),
         // is_local=1, idx=6
-        B(1), B(6),
-        B(Wasp::OpCode::OVERLOAD_FUNCTION),  B(8),             // define inner
-        B(Wasp::OpCode::GET_LOCAL),     B(8),             // return inner (as a variable!)
+        B(1), B(0),
+        B(Wasp::OpCode::OVERLOAD_FUNCTION),  B(1),             // define inner
+        B(Wasp::OpCode::GET_LOCAL),     B(1),             // return inner (as a variable!)
         B(Wasp::OpCode::RETURN),
         B(Wasp::OpCode::POP_SCOPE),
         B(Wasp::OpCode::LOAD_NONE),

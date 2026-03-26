@@ -36,10 +36,11 @@ private:
     Compiler* parent;
 
     // ------------------------------------------------------------------------
-    // Closure Support
+    // Symbols & Closure Support
     // ------------------------------------------------------------------------
 
     std::vector<Upvalue> upvalues;
+    SymbolVector locals;
 
     int compiler_depth = 0;
     int current_lexical_scope_depth = 0;
@@ -47,12 +48,7 @@ private:
     int add_upvalue(const Upvalue& uv, const std::string& name);
     int resolve_upvalue(Compiler* current_compiler, Symbol_ptr symbol);
 
-    // -----------------------------------------------------------------------
-    // Debugging
-    // -----------------------------------------------------------------------
-
-    std::map<int, std::string> symbol_id_to_name_map;
-    std::map<int, std::string> upvalue_index_to_name_map;
+    int resolve_local(int symbol_id);
 
     // ------------------------------------------------------------------------
     // Control Flow Graph
@@ -75,9 +71,9 @@ private:
     // Emit
     // ----------------------------------------------------------------------
 
-    void emit(OpCode opcode);
-    void emit(OpCode opcode, int operand);
-    void emit(OpCode opcode, int operand_1, int operand_2);
+    void emit(OpCode opcode, std::string comment = "");
+    void emit(OpCode opcode, int operand, std::string comment = "");
+    void emit(OpCode opcode, int operand_1, int operand_2, std::string comment = "");
     void emit_raw_byte(std::byte b);
 
     // ========================================================================
@@ -143,10 +139,14 @@ private:
     // UTILS
     // -----------------------------------------------------------------------
 
-    void set_current_block(BlockId block_id) { current_block_id = block_id; }
+    void set_current_block(BlockId block_id)
+    {
+        current_block_id = block_id;
+    }
 
     std::map<BlockId, size_t> calculate_block_offsets() const;
-    void resolve_jumps_in_block(ByteVector& bytes, const std::map<BlockId, size_t>& offsets) const;
+
+    void resolve_jumps_in_block(CodeObject& code, const std::map<BlockId, size_t>& offsets) const;
 
     void compile_variable_definition(const Expression_ptr& assignment, bool as_expression = false);
     void compile_identifier_assignment(Identifier& id, const Expression_ptr& rhs);
@@ -158,19 +158,16 @@ public:
     Compiler(Workspace_ptr workspace);
     Compiler(Compiler* parent);
 
-    const CFGraph& get_graph() const { return graph; }
-
-    const std::map<int, std::string>& get_symbol_name_map() const { return symbol_id_to_name_map; }
-
-    const std::map<int, std::string>& get_upvalue_name_map() const
+    const CFGraph& get_graph() const
     {
-        return upvalue_index_to_name_map;
+        return graph;
     }
 
     StaticFunctionObject_ptr run(
         const StatementVector& block,
         std::string name,
-        bool is_main = false);
+        bool is_main = false
+    );
 };
 
 using Compiler_ptr = std::shared_ptr<Compiler>;
