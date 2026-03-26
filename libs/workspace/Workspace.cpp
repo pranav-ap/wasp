@@ -60,6 +60,11 @@ bool Symbol::is_global() const
     return lexical_depth == 0;
 }
 
+bool Symbol::is_exported() const
+{
+    return is_global() && (!payload_is<ModuleData>() && !payload_is<AliasData>());
+}
+
 bool Symbol::should_be_captured(int usage_depth) const
 {
     return declaration_depth < usage_depth;

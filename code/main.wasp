@@ -1,19 +1,4 @@
-let x = 34
-print(x)
+import my.dogs
 
-
-fun greet()
-    print('hello')
-
-fun greet(a: str)
-    print(a)
-
-greet('yo!')
-greet()
-
-import my.cats
-
-cats.print_cats()
-cats.print_cats(12)
-
-
+dogs.print_dogs()
+dogs.print_dogs(12)

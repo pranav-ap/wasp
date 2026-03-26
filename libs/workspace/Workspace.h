@@ -106,6 +106,7 @@ struct Symbol : public std::enable_shared_from_this<Symbol>
     Symbol(int id, std::string name, int closure_depth, int lexical_depth, SymbolPayload payload);
 
     bool is_global() const;
+    bool is_exported() const;
 
     Object_ptr get_type();
     void set_type(Object_ptr new_type);

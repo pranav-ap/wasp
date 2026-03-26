@@ -12,7 +12,7 @@ using ByteVector = std::vector<std::byte>;
     X(NO_OP, 0)           /* No operation */                                                       \
     X(HALT, 0)            /* Stop execution */                                                     \
     X(ENTER_MODULE, 0)    /* Initialize module state */                                            \
-    X(EXIT_MODULE, 0)     /* Cleanup module state */                                               \
+    X(EXIT_MODULE, 1)     /* Cleanup module state */                                               \
     X(ENTER_WORKSPACE, 0) /* Initialize workspace state */                                         \
     X(EXIT_WORKSPACE, 0)  /* Cleanup workspace state */                                            \
                                                                                                    \

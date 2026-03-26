@@ -454,33 +454,23 @@ void VM::execute_import_module(CallFrame* frame)
     frames.emplace_back(module_func, stack_base_pointer);
 }
 
-void VM::execute_exit_module()
+void VM::execute_exit_module(CallFrame* frame)
 {
-    CallFrame& frame = frames.back();
-    size_t bp = frame.base_pointer;
+    int export_count = static_cast<int>(frame->consume_byte());
+    ObjectVector exported_members(export_count);
 
-    // Allocate exact size to avoid reallocation overhead
-    ObjectVector exported_members;
-    exported_members.reserve(stack.size() - bp);
-
-    for (size_t i = bp; i < stack.size(); i++)
+    for (int i = export_count - 1; i >= 0; i--)
     {
-        auto obj = stack[i];
-
-        if (obj->is<std::shared_ptr<ModuleObject>>())
-        {
-            continue;
-        }
-
-        exported_members.push_back(obj);
+        exported_members[i] = pop_from_stack();
     }
 
     auto exports = std::make_shared<ModuleObject>(
-        frame.function->blueprint->name,
+        frame->function->blueprint->name,
         std::move(exported_members)
     );
 
     // Cleanup the frame
+    size_t bp = frame->base_pointer;
     stack.erase(stack.begin() + bp, stack.end());
     frames.pop_back();
 
@@ -523,7 +513,7 @@ void VM::run(StaticFunctionObject_ptr function_object)
             break;
 
         case OpCode::EXIT_MODULE: {
-            execute_exit_module();
+            execute_exit_module(frame);
             // If you exit from the main module, stop the VM.
             if (frames.empty())
                 return;

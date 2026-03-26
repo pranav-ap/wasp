@@ -64,7 +64,7 @@ class VM
     void execute_return(CallFrame* frame);
 
     void execute_import_module(CallFrame* frame);
-    void execute_exit_module();
+    void execute_exit_module(CallFrame* frame);
 
     void execute_member(OpCode op, CallFrame* frame);
     Object_ptr perform_get_member(Object_ptr obj, int member_index);

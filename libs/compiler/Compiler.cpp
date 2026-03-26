@@ -13,12 +13,14 @@
 #include <variant>
 #include <vector>
 
-template <class... Ts> struct overloaded : Ts... {
+template <class... Ts> struct overloaded : Ts...
+{
     using Ts::operator()...;
 };
 template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
-namespace Wasp {
+namespace Wasp
+{
 Compiler::Compiler(Workspace_ptr workspace)
     : workspace(workspace), current_block_id(InvalidBlockId), parent(nullptr), compiler_depth(0)
 {
@@ -35,13 +37,15 @@ Compiler::Compiler(Compiler* parent)
 
 StaticFunctionObject_ptr Compiler::run(const StatementVector& block, std::string name, bool is_main)
 {
-    if (is_main) {
+    if (is_main)
+    {
         emit(OpCode::ENTER_WORKSPACE);
     }
 
     emit(OpCode::ENTER_MODULE);
 
-    for (const auto& s : block) {
+    for (const auto& s : block)
+    {
         visit(s);
     }
 
@@ -50,9 +54,23 @@ StaticFunctionObject_ptr Compiler::run(const StatementVector& block, std::string
     emit(OpCode::JUMP, static_cast<int>(exit));
     set_current_block(exit);
 
-    emit(OpCode::EXIT_MODULE);
+    int export_count = 0;
 
-    if (is_main) {
+    for (const auto& sym : locals)
+    {
+        if (sym->is_exported())
+        {
+            int physical_index = resolve_local(sym->id);
+            emit(OpCode::GET_LOCAL, physical_index);
+            export_count++;
+        }
+    }
+
+    // Tell the VM exactly how many items to pop and bundle into the ModuleObject
+    emit(OpCode::EXIT_MODULE, export_count);
+
+    if (is_main)
+    {
         emit(OpCode::EXIT_WORKSPACE);
     }
 
@@ -67,35 +85,77 @@ StaticFunctionObject_ptr Compiler::run(const StatementVector& block, std::string
 // Visitors
 // ========================================================================
 
-void Compiler::visit(std::vector<Statement_ptr>& statements) {
+void Compiler::visit(std::vector<Statement_ptr>& statements)
+{
     for (const auto& stmt : statements)
         visit(stmt);
 }
 
-void Compiler::visit(const Statement_ptr statement) {
+void Compiler::visit(const Statement_ptr statement)
+{
     Doctor::get().fatal_if_nullptr(statement, WaspStage::Compiler);
 
     std::visit(
         overloaded{
-            [&](ExpressionStatement& stat) { visit(stat); },
-            [&](VariableDefinition& stat) { visit(stat); },
-            [&](IfBranch& stat) { visit(stat); },
-            [&](ElseBranch& stat) { visit(stat); },
-            [&](SimpleLoop& stat) { visit(stat); },
-            [&](ForInLoop& stat) { visit(stat); },
-            [&](Pass& stat) { visit(stat); },
-            [&](LoopControl& stat) { visit(stat); },
-            [&](FunctionDefinition& stat) { visit(stat); },
-            [&](Return& stat) { visit(stat); },
-            [&](SimpleImport& stat) { visit(stat); },
-            [&](FromImport& stat) { visit(stat); },
-            [](auto) { Doctor::get().fatal(WaspStage::Compiler, "Unknown Statement"); }
+            [&](ExpressionStatement& stat)
+            {
+                visit(stat);
+            },
+            [&](VariableDefinition& stat)
+            {
+                visit(stat);
+            },
+            [&](IfBranch& stat)
+            {
+                visit(stat);
+            },
+            [&](ElseBranch& stat)
+            {
+                visit(stat);
+            },
+            [&](SimpleLoop& stat)
+            {
+                visit(stat);
+            },
+            [&](ForInLoop& stat)
+            {
+                visit(stat);
+            },
+            [&](Pass& stat)
+            {
+                visit(stat);
+            },
+            [&](LoopControl& stat)
+            {
+                visit(stat);
+            },
+            [&](FunctionDefinition& stat)
+            {
+                visit(stat);
+            },
+            [&](Return& stat)
+            {
+                visit(stat);
+            },
+            [&](SimpleImport& stat)
+            {
+                visit(stat);
+            },
+            [&](FromImport& stat)
+            {
+                visit(stat);
+            },
+            [](auto)
+            {
+                Doctor::get().fatal(WaspStage::Compiler, "Unknown Statement");
+            }
         },
         statement->data
     );
 }
 
-void Compiler::visit(ExpressionStatement& statement) {
+void Compiler::visit(ExpressionStatement& statement)
+{
     visit(statement.expression);
     emit(OpCode::POP);
 }

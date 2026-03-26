@@ -18,18 +18,19 @@ namespace Wasp
 void Compiler::visit(SimpleImport& import_stmt)
 {
     auto module_symbol = import_stmt.symbol;
-    auto module_payload = module_symbol->get_payload_as<ModuleData>();
-
-    int module_index = workspace->get_module_index(module_payload.mod->absolute_filepath);
-
-    // Tell the VM to execute this module and push a ModuleObject onto the stack
-    emit(OpCode::IMPORT_MODULE, module_index);
 
     Doctor::get().fatal_if_nullptr(
         import_stmt.symbol,
         WaspStage::Compiler,
         "Simple Import must have a resolved symbol"
     );
+
+    auto module_payload = module_symbol->get_payload_as<ModuleData>();
+
+    int module_index = workspace->get_module_index(module_payload.mod->absolute_filepath);
+
+    // Tell the VM to execute this module and push a ModuleObject onto the stack
+    emit(OpCode::IMPORT_MODULE, module_index);
 
     locals.push_back(module_symbol);
 }
