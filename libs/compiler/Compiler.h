@@ -76,6 +76,8 @@ private:
     void emit(OpCode opcode, int operand_1, int operand_2, std::string comment = "");
     void emit_raw_byte(std::byte b);
 
+    void emit_local_cleanups(int target_depth);
+
     // ========================================================================
     // Visitors
     // ========================================================================

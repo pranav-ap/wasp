@@ -29,6 +29,8 @@ class InstructionPrinter
         const std::string& comment
     );
 
+    std::string stringify_instruction(std::byte opcode, const std::string& comment);
+
     void print_bytecode(const CodeObject& code, std::ostream& out);
 
 public:
@@ -37,7 +39,6 @@ public:
     void print(const Object_ptr obj, std::ostream& out = std::cout);
     void print(const StaticFunctionObject_ptr func_obj, std::ostream& out = std::cout);
     void print(const CodeObject& code_object, std::ostream& out);
-    void print(const CFGraph& graph, std::ostream& out = std::cout);
     void print_pool_functions(std::ostream& out);
 };
 

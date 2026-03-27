@@ -23,14 +23,19 @@ fun add(a: int, b: int) => int
     int var_add = 0;
 
     // clang-format off
-  std::vector<std::byte> expected_bytes = {
-      B(Wasp::OpCode::ENTER_MODULE),
-      B(Wasp::OpCode::LOAD_CONST),    B(func_id),
-      B(Wasp::OpCode::MAKE_FUNCTION), B(0),
-      B(Wasp::OpCode::OVERLOAD_FUNCTION),  B(var_add),
-      B(Wasp::OpCode::JUMP),          B(10), B(0),
-      B(Wasp::OpCode::EXIT_MODULE)
-  };
+    std::vector<std::byte> expected_bytes = {
+        B(Wasp::OpCode::ENTER_MODULE),
+
+        B(Wasp::OpCode::LOAD_CONST),        B(func_id),
+        B(Wasp::OpCode::MAKE_FUNCTION),     B(0),
+        B(Wasp::OpCode::OVERLOAD_FUNCTION), B(var_add),
+
+        B(Wasp::OpCode::JUMP),              B(10), B(0),
+
+        // Export Builder
+        B(Wasp::OpCode::GET_LOCAL),         B(var_add),
+        B(Wasp::OpCode::EXIT_MODULE),       B(1)
+    };
     // clang-format on
 
     EXPECT_EQ(actual_bytes, expected_bytes);
@@ -46,16 +51,16 @@ fun add(a: int, b: int) => int
     );
 
     // clang-format off
-  std::vector<std::byte> expected_inner_bytes = {
-      B(Wasp::OpCode::PUSH_SCOPE),
-      B(Wasp::OpCode::GET_LOCAL), B(0), // a
-      B(Wasp::OpCode::GET_LOCAL), B(1), // b
-      B(Wasp::OpCode::ADD),
-      B(Wasp::OpCode::RETURN),
-      B(Wasp::OpCode::POP_SCOPE),
-      B(Wasp::OpCode::LOAD_NONE),
-      B(Wasp::OpCode::RETURN)
-  };
+    std::vector<std::byte> expected_inner_bytes = {
+        B(Wasp::OpCode::PUSH_SCOPE),
+        B(Wasp::OpCode::GET_LOCAL), B(0), // a
+        B(Wasp::OpCode::GET_LOCAL), B(1), // b
+        B(Wasp::OpCode::ADD),
+        B(Wasp::OpCode::RETURN),
+        B(Wasp::OpCode::POP_SCOPE),
+        B(Wasp::OpCode::LOAD_NONE),
+        B(Wasp::OpCode::RETURN)
+    };
     // clang-format on
 
     EXPECT_EQ(actual_inner_bytes, expected_inner_bytes);
@@ -72,17 +77,22 @@ fun max(a: int, b: int) => int
 )");
 
     int max_func_pool_id = pool_size++;
-    int max_func_var_id = 1;
+    int max_func_var_id = 0; // Updated to 0 (First top-level variable)
 
     // clang-format off
-  std::vector<std::byte> expected_bytes = {
-      B(Wasp::OpCode::ENTER_MODULE),
-      B(Wasp::OpCode::LOAD_CONST),    B(max_func_pool_id),
-      B(Wasp::OpCode::MAKE_FUNCTION), B(0),
-      B(Wasp::OpCode::OVERLOAD_FUNCTION),  B(max_func_var_id),
-      B(Wasp::OpCode::JUMP),          B(10), B(0),
-      B(Wasp::OpCode::EXIT_MODULE)
-  };
+    std::vector<std::byte> expected_bytes = {
+        B(Wasp::OpCode::ENTER_MODULE),
+
+        B(Wasp::OpCode::LOAD_CONST),        B(max_func_pool_id),
+        B(Wasp::OpCode::MAKE_FUNCTION),     B(0),
+        B(Wasp::OpCode::OVERLOAD_FUNCTION), B(max_func_var_id),
+
+        B(Wasp::OpCode::JUMP),              B(10), B(0),
+
+        // Export Builder
+        B(Wasp::OpCode::GET_LOCAL),         B(max_func_var_id),
+        B(Wasp::OpCode::EXIT_MODULE),       B(1)
+    };
     // clang-format on
 
     EXPECT_EQ(actual_bytes, expected_bytes);
@@ -98,33 +108,40 @@ fun max(a: int, b: int) => int
     );
 
     // clang-format off
-  std::vector<std::byte> expected_inner_bytes = {
-      B(Wasp::OpCode::PUSH_SCOPE),
+    std::vector<std::byte> expected_inner_bytes = {
+        B(Wasp::OpCode::PUSH_SCOPE),
 
-      // if a > b
-      B(Wasp::OpCode::PUSH_SCOPE),
-      B(Wasp::OpCode::GET_LOCAL), B(6), // a
-      B(Wasp::OpCode::GET_LOCAL), B(7), // b
-      B(Wasp::OpCode::JUMP_IF_FALSE), B(22), B(0),
+        // --- Condition Scope ---
+        B(Wasp::OpCode::PUSH_SCOPE),
+        B(Wasp::OpCode::GET_LOCAL), B(0), // a
+        B(Wasp::OpCode::GET_LOCAL), B(1), // b
 
-      // then
-      B(Wasp::OpCode::JUMP), B(12), B(0),
-      B(Wasp::OpCode::GET_LOCAL), B(6), // return a
-      B(Wasp::OpCode::RETURN),
-      B(Wasp::OpCode::POP_SCOPE),
-      B(Wasp::OpCode::JUMP), B(19), B(0),
-      B(Wasp::OpCode::POP_SCOPE),
-      B(Wasp::OpCode::LOAD_NONE),
-      B(Wasp::OpCode::RETURN),
-      B(Wasp::OpCode::POP_SCOPE),
+        B(Wasp::OpCode::JUMP_IF_FALSE), B(20), B(0),
+        B(Wasp::OpCode::JUMP),          B(12), B(0),
 
-      // else
-      B(Wasp::OpCode::PUSH_SCOPE),
-      B(Wasp::OpCode::GET_LOCAL), B(7), // return b
-      B(Wasp::OpCode::RETURN),
-      B(Wasp::OpCode::POP_SCOPE),
-      B(Wasp::OpCode::JUMP), B(19), B(0)
-  };
+        // --- True Block ---
+        B(Wasp::OpCode::PUSH_SCOPE),
+        B(Wasp::OpCode::GET_LOCAL), B(0), // return a
+        B(Wasp::OpCode::RETURN),
+        B(Wasp::OpCode::POP_SCOPE),
+        B(Wasp::OpCode::JUMP), B(28), B(0),
+
+        // --- False Block ---
+        B(Wasp::OpCode::PUSH_SCOPE),
+        B(Wasp::OpCode::GET_LOCAL), B(1), // return b
+        B(Wasp::OpCode::RETURN),
+        B(Wasp::OpCode::POP_SCOPE),
+        B(Wasp::OpCode::JUMP), B(28), B(0),
+
+        // --- Converge & Cleanup ---
+        B(Wasp::OpCode::POP),             // pop b
+        B(Wasp::OpCode::POP),             // pop a
+        B(Wasp::OpCode::POP_SCOPE),       // Pop Condition Scope
+
+        B(Wasp::OpCode::POP_SCOPE),       // Pop Function Scope
+        B(Wasp::OpCode::LOAD_NONE),
+        B(Wasp::OpCode::RETURN)
+    };
     // clang-format on
 
     EXPECT_EQ(actual_inner_bytes, expected_inner_bytes);
@@ -141,29 +158,30 @@ fun outer(a: int) => any
 
     int inner_func_pool_id = pool_size++;
     int outer_func_pool_id = pool_size++;
-    int outer_func_var_id = 1;
+    int outer_func_var_id = 0; // Updated to 0
 
     // clang-format off
-  std::vector<std::byte> expected_bytes = {
-      B(Wasp::OpCode::ENTER_MODULE),
-      B(Wasp::OpCode::LOAD_CONST),    B(outer_func_pool_id),
-      B(Wasp::OpCode::MAKE_FUNCTION), B(0),
-      B(Wasp::OpCode::OVERLOAD_FUNCTION),  B(outer_func_var_id),
-      B(Wasp::OpCode::JUMP),          B(10), B(0),
-      B(Wasp::OpCode::EXIT_MODULE)
-  };
+    std::vector<std::byte> expected_bytes = {
+        B(Wasp::OpCode::ENTER_MODULE),
+
+        B(Wasp::OpCode::LOAD_CONST),        B(outer_func_pool_id),
+        B(Wasp::OpCode::MAKE_FUNCTION),     B(0),
+        B(Wasp::OpCode::OVERLOAD_FUNCTION), B(outer_func_var_id),
+
+        B(Wasp::OpCode::JUMP),              B(10), B(0),
+
+        // Export Builder
+        B(Wasp::OpCode::GET_LOCAL),         B(outer_func_var_id),
+        B(Wasp::OpCode::EXIT_MODULE),       B(1)
+    };
     // clang-format on
 
     EXPECT_EQ(actual_bytes, expected_bytes);
 
     auto outer_pool_obj = pool->get(outer_func_pool_id);
-    ASSERT_TRUE(
-        outer_pool_obj->is<std::shared_ptr<Wasp::StaticFunctionObject>>()
-    );
+    ASSERT_TRUE(outer_pool_obj->is<std::shared_ptr<Wasp::StaticFunctionObject>>());
     const Wasp::CodeObject&
-        outer_code = outer_pool_obj
-                         ->as<std::shared_ptr<Wasp::StaticFunctionObject>>()
-                         ->code;
+        outer_code = outer_pool_obj->as<std::shared_ptr<Wasp::StaticFunctionObject>>()->code;
 
     std::vector<std::byte> actual_outer_bytes(
         outer_code.data(),
@@ -171,22 +189,22 @@ fun outer(a: int) => any
     );
 
     // clang-format off
-    // clang-format off
     std::vector<std::byte> expected_outer_bytes = {
         B(Wasp::OpCode::PUSH_SCOPE),
         B(Wasp::OpCode::LOAD_CONST),    B(inner_func_pool_id),
+
         // 1 upval
         B(Wasp::OpCode::MAKE_FUNCTION), B(1),
-        // is_local=1, idx=6
-        B(1), B(0),
-        B(Wasp::OpCode::OVERLOAD_FUNCTION),  B(1),             // define inner
-        B(Wasp::OpCode::GET_LOCAL),     B(1),             // return inner (as a variable!)
+        B(1), B(0), // is_local=1, idx=0 (It's `a` from the outer params!)
+
+        B(Wasp::OpCode::OVERLOAD_FUNCTION), B(1), // define inner (Slot 1)
+
+        B(Wasp::OpCode::GET_LOCAL),     B(1),     // return inner
         B(Wasp::OpCode::RETURN),
         B(Wasp::OpCode::POP_SCOPE),
         B(Wasp::OpCode::LOAD_NONE),
         B(Wasp::OpCode::RETURN)
     };
-    // clang-format on
     // clang-format on
 
     EXPECT_EQ(actual_outer_bytes, expected_outer_bytes);
@@ -202,15 +220,19 @@ print(1)
     int print_func_var_id = 0;
 
     // clang-format off
-  std::vector<std::byte> expected_bytes = {
-      B(Wasp::OpCode::ENTER_MODULE),
-      B(Wasp::OpCode::GET_NATIVE),        B(print_func_var_id),
-      B(Wasp::OpCode::LOAD_CONST),       B(const_one_id),
-      B(Wasp::OpCode::CALL),             B(1),
-      B(Wasp::OpCode::POP),
-      B(Wasp::OpCode::JUMP),             B(11), B(0),
-      B(Wasp::OpCode::EXIT_MODULE)
-  };
+    std::vector<std::byte> expected_bytes = {
+        B(Wasp::OpCode::ENTER_MODULE),
+
+        B(Wasp::OpCode::GET_NATIVE),     B(print_func_var_id),
+        B(Wasp::OpCode::LOAD_CONST),     B(const_one_id),
+        B(Wasp::OpCode::CALL),           B(1),
+        B(Wasp::OpCode::POP),
+
+        B(Wasp::OpCode::JUMP),           B(11), B(0),
+
+        // No top-level variables declared, so 0 exports!
+        B(Wasp::OpCode::EXIT_MODULE),    B(0)
+    };
     // clang-format on
 
     EXPECT_EQ(actual_bytes, expected_bytes);

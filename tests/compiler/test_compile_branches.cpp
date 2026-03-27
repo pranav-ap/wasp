@@ -11,7 +11,8 @@ class CompileBranches : public CompilerTestBase {};
 // Control Flow: Branches
 // ============================================================================
 
-TEST_F(CompileBranches, IfTernary) {
+TEST_F(CompileBranches, IfTernary)
+{
     auto actual_bytes = compile(R"(
 if false then 25 else 10
 )");
@@ -20,30 +21,69 @@ if false then 25 else 10
     int val_10 = pool_size++;
 
     // clang-format off
-  std::vector<std::byte> expected_bytes = {
-      B(Wasp::OpCode::ENTER_MODULE),
-      B(Wasp::OpCode::PUSH_SCOPE),                        // Scope 1 (Test Scope)
-      B(Wasp::OpCode::LOAD_FALSE),
-      B(Wasp::OpCode::JUMP_IF_FALSE), B(15), B(0),
-      B(Wasp::OpCode::JUMP),          B(9),  B(0),
+    std::vector<std::byte> expected_bytes = {
+        B(Wasp::OpCode::ENTER_MODULE),
 
-      // True Expression
-      B(Wasp::OpCode::LOAD_CONST),    B(val_25),          // Value: 25
-      B(Wasp::OpCode::POP_SCOPE),                         // Pop Scope 1
-      B(Wasp::OpCode::JUMP),          B(23), B(0),        // Jump to Converge
+        // Condition (No Scope!)
+        B(Wasp::OpCode::LOAD_FALSE),
+        B(Wasp::OpCode::JUMP_IF_FALSE), B(13), B(0),
+        B(Wasp::OpCode::JUMP),          B(8),  B(0),
 
-      // False Expression
-      B(Wasp::OpCode::POP_SCOPE),                         // Pop Scope 1 (Clean up Test Scope)
-      B(Wasp::OpCode::PUSH_SCOPE),                        // Scope 2 (Else Branch Scope)
-      B(Wasp::OpCode::LOAD_CONST),    B(val_10),          // Value: 10
-      B(Wasp::OpCode::POP_SCOPE),                         // Pop Scope 2
-      B(Wasp::OpCode::JUMP),          B(23), B(0),        // Jump to Converge
+        // True Expression
+        B(Wasp::OpCode::LOAD_CONST),    B(val_25),
+        B(Wasp::OpCode::JUMP),          B(18), B(0),
 
-      // Converge (End of Statement)
-      B(Wasp::OpCode::POP),                               // Pop the result
-      B(Wasp::OpCode::JUMP),          B(27), B(0),
-      B(Wasp::OpCode::EXIT_MODULE)
-  };
+        // False Expression
+        B(Wasp::OpCode::LOAD_CONST),    B(val_10),
+        B(Wasp::OpCode::JUMP),          B(18), B(0),
+
+        // Converge (End of Statement)
+        B(Wasp::OpCode::POP),                        // Pop the result
+        B(Wasp::OpCode::JUMP),          B(22), B(0),
+        B(Wasp::OpCode::EXIT_MODULE),   B(0)
+    };
+    // clang-format on
+
+    EXPECT_EQ(actual_bytes, expected_bytes);
+}
+
+TEST_F(CompileBranches, IfLet)
+{
+    auto actual_bytes = compile(R"(
+if let x = true then
+    25
+)");
+
+    int val_25 = pool_size++;
+
+    // clang-format off
+    std::vector<std::byte> expected_bytes = {
+        B(Wasp::OpCode::ENTER_MODULE),
+
+        // Condition Scope
+        B(Wasp::OpCode::PUSH_SCOPE),
+        B(Wasp::OpCode::LOAD_TRUE),
+        B(Wasp::OpCode::DUP),
+
+        B(Wasp::OpCode::JUMP_IF_FALSE), B(19), B(0),
+        B(Wasp::OpCode::JUMP),          B(10), B(0),
+
+        // True Block
+        B(Wasp::OpCode::PUSH_SCOPE),                 // True Branch Sub-scope
+        B(Wasp::OpCode::LOAD_CONST),    B(val_25),
+        B(Wasp::OpCode::POP),
+        B(Wasp::OpCode::POP),                        // pop x
+        B(Wasp::OpCode::POP_SCOPE),
+        B(Wasp::OpCode::JUMP),          B(22), B(0),
+
+        // False Path (Trampoline)
+        B(Wasp::OpCode::JUMP),          B(22), B(0),
+
+        // Converge
+        B(Wasp::OpCode::POP_SCOPE),                  // Pop Condition Scope
+        B(Wasp::OpCode::JUMP),          B(26), B(0),
+        B(Wasp::OpCode::EXIT_MODULE),   B(0)
+    };
     // clang-format on
 
     EXPECT_EQ(actual_bytes, expected_bytes);
@@ -63,98 +103,53 @@ else
     int val_25 = pool_size++;
 
     // clang-format off
-  std::vector<std::byte> expected_bytes = {
-      B(Wasp::OpCode::ENTER_MODULE),
+    std::vector<std::byte> expected_bytes = {
+        B(Wasp::OpCode::ENTER_MODULE),
 
-      // --- Outer If ---
-      B(Wasp::OpCode::PUSH_SCOPE),                        // Scope 1 (Outer Condition)
-      B(Wasp::OpCode::LOAD_FALSE),
-      B(Wasp::OpCode::JUMP_IF_FALSE), B(21), B(0),
-      B(Wasp::OpCode::JUMP),          B(9),  B(0),
+        // --- Outer If ---
+        B(Wasp::OpCode::PUSH_SCOPE),
+        B(Wasp::OpCode::LOAD_FALSE),
+        B(Wasp::OpCode::JUMP_IF_FALSE), B(17), B(0),
+        B(Wasp::OpCode::JUMP),          B(9),  B(0),
 
-      // Outer True
-      B(Wasp::OpCode::PUSH_SCOPE),                        // True Branch Sub-scope
-      B(Wasp::OpCode::LOAD_CONST),    B(val_25),
-      B(Wasp::OpCode::POP),
-      B(Wasp::OpCode::POP_SCOPE),                         // Pop True Branch Sub-scope
-      B(Wasp::OpCode::POP_SCOPE),                         // Pop Scope 1 (Condition)
-      B(Wasp::OpCode::JUMP),          B(18), B(0),
-      B(Wasp::OpCode::JUMP),          B(51), B(0),        // Jump to Exit
+        // Outer True
+        B(Wasp::OpCode::PUSH_SCOPE),
+        B(Wasp::OpCode::LOAD_CONST),    B(val_25),
+        B(Wasp::OpCode::POP),
+        B(Wasp::OpCode::POP_SCOPE),
+        B(Wasp::OpCode::JUMP),          B(25), B(0), // Jump to Outer End
 
-      // --- Outer False (Trampoline) ---
-      B(Wasp::OpCode::POP_SCOPE),                         // Pop Scope 1 (Condition)
+        // --- Outer False (Elif Condition) ---
+        B(Wasp::OpCode::PUSH_SCOPE),                 // Elif Condition Scope
+        B(Wasp::OpCode::LOAD_TRUE),
+        B(Wasp::OpCode::JUMP_IF_FALSE), B(37), B(0),
+        B(Wasp::OpCode::JUMP),          B(29), B(0),
 
-      // --- Elif (Inner If) ---
-      B(Wasp::OpCode::PUSH_SCOPE),                        // Scope 2 (Elif Condition)
-      B(Wasp::OpCode::LOAD_TRUE),
-      B(Wasp::OpCode::JUMP_IF_FALSE), B(42), B(0),
-      B(Wasp::OpCode::JUMP),          B(30), B(0),
+        // --- Outer Converge (Safely pops outer condition) ---
+        B(Wasp::OpCode::POP_SCOPE),
+        B(Wasp::OpCode::JUMP),          B(49), B(0),
 
-      // Elif True
-      B(Wasp::OpCode::PUSH_SCOPE),                        // Elif True Branch Sub-scope
-      B(Wasp::OpCode::LOAD_CONST),    B(val_25),
-      B(Wasp::OpCode::POP),
-      B(Wasp::OpCode::POP_SCOPE),                         // Pop Elif True Branch Sub-scope
-      B(Wasp::OpCode::POP_SCOPE),                         // Pop Scope 2 (Condition)
-      B(Wasp::OpCode::JUMP),          B(39), B(0),
-      B(Wasp::OpCode::JUMP),          B(18), B(0),        // Jump to Outer End (18)
+        // --- Elif True ---
+        B(Wasp::OpCode::PUSH_SCOPE),
+        B(Wasp::OpCode::LOAD_CONST),    B(val_25),
+        B(Wasp::OpCode::POP),
+        B(Wasp::OpCode::POP_SCOPE),
+        B(Wasp::OpCode::JUMP),          B(45), B(0), // Jump to Inner End
 
-      // --- Elif False (Trampoline) ---
-      B(Wasp::OpCode::POP_SCOPE),                         // Pop Scope 2 (Condition)
+        // --- Elif False (Else Body) ---
+        B(Wasp::OpCode::PUSH_SCOPE),
+        B(Wasp::OpCode::LOAD_CONST),    B(val_25),
+        B(Wasp::OpCode::POP),
+        B(Wasp::OpCode::POP_SCOPE),
+        B(Wasp::OpCode::JUMP),          B(45), B(0), // Jump to Inner End
 
-      // --- Else ---
-      B(Wasp::OpCode::PUSH_SCOPE),                        // Else Branch wrapper
-      B(Wasp::OpCode::PUSH_SCOPE),                        // Else Body Sub-scope
-      B(Wasp::OpCode::LOAD_CONST),    B(val_25),
-      B(Wasp::OpCode::POP),
-      B(Wasp::OpCode::POP_SCOPE),                         // Pop Else Body Sub-scope
-      B(Wasp::OpCode::POP_SCOPE),                         // Pop Else Branch wrapper
-      B(Wasp::OpCode::JUMP),          B(39), B(0),        // Jump to Elif End (39)
+        // --- Inner Converge (Safely pops inner condition) ---
+        B(Wasp::OpCode::POP_SCOPE),
+        B(Wasp::OpCode::JUMP),          B(25), B(0), // Jump back up to Outer Converge
 
-      B(Wasp::OpCode::EXIT_MODULE)
-  };
-    // clang-format on
-
-    EXPECT_EQ(actual_bytes, expected_bytes);
-}
-
-TEST_F(CompileBranches, IfLet)
-{
-    auto actual_bytes = compile(R"(
-if let x = true then
-    25
-)");
-
-    int val_25 = pool_size++;
-
-    // clang-format off
-  std::vector<std::byte> expected_bytes = {
-      B(Wasp::OpCode::ENTER_MODULE),
-
-      // Condition Scope
-      B(Wasp::OpCode::PUSH_SCOPE),
-      B(Wasp::OpCode::LOAD_TRUE),
-      B(Wasp::OpCode::DUP),
-
-      B(Wasp::OpCode::JUMP_IF_FALSE), B(23), B(0),
-      B(Wasp::OpCode::JUMP),          B(10), B(0),
-
-      // True Block
-      B(Wasp::OpCode::PUSH_SCOPE),                        // True Branch Sub-scope
-      B(Wasp::OpCode::LOAD_CONST),    B(val_25),
-      B(Wasp::OpCode::POP),
-      B(Wasp::OpCode::POP),                               // Pop DUP'd condition
-      B(Wasp::OpCode::POP_SCOPE),                         // Pop True Branch Sub-scope
-      B(Wasp::OpCode::POP_SCOPE),                         // Pop Condition Scope
-      B(Wasp::OpCode::JUMP),          B(20), B(0),
-      B(Wasp::OpCode::JUMP),          B(27), B(0),
-
-      // False Path (Trampoline)
-      B(Wasp::OpCode::POP_SCOPE),                         // Pop Condition Scope
-      B(Wasp::OpCode::JUMP),          B(20), B(0),
-
-      B(Wasp::OpCode::EXIT_MODULE)
-  };
+        // --- Final Module Exit ---
+        B(Wasp::OpCode::EXIT_MODULE),   B(0)
+    };
     // clang-format on
 
     EXPECT_EQ(actual_bytes, expected_bytes);

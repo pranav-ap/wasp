@@ -61,7 +61,7 @@ StaticFunctionObject_ptr Compiler::run(const StatementVector& block, std::string
         if (sym->is_exported())
         {
             int physical_index = resolve_local(sym->id);
-            emit(OpCode::GET_LOCAL, physical_index);
+            emit(OpCode::GET_LOCAL, physical_index, sym->name);
             export_count++;
         }
     }

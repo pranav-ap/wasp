@@ -100,14 +100,7 @@ protected:
         std::string file_path = log_dir + "/" + test_name + ".txt";
         std::ofstream log_file(file_path);
 
-        std::string dot_file_path = log_dir + "/dots/" + test_name + ".dot";
-        std::ofstream dot_file(dot_file_path);
-
         Wasp::InstructionPrinter printer(workspace);
-
-        if (dot_file.is_open()) {
-            printer.print(current_graph, dot_file);
-        }
 
         if (log_file.is_open()) {
             printer.print(function_object, log_file);

@@ -12,49 +12,49 @@
 #include <variant>
 #include <vector>
 
-template <class... Ts> struct overloaded : Ts... {
+template <class... Ts> struct overloaded : Ts...
+{
     using Ts::operator()...;
 };
 template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
-namespace Wasp {
+namespace Wasp
+{
 
 // -----------------------------------------------------------------------
 // Control Flow
 // -----------------------------------------------------------------------
 
-void Compiler::visit(IfTernaryBranch& expr) {
-    enter_scope();
+void Compiler::visit(IfTernaryBranch& expr)
+{
+    // DO NOT use enter_scope() for expressions!
     visit(expr.test);
 
     BlockId true_block = graph.create_block();
     BlockId false_block = graph.create_block();
     BlockId end_block = graph.create_block();
 
-    graph.add_edge(current_block_id, true_block);
-    graph.add_edge(current_block_id, false_block);
-
     emit(OpCode::JUMP_IF_FALSE, static_cast<int>(false_block));
     emit(OpCode::JUMP, static_cast<int>(true_block));
+    graph.add_edge(current_block_id, true_block);
+    graph.add_edge(current_block_id, false_block);
 
     // --- True Branch ---
     set_current_block(true_block);
     visit(expr.true_expression);
-    leave_scope();
-
     emit(OpCode::JUMP, static_cast<int>(end_block));
     graph.add_edge(true_block, end_block);
 
     // --- False Branch ---
     set_current_block(false_block);
-    leave_scope();
-
-    if (expr.alternative) {
+    if (expr.alternative)
+    {
         visit(expr.alternative);
-    } else {
+    }
+    else
+    {
         emit(OpCode::LOAD_NONE);
     }
-
     emit(OpCode::JUMP, static_cast<int>(end_block));
     graph.add_edge(false_block, end_block);
 
@@ -62,77 +62,68 @@ void Compiler::visit(IfTernaryBranch& expr) {
     set_current_block(end_block);
 }
 
-void Compiler::visit(ElseTernaryBranch& expr) {
-    enter_scope();
+void Compiler::visit(ElseTernaryBranch& expr)
+{
+    // DO NOT use enter_scope() for expressions!
     visit(expr.expression);
-    leave_scope();
 }
 
 void Compiler::visit(IfBranch& statement)
 {
-    enter_scope();
+    enter_scope(); // Condition Scope
 
     visit(statement.test);
 
     bool has_alternative = statement.alternative.has_value();
 
     BlockId true_block = graph.create_block();
-    BlockId end_block = graph.create_block();
-
     BlockId false_block = graph.create_block();
-
-    graph.add_edge(current_block_id, true_block);
-    graph.add_edge(current_block_id, false_block);
+    BlockId end_block = graph.create_block();
 
     emit(OpCode::JUMP_IF_FALSE, static_cast<int>(false_block));
     emit(OpCode::JUMP, static_cast<int>(true_block));
+    graph.add_edge(current_block_id, true_block);
+    graph.add_edge(current_block_id, false_block);
 
-    // ========================================================================
-    // True Branch
-    // ========================================================================
+    // --- True Branch ---
     set_current_block(true_block);
-
-    enter_scope(); // The body gets its own isolated sub-scope
+    enter_scope(); // Body scope
     visit(statement.body);
-    leave_scope(); // Pop body scope
+    leave_scope(); // Pop Body scope
 
-    leave_scope(); // Pop the condition scope ('if let' variables die here)
+    // NO CONDITION leave_scope() HERE ANYMORE!
 
     emit(OpCode::JUMP, static_cast<int>(end_block));
     graph.add_edge(true_block, end_block);
 
-    // ========================================================================
-    // False Branch & Cleanup
-    // ========================================================================
+    // --- False Branch ---
     set_current_block(false_block);
-
-    // leave_scope(); // Pop the condition scope BEFORE running the alternative
-
     if (has_alternative)
     {
         auto& alt_variant = statement.alternative.value()->data;
-
         if (std::holds_alternative<IfBranch>(alt_variant))
         {
-            // "else if" chain - it will handle its own scoping!
             visit(std::get<IfBranch>(alt_variant));
         }
         else if (std::holds_alternative<ElseBranch>(alt_variant))
         {
-            // "else" block gets an isolated scope
-            enter_scope();
+            // FIX: Removed the double enter_scope() and leave_scope() here!
+            // ElseBranch's visit() method will perfectly handle its own scope.
             visit(std::get<ElseBranch>(alt_variant));
-            leave_scope();
         }
     }
-
     emit(OpCode::JUMP, static_cast<int>(end_block));
     graph.add_edge(false_block, end_block);
 
+    // --- Converge ---
     set_current_block(end_block);
+
+    // POP CONDITION SCOPE HERE! (Both paths safely hit this)
+    leave_scope();
 }
 
-void Compiler::visit(ElseBranch& statement) {
+void Compiler::visit(ElseBranch& statement)
+{
     enter_scope();
     visit(statement.body);
     leave_scope();
@@ -142,7 +133,8 @@ void Compiler::visit(ElseBranch& statement) {
 // Control Flow: Loops
 // ============================================================================
 
-void Compiler::visit(ForInLoop& statement) {
+void Compiler::visit(ForInLoop& statement)
+{
     visit(statement.iterable_expression);
 
     BlockId header = graph.create_block();
@@ -161,20 +153,23 @@ void Compiler::visit(ForInLoop& statement) {
     graph.add_edge(header, body);
     graph.add_edge(header, end);
 
-    loop_tracking_stack.emplace_back(
-        header, body, end, current_lexical_scope_depth, current_lexical_scope_depth
-    );
+    loop_tracking_stack
+        .emplace_back(header, body, end, current_lexical_scope_depth, current_lexical_scope_depth);
 
     // --- Body ---
     set_current_block(body);
     enter_scope();
 
-    if (statement.lhs->is<Identifier>()) {
+    if (statement.lhs->is<Identifier>())
+    {
         auto symbol = statement.lhs->as<Identifier>().symbol;
-        if (symbol) {
+        if (symbol)
+        {
             locals.push_back(symbol);
         }
-    } else {
+    }
+    else
+    {
         Doctor::get().fatal(WaspStage::Compiler, "For-in loop LHS must be a simple Identifier");
     }
 
@@ -192,47 +187,57 @@ void Compiler::visit(ForInLoop& statement) {
     emit(OpCode::POP);
 }
 
-void Compiler::visit(SimpleLoop& statement) {
+void Compiler::visit(SimpleLoop& statement)
+{
     BlockId header = graph.create_block();
     BlockId body = graph.create_block();
     BlockId cleanup_block = graph.create_block();
     BlockId end = graph.create_block();
 
     emit(OpCode::JUMP, static_cast<int>(header));
-
     graph.add_edge(current_block_id, header);
+
     loop_tracking_stack.emplace_back(
-        header, body, end, current_lexical_scope_depth, current_lexical_scope_depth + 1
+        header,
+        body,
+        end,
+        current_lexical_scope_depth,
+        current_lexical_scope_depth + 1
     );
 
     // --- Header ---
     set_current_block(header);
-    enter_scope();
+    enter_scope(); // Condition Scope
     visit(statement.condition);
 
-    if (statement.style == TokenType::UNTIL || statement.style == TokenType::UNLESS) {
+    if (statement.style == TokenType::UNTIL || statement.style == TokenType::UNLESS)
+    {
         emit(OpCode::NOT);
     }
 
-    graph.add_edge(header, body);
-    graph.add_edge(header, cleanup_block);
     emit(OpCode::JUMP_IF_FALSE, static_cast<int>(cleanup_block));
     emit(OpCode::JUMP, static_cast<int>(body));
+    graph.add_edge(header, body);
+    graph.add_edge(header, cleanup_block);
 
     // --- Body ---
     set_current_block(body);
-    enter_scope();
+    enter_scope(); // Body scope
     visit(statement.body);
-    leave_scope();
+    leave_scope(); // Pop Body scope
 
-    // Next Iteration
-    leave_scope();
+    // --- Next Iteration ---
+    // Safely emit VM cleanup instructions without deleting the compiler's tracking state!
+    emit_local_cleanups(current_lexical_scope_depth - 1);
+
     emit(OpCode::JUMP, static_cast<int>(header));
     graph.add_edge(body, header);
 
-    // Cleanup
+    // --- Cleanup (False path) ---
     set_current_block(cleanup_block);
-    emit(OpCode::POP_SCOPE);
+
+    // Formally close out the compiler tracking state for the loop!
+    leave_scope();
 
     emit(OpCode::JUMP, static_cast<int>(end));
     graph.add_edge(cleanup_block, end);
@@ -241,47 +246,37 @@ void Compiler::visit(SimpleLoop& statement) {
     set_current_block(end);
 }
 
-void Compiler::visit(LoopControl& statement) {
-    Doctor::get().assert(
-        !loop_tracking_stack.empty(), WaspStage::Compiler, "Loop control outside loop"
-    );
+void Compiler::visit(LoopControl& statement)
+{
+    Doctor::get()
+        .assert(!loop_tracking_stack.empty(), WaspStage::Compiler, "Loop control outside loop");
 
     auto [header, body, end, entry_depth, body_depth] = loop_tracking_stack.back();
 
-    int target_depth;
+    int target_depth = (statement.type == TokenType::REDO) ? body_depth : entry_depth;
 
-    if (statement.type == TokenType::REDO) {
-        // Unwind to the exact state before the body block's internal scope is
-        // pushed
-        target_depth = body_depth;
-    } else {
-        // Break and Continue unwind completely to the loop's entry state
-        target_depth = entry_depth;
-    }
+    // USE THE HELPER HERE:
+    emit_local_cleanups(target_depth);
 
-    int scopes_to_pop = current_lexical_scope_depth - target_depth;
-    Doctor::get().assert(
-        scopes_to_pop >= 0,
-        WaspStage::Compiler,
-        "Compiler Error: Current lexical scope depth is less than loop entry depth!"
-    );
-
-    for (int i = 0; i < scopes_to_pop; ++i) {
-        emit(OpCode::POP_SCOPE);
-    }
-
-    if (statement.type == TokenType::BREAK) {
+    if (statement.type == TokenType::BREAK)
+    {
         emit(OpCode::JUMP, static_cast<int>(end));
         graph.add_edge(current_block_id, end);
-    } else if (statement.type == TokenType::CONTINUE) {
+    }
+    else if (statement.type == TokenType::CONTINUE)
+    {
         emit(OpCode::JUMP, static_cast<int>(header));
         graph.add_edge(current_block_id, header);
-    } else if (statement.type == TokenType::REDO) {
+    }
+    else if (statement.type == TokenType::REDO)
+    {
         emit(OpCode::JUMP, static_cast<int>(body));
         graph.add_edge(current_block_id, body);
     }
 }
 
-void Compiler::visit(Pass& statement) {}
+void Compiler::visit(Pass& statement)
+{
+}
 
 } // namespace Wasp

@@ -40,7 +40,7 @@ while true do
 
       // --- End ---
       B(Wasp::OpCode::JUMP),          B(28), B(0),
-      B(Wasp::OpCode::EXIT_MODULE)
+      B(Wasp::OpCode::EXIT_MODULE), B(0)
   };
     // clang-format on
 
@@ -92,7 +92,7 @@ while true do
 
       // --- End ---
       B(Wasp::OpCode::JUMP),          B(36), B(0),
-      B(Wasp::OpCode::EXIT_MODULE)
+      B(Wasp::OpCode::EXIT_MODULE), B(0)
   };
     // clang-format on
 
@@ -134,7 +134,7 @@ for let x in [1, 2, 3] do
       // --- End ---
       B(Wasp::OpCode::POP),
       B(Wasp::OpCode::JUMP),          B(30), B(0),
-      B(Wasp::OpCode::EXIT_MODULE)
+      B(Wasp::OpCode::EXIT_MODULE), B(0)
   };
     // clang-format on
 
@@ -185,7 +185,7 @@ while true do
 
       // --- End ---
       B(Wasp::OpCode::JUMP),          B(35), B(0),
-      B(Wasp::OpCode::EXIT_MODULE)
+      B(Wasp::OpCode::EXIT_MODULE), B(0)
   };
     // clang-format on
 

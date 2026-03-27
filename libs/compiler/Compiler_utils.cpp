@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace Wasp
@@ -138,6 +139,37 @@ void Compiler::emit(OpCode opcode, int operand_1, int operand_2, std::string com
     graph.get_block(current_block_id)
         .get_code()
         .emit(opcode, operand_1, operand_2, std::move(comment));
+}
+
+void Compiler::emit_local_cleanups(int target_depth)
+{
+    int locals_to_pop = 0;
+
+    // Count how many physical variables are trapped in the scopes we are skipping
+    for (auto it = locals.rbegin(); it != locals.rend(); ++it)
+    {
+        if ((*it)->lexical_depth > target_depth)
+        {
+            locals_to_pop++;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    // Tell the VM to physically POP them!
+    for (int i = 0; i < locals_to_pop; ++i)
+    {
+        emit(OpCode::POP, "branch bypass local cleanup");
+    }
+
+    // Now safe to pop the scope frames
+    int scopes_to_pop = current_lexical_scope_depth - target_depth;
+    for (int i = 0; i < scopes_to_pop; ++i)
+    {
+        emit(OpCode::POP_SCOPE);
+    }
 }
 
 // -----------------------------------------------------------------------

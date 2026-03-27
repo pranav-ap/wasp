@@ -47,7 +47,7 @@ void Compiler::visit(FunctionDefinition& function_definition)
     );
 
     // Push the StaticFunctionObject onto the stack
-    emit(OpCode::LOAD_CONST, const_id);
+    emit(OpCode::LOAD_CONST, const_id, "fun " + function_definition.name);
 
     // Transform it into a RuntimeFunctionObject & capture upvalues
     int upvalue_count = static_cast<int>(func_compiler.upvalues.size());
@@ -76,7 +76,7 @@ void Compiler::visit(FunctionDefinition& function_definition)
         locals.push_back(function_definition.group_symbol);
     }
 
-    emit(OpCode::OVERLOAD_FUNCTION, physical_index, function_definition.name);
+    emit(OpCode::OVERLOAD_FUNCTION, physical_index, "fun " + function_definition.name);
 }
 
 void Compiler::visit(Return& statement)

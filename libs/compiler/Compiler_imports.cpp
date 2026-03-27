@@ -30,7 +30,7 @@ void Compiler::visit(SimpleImport& import_stmt)
     int module_index = workspace->get_module_index(module_payload.mod->absolute_filepath);
 
     // Tell the VM to execute this module and push a ModuleObject onto the stack
-    emit(OpCode::IMPORT_MODULE, module_index);
+    emit(OpCode::IMPORT_MODULE, module_index, "module " + module_symbol->name);
 
     locals.push_back(module_symbol);
 }
@@ -44,7 +44,7 @@ void Compiler::visit(FromImport& import_stmt)
 
     // Tell the VM to load the module onto the stack
     // Stack: [ Module ]
-    emit(OpCode::IMPORT_MODULE, module_index);
+    emit(OpCode::IMPORT_MODULE, module_index, "module " + module_symbol->name);
 
     // Iterate through every name the user requested (e.g., 'print_cats', 'print_dogs')
     for (const auto& imported_node : import_stmt.symbols)

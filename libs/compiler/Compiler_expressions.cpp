@@ -38,39 +38,107 @@ void Compiler::visit(const Expression_ptr expr)
 
     std::visit(
         overloaded{
-            [&](int val) { visit(val); },
-            [&](double val) { visit(val); },
-            [&](std::string val) { visit(val); },
-            [&](bool val) { visit(val); },
-            [&](UntypedAssignment& a) { visit(a); },
-            [&](TypedAssignment& a) { visit(a); },
-            [&](Prefix& p) { visit(p); },
-            [&](Infix& i) { visit(i); },
-            [&](Identifier& id) { visit(id); },
-            [&](MemberAccess& m) { visit(m); },
-            [&](Call& c) { visit(c); },
-            [&](ListLiteral& l) { visit(l); },
-            [&](TupleLiteral& t) { visit(t); },
-            [&](MapLiteral& m) { visit(m); },
-            [&](SetLiteral& s) { visit(s); },
-            [&](RangeLiteral& r) { visit(r); },
-            [&](VariableDefinitionExpression& v) { visit(v); },
-            [&](IfTernaryBranch& i) { visit(i); },
-            [&](ElseTernaryBranch& e) { visit(e); },
-            [&](auto&) { /* Fallback */ }},
-        expr->data);
+            [&](int val)
+            {
+                visit(val);
+            },
+            [&](double val)
+            {
+                visit(val);
+            },
+            [&](std::string val)
+            {
+                visit(val);
+            },
+            [&](bool val)
+            {
+                visit(val);
+            },
+            [&](UntypedAssignment& a)
+            {
+                visit(a);
+            },
+            [&](TypedAssignment& a)
+            {
+                visit(a);
+            },
+            [&](Prefix& p)
+            {
+                visit(p);
+            },
+            [&](Infix& i)
+            {
+                visit(i);
+            },
+            [&](Identifier& id)
+            {
+                visit(id);
+            },
+            [&](MemberAccess& m)
+            {
+                visit(m);
+            },
+            [&](Call& c)
+            {
+                visit(c);
+            },
+            [&](ListLiteral& l)
+            {
+                visit(l);
+            },
+            [&](TupleLiteral& t)
+            {
+                visit(t);
+            },
+            [&](MapLiteral& m)
+            {
+                visit(m);
+            },
+            [&](SetLiteral& s)
+            {
+                visit(s);
+            },
+            [&](RangeLiteral& r)
+            {
+                visit(r);
+            },
+            [&](VariableDefinitionExpression& v)
+            {
+                visit(v);
+            },
+            [&](IfTernaryBranch& i)
+            {
+                visit(i);
+            },
+            [&](ElseTernaryBranch& e)
+            {
+                visit(e);
+            },
+            [&](auto&) { /* Fallback */ }
+        },
+        expr->data
+    );
 }
 
-void Compiler::visit(int expr) { emit(OpCode::LOAD_CONST, workspace->pool->allocate(expr)); }
+void Compiler::visit(int expr)
+{
+    emit(OpCode::LOAD_CONST, workspace->pool->allocate(expr), std::to_string(expr));
+}
 
-void Compiler::visit(double expr) { emit(OpCode::LOAD_CONST, workspace->pool->allocate(expr)); }
+void Compiler::visit(double expr)
+{
+    emit(OpCode::LOAD_CONST, workspace->pool->allocate(expr), std::to_string(expr));
+}
 
 void Compiler::visit(std::string expr)
 {
-    emit(OpCode::LOAD_CONST, workspace->pool->allocate(expr));
+    emit(OpCode::LOAD_CONST, workspace->pool->allocate(expr), expr);
 }
 
-void Compiler::visit(bool expr) { emit(expr ? OpCode::LOAD_TRUE : OpCode::LOAD_FALSE); }
+void Compiler::visit(bool expr)
+{
+    emit(expr ? OpCode::LOAD_TRUE : OpCode::LOAD_FALSE);
+}
 
 void Compiler::visit(UntypedAssignment& expr)
 {
@@ -78,16 +146,25 @@ void Compiler::visit(UntypedAssignment& expr)
 
     std::visit(
         overloaded{
-            [&](Identifier& id) { compile_identifier_assignment(id, expr.rhs_expression); },
-            [&](MemberAccess& mac) { compile_member_assignment(mac, expr.rhs_expression); },
+            [&](Identifier& id)
+            {
+                compile_identifier_assignment(id, expr.rhs_expression);
+            },
+            [&](MemberAccess& mac)
+            {
+                compile_member_assignment(mac, expr.rhs_expression);
+            },
             [&](auto&)
             {
                 Doctor::get().fatal(
                     WaspStage::Compiler,
                     "Invalid left-hand side for assignment. Must be an Identifier or "
-                    "MemberAccess.");
-            }},
-        expr.lhs_expression->data);
+                    "MemberAccess."
+                );
+            }
+        },
+        expr.lhs_expression->data
+    );
 }
 
 void Compiler::visit(TypedAssignment& expr)
@@ -186,11 +263,17 @@ void Compiler::visit(RangeLiteral& expr)
     emit(OpCode::BUILD_RANGE, expr.is_inclusive ? 1 : 0);
 }
 
-void Compiler::visit(DotLiteral& expr) {}
+void Compiler::visit(DotLiteral& expr)
+{
+}
 
-void Compiler::visit(TypePattern& expr) {}
+void Compiler::visit(TypePattern& expr)
+{
+}
 
-void Compiler::visit(Postfix& expr) {}
+void Compiler::visit(Postfix& expr)
+{
+}
 
 // ----------------------------------------------
 // Identifiers, Member Access & Calls
@@ -209,30 +292,25 @@ void Compiler::visit(Identifier& expr)
     }
     else if (symbol->payload_is<OverloadGroupData>())
     {
-        const auto& siblings = symbol->get_payload_as<OverloadGroupData>()
-                                   .siblings;
+        const auto& siblings = symbol->get_payload_as<OverloadGroupData>().siblings;
 
         // Native functions are never overloaded
         if (!siblings.empty() && siblings.front()->payload_is<FunctionData>())
         {
-            is_native = siblings.front()
-                            ->get_payload_as<FunctionData>()
-                            .is_native;
+            is_native = siblings.front()->get_payload_as<FunctionData>().is_native;
         }
     }
 
     if (is_native)
     {
-        auto native_registry_id = workspace->native_registry->get_native_index(
-            symbol->name
-        );
+        auto native_registry_id = workspace->native_registry->get_native_index(symbol->name);
 
-        emit(OpCode::GET_NATIVE, native_registry_id);
+        emit(OpCode::GET_NATIVE, native_registry_id, symbol->name);
     }
     else if (expr.must_be_captured)
     {
         int upval_index = resolve_upvalue(this, symbol);
-        emit(OpCode::GET_UPVALUE, upval_index);
+        emit(OpCode::GET_UPVALUE, upval_index, symbol->name);
     }
     else
     {
@@ -244,7 +322,7 @@ void Compiler::visit(Identifier& expr)
             "Attempted to read an unresolved local variable: " + symbol->name
         );
 
-        emit(OpCode::GET_LOCAL, physical_index);
+        emit(OpCode::GET_LOCAL, physical_index, symbol->name);
     }
 }
 
@@ -273,10 +351,7 @@ void Compiler::visit(Call& expr)
     emit(OpCode::CALL, static_cast<int>(expr.arguments.size()));
 }
 
-void Compiler::compile_identifier_assignment(
-    Identifier& id,
-    const Expression_ptr& rhs
-)
+void Compiler::compile_identifier_assignment(Identifier& id, const Expression_ptr& rhs)
 {
     visit(rhs);
 
@@ -286,7 +361,7 @@ void Compiler::compile_identifier_assignment(
     if (id.must_be_captured)
     {
         int idx = resolve_upvalue(this, symbol);
-        emit(OpCode::SET_UPVALUE, idx);
+        emit(OpCode::SET_UPVALUE, idx, symbol->name);
     }
     else
     {
@@ -298,14 +373,11 @@ void Compiler::compile_identifier_assignment(
             "Attempted to assign to an unresolved local variable: " + symbol->name
         );
 
-        emit(OpCode::SET_LOCAL, physical_index);
+        emit(OpCode::SET_LOCAL, physical_index, symbol->name);
     }
 }
 
-void Compiler::compile_member_assignment(
-    MemberAccess& mac,
-    const Expression_ptr& rhs
-)
+void Compiler::compile_member_assignment(MemberAccess& mac, const Expression_ptr& rhs)
 {
     // Evaluate the object first (Stack: [obj])
     visit(mac.left);
@@ -320,7 +392,7 @@ void Compiler::compile_member_assignment(
         "Right side of member assignment must be an Identifier"
     );
 
-    emit(OpCode::SET_MEMBER, mac.member_index);
+    emit(OpCode::SET_MEMBER, mac.member_index, mac.right->as<Identifier>().name);
 }
 
 } // namespace Wasp
