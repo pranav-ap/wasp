@@ -6,6 +6,7 @@
 #include "Objects.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <filesystem>
 #include <iterator>
 #include <map>
@@ -329,16 +330,40 @@ std::string Module::get_name() const
     return absolute_filepath.stem().string();
 }
 
-SymbolVector Module::get_flat_exports() const
+int Module::get_member_index(const std::string& member_name) const
 {
-    SymbolVector flat_exports;
-
-    for (const auto& [_, symbol] : exports)
+    for (size_t i = 0; i < exports.size(); i++)
     {
-        flat_exports.push_back(symbol);
+        if (exports[i]->name == member_name)
+        {
+            return static_cast<int>(i);
+        }
     }
 
-    return flat_exports;
+    Doctor::get().fatal(
+        WaspStage::Semantics,
+        "Member '" + member_name + "' not found in module '" + get_name() + "'"
+    );
+
+    return -1;
+}
+
+Symbol_ptr Module::get_member(const std::string& member_name) const
+{
+    for (const auto& sym : exports)
+    {
+        if (sym->name == member_name)
+        {
+            return sym;
+        }
+    }
+
+    Doctor::get().fatal(
+        WaspStage::Semantics,
+        "Member '" + member_name + "' not found in module '" + get_name() + "'"
+    );
+
+    return nullptr;
 }
 
 // --------------------------------------------------------------------

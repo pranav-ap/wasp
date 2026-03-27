@@ -47,8 +47,6 @@ void SemanticAnalyzer::visit(FromImport& import_stmt)
     Symbol_ptr module_symbol = SymbolFactory::create_module(mod->get_name(), mod);
     import_stmt.symbol = module_symbol;
 
-    SymbolVector exports = mod->get_flat_exports();
-
     for (auto& imported_symbol_node : import_stmt.symbols)
     {
         std::string target_name = imported_symbol_node.name;
@@ -56,7 +54,7 @@ void SemanticAnalyzer::visit(FromImport& import_stmt)
 
         SymbolVector symbols_with_target_name;
 
-        for (const auto& exported_symbol : exports)
+        for (const auto& exported_symbol : mod->exports)
         {
             if (exported_symbol->name == target_name)
             {

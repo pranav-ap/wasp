@@ -57,6 +57,6 @@ public:
     int get_lexical_depth() const;
     int get_function_distance(int target_closure_depth) const;
 
-    SymbolStringMap get_all_symbols() const;
+    SymbolVector get_all_symbols() const;
 };
 } // namespace Wasp

@@ -265,13 +265,11 @@ void Compiler::visit(Call& expr)
         emit(OpCode::RESOLVE_FUNCTION, expr.overload_index);
     }
 
-    // Evaluate arguments
     for (const auto& arg : expr.arguments)
     {
         visit(arg);
     }
 
-    // Call it
     emit(OpCode::CALL, static_cast<int>(expr.arguments.size()));
 }
 

@@ -208,11 +208,16 @@ std::tuple<Symbol_ptr, int, int> TypeChecker::resolve_method_call(
         "Module '" + module_name + "' not found in current scope"
     );
 
-    int member_index = module_symbol->get_type()->as<ModuleType>().get_member_index(method_name);
-
-    Symbol_ptr overload_group_symbol = module_symbol->get_payload_as<ModuleData>().mod->exports.at(
-        method_name
+    Doctor::get().assert(
+        module_symbol->payload_is<ModuleData>(),
+        WaspStage::Semantics,
+        "Symbol '" + module_name + "' is not a module"
     );
+
+    auto& module_data = module_symbol->get_payload_as<ModuleData>();
+
+    Symbol_ptr overload_group_symbol = module_data.mod->get_member(method_name);
+    int member_index = module_data.mod->get_member_index(method_name);
 
     Doctor::get().fatal_if_nullptr(
         overload_group_symbol,

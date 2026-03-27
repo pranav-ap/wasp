@@ -1,4 +1,4 @@
-import my.dogs
+import my.cats
 
-dogs.print_dogs()
-dogs.print_dogs(12)
+cats.print_cats()
+cats.print_cats(10)

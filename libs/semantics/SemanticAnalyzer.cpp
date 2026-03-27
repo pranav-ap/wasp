@@ -29,11 +29,9 @@ namespace Wasp
 
 void SemanticAnalyzer::extract_module_type(Module_ptr module)
 {
-    auto exports = module->get_flat_exports();
-
     ObjectStringMap members;
 
-    for (const auto& symbol : exports)
+    for (const auto& symbol : module->exports)
     {
         Doctor::get().fatal_if_nullptr(
             symbol->get_type(),
@@ -59,7 +57,7 @@ void SemanticAnalyzer::run(const std::vector<Module_ptr>& build_order)
 
         // Push this module's hoisted symbols into its scope before visiting the statements,
         // so that they can be referenced in the module body
-        for (auto& symbol : module->get_flat_exports())
+        for (auto& symbol : module->exports)
         {
             current_scope->define(symbol);
         }

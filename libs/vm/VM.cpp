@@ -464,6 +464,11 @@ void VM::execute_exit_module(CallFrame* frame)
         exported_members[i] = pop_from_stack();
     }
 
+    // for (int i = 0; i < export_count; i++)
+    // {
+    //     exported_members[i] = pop_from_stack();
+    // }
+
     auto exports = std::make_shared<ModuleObject>(
         frame->function->blueprint->name,
         std::move(exported_members)

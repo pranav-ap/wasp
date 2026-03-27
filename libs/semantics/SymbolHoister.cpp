@@ -91,8 +91,6 @@ void SymbolHoister::run(Module_ptr mod)
     hoist(mod);
 
     auto hoisted_symbols = current_scope->get_all_symbols();
-
-    // TODO: separate exports from hoisted symbols
     mod->exports = std::move(hoisted_symbols);
 }
 } // namespace Wasp

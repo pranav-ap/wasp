@@ -1,6 +1,12 @@
 
-fun print_dogs()
-    print('dogs')
+
+let t = 55
 
 fun print_dogs(a: int)
     print('dogs integer')
+
+let f = 55
+
+
+fun print_dogs()
+    print('dogs')
