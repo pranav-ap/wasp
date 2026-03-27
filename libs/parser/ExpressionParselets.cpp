@@ -11,7 +11,6 @@
 #include <map>
 #include <memory>
 #include <string>
-#include <variant>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -51,7 +50,7 @@ Expression_ptr LiteralParselet::parse(Parser& parser, const Token& token) {
 
 Expression_ptr PrefixOperatorParselet::parse(Parser& parser, const Token& token) {
     parser.token_pipe.advance_pointer();
-    const auto right = parser.parse_expression();
+    const auto right = parser.parse_expression(precedence);
 
     return make_expression((Prefix{token, right}));
 }

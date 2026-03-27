@@ -77,7 +77,7 @@ fun max(a: int, b: int) => int
 )");
 
     int max_func_pool_id = pool_size++;
-    int max_func_var_id = 0; // Updated to 0 (First top-level variable)
+    int max_func_var_id = 0; // First top-level variable
 
     // clang-format off
     std::vector<std::byte> expected_bytes = {
@@ -116,22 +116,24 @@ fun max(a: int, b: int) => int
         B(Wasp::OpCode::GET_LOCAL), B(0), // a
         B(Wasp::OpCode::GET_LOCAL), B(1), // b
 
-        B(Wasp::OpCode::JUMP_IF_FALSE), B(20), B(0),
-        B(Wasp::OpCode::JUMP),          B(12), B(0),
+        B(Wasp::OpCode::GT),              // <-- The newly emitted comparison!
+
+        B(Wasp::OpCode::JUMP_IF_FALSE), B(21), B(0), // Shifted from 20 to 21
+        B(Wasp::OpCode::JUMP),          B(13), B(0), // Shifted from 12 to 13
 
         // --- True Block ---
         B(Wasp::OpCode::PUSH_SCOPE),
         B(Wasp::OpCode::GET_LOCAL), B(0), // return a
         B(Wasp::OpCode::RETURN),
         B(Wasp::OpCode::POP_SCOPE),
-        B(Wasp::OpCode::JUMP), B(28), B(0),
+        B(Wasp::OpCode::JUMP), B(29), B(0), // Shifted from 28 to 29
 
         // --- False Block ---
         B(Wasp::OpCode::PUSH_SCOPE),
         B(Wasp::OpCode::GET_LOCAL), B(1), // return b
         B(Wasp::OpCode::RETURN),
         B(Wasp::OpCode::POP_SCOPE),
-        B(Wasp::OpCode::JUMP), B(28), B(0),
+        B(Wasp::OpCode::JUMP), B(29), B(0), // Shifted from 28 to 29
 
         // --- Converge & Cleanup ---
         B(Wasp::OpCode::POP),             // pop b

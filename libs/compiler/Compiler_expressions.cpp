@@ -208,10 +208,32 @@ void Compiler::visit(Infix& expr)
     case TokenType::DIVISION:
         emit(OpCode::DIV);
         break;
+
+    // --- Comparisons ---
     case TokenType::EQUAL_EQUAL:
         emit(OpCode::EQ);
         break;
+    case TokenType::BANG_EQUAL:
+        emit(OpCode::NE);
+        break;
+    case TokenType::GREATER_THAN:
+        emit(OpCode::GT);
+        break;
+    case TokenType::GREATER_THAN_EQUAL:
+        emit(OpCode::GE);
+        break;
+    case TokenType::LESSER_THAN:
+        emit(OpCode::LT);
+        break;
+    case TokenType::LESSER_THAN_EQUAL:
+        emit(OpCode::LE);
+        break;
+
     default:
+        Doctor::get().fatal(
+            WaspStage::Compiler,
+            "Unsupported infix operator in compiler: " + to_string(expr.op.type)
+        );
         break;
     }
 }

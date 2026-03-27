@@ -1,12 +1,11 @@
 #pragma once
 
-#include "Expression.h"
+#include "AST.h"
 #include "ExpressionParselets.h"
 #include "Precedence.h"
 #include "Statement.h"
 #include "Token.h"
 #include "TokenPipe.h"
-#include "TypeAnnotation.h"
 
 #include <map>
 #include <memory>
