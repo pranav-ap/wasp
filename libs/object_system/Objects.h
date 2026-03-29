@@ -123,6 +123,7 @@ struct IteratorObject : public CompositeObject
     {
     }
 
+    bool has_next() const;
     std::optional<Object_ptr> get_next();
     void reset_iter();
 };

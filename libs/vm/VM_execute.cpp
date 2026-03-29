@@ -175,4 +175,64 @@ void VM::execute_control_flow(OpCode op, CallFrame* frame)
     }
 }
 
+void VM::execute_iter(OpCode op, CallFrame* frame)
+{
+    switch (op)
+    {
+    case OpCode::GET_ITER: {
+        // Pop the collection off the stack
+        Object_ptr iterable = pop_from_stack();
+        Object_ptr iterator_instance = nullptr;
+
+        // std::variant requires exact type matching, so we check our concrete collections!
+        if (iterable->is<std::shared_ptr<ListObject>>())
+        {
+            iterator_instance = iterable->as<std::shared_ptr<ListObject>>()->get_iter();
+        }
+        else if (iterable->is<std::shared_ptr<SetObject>>())
+        {
+            iterator_instance = iterable->as<std::shared_ptr<SetObject>>()->get_iter();
+        }
+        else if (iterable->is<std::shared_ptr<MapObject>>())
+        {
+            iterator_instance = iterable->as<std::shared_ptr<MapObject>>()->get_iter();
+        }
+        else
+        {
+            Doctor::get().fatal(WaspStage::VM, "Cannot iterate over a non-iterable object");
+        }
+
+        // Push the new IteratorObject back onto the stack
+        push_to_stack(iterator_instance);
+        break;
+    }
+
+    case OpCode::LOOP_ITER: {
+        // Read the 16-bit jump target offset (used if the iterator is exhausted)
+        uint8_t low = static_cast<uint8_t>(frame->consume_byte());
+        uint8_t high = static_cast<uint8_t>(frame->consume_byte());
+        uint16_t target_ip = low | (high << 8);
+
+        // The iterator must stay on the stack until the loop ends
+        Object_ptr iterator_obj = peek_tos();
+
+        auto iter = iterator_obj->as<std::shared_ptr<IteratorObject>>();
+
+        if (auto next_val = iter->get_next())
+        {
+            push_to_stack(*next_val);
+        }
+        else
+        {
+            // std::nullopt was returned. The iterator is exhausted.
+            frame->ip = target_ip;
+        }
+        break;
+    }
+
+    default:
+        break;
+    }
+}
+
 } // namespace Wasp

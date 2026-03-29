@@ -71,9 +71,14 @@ Object_ptr StringObject::get_iter()
 // IteratorObject
 // ============================================================================
 
+bool IteratorObject::has_next() const
+{
+    return index < vec.size();
+}
+
 std::optional<Object_ptr> IteratorObject::get_next()
 {
-    if (index < vec.size())
+    if (has_next())
     {
         return std::make_optional(vec[index++]);
     }

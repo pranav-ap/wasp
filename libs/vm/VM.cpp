@@ -125,8 +125,9 @@ void VM::run(StaticFunctionObject_ptr function_object)
             break;
         }
 
-        case OpCode::GET_ITER: {
-            // execute_get_iter(frame);
+        case OpCode::GET_ITER:
+        case OpCode::LOOP_ITER: {
+            execute_iter(instruction, frame);
             break;
         }
 

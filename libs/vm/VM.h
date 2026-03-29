@@ -53,6 +53,7 @@ class VM
 
     void execute_constant(OpCode op, CallFrame* frame);
     void execute_control_flow(OpCode op, CallFrame* frame);
+    void execute_iter(OpCode op, CallFrame* frame);
 
     void execute_variable(OpCode op, CallFrame* frame);
     void execute_build_collection(OpCode op, CallFrame* frame);
