@@ -27,7 +27,6 @@ namespace Wasp
 
 void Compiler::visit(IfTernaryBranch& expr)
 {
-    // DO NOT use enter_scope() for expressions!
     visit(expr.test);
 
     BlockId true_block = graph.create_block();
@@ -64,7 +63,6 @@ void Compiler::visit(IfTernaryBranch& expr)
 
 void Compiler::visit(ElseTernaryBranch& expr)
 {
-    // DO NOT use enter_scope() for expressions!
     visit(expr.expression);
 }
 
@@ -91,8 +89,6 @@ void Compiler::visit(IfBranch& statement)
     visit(statement.body);
     leave_scope(); // Pop Body scope
 
-    // NO CONDITION leave_scope() HERE ANYMORE!
-
     emit(OpCode::JUMP, static_cast<int>(end_block));
     graph.add_edge(true_block, end_block);
 
@@ -107,8 +103,6 @@ void Compiler::visit(IfBranch& statement)
         }
         else if (std::holds_alternative<ElseBranch>(alt_variant))
         {
-            // FIX: Removed the double enter_scope() and leave_scope() here!
-            // ElseBranch's visit() method will perfectly handle its own scope.
             visit(std::get<ElseBranch>(alt_variant));
         }
     }
@@ -118,7 +112,6 @@ void Compiler::visit(IfBranch& statement)
     // --- Converge ---
     set_current_block(end_block);
 
-    // POP CONDITION SCOPE HERE! (Both paths safely hit this)
     leave_scope();
 }
 
@@ -136,6 +129,7 @@ void Compiler::visit(ElseBranch& statement)
 void Compiler::visit(ForInLoop& statement)
 {
     visit(statement.iterable_expression);
+    emit(OpCode::GET_ITER);
 
     BlockId header = graph.create_block();
     BlockId body = graph.create_block();
@@ -183,6 +177,7 @@ void Compiler::visit(ForInLoop& statement)
     // End
     loop_tracking_stack.pop_back();
     set_current_block(end);
+
     // Clean up the iterator object
     emit(OpCode::POP);
 }
@@ -227,7 +222,6 @@ void Compiler::visit(SimpleLoop& statement)
     leave_scope(); // Pop Body scope
 
     // --- Next Iteration ---
-    // Safely emit VM cleanup instructions without deleting the compiler's tracking state!
     emit_local_cleanups(current_lexical_scope_depth - 1);
 
     emit(OpCode::JUMP, static_cast<int>(header));
@@ -236,7 +230,6 @@ void Compiler::visit(SimpleLoop& statement)
     // --- Cleanup (False path) ---
     set_current_block(cleanup_block);
 
-    // Formally close out the compiler tracking state for the loop!
     leave_scope();
 
     emit(OpCode::JUMP, static_cast<int>(end));
@@ -255,7 +248,6 @@ void Compiler::visit(LoopControl& statement)
 
     int target_depth = (statement.type == TokenType::REDO) ? body_depth : entry_depth;
 
-    // USE THE HELPER HERE:
     emit_local_cleanups(target_depth);
 
     if (statement.type == TokenType::BREAK)

@@ -118,22 +118,23 @@ for let x in [1, 2, 3] do
       B(Wasp::OpCode::LOAD_CONST),    B(val_2),
       B(Wasp::OpCode::LOAD_CONST),    B(val_3),
       B(Wasp::OpCode::BUILD_LIST),    B(3),
-      B(Wasp::OpCode::JUMP),          B(12), B(0),
+      B(Wasp::OpCode::GET_ITER),
+      B(Wasp::OpCode::JUMP),          B(13), B(0),
 
       // --- Header ---
-      B(Wasp::OpCode::LOOP_ITER),     B(26), B(0),
-      B(Wasp::OpCode::JUMP),          B(18), B(0),
+      B(Wasp::OpCode::LOOP_ITER),     B(27), B(0),
+      B(Wasp::OpCode::JUMP),          B(19), B(0),
 
       // --- Body ---
       B(Wasp::OpCode::PUSH_SCOPE),
       B(Wasp::OpCode::GET_LOCAL),     B(0),
       B(Wasp::OpCode::POP),
       B(Wasp::OpCode::POP_SCOPE),
-      B(Wasp::OpCode::JUMP),          B(12), B(0),
+      B(Wasp::OpCode::JUMP),          B(13), B(0),
 
       // --- End ---
       B(Wasp::OpCode::POP),
-      B(Wasp::OpCode::JUMP),          B(30), B(0),
+      B(Wasp::OpCode::JUMP),          B(31), B(0),
       B(Wasp::OpCode::EXIT_MODULE), B(0)
   };
     // clang-format on

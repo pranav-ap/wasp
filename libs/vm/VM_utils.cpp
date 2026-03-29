@@ -31,12 +31,13 @@ Object_ptr VM::pop_from_stack() {
     return val;
 }
 
-ObjectVector VM::pop_n_from_stack(size_t n) {
-    ObjectVector values;
-    values.reserve(n);
+ObjectVector VM::pop_n_from_stack(size_t n)
+{
+    ObjectVector values(n);
 
-    for (size_t i = 0; i < n; i++) {
-        values.push_back(pop_from_stack());
+    for (int i = n - 1; i >= 0; --i)
+    {
+        values[i] = pop_from_stack();
     }
 
     return values;

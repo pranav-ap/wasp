@@ -241,19 +241,19 @@ void Compiler::visit(Infix& expr)
 void Compiler::visit(ListLiteral& expr)
 {
     visit(expr.expressions);
-    emit(OpCode::BUILD_LIST, (int)expr.expressions.size());
+    emit(OpCode::BUILD_LIST, static_cast<int>(expr.expressions.size()));
 }
 
 void Compiler::visit(TupleLiteral& expr)
 {
     visit(expr.expressions);
-    emit(OpCode::BUILD_TUPLE, (int)expr.expressions.size());
+    emit(OpCode::BUILD_TUPLE, static_cast<int>(expr.expressions.size()));
 }
 
 void Compiler::visit(SetLiteral& expr)
 {
     visit(expr.expressions);
-    emit(OpCode::BUILD_SET, (int)expr.expressions.size());
+    emit(OpCode::BUILD_SET, static_cast<int>(expr.expressions.size()));
 }
 
 void Compiler::visit(MapLiteral& expr)
@@ -264,7 +264,7 @@ void Compiler::visit(MapLiteral& expr)
         visit(v);
     }
 
-    emit(OpCode::BUILD_MAP, (int)expr.pairs.size());
+    emit(OpCode::BUILD_MAP, static_cast<int>(expr.pairs.size()));
 }
 
 void Compiler::visit(RangeLiteral& expr)

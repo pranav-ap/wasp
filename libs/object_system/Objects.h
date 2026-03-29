@@ -180,6 +180,8 @@ struct MapObject : public CompositeObject, public IterableAbstractObject
 {
     std::map<Object_ptr, Object_ptr> pairs;
 
+    MapObject(std::map<Object_ptr, Object_ptr> pairs) : pairs(std::move(pairs)) {};
+
     Object_ptr insert(Object_ptr key, Object_ptr value);
     Object_ptr get_pair(Object_ptr key);
     Object_ptr get(Object_ptr key);
