@@ -1,0 +1,15 @@
+import my.cats
+
+cats.print_cats()
+cats.print_cats(10)
+
+if 1 > 6 then
+    print('in if branch')
+elif -1 > 0 then
+    print('in elif branch')
+else
+    print('in else branch')
+
+
+for let x in [1, 2, 3] do
+    print(x)

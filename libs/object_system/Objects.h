@@ -63,6 +63,18 @@ struct MemberedCompositeObject : public CompositeObject
     int get_member_count() const;
 };
 
+struct OverloadsSet : public CompositeObject
+{
+    ObjectVector overloads;
+
+    OverloadsSet(ObjectVector overloads) : overloads(std::move(overloads)) {};
+
+    void add_overload(Object_ptr object)
+    {
+        overloads.push_back(std::move(object));
+    }
+};
+
 struct DefinitionObject : public AbstractObject
 {
     std::string name;
@@ -117,7 +129,7 @@ struct IteratorObject : public CompositeObject
 
 struct ListObject : public CompositeObject, public IterableAbstractObject
 {
-    std::vector<Object_ptr> values;
+    ObjectVector values;
 
     ListObject(ObjectVector values);
 
@@ -222,7 +234,7 @@ struct RuntimeFunctionObject
 
 using RuntimeFunctionObject_ptr = std::shared_ptr<RuntimeFunctionObject>;
 
-using NativeFnType = std::function<Object_ptr(const std::vector<Object_ptr>&)>;
+using NativeFnType = std::function<Object_ptr(const ObjectVector&)>;
 
 struct NativeFunctionObject : public CompositeObject
 {
@@ -233,18 +245,6 @@ struct NativeFunctionObject : public CompositeObject
     NativeFunctionObject(NativeFnType function, int arity, std::string name)
         : function(std::move(function)), arity(arity), name(name)
     {
-    }
-};
-
-struct OverloadsSet : public CompositeObject
-{
-    ObjectVector overloads;
-
-    OverloadsSet(ObjectVector overloads) : overloads(std::move(overloads)) {};
-
-    void add_overload(Object_ptr object)
-    {
-        overloads.push_back(std::move(object));
     }
 };
 
