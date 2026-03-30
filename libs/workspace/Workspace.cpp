@@ -40,6 +40,28 @@ SymbolVector OverloadGroupData::get_all_overloads() const
     return all_overloads;
 }
 
+bool OverloadGroupData::is_native() const
+{
+    for (const auto& sibling : siblings)
+    {
+        if (sibling->payload_is<FunctionData>() &&
+            sibling->get_payload_as<FunctionData>().is_native)
+        {
+            return true;
+        }
+    }
+
+    for (const auto& parent : parents)
+    {
+        if (parent->payload_is<FunctionData>() && parent->get_payload_as<FunctionData>().is_native)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 // --------------------------------------------------------------------
 // Symbol
 // --------------------------------------------------------------------

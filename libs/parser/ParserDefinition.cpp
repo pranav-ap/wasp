@@ -1,11 +1,10 @@
+#include "AST.h"
 #include "Doctor.h"
-#include "Expression.h"
 #include "Parser.h"
 #include "Statement.h"
 #include "Token.h"
 #include "TypeAnnotation.h"
 
-#include <iostream>
 #include <map>
 #include <memory>
 #include <optional>
@@ -22,11 +21,7 @@
 #define MAKE_RECURSIVE_TYPE(T, ...)                                                                \
     std::make_shared<TypeAnnotation>(std::make_shared<T>(__VA_ARGS__))
 
-using std::cout;
-using std::endl;
 using std::make_pair;
-using std::make_shared;
-using std::move;
 using std::optional;
 
 namespace Wasp {

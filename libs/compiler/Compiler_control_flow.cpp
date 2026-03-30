@@ -22,30 +22,42 @@ namespace Wasp
 {
 
 // -----------------------------------------------------------------------
-// Control Flow
+// Ternary Branch
 // -----------------------------------------------------------------------
 
 void Compiler::visit(IfTernaryBranch& expr)
 {
-    visit(expr.test);
-
+    BlockId test_block = graph.create_block();
     BlockId true_block = graph.create_block();
     BlockId false_block = graph.create_block();
     BlockId end_block = graph.create_block();
 
-    emit(OpCode::JUMP_IF_FALSE, static_cast<int>(false_block));
-    emit(OpCode::JUMP, static_cast<int>(true_block));
-    graph.add_edge(current_block_id, true_block);
-    graph.add_edge(current_block_id, false_block);
-
-    // --- True Branch ---
-    set_current_block(true_block);
-    visit(expr.true_expression);
-    emit(OpCode::JUMP, static_cast<int>(end_block));
+    graph.add_edge(current_block_id, test_block);
+    graph.add_edge(test_block, true_block);
+    graph.add_edge(test_block, false_block);
     graph.add_edge(true_block, end_block);
+    graph.add_edge(false_block, end_block);
 
-    // --- False Branch ---
+    set_current_block(test_block);
+    enter_scope("test");
+    visit(expr.test);
+
+    emit(OpCode::JUMP_IF_FALSE, static_cast<int>(false_block));
+
+    set_current_block(true_block);
+    enter_scope("true branch");
+    visit(expr.true_expression);
+
+    leave_scope_keep_tos("true branch keep TOS");
+    leave_scope_keep_tos("test");
+
+    emit(OpCode::JUMP, static_cast<int>(end_block));
+
     set_current_block(false_block);
+    leave_scope("true branch");
+    leave_scope("test");
+    enter_scope("false branch");
+
     if (expr.alternative)
     {
         visit(expr.alternative);
@@ -54,10 +66,10 @@ void Compiler::visit(IfTernaryBranch& expr)
     {
         emit(OpCode::LOAD_NONE);
     }
-    emit(OpCode::JUMP, static_cast<int>(end_block));
-    graph.add_edge(false_block, end_block);
 
-    // --- Converge ---
+    leave_scope_keep_tos("false branch keep TOS");
+    emit(OpCode::JUMP, static_cast<int>(end_block));
+
     set_current_block(end_block);
 }
 
@@ -65,6 +77,10 @@ void Compiler::visit(ElseTernaryBranch& expr)
 {
     visit(expr.expression);
 }
+
+// -----------------------------------------------------------------------
+// Conditional Branch
+// -----------------------------------------------------------------------
 
 void Compiler::visit(IfBranch& statement)
 {
@@ -140,6 +156,7 @@ void Compiler::visit(ForInLoop& statement)
 
     // --- Header ---
     set_current_block(header);
+    enter_scope();
 
     emit(OpCode::LOOP_ITER, static_cast<int>(end));
     emit(OpCode::JUMP, static_cast<int>(body));
@@ -152,7 +169,6 @@ void Compiler::visit(ForInLoop& statement)
 
     // --- Body ---
     set_current_block(body);
-    enter_scope();
 
     if (statement.lhs->is<Identifier>())
     {

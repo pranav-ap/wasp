@@ -59,6 +59,8 @@ struct OverloadGroupData : public TypedSymbolData
 
     SymbolVector get_all_overloads() const;
     int get_overload_index(const Symbol_ptr& target) const;
+
+    bool is_native() const;
 };
 
 struct ClassData : public TypedSymbolData

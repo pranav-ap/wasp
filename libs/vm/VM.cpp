@@ -104,7 +104,8 @@ void VM::run(StaticFunctionObject_ptr function_object)
         }
 
         case OpCode::PUSH_SCOPE:
-        case OpCode::POP_SCOPE: {
+        case OpCode::POP_SCOPE:
+        case OpCode::POP_SCOPE_KEEP_TOS: {
             execute_scope_op(instruction, frame);
             break;
         }

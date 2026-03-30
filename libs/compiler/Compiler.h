@@ -64,8 +64,9 @@ private:
     // Scope
     // -----------------------------------------------------------------------
 
-    void enter_scope();
-    void leave_scope();
+    void enter_scope(std::string comment = "");
+    void leave_scope(std::string comment = "");
+    void leave_scope_keep_tos(std::string comment = "");
 
     // -----------------------------------------------------------------------
     // Emit

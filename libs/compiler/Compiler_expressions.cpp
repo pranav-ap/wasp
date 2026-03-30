@@ -308,19 +308,9 @@ void Compiler::visit(Identifier& expr)
 
     bool is_native = false;
 
-    if (symbol->payload_is<FunctionData>())
+    if (symbol->payload_is<OverloadGroupData>())
     {
-        is_native = symbol->get_payload_as<FunctionData>().is_native;
-    }
-    else if (symbol->payload_is<OverloadGroupData>())
-    {
-        const auto& siblings = symbol->get_payload_as<OverloadGroupData>().siblings;
-
-        // Native functions are never overloaded
-        if (!siblings.empty() && siblings.front()->payload_is<FunctionData>())
-        {
-            is_native = siblings.front()->get_payload_as<FunctionData>().is_native;
-        }
+        is_native = symbol->get_payload_as<OverloadGroupData>().is_native();
     }
 
     if (is_native)
@@ -336,15 +326,15 @@ void Compiler::visit(Identifier& expr)
     }
     else
     {
-        int physical_index = resolve_local(symbol->id);
+        int stack_index = resolve_local(symbol->id);
 
         Doctor::get().assert(
-            physical_index != -1,
+            stack_index != -1,
             WaspStage::Compiler,
             "Attempted to read an unresolved local variable: " + symbol->name
         );
 
-        emit(OpCode::GET_LOCAL, physical_index, symbol->name);
+        emit(OpCode::GET_LOCAL, stack_index, symbol->name);
     }
 }
 
@@ -387,15 +377,15 @@ void Compiler::compile_identifier_assignment(Identifier& id, const Expression_pt
     }
     else
     {
-        int physical_index = resolve_local(symbol->id);
+        int stack_index = resolve_local(symbol->id);
 
         Doctor::get().assert(
-            physical_index != -1,
+            stack_index != -1,
             WaspStage::Compiler,
             "Attempted to assign to an unresolved local variable: " + symbol->name
         );
 
-        emit(OpCode::SET_LOCAL, physical_index, symbol->name);
+        emit(OpCode::SET_LOCAL, stack_index, symbol->name);
     }
 }
 
@@ -407,7 +397,6 @@ void Compiler::compile_member_assignment(MemberAccess& mac, const Expression_ptr
     // Evaluate the value second (Stack: [obj, val])
     visit(rhs);
 
-    // Extract the property name
     Doctor::get().assert(
         mac.right->is<Identifier>(),
         WaspStage::Compiler,

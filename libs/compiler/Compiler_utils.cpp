@@ -17,25 +17,45 @@ namespace Wasp
 // Scope
 // ------------------------------------------------------------------------
 
-void Compiler::enter_scope()
+void Compiler::enter_scope(std::string comment)
 {
-    emit(OpCode::PUSH_SCOPE);
+    emit(OpCode::PUSH_SCOPE, std::move(comment));
     current_lexical_scope_depth++;
 }
 
-void Compiler::leave_scope()
+void Compiler::leave_scope(std::string comment)
 {
     while (!locals.empty() && locals.back()->lexical_depth == current_lexical_scope_depth)
     {
-        // Add a comment so the printer shows WHICH variable is being popped
-        std::string var_name = locals.back()->name;
         locals.pop_back();
-
-        emit(OpCode::POP, "pop " + var_name);
     }
 
-    emit(OpCode::POP_SCOPE);
+    emit(OpCode::POP_SCOPE, std::move(comment));
     current_lexical_scope_depth--;
+}
+
+void Compiler::leave_scope_keep_tos(std::string comment)
+{
+    Symbol_ptr tos = nullptr;
+
+    if (!locals.empty() && locals.back()->lexical_depth == current_lexical_scope_depth)
+    {
+        tos = locals.back();
+    }
+
+    while (!locals.empty() && locals.back()->lexical_depth == current_lexical_scope_depth)
+    {
+        locals.pop_back();
+    }
+
+    emit(OpCode::POP_SCOPE_KEEP_TOS, std::move(comment));
+    current_lexical_scope_depth--;
+
+    if (tos)
+    {
+        tos->lexical_depth = current_lexical_scope_depth;
+        locals.push_back(tos);
+    }
 }
 
 // ------------------------------------------------------------------------
@@ -49,12 +69,12 @@ int Compiler::resolve_local(int symbol_id)
     {
         if (locals[i]->id == symbol_id)
         {
-            // This is the physical stack index
+            // This is the stack index
             return i;
         }
     }
 
-    // Not a local variable (must be an upvalue, native)
+    // Not a variable on stack
     return -1;
 }
 
@@ -119,8 +139,6 @@ int Compiler::resolve_upvalue(Compiler* current_compiler, Symbol_ptr symbol)
 void Compiler::emit_raw_byte(std::byte b)
 {
     ByteVector bv = {b};
-    // The push method will automatically add the empty string padding
-    // to the comments vector to keep everything aligned!
     graph.get_block(current_block_id).get_code().push(bv);
 }
 
@@ -161,7 +179,7 @@ void Compiler::emit_local_cleanups(int target_depth)
     // Tell the VM to physically POP them!
     for (int i = 0; i < locals_to_pop; ++i)
     {
-        emit(OpCode::POP, "branch bypass local cleanup");
+        emit(OpCode::POP, "local cleanup");
     }
 
     // Now safe to pop the scope frames
@@ -201,15 +219,13 @@ void Compiler::resolve_jumps_in_block(
     {
         OpCode op = static_cast<OpCode>(data[ip]);
 
-        // Skip over function definitions
         if (op == OpCode::MAKE_FUNCTION)
         {
             ip += 2 + (static_cast<int>(data[ip + 1]) * 2);
             continue;
         }
 
-        // Fix Jump Targets
-        if (op == OpCode::JUMP || op == OpCode::JUMP_IF_FALSE || op == OpCode::LOOP_ITER)
+        if (get_opcode_arity(op) == 2)
         {
             BlockId target = static_cast<BlockId>(
                 static_cast<uint8_t>(data[ip + 1]) | (static_cast<uint8_t>(data[ip + 2]) << 8)
@@ -217,7 +233,6 @@ void Compiler::resolve_jumps_in_block(
 
             size_t absolute_offset = offsets.at(target);
 
-            // Use replace to update the bytes without touching the comments
             code.replace(ip + 1, static_cast<std::byte>(absolute_offset & 0xFF));
             code.replace(ip + 2, static_cast<std::byte>((absolute_offset >> 8) & 0xFF));
         }

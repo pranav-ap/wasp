@@ -347,7 +347,6 @@ struct MemberedCompositeType : public CompositeType
 // Scalar Types
 struct IntType : public ScalarType
 {
-    std::string name = "int";
 };
 struct FloatType : public ScalarType
 {

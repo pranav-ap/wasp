@@ -650,7 +650,10 @@ Object_ptr TypeChecker::spread_type(Object_ptr type)
     );
 }
 
-Object_ptr TypeChecker::extract_iterable_element(SymbolScope_ptr scope, const Object_ptr type) const
+Object_ptr TypeChecker::extract_iterable_element_type(
+    SymbolScope_ptr scope,
+    const Object_ptr type
+) const
 {
     if (!type)
         return MAKE_OBJECT_VARIANT(AnyType());
@@ -660,7 +663,7 @@ Object_ptr TypeChecker::extract_iterable_element(SymbolScope_ptr scope, const Ob
         auto& variant = type->as<VariantType>();
         ObjectVector extracted_elements;
         for (const auto& t : variant.types)
-            extracted_elements.push_back(extract_iterable_element(scope, t));
+            extracted_elements.push_back(extract_iterable_element_type(scope, t));
 
         ObjectVector unique_elements = remove_duplicates(scope, extracted_elements);
         return unique_elements.size() == 1 ? unique_elements[0]
@@ -736,6 +739,7 @@ bool TypeChecker::is_condition_type(SymbolScope_ptr scope, const Object_ptr cond
 {
     if (!condition_type)
         return false;
+
     return std::visit(
         ::overloaded{
             [](BooleanType const&)

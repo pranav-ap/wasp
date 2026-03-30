@@ -59,7 +59,6 @@ void InstructionPrinter::print_pool_functions(std::ostream& out)
     }
 }
 
-// Helper for Arity 0 instructions
 string InstructionPrinter::stringify_instruction(byte opcode, const std::string& comment)
 {
     std::stringstream ss;
@@ -130,7 +129,9 @@ string InstructionPrinter::stringify_instruction(
 
     ss << std::left << setw(OPCODE_WIDTH) << stringify_opcode(opcode) << " ";
 
-    if (op == OpCode::JUMP || op == OpCode::JUMP_IF_FALSE || op == OpCode::LOOP_ITER)
+    auto arity = get_opcode_arity(op);
+
+    if (arity == 2)
     {
         int target_offset = std::to_integer<int>(op1) | (std::to_integer<int>(op2) << 8);
         ss << std::right << setw(OPERAND_WIDTH) << target_offset << " ";
@@ -192,7 +193,7 @@ void InstructionPrinter::print_bytecode(const CodeObject& code, std::ostream& ou
         }
 
         auto instruction = code.instruction_at(index);
-        int arity = static_cast<int>(instruction.size()) - 1;
+        int arity = get_opcode_arity(op);
 
         if (arity == 0)
         {
@@ -214,6 +215,7 @@ void InstructionPrinter::print_bytecode(const CodeObject& code, std::ostream& ou
 void InstructionPrinter::print(const Object_ptr obj, std::ostream& out)
 {
     Doctor::get().fatal_if_nullptr(obj, WaspStage::Compiler, "Cannot print a null object");
+
     Doctor::get().assert(
         obj->is<StaticFunctionObject_ptr>(),
         WaspStage::Compiler,

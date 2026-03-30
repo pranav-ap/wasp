@@ -38,7 +38,6 @@ public:
     void push(const CodeObject& other);
 
     void replace(std::size_t index, std::byte replacement);
-    void set(ByteVector instrs);
 
     void emit(OpCode opcode, std::string comment = "");
     void emit(OpCode opcode, int operand, std::string comment = "");

@@ -77,7 +77,7 @@ public:
     Object_ptr infer(SymbolScope_ptr scope, Object_ptr left_type, TokenType op);
 
     Object_ptr spread_type(Object_ptr type);
-    Object_ptr extract_iterable_element(SymbolScope_ptr scope, const Object_ptr type) const;
+    Object_ptr extract_iterable_element_type(SymbolScope_ptr scope, const Object_ptr type) const;
 
     // Type Checks
 

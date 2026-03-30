@@ -1,55 +1,77 @@
-#include "SemanticAnalyzer.h"
 #include "Doctor.h"
 #include "Expression.h"
 #include "Objects.h"
+#include "SemanticAnalyzer.h"
 #include "Statement.h"
 
 #include "SymbolScope.h"
+#include "Workspace.h"
 
 #include <ctime>
 #include <memory>
 #include <string>
 
-#define MAKE_OBJECT_VARIANT(x) std::make_shared<Object>(x)
-
-template <class... Ts> struct overloaded : Ts... {
+template <class... Ts> struct overloaded : Ts...
+{
     using Ts::operator()...;
 };
 template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
-namespace Wasp {
-Object_ptr SemanticAnalyzer::visit(IfTernaryBranch& expr) {
+namespace Wasp
+{
+Object_ptr SemanticAnalyzer::visit(IfTernaryBranch& expr)
+{
     enter_scope(ScopeType::BRANCH);
 
     Object_ptr cond_type = visit(expr.test);
     type_checker->expect_condition_type(current_scope, cond_type);
 
     Object_ptr then_type = visit(expr.true_expression);
-    leave_scope();
 
-    if (expr.alternative) {
+    if (expr.alternative)
+    {
         Object_ptr else_type = visit(expr.alternative);
-        ObjectVector unique_types =
-            type_checker->remove_duplicates(current_scope, {then_type, else_type});
 
-        if (unique_types.size() == 1) {
+        ObjectVector unique_types = type_checker->remove_duplicates(
+            current_scope,
+            {then_type, else_type}
+        );
+
+        leave_scope();
+
+        if (unique_types.size() == 1)
+        {
             return unique_types[0];
         }
 
-        return MAKE_OBJECT_VARIANT(VariantType(unique_types));
+        return make_object(VariantType(unique_types));
     }
 
-    Object_ptr none_type = MAKE_OBJECT_VARIANT(NoneType());
-    ObjectVector unique_types =
-        type_checker->remove_duplicates(current_scope, {then_type, none_type});
+    Object_ptr none_type = make_object(NoneType());
+
+    ObjectVector unique_types = type_checker->remove_duplicates(
+        current_scope,
+        {then_type, none_type}
+    );
+
+    leave_scope();
 
     if (unique_types.size() == 1)
+    {
         return unique_types[0];
+    }
 
-    return MAKE_OBJECT_VARIANT(VariantType(unique_types));
+    return make_object(VariantType(unique_types));
 }
 
-void SemanticAnalyzer::visit(IfBranch& statement) {
+Object_ptr SemanticAnalyzer::visit(ElseTernaryBranch& expr)
+{
+    Object_ptr type = visit(expr.expression);
+    return type;
+}
+
+void SemanticAnalyzer::visit(IfBranch& statement)
+{
     enter_scope(ScopeType::BRANCH);
 
     Object_ptr cond_type = visit(statement.test);
@@ -58,43 +80,44 @@ void SemanticAnalyzer::visit(IfBranch& statement) {
     visit(statement.body);
     leave_scope();
 
-    if (statement.alternative) {
+    if (statement.alternative)
+    {
         visit(*statement.alternative);
     }
 }
 
-Object_ptr SemanticAnalyzer::visit(ElseTernaryBranch& expr) {
-    enter_scope(ScopeType::BRANCH);
-    Object_ptr type = visit(expr.expression);
-    leave_scope();
-
-    return type;
-}
-
-void SemanticAnalyzer::visit(ElseBranch& statement) {
+void SemanticAnalyzer::visit(ElseBranch& statement)
+{
     enter_scope(ScopeType::BRANCH);
     visit(statement.body);
     leave_scope();
 }
 
-void SemanticAnalyzer::visit(Pass& statement) {}
+void SemanticAnalyzer::visit(Pass& statement)
+{
+}
 
 // ---------------------------------------------------------------------------
 // Loops
 // ---------------------------------------------------------------------------
 
-void SemanticAnalyzer::visit(SimpleLoop& statement) {
+void SemanticAnalyzer::visit(SimpleLoop& statement)
+{
     visit(statement.condition);
     enter_scope(ScopeType::LOOP);
     visit(statement.body);
     leave_scope();
 }
 
-void SemanticAnalyzer::visit(ForInLoop& loop_stmt) {
+void SemanticAnalyzer::visit(ForInLoop& loop_stmt)
+{
     Object_ptr iterable_type = visit(loop_stmt.iterable_expression);
     type_checker->expect_iterable_type(current_scope, iterable_type);
 
-    Object_ptr element_type = MAKE_OBJECT_VARIANT(AnyType());
+    Object_ptr element_type = type_checker->extract_iterable_element_type(
+        current_scope,
+        iterable_type
+    );
 
     enter_scope(ScopeType::LOOP);
 
@@ -123,7 +146,8 @@ void SemanticAnalyzer::visit(ForInLoop& loop_stmt) {
     leave_scope();
 }
 
-void SemanticAnalyzer::visit(LoopControl& statement) {
+void SemanticAnalyzer::visit(LoopControl& statement)
+{
     SymbolScope_ptr scope = current_scope;
 
     Doctor::get().assert(

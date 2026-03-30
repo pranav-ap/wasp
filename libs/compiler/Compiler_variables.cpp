@@ -57,11 +57,6 @@ void Compiler::compile_variable_definition(const Expression_ptr& assignment, boo
 
     visit(rhs);
 
-    if (as_expression)
-    {
-        emit(OpCode::DUP);
-    }
-
     Doctor::get().assert(
         lhs->is<Identifier>(),
         WaspStage::Compiler,

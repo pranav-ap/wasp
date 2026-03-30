@@ -183,11 +183,7 @@ void VM::execute_call(CallFrame* frame)
                 );
 
                 // Collect arguments
-                std::vector<Object_ptr> args(arg_count);
-                for (int i = arg_count - 1; i >= 0; i--)
-                {
-                    args[i] = pop_from_stack();
-                }
+                ObjectVector args = pop_n_from_stack(arg_count);
 
                 // Remove the native function object itself
                 pop_from_stack();

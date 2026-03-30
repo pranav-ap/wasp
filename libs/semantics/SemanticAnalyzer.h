@@ -157,6 +157,7 @@ class SemanticAnalyzer
 
     void enter_scope(ScopeType scope_type);
     void leave_scope();
+    void leave_scope_keep_symbol(Symbol_ptr symbol_to_keep);
 
     void register_natives();
     void extract_module_type(Module_ptr module);

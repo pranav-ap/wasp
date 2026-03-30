@@ -21,19 +21,15 @@ std::size_t CodeObject::length() const
 void CodeObject::push(const ByteVector& instruction)
 {
     instructions.insert(instructions.end(), instruction.begin(), instruction.end());
-
-    // Synchronize comments by adding empty strings for every new byte
     comments.resize(instructions.size(), "");
 }
 
 void CodeObject::push(const CodeObject& other)
 {
-    // Append the instructions
     const std::byte* other_data = other.data();
     for (size_t i = 0; i < other.length(); ++i)
     {
         instructions.push_back(other_data[i]);
-        // Append the comments 1:1
         comments.push_back(other.get_comment_at(i));
     }
 }
@@ -43,19 +39,13 @@ void CodeObject::replace(std::size_t index, std::byte replacement)
     instructions.at(index) = replacement;
 }
 
-void CodeObject::set(ByteVector instrs)
-{
-    instructions = std::move(instrs);
-    // Synchronize comments size
-    comments.assign(instructions.size(), "");
-}
-
 std::string CodeObject::get_comment_at(std::size_t index) const
 {
     if (index < comments.size())
     {
         return comments[index];
     }
+
     return "";
 }
 
@@ -67,36 +57,37 @@ void CodeObject::emit(OpCode opcode, std::string comment)
 
 void CodeObject::emit(OpCode opcode, int operand, std::string comment)
 {
-    // The comment is attached to the opcode byte
     instructions.push_back(static_cast<std::byte>(opcode));
     comments.push_back(std::move(comment));
 
-    if (opcode == OpCode::JUMP || opcode == OpCode::JUMP_IF_FALSE || opcode == OpCode::LOOP_ITER)
+    int arity = Wasp::get_opcode_arity(opcode);
+
+    if (arity == 2)
     {
+        // 16-bit encoding
         Doctor::get().assert(
             operand >= 0 && operand <= 65535,
             WaspStage::Compiler,
-            "Operand out of range for jump instruction"
+            "16-bit Operand out of range"
         );
 
-        // Low byte
         instructions.push_back(static_cast<std::byte>(operand & 0xFF));
         comments.push_back("");
 
-        // High byte
         instructions.push_back(static_cast<std::byte>((operand >> 8) & 0xFF));
         comments.push_back("");
     }
-    else
+    else if (arity == 1)
     {
+        // 8-bit encoding
         Doctor::get().assert(
             operand >= 0 && operand <= 255,
             WaspStage::Compiler,
-            "Operand out of range for 8-bit instruction"
+            "8-bit Operand out of range"
         );
 
         instructions.push_back(static_cast<std::byte>(operand));
-        comments.push_back(""); // Padding for operand byte
+        comments.push_back("");
     }
 }
 
@@ -113,17 +104,14 @@ void CodeObject::emit(OpCode opcode, int operand_1, int operand_2, std::string c
         "Operand 2 out of range for 8-bit encoding"
     );
 
-    // Opcode gets the comment
     instructions.push_back(static_cast<std::byte>(opcode));
     comments.push_back(std::move(comment));
 
-    // Operand 1 gets padding
     instructions.push_back(static_cast<std::byte>(operand_1));
     comments.push_back("");
 
     // Operand 2 gets padding
     instructions.push_back(static_cast<std::byte>(operand_2));
-    comments.push_back("");
 }
 
 ByteVector CodeObject::instruction_at(std::size_t index) const

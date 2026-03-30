@@ -1,2 +1,1 @@
-for x in [1, 2, 3] do
-    print(x)
+if let x = true then 3 else 1

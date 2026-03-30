@@ -27,14 +27,15 @@ using ByteVector = std::vector<std::byte>;
     X(LOAD_NONE, 0)  /* [] -> [none] */                                                            \
                                                                                                    \
     /* --- Variables & Scoping --- */                                                              \
-    X(SET_LOCAL, 1)     /* [val] -> [] | <Symbol ID> (Assign to existing local) */                 \
-    X(GET_LOCAL, 1)     /* [] -> [val] | <Symbol ID> (Read local onto stack) */                    \
-    X(GET_NATIVE, 1)    /* [] -> [val] | <Symbol ID> */                                            \
-    X(SET_MEMBER, 1)    /* [obj, val] -> [] | <Member ID>  */                                      \
-    X(GET_MEMBER, 1)    /* [obj] -> [val] | <Member ID>  */                                        \
-    X(PUSH_SCOPE, 0)    /* Enter new lexical block scope */                                        \
-    X(POP_SCOPE, 0)     /* Exit current lexical block scope */                                     \
-    X(IMPORT_MODULE, 1) /* [] -> [Module] | <Module Index> */                                      \
+    X(SET_LOCAL, 1)          /* [val] -> [] | <Symbol ID> (Assign to existing local) */            \
+    X(GET_LOCAL, 1)          /* [] -> [val] | <Symbol ID> (Read local onto stack) */               \
+    X(GET_NATIVE, 1)         /* [] -> [val] | <Symbol ID> */                                       \
+    X(SET_MEMBER, 1)         /* [obj, val] -> [] | <Member ID>  */                                 \
+    X(GET_MEMBER, 1)         /* [obj] -> [val] | <Member ID>  */                                   \
+    X(PUSH_SCOPE, 0)         /* Enter new lexical block scope */                                   \
+    X(POP_SCOPE, 0)          /* Exit current lexical block scope */                                \
+    X(POP_SCOPE_KEEP_TOS, 0) /* Exit current lexical block scope, preserving Top Of Stack */       \
+    X(IMPORT_MODULE, 1)      /* [] -> [Module] | <Module Index> */                                 \
                                                                                                    \
     /* --- Functions, Overloads & Closures --- */                                                  \
     X(MAKE_FUNCTION, 1)     /* [code] -> [func] | <number of upvalues */                           \
@@ -69,7 +70,7 @@ using ByteVector = std::vector<std::byte>;
     /* --- Control Flow --- */                                                                     \
     X(JUMP, 2)          /* <Offset> | Unconditional jump forward/backward */                       \
     X(JUMP_IF_FALSE, 2) /* <Offset> | Jump if TOS is false */                                      \
-    X(LOOP_ITER, 2)     /* <Offset> | GET_NEXT_OR_JUMP over loop body */                           \
+    X(LOOP_ITER, 2)     /* <Offset> */                                                             \
                                                                                                    \
     /* --- Data Structures --- */                                                                  \
     X(BUILD_LIST, 1)  /* [v1...vn] -> [list] | <Count> (Number of items to pop) */                 \
