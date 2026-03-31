@@ -222,10 +222,14 @@ void VM::execute_iter(OpCode op, CallFrame* frame)
     }
 
     case OpCode::LOOP_ITER: {
+        // Read the 16-bit jump target offset (used if the iterator is exhausted)
+        uint8_t low = static_cast<uint8_t>(frame->consume_byte());
+        uint8_t high = static_cast<uint8_t>(frame->consume_byte());
+        uint16_t target_ip = low | (high << 8);
+
         // The iterator must stay on the stack until the loop ends
         Object_ptr iterator_obj = peek_tos();
 
-        // does not work
         auto iter = iterator_obj->as<std::shared_ptr<IteratorObject>>();
 
         if (auto next_val = iter->get_next())
@@ -234,10 +238,6 @@ void VM::execute_iter(OpCode op, CallFrame* frame)
         }
         else
         {
-            // Read the 16-bit jump target offset (used if the iterator is exhausted)
-            uint8_t low = static_cast<uint8_t>(frame->consume_byte());
-            uint8_t high = static_cast<uint8_t>(frame->consume_byte());
-            uint16_t target_ip = low | (high << 8);
 
             // std::nullopt was returned. The iterator is exhausted.
             frame->ip = target_ip;

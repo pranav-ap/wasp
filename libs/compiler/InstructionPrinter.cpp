@@ -14,7 +14,7 @@
 
 #define OPCODE_WIDTH 18
 #define OPERAND_WIDTH 5
-#define METADATA_WIDTH 25
+#define METADATA_WIDTH 15
 
 using std::byte;
 using std::setw;
@@ -129,13 +129,11 @@ string InstructionPrinter::stringify_instruction(
 
     ss << std::left << setw(OPCODE_WIDTH) << stringify_opcode(opcode) << " ";
 
-    auto arity = get_opcode_arity(op);
-
-    if (arity == 2)
+    if (op == OpCode::JUMP || op == OpCode::JUMP_IF_FALSE || op == OpCode::LOOP_ITER)
     {
         int target_offset = std::to_integer<int>(op1) | (std::to_integer<int>(op2) << 8);
         ss << std::right << setw(OPERAND_WIDTH) << target_offset << " ";
-        ss << std::left << setw(METADATA_WIDTH) << " "; // Empty metadata column
+        ss << std::left << setw(METADATA_WIDTH) << " ";
     }
     else
     {

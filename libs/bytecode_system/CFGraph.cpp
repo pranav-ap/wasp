@@ -60,9 +60,7 @@ void CodeObject::emit(OpCode opcode, int operand, std::string comment)
     instructions.push_back(static_cast<std::byte>(opcode));
     comments.push_back(std::move(comment));
 
-    int arity = Wasp::get_opcode_arity(opcode);
-
-    if (arity == 2)
+    if (opcode == OpCode::JUMP || opcode == OpCode::JUMP_IF_FALSE || opcode == OpCode::LOOP_ITER)
     {
         // 16-bit encoding
         Doctor::get().assert(
@@ -77,7 +75,7 @@ void CodeObject::emit(OpCode opcode, int operand, std::string comment)
         instructions.push_back(static_cast<std::byte>((operand >> 8) & 0xFF));
         comments.push_back("");
     }
-    else if (arity == 1)
+    else
     {
         // 8-bit encoding
         Doctor::get().assert(

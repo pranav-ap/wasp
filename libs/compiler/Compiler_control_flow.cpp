@@ -136,63 +136,55 @@ void Compiler::visit(ElseBranch& statement)
 }
 
 // ============================================================================
-// Control Flow: Loops
+// Loops
 // ============================================================================
 
 void Compiler::visit(ForInLoop& statement)
 {
-    visit(statement.iterable_expression);
-    emit(OpCode::GET_ITER);
-
     BlockId header = graph.create_block();
     BlockId body = graph.create_block();
     BlockId end = graph.create_block();
 
-    emit(OpCode::JUMP, static_cast<int>(header));
     graph.add_edge(current_block_id, header);
-
-    // --- Header ---
-    set_current_block(header);
-    enter_scope();
-
-    emit(OpCode::LOOP_ITER, static_cast<int>(end));
-    emit(OpCode::JUMP, static_cast<int>(body));
-
     graph.add_edge(header, body);
     graph.add_edge(header, end);
+    graph.add_edge(body, header);
+
+    visit(statement.iterable_expression);
+    emit(OpCode::GET_ITER);
+
+    set_current_block(header);
+    enter_scope("For Loop Header and Body");
+
+    emit(OpCode::LOOP_ITER, static_cast<int>(end));
+
+    Doctor::get().assert(
+        statement.lhs->is<Identifier>(),
+        WaspStage::Compiler,
+        "For-in loop variable must be an identifier."
+    );
+
+    auto symbol = statement.lhs->as<Identifier>().symbol;
+    Doctor::get().fatal_if_nullptr(symbol, WaspStage::Compiler);
+    locals.push_back(symbol);
+
+    emit(OpCode::JUMP, static_cast<int>(body));
 
     loop_tracking_stack
         .emplace_back(header, body, end, current_lexical_scope_depth, current_lexical_scope_depth);
 
-    // --- Body ---
     set_current_block(body);
 
-    if (statement.lhs->is<Identifier>())
-    {
-        auto symbol = statement.lhs->as<Identifier>().symbol;
-        if (symbol)
-        {
-            locals.push_back(symbol);
-        }
-    }
-    else
-    {
-        Doctor::get().fatal(WaspStage::Compiler, "For-in loop LHS must be a simple Identifier");
-    }
-
     visit(statement.body);
-    leave_scope();
-
-    // Loop Back
+    leave_scope("For Loop Header and Body");
     emit(OpCode::JUMP, static_cast<int>(header));
-    graph.add_edge(body, header);
 
-    // End
     loop_tracking_stack.pop_back();
+
     set_current_block(end);
 
     // Clean up the iterator object
-    emit(OpCode::POP);
+    emit(OpCode::POP, "remove iterator object");
 }
 
 void Compiler::visit(SimpleLoop& statement)
@@ -279,6 +271,10 @@ void Compiler::visit(LoopControl& statement)
         graph.add_edge(current_block_id, body);
     }
 }
+
+// ============================================================================
+// Other
+// ============================================================================
 
 void Compiler::visit(Pass& statement)
 {

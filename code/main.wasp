@@ -1,8 +1,2 @@
-fun max(a: int, b: int) => int
-    if a > b then
-        return a
-    else
-        return b
-
-
-print(max(51, 10))
+for x in [1, 2, 3] do
+    print(x)
