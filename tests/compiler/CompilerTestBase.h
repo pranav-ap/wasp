@@ -4,7 +4,6 @@
 #include "Compiler.h"
 #include "ConstantPool.h"
 #include "InstructionPrinter.h"
-#include "NativeRegistry.h"
 #include "Objects.h"
 #include "OpCode.h"
 #include "SemanticAnalyzer.h"
@@ -18,7 +17,6 @@
 #include <gtest/gtest.h>
 #include <memory>
 #include <string>
-#include <utility>
 #include <vector>
 
 class CompilerTestBase : public ::testing::Test {
