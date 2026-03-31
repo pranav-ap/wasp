@@ -1,6 +1,7 @@
-if false then
-    print(25)
-elif true then
-    print(25)
-else
-    print(25)
+let x = 1
+
+while x < 5 do
+    if x % 2 == 0 then
+        print(x)
+
+    x = x + 1

@@ -23,7 +23,7 @@ namespace Wasp
 
         register_infix_left(TokenType::STAR, Precedence::PRODUCT);
         register_infix_left(TokenType::DIVISION, Precedence::PRODUCT);
-        register_infix_left(TokenType::REMINDER, Precedence::PRODUCT);
+        register_infix_left(TokenType::MOD, Precedence::PRODUCT);
 
         register_infix_left(TokenType::EQUAL_EQUAL, Precedence::EQUALITY);
         register_infix_left(TokenType::BANG_EQUAL, Precedence::EQUALITY);

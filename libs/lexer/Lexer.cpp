@@ -240,9 +240,9 @@ Token Lexer::consume_division() {
 Token Lexer::consume_reminder() {
     next();
     if (expect_current_char('=')) {
-        return Token(TokenType::REMINDER_EQUAL, "%=", LINE_NUM, COL_NUM);
+        return Token(TokenType::MOD_EQUAL, "%=", LINE_NUM, COL_NUM);
     }
-    return Token(TokenType::REMINDER, "%", LINE_NUM, COL_NUM);
+    return Token(TokenType::MOD, "%", LINE_NUM, COL_NUM);
 }
 
 Token Lexer::consume_power() {

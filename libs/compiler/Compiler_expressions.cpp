@@ -208,6 +208,9 @@ void Compiler::visit(Infix& expr)
     case TokenType::DIVISION:
         emit(OpCode::DIV);
         break;
+    case TokenType::MOD:
+        emit(OpCode::MOD);
+        break;
 
     // --- Comparisons ---
     case TokenType::EQUAL_EQUAL:

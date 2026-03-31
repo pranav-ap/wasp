@@ -41,8 +41,8 @@
     X(STAR_EQUAL, "*=", false)                                                                     \
     X(DIVISION, "/", false)                                                                        \
     X(DIVISION_EQUAL, "/=", false)                                                                 \
-    X(REMINDER, "%", false)                                                                        \
-    X(REMINDER_EQUAL, "%=", false)                                                                 \
+    X(MOD, "%", false)                                                                             \
+    X(MOD_EQUAL, "%=", false)                                                                      \
     X(POWER, "**", false)                                                                          \
     X(POWER_EQUAL, "**=", false)                                                                   \
     X(EQUAL, "=", false)                                                                           \

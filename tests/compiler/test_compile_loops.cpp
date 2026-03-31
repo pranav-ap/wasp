@@ -190,3 +190,79 @@ while true do
 
     EXPECT_EQ(actual_bytes, expected_bytes);
 }
+
+TEST_F(CompileLoops, WhileWithIfAndAssignment)
+{
+    auto actual_bytes = compile(R"(
+let x = 1
+
+while x < 5 do
+    if x % 2 == 0 then
+        print(x)
+
+    x = x + 1
+)");
+
+    int val_1 = pool_size++;
+    int val_5 = pool_size++;
+    int val_2 = pool_size++;
+    int val_0 = pool_size++;
+
+    // clang-format off
+    std::vector<std::byte> expected_bytes = {
+        B(Wasp::OpCode::ENTER_MODULE),
+
+        B(Wasp::OpCode::LOAD_CONST),    B(val_1),
+        B(Wasp::OpCode::JUMP),          B(6), B(0),
+
+        B(Wasp::OpCode::PUSH_SCOPE),
+        B(Wasp::OpCode::GET_LOCAL),     B(0),
+        B(Wasp::OpCode::LOAD_CONST),    B(val_5),
+        B(Wasp::OpCode::LT),
+        B(Wasp::OpCode::JUMP_IF_FALSE), B(22), B(0),
+        B(Wasp::OpCode::JUMP),          B(18), B(0),
+
+        B(Wasp::OpCode::PUSH_SCOPE),
+        B(Wasp::OpCode::JUMP),          B(29), B(0),
+
+        B(Wasp::OpCode::POP_SCOPE),
+        B(Wasp::OpCode::JUMP),          B(26), B(0),
+        B(Wasp::OpCode::JUMP),          B(73), B(0),
+
+        B(Wasp::OpCode::PUSH_SCOPE),
+        B(Wasp::OpCode::GET_LOCAL),     B(0),
+        B(Wasp::OpCode::LOAD_CONST),    B(val_2),
+        B(Wasp::OpCode::MOD),
+        B(Wasp::OpCode::LOAD_CONST),    B(val_0),
+        B(Wasp::OpCode::EQ),
+        B(Wasp::OpCode::JUMP_IF_FALSE), B(55), B(0),
+        B(Wasp::OpCode::JUMP),          B(44), B(0),
+
+        B(Wasp::OpCode::GET_NATIVE),    B(0),
+        B(Wasp::OpCode::GET_LOCAL),     B(0),
+        B(Wasp::OpCode::CALL),          B(1),
+        B(Wasp::OpCode::POP),
+        B(Wasp::OpCode::POP_SCOPE),
+        B(Wasp::OpCode::JUMP),          B(60), B(0),
+
+        B(Wasp::OpCode::POP_SCOPE),
+        B(Wasp::OpCode::PUSH_SCOPE),
+        B(Wasp::OpCode::JUMP),          B(60), B(0),
+
+        B(Wasp::OpCode::GET_LOCAL),     B(0),
+        B(Wasp::OpCode::LOAD_CONST),    B(val_1),
+        B(Wasp::OpCode::ADD),
+        B(Wasp::OpCode::SET_LOCAL),     B(0),
+        B(Wasp::OpCode::POP),
+
+        B(Wasp::OpCode::POP_SCOPE),
+        B(Wasp::OpCode::POP_SCOPE),
+        B(Wasp::OpCode::JUMP),          B(6), B(0),
+
+        B(Wasp::OpCode::GET_LOCAL),     B(0),
+        B(Wasp::OpCode::EXIT_MODULE),   B(1),
+    };
+    // clang-format on
+
+    EXPECT_EQ(actual_bytes, expected_bytes);
+}

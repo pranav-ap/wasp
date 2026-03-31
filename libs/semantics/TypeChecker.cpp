@@ -562,7 +562,7 @@ Object_ptr TypeChecker::infer(
     case TokenType::POWER:
     case TokenType::MINUS:
     case TokenType::DIVISION:
-    case TokenType::REMINDER: {
+    case TokenType::MOD: {
         expect_number_type(left_type);
         expect_number_type(right_type);
         return (is_float_type(left_type) || is_float_type(right_type)) ? pool->get_float_type()
