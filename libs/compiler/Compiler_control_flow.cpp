@@ -38,11 +38,14 @@ void Compiler::visit(IfTernaryBranch& expr)
     graph.add_edge(true_block, end_block);
     graph.add_edge(false_block, end_block);
 
+    emit(OpCode::JUMP, static_cast<int>(test_block));
+
     set_current_block(test_block);
     enter_scope("test");
     visit(expr.test);
 
     emit(OpCode::JUMP_IF_FALSE, static_cast<int>(false_block));
+    emit(OpCode::JUMP, static_cast<int>(true_block));
 
     set_current_block(true_block);
     enter_scope("true branch");
@@ -93,21 +96,24 @@ void Compiler::visit(IfBranch& statement)
     graph.add_edge(true_block, end_block);
     graph.add_edge(false_block, end_block);
 
+    emit(OpCode::JUMP, static_cast<int>(test_block));
+
     set_current_block(test_block);
-    enter_scope("test");
+    enter_scope("test and true branch");
     visit(statement.test);
 
     emit(OpCode::JUMP_IF_FALSE, static_cast<int>(false_block));
+    emit(OpCode::JUMP, static_cast<int>(true_block));
 
     set_current_block(true_block);
-    enter_scope("true branch");
     visit(statement.body);
-    leave_scope("true branch");
-    leave_scope("test");
+    leave_scope("test and true branch");
 
     emit(OpCode::JUMP, static_cast<int>(end_block));
 
     set_current_block(false_block);
+    dumb_leave_scope("test and true branch");
+    enter_scope("false branch");
 
     if (statement.alternative.has_value())
     {
@@ -152,6 +158,7 @@ void Compiler::visit(ForInLoop& statement)
 
     visit(statement.iterable_expression);
     emit(OpCode::GET_ITER);
+    emit(OpCode::JUMP, static_cast<int>(header));
 
     set_current_block(header);
     enter_scope("For Loop Header and Body");
@@ -194,8 +201,13 @@ void Compiler::visit(SimpleLoop& statement)
     BlockId cleanup_block = graph.create_block();
     BlockId end = graph.create_block();
 
-    emit(OpCode::JUMP, static_cast<int>(header));
     graph.add_edge(current_block_id, header);
+    graph.add_edge(header, body);
+    graph.add_edge(header, cleanup_block);
+    graph.add_edge(body, header);
+    graph.add_edge(cleanup_block, end);
+
+    emit(OpCode::JUMP, static_cast<int>(header));
 
     loop_tracking_stack.emplace_back(
         header,
@@ -205,9 +217,8 @@ void Compiler::visit(SimpleLoop& statement)
         current_lexical_scope_depth + 1
     );
 
-    // --- Header ---
     set_current_block(header);
-    enter_scope(); // Condition Scope
+    enter_scope("loop header");
     visit(statement.condition);
 
     if (statement.style == TokenType::UNTIL || statement.style == TokenType::UNLESS)
@@ -217,28 +228,20 @@ void Compiler::visit(SimpleLoop& statement)
 
     emit(OpCode::JUMP_IF_FALSE, static_cast<int>(cleanup_block));
     emit(OpCode::JUMP, static_cast<int>(body));
-    graph.add_edge(header, body);
-    graph.add_edge(header, cleanup_block);
 
-    // --- Body ---
     set_current_block(body);
-    enter_scope(); // Body scope
+    enter_scope("loop body");
     visit(statement.body);
-    leave_scope(); // Pop Body scope
+    leave_scope("loop body");
 
-    // --- Next Iteration ---
     emit_local_cleanups(current_lexical_scope_depth - 1);
 
     emit(OpCode::JUMP, static_cast<int>(header));
-    graph.add_edge(body, header);
 
-    // --- Cleanup (False path) ---
     set_current_block(cleanup_block);
-
-    leave_scope();
+    leave_scope("loop header");
 
     emit(OpCode::JUMP, static_cast<int>(end));
-    graph.add_edge(cleanup_block, end);
 
     loop_tracking_stack.pop_back();
     set_current_block(end);

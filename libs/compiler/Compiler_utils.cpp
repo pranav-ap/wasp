@@ -23,6 +23,11 @@ void Compiler::enter_scope(std::string comment)
     current_lexical_scope_depth++;
 }
 
+void Compiler::dumb_leave_scope(std::string comment)
+{
+    emit(OpCode::POP_SCOPE, std::move(comment));
+}
+
 void Compiler::leave_scope(std::string comment)
 {
     while (!locals.empty() && locals.back()->lexical_depth == current_lexical_scope_depth)
@@ -161,26 +166,26 @@ void Compiler::emit(OpCode opcode, int operand_1, int operand_2, std::string com
 
 void Compiler::emit_local_cleanups(int target_depth)
 {
-    int locals_to_pop = 0;
+    // int locals_to_pop = 0;
 
-    // Count how many physical variables are trapped in the scopes we are skipping
-    for (auto it = locals.rbegin(); it != locals.rend(); ++it)
-    {
-        if ((*it)->lexical_depth > target_depth)
-        {
-            locals_to_pop++;
-        }
-        else
-        {
-            break;
-        }
-    }
+    // // Count how many physical variables are trapped in the scopes we are skipping
+    // for (auto it = locals.rbegin(); it != locals.rend(); ++it)
+    // {
+    //     if ((*it)->lexical_depth > target_depth)
+    //     {
+    //         locals_to_pop++;
+    //     }
+    //     else
+    //     {
+    //         break;
+    //     }
+    // }
 
-    // Tell the VM to physically POP them!
-    for (int i = 0; i < locals_to_pop; ++i)
-    {
-        emit(OpCode::POP, "local cleanup");
-    }
+    // // Tell the VM to physically POP them!
+    // for (int i = 0; i < locals_to_pop; ++i)
+    // {
+    //     emit(OpCode::POP, "local cleanup");
+    // }
 
     // Now safe to pop the scope frames
     int scopes_to_pop = current_lexical_scope_depth - target_depth;

@@ -67,6 +67,7 @@ private:
     void enter_scope(std::string comment = "");
     void leave_scope(std::string comment = "");
     void leave_scope_keep_tos(std::string comment = "");
+    void dumb_leave_scope(std::string comment = "");
 
     // -----------------------------------------------------------------------
     // Emit

@@ -109,26 +109,27 @@ fun max(a: int, b: int) => int
     // clang-format off
     std::vector<std::byte> expected_inner_bytes = {
         B(Wasp::OpCode::PUSH_SCOPE),
-
+        B(Wasp::OpCode::JUMP),          B(4), B(0),
         B(Wasp::OpCode::PUSH_SCOPE),
         B(Wasp::OpCode::GET_LOCAL),     B(0),
         B(Wasp::OpCode::GET_LOCAL),     B(1),
         B(Wasp::OpCode::GT),
 
-        B(Wasp::OpCode::JUMP_IF_FALSE), B(19), B(0),
+        B(Wasp::OpCode::JUMP_IF_FALSE), B(23), B(0),
+        B(Wasp::OpCode::JUMP),          B(16), B(0),
 
-        B(Wasp::OpCode::PUSH_SCOPE),
         B(Wasp::OpCode::GET_LOCAL),     B(0),
         B(Wasp::OpCode::RETURN),
         B(Wasp::OpCode::POP_SCOPE),
-        B(Wasp::OpCode::POP_SCOPE),
-        B(Wasp::OpCode::JUMP),          B(27), B(0),
+        B(Wasp::OpCode::JUMP),          B(33), B(0),
 
+        B(Wasp::OpCode::POP_SCOPE),
+        B(Wasp::OpCode::PUSH_SCOPE),
         B(Wasp::OpCode::PUSH_SCOPE),
         B(Wasp::OpCode::GET_LOCAL),     B(1),
         B(Wasp::OpCode::RETURN),
         B(Wasp::OpCode::POP_SCOPE),
-        B(Wasp::OpCode::JUMP),          B(27), B(0),
+        B(Wasp::OpCode::JUMP),          B(33), B(0),
 
         B(Wasp::OpCode::POP_SCOPE),
         B(Wasp::OpCode::LOAD_NONE),

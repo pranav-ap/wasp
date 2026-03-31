@@ -20,26 +20,28 @@ for x in [1, 2, 3] do
 
     // clang-format off
     std::vector<std::byte> expected_bytes = {
-        B(Wasp::OpCode::ENTER_MODULE),
+        B(Wasp::OpCode::ENTER_MODULE),               // 0000
 
-        B(Wasp::OpCode::LOAD_CONST),    B(val_1),
-        B(Wasp::OpCode::LOAD_CONST),    B(val_2),
-        B(Wasp::OpCode::LOAD_CONST),    B(val_3),
-        B(Wasp::OpCode::BUILD_LIST),    B(3),
-        B(Wasp::OpCode::GET_ITER),
+        B(Wasp::OpCode::LOAD_CONST),    B(val_1),    // 0001
+        B(Wasp::OpCode::LOAD_CONST),    B(val_2),    // 0003
+        B(Wasp::OpCode::LOAD_CONST),    B(val_3),    // 0005
+        B(Wasp::OpCode::BUILD_LIST),    B(3),        // 0007
+        B(Wasp::OpCode::GET_ITER),                   // 0009
 
-        B(Wasp::OpCode::PUSH_SCOPE),
-        B(Wasp::OpCode::LOOP_ITER),     B(24), B(0),
-        B(Wasp::OpCode::JUMP),          B(17), B(0),
+        B(Wasp::OpCode::JUMP),          B(13), B(0), // 0010 | Jump to Header (0013)
+        B(Wasp::OpCode::PUSH_SCOPE),                 // 0013 | Loop frame
+        B(Wasp::OpCode::LOOP_ITER),     B(27), B(0), // 0014 | Jump to End (0027)
+        B(Wasp::OpCode::JUMP),          B(20), B(0), // 0017 | Jump to Body (0020)
 
-        B(Wasp::OpCode::GET_LOCAL),     B(0),
-        B(Wasp::OpCode::POP),
-        B(Wasp::OpCode::POP_SCOPE),
-        B(Wasp::OpCode::JUMP),          B(10), B(0),
+        B(Wasp::OpCode::GET_LOCAL),     B(0),        // 0020 | x
+        B(Wasp::OpCode::POP),                        // 0022 | Expression cleanup
+        B(Wasp::OpCode::POP_SCOPE),                  // 0023 | Close loop iteration scope
+        B(Wasp::OpCode::JUMP),          B(13), B(0), // 0024 | Loop back to Header (0013)
+        B(Wasp::OpCode::POP),                        // 0028 | Remove iterator object
+        B(Wasp::OpCode::JUMP),          B(31), B(0), // 0029 | Jump to Exit (0032)
 
-        B(Wasp::OpCode::POP),
-        B(Wasp::OpCode::JUMP),          B(28), B(0),
-        B(Wasp::OpCode::EXIT_MODULE),   B(0)
+        // --- Exit Block (0032) ---
+        B(Wasp::OpCode::EXIT_MODULE),   B(0)         // 0032
     };
     // clang-format on
 

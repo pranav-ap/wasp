@@ -1,2 +1,6 @@
-for x in [1, 2, 3] do
-    print(x)
+if false then
+    print(25)
+elif true then
+    print(25)
+else
+    print(25)
