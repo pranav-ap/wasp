@@ -83,15 +83,14 @@ fun max(a: int, b: int) => int
     std::vector<std::byte> expected_bytes = {
         B(Wasp::OpCode::ENTER_MODULE),
 
-        B(Wasp::OpCode::LOAD_CONST),        B(max_func_pool_id), // 0001
-        B(Wasp::OpCode::MAKE_FUNCTION),     B(0),                // 0003
-        B(Wasp::OpCode::OVERLOAD_FUNCTION), B(max_func_var_id),  // 0005
+        B(Wasp::OpCode::LOAD_CONST),        B(max_func_pool_id),
+        B(Wasp::OpCode::MAKE_FUNCTION),     B(0),
+        B(Wasp::OpCode::OVERLOAD_FUNCTION), B(max_func_var_id),
 
-        B(Wasp::OpCode::JUMP),              B(10), B(0),         // 0007
+        B(Wasp::OpCode::JUMP),              B(10), B(0),
 
-        // Export Builder
-        B(Wasp::OpCode::GET_LOCAL),         B(max_func_var_id),  // 0010
-        B(Wasp::OpCode::EXIT_MODULE),       B(1)                 // 0012
+        B(Wasp::OpCode::GET_LOCAL),         B(max_func_var_id),
+        B(Wasp::OpCode::EXIT_MODULE),       B(1)
     };
     // clang-format on
 
@@ -109,36 +108,31 @@ fun max(a: int, b: int) => int
 
     // clang-format off
     std::vector<std::byte> expected_inner_bytes = {
-        B(Wasp::OpCode::PUSH_SCOPE),                 // 0000
+        B(Wasp::OpCode::PUSH_SCOPE),
 
-        // --- Condition Scope ---
-        B(Wasp::OpCode::PUSH_SCOPE),                 // 0001
-        B(Wasp::OpCode::GET_LOCAL),     B(0),        // 0002 | a
-        B(Wasp::OpCode::GET_LOCAL),     B(1),        // 0004 | b
-        B(Wasp::OpCode::GT),                         // 0006
+        B(Wasp::OpCode::PUSH_SCOPE),
+        B(Wasp::OpCode::GET_LOCAL),     B(0),
+        B(Wasp::OpCode::GET_LOCAL),     B(1),
+        B(Wasp::OpCode::GT),
 
-        B(Wasp::OpCode::JUMP_IF_FALSE), B(21), B(0), // 0007 | jump to false branch
-        B(Wasp::OpCode::JUMP),          B(13), B(0), // 0010 | jump to true branch
+        B(Wasp::OpCode::JUMP_IF_FALSE), B(19), B(0),
 
-        // --- True Block ---
-        B(Wasp::OpCode::PUSH_SCOPE),                 // 0013
-        B(Wasp::OpCode::GET_LOCAL),     B(0),        // 0014 | return a
-        B(Wasp::OpCode::RETURN),                     // 0016
-        B(Wasp::OpCode::POP_SCOPE),                  // 0017 | (dead code)
-        B(Wasp::OpCode::JUMP),          B(29), B(0), // 0018 | (dead code)
+        B(Wasp::OpCode::PUSH_SCOPE),
+        B(Wasp::OpCode::GET_LOCAL),     B(0),
+        B(Wasp::OpCode::RETURN),
+        B(Wasp::OpCode::POP_SCOPE),
+        B(Wasp::OpCode::POP_SCOPE),
+        B(Wasp::OpCode::JUMP),          B(27), B(0),
 
-        // --- False Block ---
-        B(Wasp::OpCode::PUSH_SCOPE),                 // 0021
-        B(Wasp::OpCode::GET_LOCAL),     B(1),        // 0022 | return b
-        B(Wasp::OpCode::RETURN),                     // 0024
-        B(Wasp::OpCode::POP_SCOPE),                  // 0025 | (dead code)
-        B(Wasp::OpCode::JUMP),          B(29), B(0), // 0026 | (dead code)
+        B(Wasp::OpCode::PUSH_SCOPE),
+        B(Wasp::OpCode::GET_LOCAL),     B(1),
+        B(Wasp::OpCode::RETURN),
+        B(Wasp::OpCode::POP_SCOPE),
+        B(Wasp::OpCode::JUMP),          B(27), B(0),
 
-        // --- Converge & Cleanup ---
-        B(Wasp::OpCode::POP_SCOPE),                  // 0029 | Pop Condition Scope
-        B(Wasp::OpCode::POP_SCOPE),                  // 0030 | Pop Function Scope
-        B(Wasp::OpCode::LOAD_NONE),                  // 0031
-        B(Wasp::OpCode::RETURN)                      // 0032
+        B(Wasp::OpCode::POP_SCOPE),
+        B(Wasp::OpCode::LOAD_NONE),
+        B(Wasp::OpCode::RETURN)
     };
     // clang-format on
 

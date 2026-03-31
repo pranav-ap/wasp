@@ -3,3 +3,6 @@ fun max(a: int, b: int) => int
         return a
     else
         return b
+
+
+print(max(51, 10))
