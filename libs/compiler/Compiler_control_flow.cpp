@@ -47,14 +47,12 @@ void Compiler::visit(IfTernaryBranch& expr)
     set_current_block(true_block);
     enter_scope("true branch");
     visit(expr.true_expression);
-
     leave_scope_keep_tos("true branch keep TOS");
     leave_scope_keep_tos("test");
 
     emit(OpCode::JUMP, static_cast<int>(end_block));
 
     set_current_block(false_block);
-    leave_scope("true branch");
     leave_scope("test");
     enter_scope("false branch");
 
@@ -84,35 +82,37 @@ void Compiler::visit(ElseTernaryBranch& expr)
 
 void Compiler::visit(IfBranch& statement)
 {
-    enter_scope(); // Condition Scope
-
-    visit(statement.test);
-
-    bool has_alternative = statement.alternative.has_value();
-
+    BlockId test_block = graph.create_block();
     BlockId true_block = graph.create_block();
     BlockId false_block = graph.create_block();
     BlockId end_block = graph.create_block();
 
-    emit(OpCode::JUMP_IF_FALSE, static_cast<int>(false_block));
-    emit(OpCode::JUMP, static_cast<int>(true_block));
-    graph.add_edge(current_block_id, true_block);
-    graph.add_edge(current_block_id, false_block);
+    graph.add_edge(current_block_id, test_block);
+    graph.add_edge(test_block, true_block);
+    graph.add_edge(test_block, false_block);
+    graph.add_edge(true_block, end_block);
+    graph.add_edge(false_block, end_block);
 
-    // --- True Branch ---
+    set_current_block(test_block);
+    enter_scope("test");
+    visit(statement.test);
+
+    emit(OpCode::JUMP_IF_FALSE, static_cast<int>(false_block));
+
     set_current_block(true_block);
-    enter_scope(); // Body scope
+    enter_scope("true branch");
     visit(statement.body);
-    leave_scope(); // Pop Body scope
+    leave_scope("true branch");
+    leave_scope("test");
 
     emit(OpCode::JUMP, static_cast<int>(end_block));
-    graph.add_edge(true_block, end_block);
 
-    // --- False Branch ---
     set_current_block(false_block);
-    if (has_alternative)
+
+    if (statement.alternative.has_value())
     {
         auto& alt_variant = statement.alternative.value()->data;
+
         if (std::holds_alternative<IfBranch>(alt_variant))
         {
             visit(std::get<IfBranch>(alt_variant));
@@ -122,20 +122,17 @@ void Compiler::visit(IfBranch& statement)
             visit(std::get<ElseBranch>(alt_variant));
         }
     }
+
     emit(OpCode::JUMP, static_cast<int>(end_block));
-    graph.add_edge(false_block, end_block);
 
-    // --- Converge ---
     set_current_block(end_block);
-
-    leave_scope();
 }
 
 void Compiler::visit(ElseBranch& statement)
 {
-    enter_scope();
+    enter_scope("else branch");
     visit(statement.body);
-    leave_scope();
+    leave_scope("else branch");
 }
 
 // ============================================================================

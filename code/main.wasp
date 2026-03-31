@@ -1,1 +1,5 @@
-if let x = true then 3 else 1
+fun max(a: int, b: int) => int
+    if a > b then
+        return a
+    else
+        return b
