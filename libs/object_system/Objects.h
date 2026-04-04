@@ -75,12 +75,6 @@ struct OverloadsSet : public CompositeObject
     }
 };
 
-struct DefinitionObject : public AbstractObject
-{
-    std::string name;
-    DefinitionObject(std::string name) : name(std::move(name)) {};
-};
-
 // ============================================================================
 // Scalar Objects
 // ============================================================================
