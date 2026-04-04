@@ -138,18 +138,12 @@ struct TraitDefinition : public Definition
 struct ImplDefinition : public Definition
 {
     std::string class_name;
-    std::optional<std::string> trait_name;
     std::vector<Statement_ptr> methods;
 
     ImplDefinition() = default;
 
-    ImplDefinition(
-        std::string class_name,
-        std::optional<std::string> trait_name,
-        std::vector<Statement_ptr> methods
-    )
-        : class_name(std::move(class_name)), trait_name(std::move(trait_name)),
-          methods(std::move(methods))
+    ImplDefinition(std::string class_name, std::vector<Statement_ptr> methods)
+        : class_name(std::move(class_name)), methods(std::move(methods))
     {
     }
 };

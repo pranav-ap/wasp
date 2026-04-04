@@ -297,9 +297,11 @@ using ClassObject_ptr = std::shared_ptr<ClassDefinitionObject>;
 struct BreakObject : public ActionObject
 {
 };
+
 struct ContinueObject : public ActionObject
 {
 };
+
 struct RedoObject : public ActionObject
 {
 };
@@ -327,15 +329,19 @@ struct ErrorObject : public ActionObject
 struct AnyType : public AbstractObject
 {
 };
+
 struct NoneType : public AnyType
 {
 };
+
 struct ScalarType : public AnyType
 {
 };
+
 struct LiteralType : public AnyType
 {
 };
+
 struct CompositeType : public AnyType
 {
 };

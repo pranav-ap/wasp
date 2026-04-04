@@ -278,14 +278,6 @@ Statement_ptr Parser::parse_impl_definition(int indent_level)
     auto class_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
     std::string class_name = class_token.value;
 
-    // Parse the single optional trait (e.g., `is Fortifiable`)
-    std::optional<std::string> trait_name = std::nullopt;
-    if (token_pipe.consume_optional_in_line(TokenType::IS))
-    {
-        auto trait_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
-        trait_name = trait_token.value;
-    }
-
     token_pipe.require_in_line(TokenType::EOL);
 
     // Parse the indented block of methods
@@ -304,7 +296,6 @@ Statement_ptr Parser::parse_impl_definition(int indent_level)
 
         token_pipe.expect_n_indents(method_indent);
 
-        // Within an `impl` block, we exclusively expect function definitions
         if (token_pipe.consume_optional(TokenType::FUN))
         {
             auto func = parse_function_definition(method_indent);
@@ -312,20 +303,13 @@ Statement_ptr Parser::parse_impl_definition(int indent_level)
         }
         else
         {
-            // Use Doctor to pull the line/column of the unexpected token!
-            auto bad_token = token_pipe.current();
-            int line = bad_token ? bad_token->line : 0;
-            int col = bad_token ? bad_token->column : 0;
-
             Doctor::get().fatal(
                 WaspStage::Parser,
-                "Expected function definition ('fun') inside impl block.",
-                line,
-                col
+                "Expected function definition ('fun') inside impl block."
             );
         }
     }
 
-    return make_statement(ImplDefinition(class_name, trait_name, methods));
+    return make_statement(ImplDefinition(class_name, methods));
 }
 } // namespace Wasp
