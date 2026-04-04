@@ -162,7 +162,6 @@ void InstructionPrinter::print_bytecode(const CodeObject& code, std::ostream& ou
         OpCode op = static_cast<OpCode>(opcode);
         std::string comment = code.get_comment_at(index);
 
-        // Print cleanly formatted index (e.g., "   0012 │ ")
         out << "   " << std::right << setw(4) << std::setfill('0') << index << std::setfill(' ')
             << " │ ";
 
