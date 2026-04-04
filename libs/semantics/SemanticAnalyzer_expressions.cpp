@@ -282,6 +282,14 @@ Object_ptr SemanticAnalyzer::visit(Call& call_expr)
         overloaded{
             [&](Identifier& id) -> Object_ptr
             {
+                auto symbol = current_scope->lookup(id.name);
+                Doctor::get().fatal_if_nullptr(symbol, WaspStage::Semantics);
+
+                if (symbol->payload_is<ClassData>())
+                {
+                    return evaluate_instance_creation(symbol, arg_types);
+                }
+
                 return evaluate_identifier_call(call_expr, id, arg_types);
             },
 
@@ -380,6 +388,11 @@ Object_ptr SemanticAnalyzer::evaluate_module_member_access_call(
     right_id.symbol = function_symbol;
 
     return function_symbol->get_payload_as<FunctionData>().get_return_type();
+}
+
+Object_ptr SemanticAnalyzer::evaluate_instance_creation(Symbol_ptr symbol, ObjectVector arg_types)
+{
+    auto class_type = symbol->get_payload_as<ClassData>().type;
 }
 
 } // namespace Wasp

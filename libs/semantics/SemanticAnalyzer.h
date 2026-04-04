@@ -33,10 +33,11 @@ class SemanticAnalyzer
 
     void visit(ExpressionStatement& statement);
 
+    void visit(ClassDefinition& statement);
+
     void visit(AliasDefinition& statement);
     void visit(EnumDefinition& statement);
     void visit(FunctionDefinition& statement);
-    void visit(ClassDefinition& statement);
     void visit(TraitDefinition& statement);
     void visit(ImplDefinition& statement);
 
@@ -102,6 +103,8 @@ class SemanticAnalyzer
         MemberAccess& mac,
         const ObjectVector& arg_types
     );
+
+    Object_ptr evaluate_instance_creation(Symbol_ptr symbol, ObjectVector arg_types);
 
     Object_ptr visit(Call& expr);
 

@@ -16,7 +16,7 @@ void Compiler::visit(ClassDefinition& class_definition)
 {
     Object_ptr class_blueprint = class_definition.symbol->get_type();
 
-    int const_id = workspace->pool->allocate_class_definition(class_blueprint);
+    int const_id = workspace->pool->allocate(class_blueprint);
     emit(OpCode::LOAD_CONST, const_id, "class " + class_definition.name);
 
     int physical_index = resolve_local(class_definition.symbol->id);
