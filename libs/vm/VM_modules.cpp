@@ -32,7 +32,7 @@ void VM::execute_import_module(CallFrame* frame)
         "Module not found at registry index: " + std::to_string(module_index)
     );
 
-    auto module_func = std::make_shared<RuntimeFunctionObject>(target_module->blueprint);
+    auto module_func = std::make_shared<FunctionRuntimeObject>(target_module->blueprint);
 
     size_t stack_base_pointer = stack.size();
     frames.emplace_back(module_func, stack_base_pointer);

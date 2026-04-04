@@ -37,6 +37,23 @@ namespace Wasp
         Object_ptr get_boolean_type() const;
         Object_ptr get_none_type() const;
 
+        Object_ptr get_int_default() const
+        {
+            return get(11);
+        }
+        Object_ptr get_float_default() const
+        {
+            return get(12);
+        }
+        Object_ptr get_string_default() const
+        {
+            return get(13);
+        }
+        Object_ptr get_boolean_default() const
+        {
+            return get(14);
+        }
+
         Object_ptr get_true_literal_type() const;
         Object_ptr get_false_literal_type() const;
 
@@ -56,9 +73,11 @@ namespace Wasp
         int allocate(double value);
         int allocate(std::string value);
 
-        int allocate_function_definition(StaticFunctionObject_ptr func_obj);
+        int allocate_function_definition(FunctionBlueprintObject_ptr func_obj);
         int allocate_function_definition(CodeObject code);
         int allocate_function_definition(CodeObject code, std::string name);
+
+        int allocate_class_definition(Object_ptr class_obj);
 
         int allocate_type(Object_ptr value);
     };

@@ -36,7 +36,11 @@ Compiler::Compiler(Compiler* parent)
     graph.set_entry_block(current_block_id);
 }
 
-StaticFunctionObject_ptr Compiler::run(const StatementVector& block, std::string name, bool is_main)
+FunctionBlueprintObject_ptr Compiler::run(
+    const StatementVector& block,
+    std::string name,
+    bool is_main
+)
 {
     if (is_main)
     {
@@ -77,7 +81,7 @@ StaticFunctionObject_ptr Compiler::run(const StatementVector& block, std::string
 
     CodeObject final_code = flatten();
 
-    auto function_object = std::make_shared<StaticFunctionObject>(std::move(final_code), name);
+    auto function_object = std::make_shared<FunctionBlueprintObject>(std::move(final_code), name);
 
     return function_object;
 }
@@ -103,6 +107,10 @@ void Compiler::visit(const Statement_ptr statement)
                 visit(stat);
             },
             [&](VariableDefinition& stat)
+            {
+                visit(stat);
+            },
+            [&](ClassDefinition& stat)
             {
                 visit(stat);
             },

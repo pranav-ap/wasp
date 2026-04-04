@@ -27,16 +27,16 @@ void VM::execute_make_function(CallFrame* frame)
     // 1. How many upvalues to capture?
     int upvalue_count = static_cast<int>(frame->consume_byte());
 
-    // 2. The StaticFunctionObject (blueprint) is on the stack
+    // 2. The FunctionBlueprintObject (blueprint) is on the stack
     Object_ptr blueprint_obj = pop_from_stack();
 
     Doctor::get().assert(
-        blueprint_obj->is<std::shared_ptr<StaticFunctionObject>>(),
+        blueprint_obj->is<std::shared_ptr<FunctionBlueprintObject>>(),
         WaspStage::VM,
-        "MAKE_FUNCTION expects a StaticFunctionObject on the stack"
+        "MAKE_FUNCTION expects a FunctionBlueprintObject on the stack"
     );
 
-    auto blueprint = blueprint_obj->as<std::shared_ptr<StaticFunctionObject>>();
+    auto blueprint = blueprint_obj->as<std::shared_ptr<FunctionBlueprintObject>>();
 
     ObjectVector captured_upvalues;
     captured_upvalues.reserve(upvalue_count);
@@ -72,7 +72,7 @@ void VM::execute_make_function(CallFrame* frame)
     }
 
     // 4. Create the runtime closure with the actual captured values
-    auto runtime_closure = std::make_shared<RuntimeFunctionObject>(
+    auto runtime_closure = std::make_shared<FunctionRuntimeObject>(
         blueprint,
         std::move(captured_upvalues)
     );
@@ -160,7 +160,7 @@ void VM::execute_call(CallFrame* frame)
 
     std::visit(
         overloaded{
-            [&](std::shared_ptr<RuntimeFunctionObject>& func)
+            [&](std::shared_ptr<FunctionRuntimeObject>& func)
             {
                 // The new base pointer points to the first argument.
                 // Slot 0 in the new function will now physically point to Argument 0.
@@ -210,7 +210,7 @@ void VM::execute_return(CallFrame* frame)
 
     frames.pop_back();
 
-    // 'bp' points to arg1. 'bp - 1' is the RuntimeFunctionObject (the
+    // 'bp' points to arg1. 'bp - 1' is the FunctionRuntimeObject (the
     // callable). Remove the callable, all arguments, and all local
     // variables.
     if (bp > 0)

@@ -1,6 +1,7 @@
 #include "CFGraph.h"
 #include "Compiler.h"
 #include "Doctor.h"
+#include "Objects.h"
 #include "OpCode.h"
 #include "Workspace.h"
 
@@ -9,7 +10,14 @@
 #include <map>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
+
+template <class... Ts> struct overloaded : Ts...
+{
+    using Ts::operator()...;
+};
+template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
@@ -166,33 +174,46 @@ void Compiler::emit(OpCode opcode, int operand_1, int operand_2, std::string com
 
 void Compiler::emit_local_cleanups(int target_depth)
 {
-    // int locals_to_pop = 0;
-
-    // // Count how many physical variables are trapped in the scopes we are skipping
-    // for (auto it = locals.rbegin(); it != locals.rend(); ++it)
-    // {
-    //     if ((*it)->lexical_depth > target_depth)
-    //     {
-    //         locals_to_pop++;
-    //     }
-    //     else
-    //     {
-    //         break;
-    //     }
-    // }
-
-    // // Tell the VM to physically POP them!
-    // for (int i = 0; i < locals_to_pop; ++i)
-    // {
-    //     emit(OpCode::POP, "local cleanup");
-    // }
-
-    // Now safe to pop the scope frames
     int scopes_to_pop = current_lexical_scope_depth - target_depth;
+
     for (int i = 0; i < scopes_to_pop; ++i)
     {
         emit(OpCode::POP_SCOPE);
     }
+}
+
+// --------------------------------------------------------
+// Defaults
+// --------------------------------------------------------
+
+Object_ptr Compiler::get_default_value_for_type(Object_ptr type)
+{
+    return std::visit(
+        overloaded{
+            [&](const IntType&) -> Object_ptr
+            {
+                return workspace->pool->get_int_default();
+            },
+            [&](const FloatType&) -> Object_ptr
+            {
+                return workspace->pool->get_float_default();
+            },
+            [&](const StringType&) -> Object_ptr
+            {
+                return workspace->pool->get_string_default();
+            },
+            [&](const BooleanType&) -> Object_ptr
+            {
+                return workspace->pool->get_boolean_default();
+            },
+
+            [&](auto&) -> Object_ptr
+            {
+                return workspace->pool->get_none_object();
+            }
+        },
+        type->value
+    );
 }
 
 // -----------------------------------------------------------------------

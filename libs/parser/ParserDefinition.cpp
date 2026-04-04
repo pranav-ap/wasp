@@ -24,8 +24,10 @@
 using std::make_pair;
 using std::optional;
 
-namespace Wasp {
-Statement_ptr Parser::parse_variable_definition(bool is_mutable) {
+namespace Wasp
+{
+Statement_ptr Parser::parse_variable_definition(bool is_mutable)
+{
     token_pipe.advance_pointer();
 
     auto expression = parse_expression();
@@ -34,7 +36,8 @@ Statement_ptr Parser::parse_variable_definition(bool is_mutable) {
     return make_statement(VariableDefinition(expression, is_mutable));
 }
 
-Statement_ptr Parser::parse_alias_definition() {
+Statement_ptr Parser::parse_alias_definition()
+{
     token_pipe.advance_pointer();
 
     auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
@@ -50,7 +53,8 @@ Statement_ptr Parser::parse_alias_definition() {
 
 // Enum
 
-Statement_ptr Parser::parse_enum_definition(int indent_level) {
+Statement_ptr Parser::parse_enum_definition(int indent_level)
+{
     token_pipe.advance_pointer();
 
     Token identifier = token_pipe.require_in_line(TokenType::IDENTIFIER);
@@ -60,14 +64,17 @@ Statement_ptr Parser::parse_enum_definition(int indent_level) {
     return make_statement(EnumDefinition(identifier.value, members));
 }
 
-std::vector<std::string> Parser::parse_enum_members(std::string stem, int indent_level) {
+std::vector<std::string> Parser::parse_enum_members(std::string stem, int indent_level)
+{
     std::vector<std::string> members;
 
-    while (true) {
+    while (true)
+    {
         token_pipe.ignore_empty_lines();
 
         // Check indentation at the start of each line
-        if (token_pipe.lookahead_indents() != indent_level) {
+        if (token_pipe.lookahead_indents() != indent_level)
+        {
             // End of this enum block
             break;
         }
@@ -75,7 +82,8 @@ std::vector<std::string> Parser::parse_enum_members(std::string stem, int indent
         token_pipe.expect_n_indents(indent_level);
 
         // Nested Enum
-        if (token_pipe.consume_optional(TokenType::ENUM)) {
+        if (token_pipe.consume_optional(TokenType::ENUM))
+        {
             auto nested_name = token_pipe.require_in_line(TokenType::IDENTIFIER).value;
             token_pipe.require_in_line(TokenType::EOL);
 
@@ -86,7 +94,8 @@ std::vector<std::string> Parser::parse_enum_members(std::string stem, int indent
         }
 
         // Leaf Member
-        if (auto token = token_pipe.consume_optional(TokenType::IDENTIFIER)) {
+        if (auto token = token_pipe.consume_optional(TokenType::IDENTIFIER))
+        {
             members.push_back(stem + "." + token->value);
             token_pipe.require_in_line(TokenType::EOL);
             continue;
@@ -101,7 +110,8 @@ std::vector<std::string> Parser::parse_enum_members(std::string stem, int indent
 
 // Function
 
-Statement_ptr Parser::parse_function_definition(int indent_level) {
+Statement_ptr Parser::parse_function_definition(int indent_level)
+{
     token_pipe.advance_pointer();
 
     auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
@@ -110,8 +120,10 @@ Statement_ptr Parser::parse_function_definition(int indent_level) {
     token_pipe.require_in_line(TokenType::OPEN_PARENTHESIS);
 
     std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters;
-    if (!token_pipe.consume_optional(TokenType::CLOSE_PARENTHESIS)) {
-        while (true) {
+    if (!token_pipe.consume_optional(TokenType::CLOSE_PARENTHESIS))
+    {
+        while (true)
+        {
             auto param_name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
             auto param_name = param_name_token.value;
 
@@ -121,7 +133,8 @@ Statement_ptr Parser::parse_function_definition(int indent_level) {
 
             parameters.push_back(make_pair(param_name, param_type));
 
-            if (token_pipe.consume_optional(TokenType::CLOSE_PARENTHESIS)) {
+            if (token_pipe.consume_optional(TokenType::CLOSE_PARENTHESIS))
+            {
                 break;
             }
 
@@ -130,7 +143,8 @@ Statement_ptr Parser::parse_function_definition(int indent_level) {
     }
 
     TypeAnnotation_ptr return_type = nullptr;
-    if (token_pipe.consume_optional_in_line(TokenType::ARROW)) {
+    if (token_pipe.consume_optional_in_line(TokenType::ARROW))
+    {
         return_type = parse_type();
     }
 
@@ -140,13 +154,15 @@ Statement_ptr Parser::parse_function_definition(int indent_level) {
     return make_statement(FunctionDefinition(name, parameters, return_type, body));
 }
 
-Statement_ptr Parser::parse_annotation_definition() {
+Statement_ptr Parser::parse_annotation_definition()
+{
     token_pipe.advance_pointer();
 
     auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
     auto name = name_token.value;
 
-    if (token_pipe.consume_optional_in_line(TokenType::OPEN_PARENTHESIS)) {
+    if (token_pipe.consume_optional_in_line(TokenType::OPEN_PARENTHESIS))
+    {
         std::vector<Expression_ptr> args = parse_expressions();
         token_pipe.require_in_line(TokenType::CLOSE_PARENTHESIS);
         return make_statement(AnnotationDefinition(name, args));
@@ -157,13 +173,16 @@ Statement_ptr Parser::parse_annotation_definition() {
 
 // Class
 
-std::map<std::string, TypeAnnotation_ptr> Parser::parse_name_type_block(int expected_indent) {
+std::map<std::string, TypeAnnotation_ptr> Parser::parse_name_type_block(int expected_indent)
+{
     std::map<std::string, TypeAnnotation_ptr> members;
 
-    while (true) {
+    while (true)
+    {
         token_pipe.ignore_empty_lines();
 
-        if (token_pipe.lookahead_indents() != expected_indent) {
+        if (token_pipe.lookahead_indents() != expected_indent)
+        {
             break;
         }
 
@@ -176,19 +195,23 @@ std::map<std::string, TypeAnnotation_ptr> Parser::parse_name_type_block(int expe
     return members;
 }
 
-std::pair<std::string, TypeAnnotation_ptr> Parser::parse_name_type_pair(int member_indent) {
+std::pair<std::string, TypeAnnotation_ptr> Parser::parse_name_type_pair(int member_indent)
+{
     auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
     std::string name = name_token.value;
 
-    if (token_pipe.consume_optional_in_line(TokenType::RECORD)) {
+    if (token_pipe.consume_optional_in_line(TokenType::RECORD))
+    {
         token_pipe.require_in_line(TokenType::EOL);
         const int record_indent = member_indent + 1;
         std::map<std::string, TypeAnnotation_ptr> record_members;
 
-        while (true) {
+        while (true)
+        {
             token_pipe.ignore_empty_lines();
 
-            if (token_pipe.lookahead_indents() != record_indent) {
+            if (token_pipe.lookahead_indents() != record_indent)
+            {
                 break;
             }
 
@@ -206,31 +229,34 @@ std::pair<std::string, TypeAnnotation_ptr> Parser::parse_name_type_pair(int memb
     return make_pair(name, type);
 }
 
-Statement_ptr Parser::parse_class_definition(int indent_level) {
+Statement_ptr Parser::parse_class_definition(int indent_level)
+{
     token_pipe.advance_pointer(); // Consume 'class' keyword
 
     auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
     auto class_name = name_token.value;
 
-    // parse traits list
     std::vector<std::string> traits;
 
-    if (token_pipe.consume_optional_in_line(TokenType::IS)) {
-        do {
+    if (token_pipe.consume_optional_in_line(TokenType::IS))
+    {
+        do
+        {
             auto trait_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
             traits.push_back(trait_token.value);
-        } while (token_pipe.consume_optional_in_line(TokenType::COMMA));
+        }
+        while (token_pipe.consume_optional_in_line(TokenType::AMPERSAND));
     }
 
     token_pipe.require_in_line(TokenType::EOL);
 
-    // Parse all members using the abstracted block loop
     auto members = parse_name_type_block(indent_level + 1);
 
     return make_statement(ClassDefinition(class_name, members, traits));
 }
 
-Statement_ptr Parser::parse_trait_definition(int indent_level) {
+Statement_ptr Parser::parse_trait_definition(int indent_level)
+{
     token_pipe.advance_pointer(); // Consume 'trait' keyword
 
     auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
@@ -238,13 +264,13 @@ Statement_ptr Parser::parse_trait_definition(int indent_level) {
 
     token_pipe.require_in_line(TokenType::EOL);
 
-    // Parse all members using the abstracted block loop
     auto members = parse_name_type_block(indent_level + 1);
 
     return make_statement(TraitDefinition(trait_name, members));
 }
 
-Statement_ptr Parser::parse_impl_definition(int indent_level) {
+Statement_ptr Parser::parse_impl_definition(int indent_level)
+{
     // Consume 'impl' keyword
     token_pipe.advance_pointer();
 
@@ -254,7 +280,8 @@ Statement_ptr Parser::parse_impl_definition(int indent_level) {
 
     // Parse the single optional trait (e.g., `is Fortifiable`)
     std::optional<std::string> trait_name = std::nullopt;
-    if (token_pipe.consume_optional_in_line(TokenType::IS)) {
+    if (token_pipe.consume_optional_in_line(TokenType::IS))
+    {
         auto trait_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
         trait_name = trait_token.value;
     }
@@ -265,21 +292,26 @@ Statement_ptr Parser::parse_impl_definition(int indent_level) {
     std::vector<Statement_ptr> methods;
     const int method_indent = indent_level + 1;
 
-    while (true) {
+    while (true)
+    {
         token_pipe.ignore_empty_lines();
 
         // Break if we drop out of the impl block's indentation level
-        if (token_pipe.lookahead_indents() != method_indent) {
+        if (token_pipe.lookahead_indents() != method_indent)
+        {
             break;
         }
 
         token_pipe.expect_n_indents(method_indent);
 
         // Within an `impl` block, we exclusively expect function definitions
-        if (token_pipe.consume_optional(TokenType::FUN)) {
+        if (token_pipe.consume_optional(TokenType::FUN))
+        {
             auto func = parse_function_definition(method_indent);
             methods.push_back(func);
-        } else {
+        }
+        else
+        {
             // Use Doctor to pull the line/column of the unexpected token!
             auto bad_token = token_pipe.current();
             int line = bad_token ? bad_token->line : 0;

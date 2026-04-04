@@ -20,12 +20,9 @@ namespace Wasp
 // Main Execution Loop
 // --------------------------------------------------------------
 
-void VM::run(StaticFunctionObject_ptr function_object)
+void VM::run(FunctionBlueprintObject_ptr function_object)
 {
-    frames.emplace_back(
-        std::make_shared<RuntimeFunctionObject>(function_object),
-        0
-    );
+    frames.emplace_back(std::make_shared<FunctionRuntimeObject>(function_object), 0);
 
     while (true)
     {

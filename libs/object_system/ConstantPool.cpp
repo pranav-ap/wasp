@@ -33,6 +33,13 @@ namespace Wasp
         objects.push_back(MAKE_OBJECT_VARIANT(BooleanObject(true)));       // 8
         objects.push_back(MAKE_OBJECT_VARIANT(BooleanObject(false)));      // 9
         objects.push_back(MAKE_OBJECT_VARIANT(NoneObject()));              // 10
+
+        // default values for types
+
+        objects.push_back(MAKE_OBJECT_VARIANT(IntObject(0)));         // 11
+        objects.push_back(MAKE_OBJECT_VARIANT(FloatObject(0.0)));     // 12
+        objects.push_back(MAKE_OBJECT_VARIANT(StringObject("")));     // 13
+        objects.push_back(MAKE_OBJECT_VARIANT(BooleanObject(false))); // 14
     }
 
     Object_ptr ConstantPool::get(int id) const {
@@ -146,7 +153,7 @@ namespace Wasp
         return id;
     }
 
-    int ConstantPool::allocate_function_definition(StaticFunctionObject_ptr func_obj)
+    int ConstantPool::allocate_function_definition(FunctionBlueprintObject_ptr func_obj)
     {
         int id = objects.size();
         objects.push_back(MAKE_OBJECT_VARIANT(func_obj));
@@ -155,15 +162,24 @@ namespace Wasp
 
     int ConstantPool::allocate_function_definition(CodeObject code)
     {
-        auto func_obj = std::make_shared<StaticFunctionObject>(std::move(code));
+        auto func_obj = std::make_shared<FunctionBlueprintObject>(std::move(code));
 
         return allocate_function_definition(func_obj);
     }
 
     int ConstantPool::allocate_function_definition(CodeObject code, std::string name)
     {
-        auto func_obj = std::make_shared<StaticFunctionObject>(std::move(code), std::move(name));
+        auto func_obj = std::make_shared<FunctionBlueprintObject>(std::move(code), std::move(name));
 
         return allocate_function_definition(func_obj);
+    }
+
+    int ConstantPool::allocate_class_definition(Object_ptr class_obj)
+    {
+        int id = objects.size();
+
+        objects.push_back(class_obj);
+
+        return id;
     }
 }

@@ -9,10 +9,10 @@ add_library(
     SemanticAnalyzer_functions.cpp
     SemanticAnalyzer_imports.cpp
     SemanticAnalyzer_utils.cpp
-    TypeChecker.cpp
     SymbolScope.cpp
     DependencyCrawler.cpp
     SymbolHoister.cpp
+    TypeChecker.cpp
 )
 
 target_link_libraries(SemanticAnalyzerLib PUBLIC TokenLib ASTLib  ObjectSystemLib WorkspaceLib DoctorLib)

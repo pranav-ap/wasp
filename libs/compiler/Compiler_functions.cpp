@@ -46,10 +46,10 @@ void Compiler::visit(FunctionDefinition& function_definition)
         function_definition.name
     );
 
-    // Push the StaticFunctionObject onto the stack
+    // Push the FunctionBlueprintObject onto the stack
     emit(OpCode::LOAD_CONST, const_id, "fun " + function_definition.name);
 
-    // Transform it into a RuntimeFunctionObject & capture upvalues
+    // Transform it into a FunctionRuntimeObject & capture upvalues
     int upvalue_count = static_cast<int>(func_compiler.upvalues.size());
     emit(OpCode::MAKE_FUNCTION, upvalue_count);
 

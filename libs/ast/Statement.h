@@ -1,7 +1,6 @@
 #pragma once
 
 #include "AST.h"
-#include "Expression.h"
 #include "Resolvable.h"
 #include "Token.h"
 
@@ -14,22 +13,29 @@
 #include <variant>
 #include <vector>
 
-namespace Wasp {
+namespace Wasp
+{
 
 struct ExpressionStatement;
 
-struct ExpressionStatement {
+struct ExpressionStatement
+{
     Expression_ptr expression;
 
     ExpressionStatement() = default;
-    explicit ExpressionStatement(Expression_ptr expr) : expression(std::move(expr)) {}
+    explicit ExpressionStatement(Expression_ptr expr) : expression(std::move(expr))
+    {
+    }
 };
 
 // Definitions
 
-struct Definition : public Resolvable {};
+struct Definition : public Resolvable
+{
+};
 
-struct VariableDefinition : public Definition {
+struct VariableDefinition : public Definition
+{
     Expression_ptr expression;
     bool is_mutable;
 
@@ -39,7 +45,8 @@ struct VariableDefinition : public Definition {
         : expression(std::move(expression)), is_mutable(is_mutable) {};
 };
 
-struct AliasDefinition : public Definition {
+struct AliasDefinition : public Definition
+{
     std::string name;
     TypeAnnotation_ptr ref_type;
 
@@ -49,21 +56,25 @@ struct AliasDefinition : public Definition {
         : name(name), ref_type(ref_type) {};
 };
 
-struct EnumDefinition : public Definition {
+struct EnumDefinition : public Definition
+{
     std::string name;
     std::map<std::string, int> members;
 
     EnumDefinition() = default;
 
-    EnumDefinition(std::string name, std::vector<std::string> member_list) : name(std::move(name)) {
+    EnumDefinition(std::string name, std::vector<std::string> member_list) : name(std::move(name))
+    {
         int index = 0;
-        for (const auto& member : member_list) {
+        for (const auto& member : member_list)
+        {
             members.emplace(member, index++);
         }
     }
 };
 
-struct FunctionDefinition : public Definition {
+struct FunctionDefinition : public Definition
+{
     std::string name;
 
     std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters;
@@ -86,7 +97,8 @@ struct FunctionDefinition : public Definition {
           body(std::move(body)) {};
 };
 
-struct AnnotationDefinition : public Definition {
+struct AnnotationDefinition : public Definition
+{
     std::string name;
     ExpressionVector anno_values;
 
@@ -96,7 +108,8 @@ struct AnnotationDefinition : public Definition {
         : name(std::move(name)), anno_values(std::move(anno_values)) {};
 };
 
-struct ClassDefinition : public Definition {
+struct ClassDefinition : public Definition
+{
     std::string name;
     std::map<std::string, TypeAnnotation_ptr> members;
     std::vector<std::string> traits;
@@ -111,7 +124,8 @@ struct ClassDefinition : public Definition {
         : name(name), members(std::move(members)), traits(std::move(traits)) {};
 };
 
-struct TraitDefinition : public Definition {
+struct TraitDefinition : public Definition
+{
     std::string name;
     std::map<std::string, TypeAnnotation_ptr> members;
 
@@ -121,7 +135,8 @@ struct TraitDefinition : public Definition {
         : name(name), members(std::move(members)) {};
 };
 
-struct ImplDefinition : public Definition {
+struct ImplDefinition : public Definition
+{
     std::string class_name;
     std::optional<std::string> trait_name;
     std::vector<Statement_ptr> methods;
@@ -134,16 +149,20 @@ struct ImplDefinition : public Definition {
         std::vector<Statement_ptr> methods
     )
         : class_name(std::move(class_name)), trait_name(std::move(trait_name)),
-          methods(std::move(methods)) {}
+          methods(std::move(methods))
+    {
+    }
 };
 
 // Branching
 
-struct Branch {
+struct Branch
+{
     StatementVector body;
 };
 
-struct IfBranch : Branch {
+struct IfBranch : Branch
+{
     Expression_ptr test;
     std::optional<Statement_ptr> alternative;
 
@@ -156,18 +175,21 @@ struct IfBranch : Branch {
         : Branch(body), test(test), alternative(std::make_optional(alternative)) {};
 };
 
-struct ElseBranch : Branch {
+struct ElseBranch : Branch
+{
     ElseBranch() = default;
     ElseBranch(StatementVector body) : Branch(body) {};
 };
 
 // Looping
 
-struct Loop {
+struct Loop
+{
     StatementVector body;
 };
 
-struct SimpleLoop : public Loop {
+struct SimpleLoop : public Loop
+{
     Expression_ptr condition;
     TokenType style;
 
@@ -177,7 +199,8 @@ struct SimpleLoop : public Loop {
         : Loop(body), condition(std::move(condition)), style(style) {};
 };
 
-struct ForInLoop : public Loop {
+struct ForInLoop : public Loop
+{
     bool lhs_is_mutable;
     Expression_ptr lhs;
     Expression_ptr iterable_expression;
@@ -196,9 +219,12 @@ struct ForInLoop : public Loop {
 
 // Other
 
-struct Pass {};
+struct Pass
+{
+};
 
-struct Return {
+struct Return
+{
     std::optional<Expression_ptr> expression;
 
     Return() : expression(std::nullopt) {};
@@ -208,13 +234,16 @@ struct Return {
 
 // Loop Controls
 
-struct LoopControl {
+struct LoopControl
+{
     TokenType type;
     std::string label;
 
     LoopControl() = default;
 
-    LoopControl(TokenType type, std::string label = "") : type(type), label(label) {}
+    LoopControl(TokenType type, std::string label = "") : type(type), label(label)
+    {
+    }
 };
 
 // Imports
@@ -233,7 +262,9 @@ struct AbstractImport : public Resolvable
     AbstractImport() = default;
 
     AbstractImport(std::optional<TokenType> access_token_type, std::vector<std::string> path)
-        : access_token_type(access_token_type), path(std::move(path)) {}
+        : access_token_type(access_token_type), path(std::move(path))
+    {
+    }
 
     virtual ~AbstractImport() = default;
 };
@@ -250,7 +281,9 @@ struct SimpleImport : public AbstractImport
         std::vector<std::string> path,
         std::optional<std::string> alias = std::nullopt
     )
-        : AbstractImport(access_token_type, std::move(path)), alias(std::move(alias)) {}
+        : AbstractImport(access_token_type, std::move(path)), alias(std::move(alias))
+    {
+    }
 };
 
 // Tank as FuelTank
@@ -264,7 +297,9 @@ struct ImportedSymbol
     ImportedSymbol() = default;
 
     ImportedSymbol(std::string name, std::optional<std::string> alias = std::nullopt)
-        : name(std::move(name)), alias(std::move(alias)) {}
+        : name(std::move(name)), alias(std::move(alias))
+    {
+    }
 };
 
 // from top.engine import Tank, Pump
@@ -279,7 +314,9 @@ struct FromImport : public AbstractImport
         std::vector<std::string> path,
         std::vector<ImportedSymbol> symbols
     )
-        : AbstractImport(access_token_type, std::move(path)), symbols(std::move(symbols)) {}
+        : AbstractImport(access_token_type, std::move(path)), symbols(std::move(symbols))
+    {
+    }
 };
 
 // Statement Variant
@@ -313,18 +350,21 @@ using StatementVariant = std::variant<
 
 // STATEMENT
 
-struct Statement : public AstNode<StatementVariant> {
+struct Statement : public AstNode<StatementVariant>
+{
     using AstNode::AstNode;
 
     Token start_token;
     Token end_token;
 };
 
-template <typename T> inline Statement_ptr make_statement(T&& data) {
+template <typename T> inline Statement_ptr make_statement(T&& data)
+{
     return std::make_shared<Statement>(std::forward<T>(data));
 }
 
-template <typename T> inline Statement_ptr make_statement(T&& data, int statement_number) {
+template <typename T> inline Statement_ptr make_statement(T&& data, int statement_number)
+{
     auto stmt = std::make_shared<Statement>(std::forward<T>(data));
     stmt->statement_number = statement_number;
     return stmt;

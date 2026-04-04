@@ -37,7 +37,7 @@ public:
     InstructionPrinter(Workspace_ptr ws) : ws(ws) {};
 
     void print(const Object_ptr obj, std::ostream& out = std::cout);
-    void print(const StaticFunctionObject_ptr func_obj, std::ostream& out = std::cout);
+    void print(const FunctionBlueprintObject_ptr func_obj, std::ostream& out = std::cout);
     void print(const CodeObject& code_object, std::ostream& out);
     void print_pool_functions(std::ostream& out);
 };

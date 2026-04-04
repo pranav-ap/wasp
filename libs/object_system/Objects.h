@@ -132,6 +132,7 @@ struct ListObject : public CompositeObject, public IterableAbstractObject
 {
     ObjectVector values;
 
+    ListObject();
     ListObject(ObjectVector values);
 
     Object_ptr append(Object_ptr value);
@@ -202,29 +203,36 @@ struct VariantObject : public CompositeObject
     bool has_value();
 };
 
-struct StaticFunctionObject : public CompositeObject
+// FUNCTIONS
+
+struct FunctionBlueprintObject : public CompositeObject
 {
     CodeObject code;
     std::string name;
 
-    StaticFunctionObject(CodeObject code) : code(std::move(code))
+    FunctionBlueprintObject(CodeObject code) : code(std::move(code))
     {
     }
 
-    StaticFunctionObject(CodeObject code, std::string name)
+    FunctionBlueprintObject(CodeObject code, std::string name)
         : code(std::move(code)), name(std::move(name))
     {
     }
 };
 
-using StaticFunctionObject_ptr = std::shared_ptr<StaticFunctionObject>;
+using FunctionBlueprintObject_ptr = std::shared_ptr<FunctionBlueprintObject>;
 
-struct RuntimeFunctionObject
+struct FunctionRuntimeObject
 {
-    StaticFunctionObject_ptr blueprint;
+    FunctionBlueprintObject_ptr blueprint;
     ObjectVector upvalues;
 
-    RuntimeFunctionObject(StaticFunctionObject_ptr blueprint, ObjectVector upvalues = {})
+    FunctionRuntimeObject(FunctionBlueprintObject_ptr blueprint)
+        : blueprint(std::move(blueprint)), upvalues({})
+    {
+    }
+
+    FunctionRuntimeObject(FunctionBlueprintObject_ptr blueprint, ObjectVector upvalues)
         : blueprint(std::move(blueprint)), upvalues(std::move(upvalues))
     {
     }
@@ -235,7 +243,7 @@ struct RuntimeFunctionObject
     }
 };
 
-using RuntimeFunctionObject_ptr = std::shared_ptr<RuntimeFunctionObject>;
+using FunctionRuntimeObject_ptr = std::shared_ptr<FunctionRuntimeObject>;
 
 using NativeFnType = std::function<Object_ptr(const ObjectVector&)>;
 
@@ -256,10 +264,7 @@ struct OverloadedObjectsSet : public OverloadsSet
     OverloadedObjectsSet(ObjectVector overloads) : OverloadsSet(std::move(overloads)) {};
 };
 
-struct OverloadedTypesSet : public OverloadsSet
-{
-    OverloadedTypesSet(ObjectVector overloads) : OverloadsSet(std::move(overloads)) {};
-};
+// MODULE
 
 struct ModuleObject : public MemberedCompositeObject
 {
@@ -270,6 +275,26 @@ struct ModuleObject : public MemberedCompositeObject
     {
     }
 };
+
+// CLASS & OBJECT
+
+struct ClassDefinitionObject : public MemberedCompositeObject
+{
+    std::string name;
+    StringVector traits;
+
+    ClassDefinitionObject(std::string name, ObjectVector members)
+        : name(std::move(name)), traits({}), MemberedCompositeObject(std::move(members))
+    {
+    }
+
+    ClassDefinitionObject(std::string name, ObjectVector members, StringVector traits)
+        : name(std::move(name)), traits(traits), MemberedCompositeObject(std::move(members))
+    {
+    }
+};
+
+using ClassObject_ptr = std::shared_ptr<ClassDefinitionObject>;
 
 // ============================================================================
 // Action Objects
@@ -430,6 +455,11 @@ struct FunctionType : public AnyType
           return_type(std::make_optional(std::move(return_type))) {};
 };
 
+struct OverloadedTypesSet : public OverloadsSet
+{
+    OverloadedTypesSet(ObjectVector overloads) : OverloadsSet(std::move(overloads)) {};
+};
+
 struct RecordType : public MemberedCompositeType
 {
     RecordType(ObjectStringMap members) : MemberedCompositeType{std::move(members)}
@@ -449,6 +479,16 @@ struct ModuleType : public MemberedCompositeType
     )
         : module_name(std::move(module_name)), absolute_filepath(std::move(absolute_filepath)),
           MemberedCompositeType(std::move(members))
+    {
+    }
+};
+
+struct ClassType : public MemberedCompositeType
+{
+    std::string class_name;
+
+    ClassType(std::string class_name, ObjectStringMap members)
+        : class_name(std::move(class_name)), MemberedCompositeType(std::move(members))
     {
     }
 };
@@ -476,12 +516,14 @@ struct Object
         std::shared_ptr<MapObject>,
         std::shared_ptr<VariantObject>,
 
-        std::shared_ptr<StaticFunctionObject>,
-        std::shared_ptr<RuntimeFunctionObject>,
+        std::shared_ptr<FunctionBlueprintObject>,
+        std::shared_ptr<FunctionRuntimeObject>,
         std::shared_ptr<NativeFunctionObject>,
         std::shared_ptr<ModuleObject>,
         std::shared_ptr<OverloadedObjectsSet>,
         std::shared_ptr<OverloadedTypesSet>,
+
+        std::shared_ptr<ClassDefinitionObject>,
 
         std::shared_ptr<BreakObject>,
         std::shared_ptr<ContinueObject>,
@@ -507,7 +549,8 @@ struct Object
         VariantType,
         FunctionType,
         RecordType,
-        ModuleType>;
+        ModuleType,
+        ClassType>;
 
     UnderlyingVariant value;
 
@@ -526,6 +569,7 @@ struct Object
     {
         return std::get<T>(value);
     }
+
     template <typename T> T& as()
     {
         return std::get<T>(value);
@@ -535,6 +579,7 @@ struct Object
     {
         return std::get_if<T>(&value);
     }
+
     template <typename T> T* try_as()
     {
         return std::get_if<T>(&value);

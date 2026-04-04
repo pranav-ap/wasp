@@ -41,8 +41,8 @@ fun add(a: int, b: int) => int
     EXPECT_EQ(actual_bytes, expected_bytes);
 
     auto pool_obj = pool->get(func_id);
-    ASSERT_TRUE(pool_obj->is<std::shared_ptr<Wasp::StaticFunctionObject>>());
-    auto func_obj = pool_obj->as<std::shared_ptr<Wasp::StaticFunctionObject>>();
+    ASSERT_TRUE(pool_obj->is<std::shared_ptr<Wasp::FunctionBlueprintObject>>());
+    auto func_obj = pool_obj->as<std::shared_ptr<Wasp::FunctionBlueprintObject>>();
     const Wasp::CodeObject& inner_code = func_obj->code;
 
     std::vector<std::byte> actual_inner_bytes(
@@ -97,8 +97,8 @@ fun max(a: int, b: int) => int
     EXPECT_EQ(actual_bytes, expected_bytes);
 
     auto pool_obj = pool->get(max_func_pool_id);
-    ASSERT_TRUE(pool_obj->is<std::shared_ptr<Wasp::StaticFunctionObject>>());
-    auto func_obj = pool_obj->as<std::shared_ptr<Wasp::StaticFunctionObject>>();
+    ASSERT_TRUE(pool_obj->is<std::shared_ptr<Wasp::FunctionBlueprintObject>>());
+    auto func_obj = pool_obj->as<std::shared_ptr<Wasp::FunctionBlueprintObject>>();
     const Wasp::CodeObject& inner_code = func_obj->code;
 
     std::vector<std::byte> actual_inner_bytes(
@@ -172,9 +172,9 @@ fun outer(a: int) => any
     EXPECT_EQ(actual_bytes, expected_bytes);
 
     auto outer_pool_obj = pool->get(outer_func_pool_id);
-    ASSERT_TRUE(outer_pool_obj->is<std::shared_ptr<Wasp::StaticFunctionObject>>());
+    ASSERT_TRUE(outer_pool_obj->is<std::shared_ptr<Wasp::FunctionBlueprintObject>>());
     const Wasp::CodeObject&
-        outer_code = outer_pool_obj->as<std::shared_ptr<Wasp::StaticFunctionObject>>()->code;
+        outer_code = outer_pool_obj->as<std::shared_ptr<Wasp::FunctionBlueprintObject>>()->code;
 
     std::vector<std::byte> actual_outer_bytes(
         outer_code.data(),

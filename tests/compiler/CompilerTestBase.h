@@ -26,7 +26,7 @@ protected:
 
     std::shared_ptr<Wasp::Workspace> workspace;
     Wasp::ConstantPool_ptr pool;
-    Wasp::StaticFunctionObject_ptr function_object;
+    Wasp::FunctionBlueprintObject_ptr function_object;
     Wasp::CFGraph current_graph;
 
     int pool_size = 0;

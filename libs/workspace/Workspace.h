@@ -176,7 +176,7 @@ struct Module
 
     StatementVector stmts;
     CFGraph graph;
-    StaticFunctionObject_ptr blueprint;
+    FunctionBlueprintObject_ptr blueprint;
 
     SymbolVector exports;
     Object_ptr type;
