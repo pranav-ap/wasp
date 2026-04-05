@@ -164,23 +164,23 @@ void Symbol::set_type(Object_ptr new_type)
         ::overloaded{
             [&](VariableData& d)
             {
-                d.type = std::move(new_type);
+                d.type = new_type;
             },
             [&](FunctionData& d)
             {
-                d.type = std::move(new_type);
+                d.type = new_type;
             },
             [&](ClassData& d)
             {
-                d.type = std::move(new_type);
+                d.type = new_type;
             },
             [&](EnumData& d)
             {
-                d.type = std::move(new_type);
+                d.type = new_type;
             },
             [&](AliasData& d)
             {
-                d.target->set_type(std::move(new_type));
+                d.target->set_type(new_type);
             },
             [](auto) -> void
             {

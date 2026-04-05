@@ -104,7 +104,12 @@ class SemanticAnalyzer
         const ObjectVector& arg_types
     );
 
-    Object_ptr evaluate_instance_creation(Symbol_ptr symbol, ObjectVector arg_types);
+    Object_ptr evaluate_instance_creation(
+        Call& call_expr,
+        Identifier& callable_identifier,
+        Symbol_ptr symbol,
+        ObjectVector arg_types
+    );
 
     Object_ptr visit(Call& expr);
 

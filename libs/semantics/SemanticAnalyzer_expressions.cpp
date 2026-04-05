@@ -287,7 +287,7 @@ Object_ptr SemanticAnalyzer::visit(Call& call_expr)
 
                 if (symbol->payload_is<ClassData>())
                 {
-                    return evaluate_instance_creation(symbol, arg_types);
+                    return evaluate_instance_creation(call_expr, id, symbol, arg_types);
                 }
 
                 return evaluate_identifier_call(call_expr, id, arg_types);
@@ -390,9 +390,39 @@ Object_ptr SemanticAnalyzer::evaluate_module_member_access_call(
     return function_symbol->get_payload_as<FunctionData>().get_return_type();
 }
 
-Object_ptr SemanticAnalyzer::evaluate_instance_creation(Symbol_ptr symbol, ObjectVector arg_types)
+Object_ptr SemanticAnalyzer::evaluate_instance_creation(
+    Call& call_expr,
+    Identifier& callable_identifier,
+    Symbol_ptr symbol,
+    ObjectVector arg_types
+)
 {
-    auto class_type = symbol->get_payload_as<ClassData>().type;
+    callable_identifier.symbol = symbol;
+
+    auto class_type_obj = symbol->get_payload_as<ClassData>().type;
+    auto& class_type = class_type_obj->as<ClassType>();
+
+    Doctor::get().assert(
+        arg_types.size() == class_type.declaration_order.size(),
+        WaspStage::Semantics,
+        "Constructor Arguments Count Mismatch"
+    );
+
+    for (size_t i = 0; i < class_type.declaration_order.size(); ++i)
+    {
+        const std::string& member_name = class_type.declaration_order[i];
+
+        Object_ptr expected_type = class_type.get_member(member_name);
+        Object_ptr actual_type = arg_types[i];
+
+        Doctor::get().assert(
+            type_checker->assignable(current_scope, expected_type, actual_type),
+            WaspStage::Semantics,
+            "Constructor Arguments Type Mismatch"
+        );
+    }
+
+    return class_type_obj;
 }
 
 } // namespace Wasp

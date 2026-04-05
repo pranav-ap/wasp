@@ -25,9 +25,11 @@ void SemanticAnalyzer::visit(ClassDefinition& class_definition)
         member_types[member_name] = member_type;
     }
 
-    auto class_type = make_object(
-        ClassType(class_definition.name, std::move(member_types))
-    );
+    auto class_type = make_object(ClassType(
+        class_definition.name,
+        std::move(member_types),
+        std::move(class_definition.members_declaration_order)
+    ));
 
     Symbol_ptr actual_class_symbol;
 

@@ -1,3 +1,6 @@
 class Movie
     id: int
     name: str
+
+let m = Movie(1, 'sam')
+

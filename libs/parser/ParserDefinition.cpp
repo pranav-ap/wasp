@@ -173,9 +173,11 @@ Statement_ptr Parser::parse_annotation_definition()
 
 // Class
 
-std::map<std::string, TypeAnnotation_ptr> Parser::parse_name_type_block(int expected_indent)
+std::pair<std::map<std::string, TypeAnnotation_ptr>, std::vector<std::string>> Parser::
+    parse_name_type_block(int expected_indent)
 {
     std::map<std::string, TypeAnnotation_ptr> members;
+    std::vector<std::string> members_declaration_order;
 
     while (true)
     {
@@ -190,9 +192,11 @@ std::map<std::string, TypeAnnotation_ptr> Parser::parse_name_type_block(int expe
 
         auto [member_name, member_type] = parse_name_type_pair(expected_indent);
         members[member_name] = member_type;
+
+        members_declaration_order.push_back(member_name);
     }
 
-    return members;
+    return make_pair(members, members_declaration_order);
 }
 
 std::pair<std::string, TypeAnnotation_ptr> Parser::parse_name_type_pair(int member_indent)
@@ -250,9 +254,9 @@ Statement_ptr Parser::parse_class_definition(int indent_level)
 
     token_pipe.require_in_line(TokenType::EOL);
 
-    auto members = parse_name_type_block(indent_level + 1);
+    auto [members, members_declaration_order] = parse_name_type_block(indent_level + 1);
 
-    return make_statement(ClassDefinition(class_name, members, traits));
+    return make_statement(ClassDefinition(class_name, members, members_declaration_order, traits));
 }
 
 Statement_ptr Parser::parse_trait_definition(int indent_level)
@@ -264,9 +268,9 @@ Statement_ptr Parser::parse_trait_definition(int indent_level)
 
     token_pipe.require_in_line(TokenType::EOL);
 
-    auto members = parse_name_type_block(indent_level + 1);
+    auto [members, members_declaration_order] = parse_name_type_block(indent_level + 1);
 
-    return make_statement(TraitDefinition(trait_name, members));
+    return make_statement(TraitDefinition(trait_name, members, members_declaration_order));
 }
 
 Statement_ptr Parser::parse_impl_definition(int indent_level)

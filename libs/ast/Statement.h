@@ -112,6 +112,7 @@ struct ClassDefinition : public Definition
 {
     std::string name;
     std::map<std::string, TypeAnnotation_ptr> members;
+    std::vector<std::string> members_declaration_order;
     std::vector<std::string> traits;
 
     ClassDefinition() = default;
@@ -119,20 +120,29 @@ struct ClassDefinition : public Definition
     ClassDefinition(
         std::string name,
         std::map<std::string, TypeAnnotation_ptr> members,
+        std::vector<std::string> members_declaration_order,
         std::vector<std::string> traits
     )
-        : name(name), members(std::move(members)), traits(std::move(traits)) {};
+        : name(name), members(std::move(members)),
+          members_declaration_order(std::move(members_declaration_order)),
+          traits(std::move(traits)) {};
 };
 
 struct TraitDefinition : public Definition
 {
     std::string name;
     std::map<std::string, TypeAnnotation_ptr> members;
+    std::vector<std::string> members_declaration_order;
 
     TraitDefinition() = default;
 
-    TraitDefinition(std::string name, std::map<std::string, TypeAnnotation_ptr> members)
-        : name(name), members(std::move(members)) {};
+    TraitDefinition(
+        std::string name,
+        std::map<std::string, TypeAnnotation_ptr> members,
+        std::vector<std::string> members_declaration_order
+    )
+        : name(name), members(std::move(members)),
+          members_declaration_order(std::move(members_declaration_order)) {};
 };
 
 struct ImplDefinition : public Definition

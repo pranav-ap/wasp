@@ -486,9 +486,11 @@ struct ModuleType : public MemberedCompositeType
 struct ClassType : public MemberedCompositeType
 {
     std::string class_name;
+    StringVector declaration_order;
 
-    ClassType(std::string class_name, ObjectStringMap members)
-        : class_name(std::move(class_name)), MemberedCompositeType(std::move(members))
+    ClassType(std::string class_name, ObjectStringMap members, StringVector declaration_order)
+        : class_name(std::move(class_name)), declaration_order(std::move(declaration_order)),
+          MemberedCompositeType(std::move(members))
     {
     }
 };
