@@ -272,17 +272,27 @@ struct ModuleObject : public MemberedCompositeObject
 
 // CLASS & OBJECT
 
-struct InstanceObject : public MemberedCompositeObject
+struct ClassDefinitionObject : public MemberedCompositeObject
 {
     std::string name;
 
-    InstanceObject(std::string name, ObjectVector members)
+    ClassDefinitionObject(std::string name, ObjectVector members)
         : name(std::move(name)), MemberedCompositeObject(std::move(members))
     {
     }
 };
 
-using InstanceObject_ptr = std::shared_ptr<InstanceObject>;
+using ClassDefinitionObject_ptr = std::shared_ptr<ClassDefinitionObject>;
+
+struct InstanceObject : public MemberedCompositeObject
+{
+    ClassDefinitionObject_ptr class_definition;
+
+    InstanceObject(ObjectVector members)
+        : MemberedCompositeObject(std::move(members)), class_definition(nullptr)
+    {
+    }
+};
 
 // ============================================================================
 // Action Objects
@@ -519,6 +529,7 @@ struct Object
         std::shared_ptr<OverloadedObjectsSet>,
         std::shared_ptr<OverloadedTypesSet>,
 
+        std::shared_ptr<ClassDefinitionObject>,
         std::shared_ptr<InstanceObject>,
 
         std::shared_ptr<BreakObject>,

@@ -41,9 +41,7 @@ void VM::execute_instantiate(CallFrame* frame)
         "VM Initialization error: Arity mismatch for class " + blueprint.class_name
     );
 
-    auto instance = make_object(
-        std::make_shared<InstanceObject>(blueprint.class_name, std::move(args))
-    );
+    auto instance = make_object(std::make_shared<InstanceObject>(std::move(args)));
 
     push_to_stack(instance);
 }
