@@ -55,6 +55,12 @@ Object_ptr VM::perform_get_member(Object_ptr obj, int member_index)
             {
                 return mod->get_member(member_index);
             },
+
+            [&](std::shared_ptr<InstanceObject>& instance) -> Object_ptr
+            {
+                return instance->get_member(member_index);
+            },
+
             [&](auto&) -> Object_ptr
             {
                 Doctor::get().fatal(
@@ -77,6 +83,12 @@ void VM::perform_set_member(Object_ptr obj, int member_index, Object_ptr value)
             {
                 mod->set_member(member_index, value);
             },
+
+            [&](std::shared_ptr<InstanceObject>& instance)
+            {
+                instance->set_member(member_index, value);
+            },
+
             [&](auto&)
             {
                 Doctor::get().fatal(WaspStage::VM, "Object does not support setting properties.");

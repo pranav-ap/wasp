@@ -105,6 +105,8 @@ private:
     void visit(SimpleImport& statement);
     void visit(FromImport& statement);
 
+    void visit(ClassDefinition& statement);
+
     // Expressions
 
     void visit(const Expression_ptr expr);
@@ -119,6 +121,9 @@ private:
 
     void visit(Identifier& expr);
     void visit(MemberAccess& expr);
+
+    void compile_constructor_call(Call& expr);
+    void compile_function_call(Call& expr);
     void visit(Call& expr);
 
     void visit(Prefix& expr);
@@ -156,6 +161,8 @@ private:
     void compile_identifier_assignment(Identifier& id, const Expression_ptr& rhs);
     void compile_member_assignment(MemberAccess& mac, const Expression_ptr& rhs);
 
+    Object_ptr get_default_value_for_type(Object_ptr type);
+
     CodeObject flatten();
 
 public:
@@ -167,7 +174,7 @@ public:
         return graph;
     }
 
-    StaticFunctionObject_ptr run(
+    FunctionBlueprintObject_ptr run(
         const StatementVector& block,
         std::string name,
         bool is_main = false

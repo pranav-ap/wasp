@@ -46,6 +46,9 @@ using ByteVector = std::vector<std::byte>;
     X(GET_UPVALUE, 1)       /* [] -> [val] | <Upvalue Index> */                                    \
     X(SET_UPVALUE, 1)       /* [val] -> [] | <Upvalue Index> */                                    \
                                                                                                    \
+    /* --- Classes --- */                                                                          \
+    X(INSTANTIATE, 1) /* [blueprint] -> [instance] | <number of args> */                           \
+                                                                                                   \
     /* --- Arithmetic --- */                                                                       \
     X(NEGATE, 0) /* [a] -> [-a] */                                                                 \
     X(ADD, 0)    /* [a, b] -> [a+b] */                                                             \

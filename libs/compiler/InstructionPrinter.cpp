@@ -36,9 +36,9 @@ void InstructionPrinter::print_pool_functions(std::ostream& out)
     {
         auto obj = ws->pool->get(i);
 
-        if (obj && obj->is<std::shared_ptr<StaticFunctionObject>>())
+        if (obj && obj->is<std::shared_ptr<FunctionBlueprintObject>>())
         {
-            auto func_obj = obj->as<std::shared_ptr<StaticFunctionObject>>();
+            auto func_obj = obj->as<std::shared_ptr<FunctionBlueprintObject>>();
             found_functions = true;
 
             out << "  ┌── [ Constant Pool ID : " << std::right << setw(3) << std::setfill('0') << i
@@ -214,15 +214,15 @@ void InstructionPrinter::print(const Object_ptr obj, std::ostream& out)
     Doctor::get().fatal_if_nullptr(obj, WaspStage::Compiler, "Cannot print a null object");
 
     Doctor::get().assert(
-        obj->is<StaticFunctionObject_ptr>(),
+        obj->is<FunctionBlueprintObject_ptr>(),
         WaspStage::Compiler,
-        "Can only print StaticFunctionObjects"
+        "Can only print FunctionBlueprintObjects"
     );
 
-    print(obj->as<StaticFunctionObject_ptr>(), out);
+    print(obj->as<FunctionBlueprintObject_ptr>(), out);
 }
 
-void InstructionPrinter::print(const StaticFunctionObject_ptr function_obj, std::ostream& out)
+void InstructionPrinter::print(const FunctionBlueprintObject_ptr function_obj, std::ostream& out)
 {
     print_bytecode(function_obj->code, out);
 }

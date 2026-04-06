@@ -36,7 +36,6 @@
 			"extensions": [
 				"llvm-vs-code-extensions.vscode-clangd",
 				"ms-vscode.cmake-tools",
-				"GitHub.copilot-chat",
 				"vadimcn.vscode-lldb",
 				"mrmlnc.vscode-duplicate",
 				"codezombiech.gitignore",

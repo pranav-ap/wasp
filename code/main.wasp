@@ -1,7 +1,7 @@
-let x = 1
+class Movie
+    id: int
+    name: str
 
-while x < 5 do
-    if x % 2 == 0 then
-        print(x)
+let m = Movie(1, 'sam')
 
-    x = x + 1
+print(m.id + ': ' + m.name)

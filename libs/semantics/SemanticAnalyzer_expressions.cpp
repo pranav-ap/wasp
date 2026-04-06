@@ -250,23 +250,33 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
     Object_ptr left_type = visit(expr.left);
 
     Doctor::get().assert(
-        left_type->is<ModuleType>(),
-        WaspStage::Semantics,
-        "LHS of member access is not a module"
-    );
-
-    const auto& module_type = left_type->as<ModuleType>();
-
-    Doctor::get().assert(
         expr.right->is<Identifier>(),
         WaspStage::Semantics,
         "RHS of member access must be an identifier."
     );
 
     std::string member_name = expr.right->as<Identifier>().name;
-    expr.member_index = module_type.get_member_index(member_name);
 
-    return module_type.get_member(member_name);
+    if (left_type->is<ModuleType>())
+    {
+        const auto& module_type = left_type->as<ModuleType>();
+
+        expr.member_index = module_type.get_member_index(member_name);
+        return module_type.get_member(member_name);
+    }
+    else if (left_type->is<ClassType>())
+    {
+        const auto& class_type = left_type->as<ClassType>();
+
+        expr.member_index = class_type.get_member_index(member_name);
+        return class_type.get_member(member_name);
+    }
+
+    Doctor::get().fatal(
+        WaspStage::Semantics,
+        "Cannot access member '" + member_name +
+            "'. The left-hand side is neither a module nor a class instance."
+    );
 }
 
 Object_ptr SemanticAnalyzer::visit(Call& call_expr)
@@ -282,6 +292,14 @@ Object_ptr SemanticAnalyzer::visit(Call& call_expr)
         overloaded{
             [&](Identifier& id) -> Object_ptr
             {
+                auto symbol = current_scope->lookup(id.name);
+                Doctor::get().fatal_if_nullptr(symbol, WaspStage::Semantics);
+
+                if (symbol->payload_is<ClassData>())
+                {
+                    return evaluate_instance_creation(call_expr, id, symbol, arg_types);
+                }
+
                 return evaluate_identifier_call(call_expr, id, arg_types);
             },
 
@@ -380,6 +398,47 @@ Object_ptr SemanticAnalyzer::evaluate_module_member_access_call(
     right_id.symbol = function_symbol;
 
     return function_symbol->get_payload_as<FunctionData>().get_return_type();
+}
+
+Object_ptr SemanticAnalyzer::evaluate_instance_creation(
+    Call& call_expr,
+    Identifier& callable_identifier,
+    Symbol_ptr symbol,
+    ObjectVector arg_types
+)
+{
+    call_expr.is_constructor_call = true;
+    callable_identifier.symbol = symbol;
+
+    if (symbol->should_be_captured(current_scope->get_closure_depth()))
+    {
+        callable_identifier.must_be_captured = true;
+    }
+
+    auto class_type_obj = symbol->get_payload_as<ClassData>().type;
+    auto& class_type = class_type_obj->as<ClassType>();
+
+    Doctor::get().assert(
+        arg_types.size() == class_type.declaration_order.size(),
+        WaspStage::Semantics,
+        "Constructor Arguments Count Mismatch"
+    );
+
+    for (size_t i = 0; i < class_type.declaration_order.size(); ++i)
+    {
+        const std::string& member_name = class_type.declaration_order[i];
+
+        Object_ptr expected_type = class_type.get_member(member_name);
+        Object_ptr actual_type = arg_types[i];
+
+        Doctor::get().assert(
+            type_checker->assignable(current_scope, expected_type, actual_type),
+            WaspStage::Semantics,
+            "Constructor Arguments Type Mismatch"
+        );
+    }
+
+    return class_type_obj;
 }
 
 } // namespace Wasp

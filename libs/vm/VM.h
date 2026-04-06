@@ -14,14 +14,14 @@ namespace Wasp
 
 struct CallFrame
 {
-    RuntimeFunctionObject_ptr function;
+    FunctionRuntimeObject_ptr function;
 
     size_t ip = 0;
     size_t base_pointer = 0;
 
     std::vector<size_t> scope_bases;
 
-    CallFrame(RuntimeFunctionObject_ptr func, size_t bp)
+    CallFrame(FunctionRuntimeObject_ptr func, size_t bp)
         : function(std::move(func)), base_pointer(bp)
     {
     }
@@ -65,6 +65,8 @@ class VM
     void execute_call(CallFrame* frame);
     void execute_return(CallFrame* frame);
 
+    void execute_instantiate(CallFrame* frame);
+
     void execute_import_module(CallFrame* frame);
     void execute_exit_module(CallFrame* frame);
 
@@ -101,6 +103,6 @@ public:
         stack.reserve(256);
     }
 
-    void run(StaticFunctionObject_ptr main_function);
+    void run(FunctionBlueprintObject_ptr main_function);
 };
 } // namespace Wasp

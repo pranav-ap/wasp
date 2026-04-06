@@ -95,6 +95,10 @@ void IteratorObject::reset_iter()
 // ListObject
 // ============================================================================
 
+ListObject::ListObject()
+{
+}
+
 ListObject::ListObject(ObjectVector values)
 {
     for (const auto& value : values)

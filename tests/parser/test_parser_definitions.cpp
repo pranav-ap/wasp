@@ -32,7 +32,7 @@ enum Animal
     EXPECT_EQ(enum_def.name, "Animal");
     EXPECT_EQ(enum_def.members.size(), 3);
 }
- 
+
 TEST(ParseDefinitions, FunctionDefinitionWithIfElifElse) {
     auto block = parse(R"(
 fun add(a: int, b: int) => int
@@ -55,10 +55,10 @@ fun add(a: int, b: int) => int
     {
         auto& if_branch = check<Wasp::IfBranch>(func_def.body[0]);
         ASSERT_TRUE(if_branch.alternative.has_value());
-        
+
         auto& elif_branch = check<Wasp::IfBranch>(if_branch.alternative.value());
         ASSERT_TRUE(elif_branch.alternative.has_value());
-        
+
         check<Wasp::ElseBranch>(elif_branch.alternative.value());
     }
 
@@ -68,7 +68,7 @@ fun add(a: int, b: int) => int
         check<Wasp::Return>(func_def.body[1]);
     }
 }
- 
+
 TEST(ParseDefinitions, FunctionDefinitionWithWhile) {
     auto block = parse(R"(
 fun add(a: int, b: int) => int
@@ -90,7 +90,7 @@ fun add(a: int, b: int) => int
     check<Wasp::Return>(func_def.body[1]);
 }
 
-// CLASS 
+// CLASS
 
 TEST(ParseDefinitions, ClassDefinitionWithNestedRecord) {
     auto block = parse(R"(
@@ -116,22 +116,22 @@ class Person
     ASSERT_EQ(class_def.members.count("job"), 1);
     auto& job_record = check<std::shared_ptr<Wasp::RecordTypeNode>>(class_def.members.at("job"));
     // title, salary, experience
-    ASSERT_EQ(job_record->members.size(), 3); 
+    ASSERT_EQ(job_record->members.size(), 3);
 
     ASSERT_EQ(job_record->members.count("experience"), 1);
     auto& exp_record = check<std::shared_ptr<Wasp::RecordTypeNode>>(job_record->members.at("experience"));
     ASSERT_EQ(exp_record->members.size(), 2);
-    
+
     ASSERT_EQ(exp_record->members.count("years"), 1);
     check<Wasp::IntTypeNode>(exp_record->members.at("years"));
-    
+
     ASSERT_EQ(exp_record->members.count("field"), 1);
     check<Wasp::StringTypeNode>(exp_record->members.at("field"));
 }
 
 TEST(ParseDefinitions, ClassDefinitionWithManyTraits) {
     auto block = parse(R"(
-class Person is Fortifiable, Movable, Serializable
+class Person is Fortifiable & Movable & Serializable
     name: str
     _age: int
 )");
@@ -145,16 +145,16 @@ class Person is Fortifiable, Movable, Serializable
 
 TEST(ParseDefinitions, ClassImplMultipleFunctions) {
     auto block = parse(R"(
-impl Person is Fortifiable
+impl Person
     fun fortify()
         if my.age > 30 then
             my.defense = my.defense + 15
         else
             my.defense = my.defense + 5
-    
+
     fun weaken(damage: int)
         my.defense = my.defense - damage
-        
+
         if my.defense < 0 then
             my.defense = 0
 )");
@@ -171,9 +171,9 @@ impl Person is Fortifiable
 
     auto& func_def2 = check<Wasp::FunctionDefinition>(impl_def.methods[1]);
     EXPECT_EQ(func_def2.name, "weaken");
-    
+
     ASSERT_EQ(func_def2.parameters.size(), 1);
     EXPECT_EQ(func_def2.parameters[0].first, "damage");
-    
+
     check<Wasp::IntTypeNode>(func_def2.parameters[0].second);
 }
