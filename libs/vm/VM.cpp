@@ -188,6 +188,11 @@ void VM::run(FunctionBlueprintObject_ptr function_object)
             break;
         }
 
+        case OpCode::INSTANTIATE: {
+            execute_instantiate(frame);
+            break;
+        }
+
         default: {
             Doctor::get().fatal(
                 WaspStage::VM,

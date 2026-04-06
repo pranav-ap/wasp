@@ -548,16 +548,21 @@ Object_ptr TypeChecker::infer(
 {
     switch (op)
     {
-    case TokenType::PLUS:
-        if (is_string_type(left_type))
+    case TokenType::PLUS: {
+        if (is_string_type(left_type) || is_string_type(right_type))
         {
+            bool left_valid = is_string_type(left_type) || is_number_type(left_type);
+            bool right_valid = is_string_type(right_type) || is_number_type(right_type);
+
             Doctor::get().assert(
-                is_string_type(right_type) || is_number_type(right_type), // Fixed logical AND to OR
+                left_valid && right_valid,
                 WaspStage::Semantics,
-                "Cannot concatenate string with this type"
+                "Cannot concatenate string with a non-number/non-string type."
             );
+
             return pool->get_string_type();
         }
+    }
     case TokenType::STAR:
     case TokenType::POWER:
     case TokenType::MINUS:

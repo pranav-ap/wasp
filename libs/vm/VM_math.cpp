@@ -130,17 +130,59 @@ Object_ptr VM::perform_add(Object_ptr left, Object_ptr right)
 {
     return std::visit(
         overloaded{
+            // Numeric Addition
             [&](IntObject& left, IntObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value + right.value); },
+            {
+                return workspace->pool->make_object(left.value + right.value);
+            },
             [&](FloatObject& left, FloatObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value + right.value); },
+            {
+                return workspace->pool->make_object(left.value + right.value);
+            },
             [&](IntObject& left, FloatObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value + right.value); },
+            {
+                return workspace->pool->make_object(left.value + right.value);
+            },
             [&](FloatObject& left, IntObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value + right.value); },
-            [&](auto, auto) -> Object_ptr { return workspace->pool->make_error_object("_"); }},
+            {
+                return workspace->pool->make_object(left.value + right.value);
+            },
+
+            // String Concatenation
+            [&](StringObject& left, StringObject& right) -> Object_ptr
+            {
+                return workspace->pool->make_object(left.value + right.value);
+            },
+
+            // Mixed String + Number
+            [&](StringObject& left, IntObject& right) -> Object_ptr
+            {
+                return workspace->pool->make_object(left.value + std::to_string(right.value));
+            },
+            [&](IntObject& left, StringObject& right) -> Object_ptr
+            {
+                return workspace->pool->make_object(std::to_string(left.value) + right.value);
+            },
+
+            // Mixed String + Float
+            [&](StringObject& left, FloatObject& right) -> Object_ptr
+            {
+                return workspace->pool->make_object(left.value + std::to_string(right.value));
+            },
+            [&](FloatObject& left, StringObject& right) -> Object_ptr
+            {
+                return workspace->pool->make_object(std::to_string(left.value) + right.value);
+            },
+
+            // Fallback
+            [&](auto&, auto&) -> Object_ptr
+            {
+                return workspace->pool->make_error_object("Unsupported operand types for +");
+            }
+        },
         left->value,
-        right->value);
+        right->value
+    );
 }
 
 Object_ptr VM::perform_subtract(Object_ptr left, Object_ptr right)

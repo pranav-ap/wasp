@@ -272,23 +272,17 @@ struct ModuleObject : public MemberedCompositeObject
 
 // CLASS & OBJECT
 
-struct ClassDefinitionObject : public MemberedCompositeObject
+struct InstanceObject : public MemberedCompositeObject
 {
     std::string name;
-    StringVector traits;
 
-    ClassDefinitionObject(std::string name, ObjectVector members)
-        : name(std::move(name)), traits({}), MemberedCompositeObject(std::move(members))
-    {
-    }
-
-    ClassDefinitionObject(std::string name, ObjectVector members, StringVector traits)
-        : name(std::move(name)), traits(traits), MemberedCompositeObject(std::move(members))
+    InstanceObject(std::string name, ObjectVector members)
+        : name(std::move(name)), MemberedCompositeObject(std::move(members))
     {
     }
 };
 
-using ClassObject_ptr = std::shared_ptr<ClassDefinitionObject>;
+using InstanceObject_ptr = std::shared_ptr<InstanceObject>;
 
 // ============================================================================
 // Action Objects
@@ -525,7 +519,7 @@ struct Object
         std::shared_ptr<OverloadedObjectsSet>,
         std::shared_ptr<OverloadedTypesSet>,
 
-        std::shared_ptr<ClassDefinitionObject>,
+        std::shared_ptr<InstanceObject>,
 
         std::shared_ptr<BreakObject>,
         std::shared_ptr<ContinueObject>,

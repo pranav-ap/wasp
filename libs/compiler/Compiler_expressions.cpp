@@ -310,7 +310,6 @@ void Compiler::visit(Identifier& expr)
     Doctor::get().fatal_if_nullptr(symbol, WaspStage::Compiler);
 
     bool is_native = false;
-
     if (symbol->payload_is<OverloadGroupData>())
     {
         is_native = symbol->get_payload_as<OverloadGroupData>().is_native();
@@ -319,7 +318,6 @@ void Compiler::visit(Identifier& expr)
     if (is_native)
     {
         auto native_registry_id = workspace->native_registry->get_native_index(symbol->name);
-
         emit(OpCode::GET_NATIVE, native_registry_id, symbol->name);
     }
     else if (expr.must_be_captured)
@@ -340,7 +338,6 @@ void Compiler::visit(Identifier& expr)
         emit(OpCode::GET_LOCAL, stack_index, symbol->name);
     }
 }
-
 void Compiler::visit(MemberAccess& expr)
 {
     visit(expr.left);
@@ -348,11 +345,22 @@ void Compiler::visit(MemberAccess& expr)
     emit(OpCode::GET_MEMBER, expr.member_index);
 }
 
-void Compiler::visit(Call& expr)
+void Compiler::compile_constructor_call(Call& expr)
 {
     visit(expr.callable);
 
-    // Only emit RESOLVE_FUNCTION if we have an Overload Group
+    for (const auto& arg : expr.arguments)
+    {
+        visit(arg);
+    }
+
+    emit(OpCode::INSTANTIATE, static_cast<int>(expr.arguments.size()));
+}
+
+void Compiler::compile_function_call(Call& expr)
+{
+    visit(expr.callable);
+
     if (expr.overload_index != -1)
     {
         emit(OpCode::RESOLVE_FUNCTION, expr.overload_index);
@@ -364,6 +372,18 @@ void Compiler::visit(Call& expr)
     }
 
     emit(OpCode::CALL, static_cast<int>(expr.arguments.size()));
+}
+
+void Compiler::visit(Call& expr)
+{
+    if (expr.is_constructor_call)
+    {
+        compile_constructor_call(expr);
+    }
+    else
+    {
+        compile_function_call(expr);
+    }
 }
 
 void Compiler::compile_identifier_assignment(Identifier& id, const Expression_ptr& rhs)
