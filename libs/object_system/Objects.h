@@ -469,9 +469,12 @@ struct ClassType : public MemberedCompositeType
 {
     std::string class_name;
     StringVector declaration_order;
+    StringVector methods_declaration_order;
+    size_t data_field_count;
 
     ClassType(std::string class_name, ObjectStringMap members, StringVector declaration_order)
         : class_name(std::move(class_name)), declaration_order(std::move(declaration_order)),
+          methods_declaration_order({}), data_field_count(this->declaration_order.size()),
           MemberedCompositeType(std::move(members))
     {
     }

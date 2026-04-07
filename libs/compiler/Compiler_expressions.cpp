@@ -2,6 +2,7 @@
 #include "Compiler.h"
 #include "Doctor.h"
 #include "Expression.h"
+#include "Objects.h"
 #include "OpCode.h"
 #include "Token.h"
 #include "Workspace.h"
@@ -349,12 +350,46 @@ void Compiler::compile_constructor_call(Call& expr)
 {
     visit(expr.callable);
 
+    // Evaluate and push the data arguments
     for (const auto& arg : expr.arguments)
     {
         visit(arg);
     }
 
-    emit(OpCode::INSTANTIATE, static_cast<int>(expr.arguments.size()));
+    // Push the methods
+
+    auto symbol = expr.callable->as<Identifier>().symbol;
+    auto class_type_obj = symbol->get_type();
+    auto& class_type = class_type_obj->as<ClassType>();
+
+    for (const std::string& method_name : class_type.methods_declaration_order)
+    {
+        std::string mangled_name = class_type.class_name + "::" + method_name;
+
+        int method_physical_index = -1;
+        for (int i = static_cast<int>(locals.size()) - 1; i >= 0; --i)
+        {
+            if (locals[i]->name == mangled_name)
+            {
+                method_physical_index = i;
+                break;
+            }
+        }
+
+        Doctor::get().assert(
+            method_physical_index != -1,
+            WaspStage::Compiler,
+            "Compiler error: Could not find method " + mangled_name + " in locals."
+        );
+
+        emit(OpCode::GET_LOCAL, method_physical_index, "method " + mangled_name);
+    }
+
+    int total_size = static_cast<int>(
+        expr.arguments.size() + class_type.methods_declaration_order.size()
+    );
+
+    emit(OpCode::INSTANTIATE, total_size);
 }
 
 void Compiler::compile_function_call(Call& expr)
