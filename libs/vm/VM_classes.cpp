@@ -30,7 +30,7 @@ void VM::execute_instantiate(CallFrame* frame)
     Doctor::get().assert(
         blueprint_obj->is<ClassType>(),
         WaspStage::VM,
-        "INSTANTIATE expects a ClassType blueprint on the stack!"
+        "OpCode::INSTANTIATE expects a ClassType blueprint on the stack!"
     );
 
     auto& blueprint = blueprint_obj->as<ClassType>();

@@ -34,12 +34,7 @@ void Compiler::visit(ImplDefinition& statement)
 {
     for (auto& method_stmt : statement.methods)
     {
-        // We know from the Semantic Analyzer that these are strictly FunctionDefinitions
         auto& method_def = method_stmt->as<FunctionDefinition>();
-
-        // Because the Semantic Analyzer already changed method_def.name to "Class::method"
-        // and attached the mangled group_symbol, this will compile exactly like a
-        // standard top-level function!
         visit(method_def);
     }
 }
