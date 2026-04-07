@@ -38,7 +38,7 @@ void VM::execute_instantiate(CallFrame* frame)
     Doctor::get().assert(
         arg_count == blueprint.declaration_order.size(),
         WaspStage::VM,
-        "VM Initialization error: Arity mismatch for class " + blueprint.class_name
+        "Arity mismatch for class " + blueprint.class_name
     );
 
     auto instance = make_object(std::make_shared<InstanceObject>(std::move(args)));

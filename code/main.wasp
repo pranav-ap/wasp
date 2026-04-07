@@ -2,6 +2,10 @@ class Movie
     id: int
     name: str
 
+impl Movie
+    fun edit()
+        pass
+
 let m = Movie(1, 'sam')
 
 print(m.id + ': ' + m.name)

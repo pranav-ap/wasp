@@ -36,7 +36,6 @@ Object_ptr MemberedCompositeObject::get_member(int member_id) const
         "Member index out of bounds!"
     );
 
-    // Blazing fast O(1) memory access
     return members[member_id];
 }
 
@@ -48,7 +47,6 @@ void MemberedCompositeObject::set_member(int member_id, Object_ptr value)
         "Member index out of bounds!"
     );
 
-    // Blazing fast O(1) memory assignment
     members[member_id] = std::move(value);
 }
 

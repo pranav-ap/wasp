@@ -4,6 +4,7 @@
 #include "Statement.h"
 #include "Workspace.h"
 
+#include <string>
 #include <utility>
 
 template <class... Ts> struct overloaded : Ts...
@@ -61,11 +62,40 @@ void SemanticAnalyzer::visit(ClassDefinition& class_definition)
     }
 }
 
-void SemanticAnalyzer::visit(TraitDefinition& statement)
+void SemanticAnalyzer::visit(ImplDefinition& statement)
 {
+    Symbol_ptr class_symbol = current_scope->lookup(statement.class_name);
+
+    Doctor::get().assert(
+        class_symbol != nullptr && class_symbol->payload_is<ClassData>(),
+        WaspStage::Semantics,
+        "Impl block target '" + statement.class_name + "' is not a defined class."
+    );
+
+    auto class_type_obj = class_symbol->get_type();
+    auto& class_type = class_type_obj->as<ClassType>();
+
+    for (auto& method_stmt : statement.methods)
+    {
+        Doctor::get().assert(
+            method_stmt->is<FunctionDefinition>(),
+            WaspStage::Semantics,
+            "Impl blocks can only contain function definitions."
+        );
+
+        auto& method_def = method_stmt->as<FunctionDefinition>();
+
+        std::string original_name = method_def.name;
+        method_def.name = statement.class_name + "::" + original_name;
+
+        visit(method_def);
+
+        Object_ptr method_type = method_def.group_symbol->get_type();
+        class_type.members[original_name] = method_type;
+    }
 }
 
-void SemanticAnalyzer::visit(ImplDefinition& statement)
+void SemanticAnalyzer::visit(TraitDefinition& statement)
 {
 }
 
