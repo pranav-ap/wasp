@@ -3,12 +3,12 @@ class Movie
     name: str
 
 impl Movie
-    fun yo()
-        print('yo')
-
     fun edit()
         my.yo()
         print('Hello! My name is ' + my.name)
+
+    fun yo()
+        print('yo')
 
 let m = Movie(1, 'sam')
 
