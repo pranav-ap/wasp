@@ -92,8 +92,31 @@ FunctionBlueprintObject_ptr Compiler::run(
 
 void Compiler::visit(std::vector<Statement_ptr>& statements)
 {
-    for (const auto& stmt : statements)
-        visit(stmt);
+    // -------------------------------------------------------------------
+    // PASS 1: Compiler Hoisting
+    // Compile local functions FIRST so the VM creates them in memory
+    // and reserves their local variable slots before standard code executes!
+    // -------------------------------------------------------------------
+    for (auto& stmt : statements)
+    {
+        if (stmt->is<FunctionDefinition>())
+        {
+            visit(stmt);
+        }
+    }
+
+    // -------------------------------------------------------------------
+    // PASS 2: Compile the rest of the logic
+    // Now things like `ciao()` can successfully resolve because the
+    // function compiler already pushed `ciao` into the `locals` vector!
+    // -------------------------------------------------------------------
+    for (auto& stmt : statements)
+    {
+        if (!stmt->is<FunctionDefinition>())
+        {
+            visit(stmt);
+        }
+    }
 }
 
 void Compiler::visit(const Statement_ptr statement)

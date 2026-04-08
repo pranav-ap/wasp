@@ -339,6 +339,7 @@ void Compiler::visit(Identifier& expr)
         emit(OpCode::GET_LOCAL, stack_index, symbol->name);
     }
 }
+
 void Compiler::visit(MemberAccess& expr)
 {
     visit(expr.left);
