@@ -32,8 +32,13 @@ void SemanticAnalyzer::visit(FunctionDefinition& function_definition)
     std::vector<std::string> parameter_names;
     ObjectVector parameter_types;
 
-    for (const auto& [parameter_name, type_annotation] :
-         function_definition.parameters)
+    if (this->current_bound_instance_type != nullptr)
+    {
+        parameter_names.push_back("my");
+        parameter_types.push_back(this->current_bound_instance_type);
+    }
+
+    for (const auto& [parameter_name, type_annotation] : function_definition.parameters)
     {
         Object_ptr parameter_type = MAKE_OBJECT_VARIANT(AnyType());
 
@@ -46,9 +51,7 @@ void SemanticAnalyzer::visit(FunctionDefinition& function_definition)
         parameter_types.push_back(parameter_type);
     }
 
-    auto function_signature = MAKE_OBJECT_VARIANT(
-        FunctionType(parameter_types, return_type)
-    );
+    auto function_signature = MAKE_OBJECT_VARIANT(FunctionType(parameter_types, return_type));
 
     Symbol_ptr actual_function_symbol;
 
@@ -58,24 +61,27 @@ void SemanticAnalyzer::visit(FunctionDefinition& function_definition)
         actual_function_symbol = function_definition.symbol;
         actual_function_symbol->set_type(function_signature);
 
+        if (this->current_bound_instance_type != nullptr)
+        {
+            actual_function_symbol->get_payload_as<FunctionData>()
+                .bound_instance_type = this->current_bound_instance_type;
+        }
+
         type_checker->validate_overload_group(
             current_scope,
             function_definition.name,
             actual_function_symbol
         );
 
-        // Bind the group symbol for the Compiler
-        function_definition.group_symbol = current_scope->lookup(
-            function_definition.name
-        );
+        function_definition.group_symbol = current_scope->lookup(function_definition.name);
     }
     else
     {
-        // Local nested function: Create the raw function symbol
         actual_function_symbol = SymbolFactory::create_function(
             function_definition.name,
             function_signature,
             false,
+            this->current_bound_instance_type,
             current_scope->get_closure_depth(),
             current_scope->get_lexical_depth()
         );
@@ -90,18 +96,11 @@ void SemanticAnalyzer::visit(FunctionDefinition& function_definition)
             );
         }
 
-        // Define it (creates or appends to the Overload Group)
         current_scope->define(actual_function_symbol);
-
-        // Keep the raw symbol in `symbol`, and the wrapper in `group_symbol`
         function_definition.symbol = actual_function_symbol;
-
-        function_definition.group_symbol = current_scope->lookup(
-            function_definition.name
-        );
+        function_definition.group_symbol = current_scope->lookup(function_definition.name);
     }
 
-    // Enter Scope and Process Body
     enter_scope(ScopeType::FUNCTION);
     return_type_stack.push_back(return_type);
 

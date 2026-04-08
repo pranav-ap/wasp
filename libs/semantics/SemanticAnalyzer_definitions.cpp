@@ -75,6 +75,9 @@ void SemanticAnalyzer::visit(ImplDefinition& statement)
     auto class_type_obj = class_symbol->get_type();
     auto& class_type = class_type_obj->as<ClassType>();
 
+    Object_ptr previous_bound_type = current_bound_instance_type;
+    current_bound_instance_type = class_type_obj;
+
     for (auto& method_stmt : statement.methods)
     {
         Doctor::get().assert(
@@ -94,6 +97,8 @@ void SemanticAnalyzer::visit(ImplDefinition& statement)
         class_type.members[original_name] = method_type;
         class_type.methods_declaration_order.push_back(original_name);
     }
+
+    current_bound_instance_type = previous_bound_type;
 }
 
 void SemanticAnalyzer::visit(TraitDefinition& statement)

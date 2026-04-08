@@ -23,6 +23,7 @@ class SemanticAnalyzer
 
     SymbolScope_ptr current_scope;
     ObjectVector return_type_stack;
+    Object_ptr current_bound_instance_type = nullptr;
 
     // -------------------------------------------------------------------------
     // Statement Visitors
