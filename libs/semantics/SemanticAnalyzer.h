@@ -24,7 +24,9 @@ class SemanticAnalyzer
 
     SymbolScope_ptr current_scope;
     ObjectVector return_type_stack;
+
     Object_ptr current_my_instance_type = nullptr;
+    Object_ptr current_our_class_type = nullptr;
 
     // -------------------------------------------------------------------------
     // Statement Visitors

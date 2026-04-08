@@ -18,6 +18,7 @@ impl Movie
 
         print('bye')
 
+
 let m = Movie(1, 'sam')
 
 print(m.id + ': ' + m.name)

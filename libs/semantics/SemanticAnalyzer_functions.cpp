@@ -83,8 +83,12 @@ void SemanticAnalyzer::visit(FunctionDefinition& func)
             current_scope->get_lexical_depth()
         );
 
+        if (current_scope->contains_in_current_scope(func.name))
+        {
+            type_checker->validate_overload_group(current_scope, func.name, func.symbol);
+        }
+
         current_scope->define(func.symbol);
-        func.group_symbol = current_scope->lookup(func.name);
     }
     else
     {
@@ -95,15 +99,14 @@ void SemanticAnalyzer::visit(FunctionDefinition& func)
             func.symbol->get_payload_as<FunctionData>()
                 .bound_instance_type = current_my_instance_type;
         }
-    }
 
-    if (current_scope->contains_in_current_scope(func.name))
-    {
         type_checker->validate_overload_group(current_scope, func.name, func.symbol);
     }
 
-    // Prepare Scope
+    func.group_symbol = current_scope->lookup(func.name);
+    Doctor::get().fatal_if_nullptr(func.group_symbol, WaspStage::Semantics);
 
+    // Prepare Scope
     enter_scope(ScopeType::FUNCTION);
     return_type_stack.push_back(return_type);
     func.parameter_symbols.clear();
@@ -133,7 +136,6 @@ void SemanticAnalyzer::visit(FunctionDefinition& func)
     }
 
     // Evaluate Body
-
     Object_ptr prev_bound_type = current_my_instance_type;
     current_my_instance_type = nullptr;
 
