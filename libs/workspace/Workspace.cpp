@@ -262,15 +262,18 @@ Symbol_ptr SymbolFactory::create_function(
     std::string name,
     Object_ptr type,
     bool is_native,
+    Object_ptr bound_instance_type,
     int closure_depth,
-    int lexical_depth)
+    int lexical_depth
+)
 {
     auto symbol = std::make_shared<Symbol>(
         symbol_id_counter++,
         std::move(name),
         closure_depth,
         lexical_depth,
-        FunctionData{{std::move(type)}, is_native});
+        FunctionData{{std::move(type)}, is_native, bound_instance_type}
+    );
 
     return symbol;
 }

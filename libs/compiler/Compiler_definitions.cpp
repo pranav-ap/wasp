@@ -30,4 +30,12 @@ void Compiler::visit(ClassDefinition& class_definition)
     emit(OpCode::SET_LOCAL, physical_index, "class " + class_definition.name);
 }
 
+void Compiler::visit(ImplDefinition& statement)
+{
+    for (auto& method_stmt : statement.methods)
+    {
+        auto& method_def = method_stmt->as<FunctionDefinition>();
+        visit(method_def);
+    }
+}
 } // namespace Wasp

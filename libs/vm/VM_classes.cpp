@@ -6,8 +6,6 @@
 #include <memory>
 #include <string>
 #include <utility>
-#include <variant>
-#include <vector>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -20,30 +18,31 @@ namespace Wasp
 
 void VM::execute_instantiate(CallFrame* frame)
 {
-    // Read the number of arguments passed to the constructor
-    int arg_count = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
+    // Data + Methods
+    int total_size = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
 
-    ObjectVector args = pop_n_from_stack(arg_count);
-
+    ObjectVector memory = pop_n_from_stack(total_size);
     Object_ptr blueprint_obj = pop_from_stack();
 
     Doctor::get().assert(
         blueprint_obj->is<ClassType>(),
         WaspStage::VM,
-        "INSTANTIATE expects a ClassType blueprint on the stack!"
+        "OpCode::INSTANTIATE expects a ClassType blueprint on the stack!"
     );
 
     auto& blueprint = blueprint_obj->as<ClassType>();
 
+    // FIX: The VM must expect the sum of data fields AND methods!
+    size_t expected_total_size = blueprint.declaration_order.size() +
+                                 blueprint.methods_declaration_order.size();
+
     Doctor::get().assert(
-        arg_count == blueprint.declaration_order.size(),
+        total_size == expected_total_size,
         WaspStage::VM,
-        "VM Initialization error: Arity mismatch for class " + blueprint.class_name
+        "Arity mismatch for class " + blueprint.class_name
     );
 
-    auto instance = make_object(
-        std::make_shared<InstanceObject>(blueprint.class_name, std::move(args))
-    );
+    auto instance = make_object(std::make_shared<InstanceObject>(std::move(memory)));
 
     push_to_stack(instance);
 }

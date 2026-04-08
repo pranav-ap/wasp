@@ -2,6 +2,7 @@
 #include "Compiler.h"
 #include "Doctor.h"
 #include "Expression.h"
+#include "Objects.h"
 #include "OpCode.h"
 #include "Token.h"
 #include "Workspace.h"
@@ -338,6 +339,7 @@ void Compiler::visit(Identifier& expr)
         emit(OpCode::GET_LOCAL, stack_index, symbol->name);
     }
 }
+
 void Compiler::visit(MemberAccess& expr)
 {
     visit(expr.left);
@@ -349,12 +351,46 @@ void Compiler::compile_constructor_call(Call& expr)
 {
     visit(expr.callable);
 
+    // Evaluate and push the data arguments
     for (const auto& arg : expr.arguments)
     {
         visit(arg);
     }
 
-    emit(OpCode::INSTANTIATE, static_cast<int>(expr.arguments.size()));
+    // Push the methods
+
+    auto symbol = expr.callable->as<Identifier>().symbol;
+    auto class_type_obj = symbol->get_type();
+    auto& class_type = class_type_obj->as<ClassType>();
+
+    for (const std::string& method_name : class_type.methods_declaration_order)
+    {
+        std::string mangled_name = class_type.class_name + "::" + method_name;
+
+        int method_physical_index = -1;
+        for (int i = static_cast<int>(locals.size()) - 1; i >= 0; --i)
+        {
+            if (locals[i]->name == mangled_name)
+            {
+                method_physical_index = i;
+                break;
+            }
+        }
+
+        Doctor::get().assert(
+            method_physical_index != -1,
+            WaspStage::Compiler,
+            "Compiler error: Could not find method " + mangled_name + " in locals."
+        );
+
+        emit(OpCode::GET_LOCAL, method_physical_index, "method " + mangled_name);
+    }
+
+    int total_size = static_cast<int>(
+        expr.arguments.size() + class_type.methods_declaration_order.size()
+    );
+
+    emit(OpCode::INSTANTIATE, total_size);
 }
 
 void Compiler::compile_function_call(Call& expr)
@@ -366,12 +402,22 @@ void Compiler::compile_function_call(Call& expr)
         emit(OpCode::RESOLVE_FUNCTION, expr.overload_index);
     }
 
+    int total_arguments = static_cast<int>(expr.arguments.size());
+
+    if (expr.is_method_call)
+    {
+        auto& mac = expr.callable->as<MemberAccess>();
+        visit(mac.left);
+        // We are passing 1 extra argument (the instance itself)
+        total_arguments++;
+    }
+
     for (const auto& arg : expr.arguments)
     {
         visit(arg);
     }
 
-    emit(OpCode::CALL, static_cast<int>(expr.arguments.size()));
+    emit(OpCode::CALL, total_arguments);
 }
 
 void Compiler::visit(Call& expr)

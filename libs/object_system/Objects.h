@@ -270,20 +270,6 @@ struct ModuleObject : public MemberedCompositeObject
     }
 };
 
-// CLASS & OBJECT
-
-struct InstanceObject : public MemberedCompositeObject
-{
-    std::string name;
-
-    InstanceObject(std::string name, ObjectVector members)
-        : name(std::move(name)), MemberedCompositeObject(std::move(members))
-    {
-    }
-};
-
-using InstanceObject_ptr = std::shared_ptr<InstanceObject>;
-
 // ============================================================================
 // Action Objects
 // ============================================================================
@@ -477,14 +463,55 @@ struct ModuleType : public MemberedCompositeType
     }
 };
 
+// CLASS & OBJECT
+
 struct ClassType : public MemberedCompositeType
 {
     std::string class_name;
     StringVector declaration_order;
+    StringVector methods_declaration_order;
+    size_t data_field_count;
 
     ClassType(std::string class_name, ObjectStringMap members, StringVector declaration_order)
         : class_name(std::move(class_name)), declaration_order(std::move(declaration_order)),
+          methods_declaration_order({}), data_field_count(this->declaration_order.size()),
           MemberedCompositeType(std::move(members))
+    {
+    }
+
+    int get_member_index(const std::string& member_name) const
+    {
+        for (size_t i = 0; i < declaration_order.size(); ++i)
+        {
+            if (declaration_order[i] == member_name)
+            {
+                return static_cast<int>(i);
+            }
+        }
+
+        for (size_t i = 0; i < methods_declaration_order.size(); ++i)
+        {
+            if (methods_declaration_order[i] == member_name)
+            {
+                return static_cast<int>(data_field_count + i);
+            }
+        }
+
+        // Member not found
+        return -1;
+    }
+};
+
+struct ClassObject : public MemberedCompositeObject
+{
+    ClassObject(ObjectVector members) : MemberedCompositeObject(std::move(members))
+    {
+    }
+};
+
+struct InstanceObject : public MemberedCompositeObject
+{
+    InstanceObject(ObjectVector members) : MemberedCompositeObject(std::move(members))
     {
     }
 };
@@ -519,6 +546,7 @@ struct Object
         std::shared_ptr<OverloadedObjectsSet>,
         std::shared_ptr<OverloadedTypesSet>,
 
+        std::shared_ptr<ClassObject>,
         std::shared_ptr<InstanceObject>,
 
         std::shared_ptr<BreakObject>,

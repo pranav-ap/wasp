@@ -15,7 +15,7 @@ clear && rm -rf build && cmake -B build -G Ninja && cmake --build build && ctest
 Compiles only the changed files and runs all unit tests.
 
 ```bash
-clear && cmake --build build && ctest --test-dir build -L "unit"
+clear && cmake --build build --parallel 2 && ctest --test-dir build -L "unit"
 ```
 
 **Debug Failed Tests**

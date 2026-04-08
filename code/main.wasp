@@ -2,6 +2,25 @@ class Movie
     id: int
     name: str
 
+impl Movie
+    fun edit()
+        my.yo()
+        print('Hello! My name is ' + my.name)
+
+    fun yo()
+        print('yo')
+
+    fun bye()
+        ciao()
+
+        fun ciao()
+            print('ciao')
+
+        print('bye')
+
 let m = Movie(1, 'sam')
 
 print(m.id + ': ' + m.name)
+
+m.edit()
+m.bye()

@@ -305,11 +305,16 @@ Object_ptr SemanticAnalyzer::visit(Call& call_expr)
 
             [&](MemberAccess& ma) -> Object_ptr
             {
-                return evaluate_module_member_access_call(
-                    call_expr,
-                    ma,
-                    arg_types
-                );
+                Object_ptr left_type = visit(ma.left);
+
+                if (left_type->is<ClassType>())
+                {
+                    // It's an Instance Method! (e.g., my_movie.play())
+                    return evaluate_instance_method_call(call_expr, ma, arg_types, left_type);
+                }
+
+                // It's a Module Call! (e.g., Math.sin())
+                return evaluate_module_method_call(call_expr, ma, arg_types);
             },
 
             [](auto&) -> Object_ptr
@@ -318,12 +323,12 @@ Object_ptr SemanticAnalyzer::visit(Call& call_expr)
                     WaspStage::Semantics,
                     "Expected an Identifier or MemberAccess as the callable."
                 );
+                return MAKE_OBJECT_VARIANT(NoneType()); // Fallback
             }
         },
         call_expr.callable->data
     );
 }
-
 Object_ptr SemanticAnalyzer::evaluate_identifier_call(
     Call& call_expr,
     Identifier& callable_identifier,
@@ -357,7 +362,7 @@ Object_ptr SemanticAnalyzer::evaluate_identifier_call(
     return function_symbol->get_payload_as<FunctionData>().get_return_type();
 }
 
-Object_ptr SemanticAnalyzer::evaluate_module_member_access_call(
+Object_ptr SemanticAnalyzer::evaluate_module_method_call(
     Call& call_expr,
     MemberAccess& mac,
     const ObjectVector& arg_types
@@ -382,20 +387,49 @@ Object_ptr SemanticAnalyzer::evaluate_module_member_access_call(
         left_id.must_be_captured = true;
     }
 
-    auto
-        [function_symbol,
-         overload_index,
-         member_index] = type_checker
-                             ->resolve_method_call(
-                                 current_scope,
-                                 left_id.name,
-                                 right_id.name,
-                                 arg_types
-                             );
+    auto [function_symbol, overload_index, member_index] = type_checker->resolve_module_call(
+        current_scope,
+        left_id.name,
+        right_id.name,
+        arg_types
+    );
 
     mac.member_index = member_index;
     call_expr.overload_index = overload_index;
     right_id.symbol = function_symbol;
+
+    return function_symbol->get_payload_as<FunctionData>().get_return_type();
+}
+
+Object_ptr SemanticAnalyzer::evaluate_instance_method_call(
+    Call& call_expr,
+    MemberAccess& mac,
+    const ObjectVector& arg_types,
+    Object_ptr left_type
+)
+{
+    Doctor::get().assert(
+        mac.right->is<Identifier>(),
+        WaspStage::Semantics,
+        "Method name must be an identifier."
+    );
+
+    auto& right_id = mac.right->as<Identifier>();
+    auto& class_type = left_type->as<ClassType>();
+
+    auto [function_symbol, overload_index] = type_checker->resolve_class_method_call(
+        current_scope,
+        class_type.class_name,
+        right_id.name,
+        arg_types
+    );
+
+    mac.member_index = class_type.get_member_index(right_id.name);
+
+    call_expr.overload_index = overload_index;
+    right_id.symbol = function_symbol;
+
+    call_expr.is_method_call = true;
 
     return function_symbol->get_payload_as<FunctionData>().get_return_type();
 }
@@ -419,12 +453,12 @@ Object_ptr SemanticAnalyzer::evaluate_instance_creation(
     auto& class_type = class_type_obj->as<ClassType>();
 
     Doctor::get().assert(
-        arg_types.size() == class_type.declaration_order.size(),
+        arg_types.size() == class_type.data_field_count,
         WaspStage::Semantics,
         "Constructor Arguments Count Mismatch"
     );
 
-    for (size_t i = 0; i < class_type.declaration_order.size(); ++i)
+    for (size_t i = 0; i < class_type.data_field_count; ++i)
     {
         const std::string& member_name = class_type.declaration_order[i];
 
