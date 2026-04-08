@@ -422,9 +422,9 @@ int MemberedCompositeType::get_member_index(const std::string& member_name) cons
 
 int ClassType::get_member_index(const std::string& member_name) const
 {
-    for (size_t i = 0; i < declaration_order.size(); ++i)
+    for (size_t i = 0; i < values_declaration_order.size(); ++i)
     {
-        if (declaration_order[i] == member_name)
+        if (values_declaration_order[i] == member_name)
         {
             return static_cast<int>(i);
         }
@@ -434,7 +434,7 @@ int ClassType::get_member_index(const std::string& member_name) const
     {
         if (methods_declaration_order[i] == member_name)
         {
-            return static_cast<int>(data_field_count + i);
+            return static_cast<int>(values_declaration_order.size() + i);
         }
     }
 

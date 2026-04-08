@@ -150,10 +150,17 @@ struct ImplDefinition : public Definition
     std::string class_name;
     std::vector<Statement_ptr> methods;
 
+    bool is_our = false;
+
     ImplDefinition() = default;
 
     ImplDefinition(std::string class_name, std::vector<Statement_ptr> methods)
         : class_name(std::move(class_name)), methods(std::move(methods))
+    {
+    }
+
+    ImplDefinition(std::string class_name, std::vector<Statement_ptr> methods, bool is_our)
+        : class_name(std::move(class_name)), methods(std::move(methods)), is_our(is_our)
     {
     }
 };

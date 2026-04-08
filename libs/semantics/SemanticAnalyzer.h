@@ -11,6 +11,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace Wasp
@@ -23,7 +24,7 @@ class SemanticAnalyzer
 
     SymbolScope_ptr current_scope;
     ObjectVector return_type_stack;
-    Object_ptr current_bound_instance_type = nullptr;
+    Object_ptr current_my_instance_type = nullptr;
 
     // -------------------------------------------------------------------------
     // Statement Visitors
@@ -34,7 +35,8 @@ class SemanticAnalyzer
 
     void visit(ExpressionStatement& statement);
 
-    void visit_block(StatementVector statements);
+    std::pair<Object_ptr, ObjectVector> evaluate_signature(FunctionDefinition& func);
+    void evaluate_function_definition_body(StatementVector statements);
 
     void visit(ClassDefinition& statement);
     void visit(AliasDefinition& statement);

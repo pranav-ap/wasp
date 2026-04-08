@@ -452,14 +452,14 @@ Object_ptr SemanticAnalyzer::evaluate_instance_creation(
     auto class_type = class_type_obj->as<std::shared_ptr<ClassType>>();
 
     Doctor::get().assert(
-        arg_types.size() == class_type->data_field_count,
+        arg_types.size() == class_type->values_declaration_order.size(),
         WaspStage::Semantics,
         "Constructor Arguments Count Mismatch"
     );
 
-    for (size_t i = 0; i < class_type->data_field_count; ++i)
+    for (size_t i = 0; i < class_type->values_declaration_order.size(); ++i)
     {
-        const std::string& member_name = class_type->declaration_order[i];
+        const std::string& member_name = class_type->values_declaration_order[i];
 
         Object_ptr expected_type = class_type->get_member(member_name);
         Object_ptr actual_type = arg_types[i];

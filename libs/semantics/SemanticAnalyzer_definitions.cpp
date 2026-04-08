@@ -17,104 +17,88 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-void SemanticAnalyzer::visit(ClassDefinition& class_definition)
+void SemanticAnalyzer::visit(ClassDefinition& class_def)
 {
     ObjectStringMap member_types;
-
-    for (const auto& [member_name, type_annotation] : class_definition.members)
+    for (const auto& [name, type_ann] : class_def.members)
     {
-        Object_ptr member_type = visit(type_annotation);
-        member_types[member_name] = member_type;
+        member_types[name] = visit(type_ann);
     }
 
     auto class_type = make_object(
         std::make_shared<ClassType>(
-            class_definition.name,
+            class_def.name,
             std::move(member_types),
-            std::move(class_definition.members_declaration_order)
+            class_def.members_declaration_order
         )
     );
 
-    Symbol_ptr actual_class_symbol;
-
-    if (class_definition.symbol)
+    if (class_def.symbol)
     {
-        // Top Level Class: The Hoister already found it and put it in the scope.
-        // We just need to attach the fully resolved type to it.
-        actual_class_symbol = class_definition.symbol;
-        actual_class_symbol->set_type(class_type);
+        // Top Level Class: Hoister already defined it. Just attach the type.
+        class_def.symbol->set_type(class_type);
     }
     else
     {
-        // Local nested class: We need to create the symbol right now.
-        actual_class_symbol = SymbolFactory::create_class(
-            class_definition.name,
+        // Local nested class: Create and define the symbol now.
+        class_def.symbol = SymbolFactory::create_class(
+            class_def.name,
             class_type,
             current_scope->get_closure_depth(),
             current_scope->get_lexical_depth()
         );
 
         Doctor::get().assert(
-            !current_scope->contains_in_current_scope(class_definition.name),
+            !current_scope->contains_in_current_scope(class_def.name),
             WaspStage::Semantics,
-            "Redefinition of symbol " + class_definition.name
+            "Redefinition of symbol " + class_def.name
         );
 
-        current_scope->define(actual_class_symbol);
-        class_definition.symbol = actual_class_symbol;
+        current_scope->define(class_def.symbol);
     }
 }
 
-void SemanticAnalyzer::visit(ImplDefinition& statement)
+void SemanticAnalyzer::visit(ImplDefinition& impl_def)
 {
-    Symbol_ptr class_symbol = current_scope->lookup(statement.class_name);
+    Symbol_ptr class_symbol = current_scope->lookup(impl_def.class_name);
 
     Doctor::get().assert(
-        class_symbol != nullptr && class_symbol->payload_is<ClassData>(),
+        class_symbol && class_symbol->payload_is<ClassData>(),
         WaspStage::Semantics,
-        "Impl block target '" + statement.class_name + "' is not a defined class."
+        "Impl block target '" + impl_def.class_name + "' is not a defined class."
     );
 
     auto class_type_obj = class_symbol->get_type();
     auto class_type = class_type_obj->as<std::shared_ptr<ClassType>>();
 
-    Object_ptr previous_bound_type = current_bound_instance_type;
-    current_bound_instance_type = class_type_obj;
+    Object_ptr prev_my_type = current_my_instance_type;
+    current_my_instance_type = impl_def.is_our ? nullptr : class_type_obj;
 
     // -------------------------------------------------------------------
-    // PASS 1: Method Hoisting & V-Table Registration
+    // PASS 1: Hoisting
     // -------------------------------------------------------------------
-    for (auto& method_stmt : statement.methods)
+
+    for (auto& stmt : impl_def.methods)
     {
         Doctor::get().assert(
-            method_stmt->is<FunctionDefinition>(),
+            stmt->is<FunctionDefinition>(),
             WaspStage::Semantics,
             "Impl blocks can only contain function definitions."
         );
 
-        auto& method_def = method_stmt->as<FunctionDefinition>();
+        auto& method_def = stmt->as<FunctionDefinition>();
 
         std::string original_name = method_def.name;
-        method_def.name = statement.class_name + "::" + original_name;
+        method_def.name = impl_def.class_name + "::" + original_name;
 
-        Object_ptr return_type = method_def.return_type ? visit(method_def.return_type)
-                                                        : make_object(NoneType());
-
-        ObjectVector parameter_types;
-        for (const auto& [param_name, type_ann] : method_def.parameters)
-        {
-            parameter_types.push_back(type_ann ? visit(type_ann) : make_object(AnyType()));
-        }
-
-        auto function_signature = make_object(
-            std::make_shared<FunctionType>(parameter_types, return_type)
-        );
+        auto [ret_type, param_types] = evaluate_signature(method_def);
+        auto signature = make_object(std::make_shared<FunctionType>(param_types, ret_type));
 
         auto method_symbol = SymbolFactory::create_function(
             method_def.name,
-            function_signature,
+            signature,
             false,
-            this->current_bound_instance_type,
+            current_my_instance_type,
             current_scope->get_closure_depth(),
             current_scope->get_lexical_depth()
         );
@@ -125,11 +109,10 @@ void SemanticAnalyzer::visit(ImplDefinition& statement)
         }
 
         current_scope->define(method_symbol);
-
         method_def.symbol = method_symbol;
         method_def.group_symbol = current_scope->lookup(method_def.name);
 
-        if (class_type->members.find(original_name) == class_type->members.end())
+        if (!class_type->contains_member(original_name))
         {
             class_type->methods_declaration_order.push_back(original_name);
         }
@@ -138,14 +121,15 @@ void SemanticAnalyzer::visit(ImplDefinition& statement)
     }
 
     // -------------------------------------------------------------------
-    // PASS 2: Body Analysis
+    // PASS 2: Methods Analysis
     // -------------------------------------------------------------------
-    for (auto& method_stmt : statement.methods)
+
+    for (auto& method_stmt : impl_def.methods)
     {
         visit(method_stmt);
     }
 
-    current_bound_instance_type = previous_bound_type;
+    current_my_instance_type = prev_my_type;
 }
 
 void SemanticAnalyzer::visit(TraitDefinition& statement)

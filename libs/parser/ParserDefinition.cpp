@@ -22,7 +22,6 @@
     std::make_shared<TypeAnnotation>(std::make_shared<T>(__VA_ARGS__))
 
 using std::make_pair;
-using std::optional;
 
 namespace Wasp
 {
@@ -278,6 +277,9 @@ Statement_ptr Parser::parse_impl_definition(int indent_level)
     // Consume 'impl' keyword
     token_pipe.advance_pointer();
 
+    // consume optional 'our' keyword
+    bool is_our = token_pipe.consume_optional_in_line(TokenType::OUR).has_value();
+
     // Parse the class name
     auto class_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
     std::string class_name = class_token.value;
@@ -314,6 +316,6 @@ Statement_ptr Parser::parse_impl_definition(int indent_level)
         }
     }
 
-    return make_statement(ImplDefinition(class_name, methods));
+    return make_statement(ImplDefinition(class_name, methods, is_our));
 }
 } // namespace Wasp
