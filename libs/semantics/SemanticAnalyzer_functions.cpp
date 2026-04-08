@@ -25,18 +25,13 @@ namespace Wasp
 
 void SemanticAnalyzer::visit(FunctionDefinition& function_definition)
 {
+    // 1. Resolve Return Type
     Object_ptr return_type = function_definition.return_type
                                  ? visit(function_definition.return_type)
                                  : MAKE_OBJECT_VARIANT(NoneType());
 
     std::vector<std::string> parameter_names;
     ObjectVector parameter_types;
-
-    if (this->current_bound_instance_type != nullptr)
-    {
-        parameter_names.push_back("my");
-        parameter_types.push_back(this->current_bound_instance_type);
-    }
 
     for (const auto& [parameter_name, type_annotation] : function_definition.parameters)
     {
@@ -86,7 +81,6 @@ void SemanticAnalyzer::visit(FunctionDefinition& function_definition)
             current_scope->get_lexical_depth()
         );
 
-        // Validate it if an overload group already exists with this name
         if (current_scope->contains_in_current_scope(function_definition.name))
         {
             type_checker->validate_overload_group(
@@ -106,6 +100,21 @@ void SemanticAnalyzer::visit(FunctionDefinition& function_definition)
 
     function_definition.parameter_symbols.clear();
 
+    if (this->current_bound_instance_type != nullptr)
+    {
+        auto my_symbol = SymbolFactory::create_variable(
+            "my",
+            this->current_bound_instance_type,
+            false,
+            current_scope->get_closure_depth(),
+            current_scope->get_lexical_depth()
+        );
+        current_scope->define(my_symbol);
+
+        function_definition.parameter_symbols.push_back(my_symbol);
+    }
+
+    // Now process the explicit parameters (Slots 1..N)
     for (size_t i = 0; i < parameter_names.size(); ++i)
     {
         auto parameter_symbol = SymbolFactory::create_variable(

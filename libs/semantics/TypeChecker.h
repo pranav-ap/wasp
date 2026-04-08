@@ -42,9 +42,16 @@ public:
         const ObjectVector& argument_types
     ) const;
 
-    std::tuple<Symbol_ptr, int, int> resolve_method_call(
+    std::tuple<Symbol_ptr, int, int> resolve_module_call(
         SymbolScope_ptr scope,
         const std::string& module_name,
+        const std::string& method_name,
+        const ObjectVector& argument_types
+    ) const;
+
+    std::pair<Symbol_ptr, int> resolve_class_method_call(
+        SymbolScope_ptr scope,
+        const std::string& class_name,
         const std::string& method_name,
         const ObjectVector& argument_types
     ) const;

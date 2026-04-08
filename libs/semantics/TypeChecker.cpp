@@ -193,7 +193,27 @@ std::pair<Symbol_ptr, int> TypeChecker::resolve_function_call(
     return {valid_matches.front(), index};
 }
 
-std::tuple<Symbol_ptr, int, int> TypeChecker::resolve_method_call(
+std::pair<Symbol_ptr, int> TypeChecker::resolve_class_method_call(
+    SymbolScope_ptr scope,
+    const std::string& class_name,
+    const std::string& method_name,
+    const ObjectVector& argument_types
+) const
+{
+    std::string mangled_name = class_name + "::" + method_name;
+
+    Symbol_ptr overload_group_symbol = scope->lookup(mangled_name);
+
+    Doctor::get().fatal_if_nullptr(
+        overload_group_symbol,
+        WaspStage::Semantics,
+        "Method '" + method_name + "()' does not exist on class '" + class_name + "'."
+    );
+
+    return resolve_function_call(scope, mangled_name, argument_types);
+}
+
+std::tuple<Symbol_ptr, int, int> TypeChecker::resolve_module_call(
     SymbolScope_ptr scope,
     const std::string& module_name,
     const std::string& method_name,

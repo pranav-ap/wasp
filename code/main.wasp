@@ -4,8 +4,10 @@ class Movie
 
 impl Movie
     fun edit()
-        pass
+        print('Hello! My name is ' + my.name)
 
 let m = Movie(1, 'sam')
 
 print(m.id + ': ' + m.name)
+
+m.edit()
