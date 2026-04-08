@@ -211,15 +211,16 @@ Symbol_ptr Symbol::resolve()
 Object_ptr FunctionData::get_return_type() const
 {
     Doctor::get().assert(
-        type->is<FunctionType>(),
+        type->is<std::shared_ptr<FunctionType>>(),
         WaspStage::Semantics,
-        "FunctionData's type payload is not a FunctionType");
+        "FunctionData's type payload is not a FunctionType"
+    );
 
-    const auto& signature = type->as<FunctionType>();
+    const auto& signature = type->as<std::shared_ptr<FunctionType>>();
 
-    if (signature.return_type.has_value())
+    if (signature->return_type.has_value())
     {
-        return signature.return_type.value();
+        return signature->return_type.value();
     }
 
     return make_object(NoneType());

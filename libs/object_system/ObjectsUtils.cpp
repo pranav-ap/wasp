@@ -71,44 +71,73 @@ namespace Wasp
         if (left == right)
             return true;
 
-        return std::visit(overloaded{[](const IntLiteralType &l, const IntLiteralType &r)
-                                     { return l.value == r.value; },
-                                     [](const FloatLiteralType &l, const FloatLiteralType &r)
-                                     { return l.value == r.value; },
-                                     [](const BooleanLiteralType &l, const BooleanLiteralType &r)
-                                     { return l.value == r.value; },
-                                     [](const StringLiteralType &l, const StringLiteralType &r)
-                                     { return l.value == r.value; },
+        return std::visit(
+            overloaded{
+                [](const IntLiteralType& l, const IntLiteralType& r)
+                {
+                    return l.value == r.value;
+                },
+                [](const FloatLiteralType& l, const FloatLiteralType& r)
+                {
+                    return l.value == r.value;
+                },
+                [](const BooleanLiteralType& l, const BooleanLiteralType& r)
+                {
+                    return l.value == r.value;
+                },
+                [](const StringLiteralType& l, const StringLiteralType& r)
+                {
+                    return l.value == r.value;
+                },
 
-                                     [](const ListType &l, const ListType &r)
-                                     { return are_equal_types(l.element_type, r.element_type); },
-                                     [](const TupleType &l, const TupleType &r)
-                                     { return are_equal_types(l.element_types, r.element_types); },
-                                     [](const SetType &l, const SetType &r)
-                                     { return are_equal_types(l.element_type, r.element_type); },
-                                     [](const VariantType &l, const VariantType &r)
-                                     { return are_equal_types_unordered(l.types, r.types); },
-                                     [](const MapType &l, const MapType &r)
-                                     {
-                                         return are_equal_types(l.key_type, r.key_type) && are_equal_types(l.value_type, r.value_type);
-                                     },
+                [](const ListType& l, const ListType& r)
+                {
+                    return are_equal_types(l.element_type, r.element_type);
+                },
+                [](const TupleType& l, const TupleType& r)
+                {
+                    return are_equal_types(l.element_types, r.element_types);
+                },
+                [](const SetType& l, const SetType& r)
+                {
+                    return are_equal_types(l.element_type, r.element_type);
+                },
+                [](const VariantType& l, const VariantType& r)
+                {
+                    return are_equal_types_unordered(l.types, r.types);
+                },
+                [](const MapType& l, const MapType& r)
+                {
+                    return are_equal_types(l.key_type, r.key_type) &&
+                           are_equal_types(l.value_type, r.value_type);
+                },
 
-                                     [](const FunctionType &l, const FunctionType &r)
-                                     { return are_equal_types(l.input_types, r.input_types); },
-                                     [](const NamedDefinitionType &l, const NamedDefinitionType &r)
-                                     { return l.name == r.name; },
+                [](const std::shared_ptr<FunctionType>& l, const std::shared_ptr<FunctionType>& r)
+                {
+                    return are_equal_types(l->input_types, r->input_types);
+                },
+                [](const NamedDefinitionType& l, const NamedDefinitionType& r)
+                {
+                    return l.name == r.name;
+                },
 
-                                     // Catch-all for identical types that don't need manual value checking
-                                     // e.g., IntObject, FloatType
-                                     []<typename T>(const T &, const T &)
-                                     { return true; },
+                // Catch-all for identical types that don't need manual value checking
+                // e.g., IntObject, FloatType
+                []<typename T>(const T&, const T&)
+                {
+                    return true;
+                },
 
-                                     // Default - Types don't match
-                                     [](const auto &, const auto &)
-                                     { return false; }
+                // Default - Types don't match
+                [](const auto&, const auto&)
+                {
+                    return false;
+                }
 
-                          },
-                          left->value, right->value);
+            },
+            left->value,
+            right->value
+        );
     }
 
     // ============================================================================
@@ -141,7 +170,7 @@ namespace Wasp
                 {
                     return "named definition: " + obj.name;
                 },
-                [](const FunctionType&) -> std::string
+                [](const std::shared_ptr<FunctionType>&) -> std::string
                 {
                     return "function type";
                 },

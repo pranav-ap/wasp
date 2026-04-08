@@ -4,6 +4,7 @@
 #include "Statement.h"
 #include "Workspace.h"
 
+#include <memory>
 #include <string>
 #include <utility>
 
@@ -26,11 +27,13 @@ void SemanticAnalyzer::visit(ClassDefinition& class_definition)
         member_types[member_name] = member_type;
     }
 
-    auto class_type = make_object(ClassType(
-        class_definition.name,
-        std::move(member_types),
-        std::move(class_definition.members_declaration_order)
-    ));
+    auto class_type = make_object(
+        std::make_shared<ClassType>(
+            class_definition.name,
+            std::move(member_types),
+            std::move(class_definition.members_declaration_order)
+        )
+    );
 
     Symbol_ptr actual_class_symbol;
 
@@ -73,7 +76,7 @@ void SemanticAnalyzer::visit(ImplDefinition& statement)
     );
 
     auto class_type_obj = class_symbol->get_type();
-    auto& class_type = class_type_obj->as<ClassType>();
+    auto class_type = class_type_obj->as<std::shared_ptr<ClassType>>();
 
     Object_ptr previous_bound_type = current_bound_instance_type;
     current_bound_instance_type = class_type_obj;
@@ -103,7 +106,9 @@ void SemanticAnalyzer::visit(ImplDefinition& statement)
             parameter_types.push_back(type_ann ? visit(type_ann) : make_object(AnyType()));
         }
 
-        auto function_signature = make_object(FunctionType(parameter_types, return_type));
+        auto function_signature = make_object(
+            std::make_shared<FunctionType>(parameter_types, return_type)
+        );
 
         auto method_symbol = SymbolFactory::create_function(
             method_def.name,
@@ -124,13 +129,12 @@ void SemanticAnalyzer::visit(ImplDefinition& statement)
         method_def.symbol = method_symbol;
         method_def.group_symbol = current_scope->lookup(method_def.name);
 
-        // FIX: Prevent Duplicate V-Table entries for overloads!
-        if (class_type.members.find(original_name) == class_type.members.end())
+        if (class_type->members.find(original_name) == class_type->members.end())
         {
-            class_type.methods_declaration_order.push_back(original_name);
+            class_type->methods_declaration_order.push_back(original_name);
         }
 
-        class_type.members[original_name] = method_def.group_symbol->get_type();
+        class_type->members[original_name] = method_def.group_symbol->get_type();
     }
 
     // -------------------------------------------------------------------

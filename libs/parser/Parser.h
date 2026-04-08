@@ -78,7 +78,7 @@ class Parser {
     void register_infix_left(TokenType token_type, Precedence precedence);
     void register_infix_right(TokenType token_type, Precedence precedence);
 
-    [[nodiscard]] int get_next_operator_precedence();
+    int get_next_operator_precedence();
 
     // Type Annotation Parsers
 

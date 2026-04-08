@@ -479,27 +479,7 @@ struct ClassType : public MemberedCompositeType
     {
     }
 
-    int get_member_index(const std::string& member_name) const
-    {
-        for (size_t i = 0; i < declaration_order.size(); ++i)
-        {
-            if (declaration_order[i] == member_name)
-            {
-                return static_cast<int>(i);
-            }
-        }
-
-        for (size_t i = 0; i < methods_declaration_order.size(); ++i)
-        {
-            if (methods_declaration_order[i] == member_name)
-            {
-                return static_cast<int>(data_field_count + i);
-            }
-        }
-
-        // Member not found
-        return -1;
-    }
+    int get_member_index(const std::string& member_name) const;
 };
 
 struct ClassObject : public MemberedCompositeObject
@@ -571,10 +551,10 @@ struct Object
         SetType,
         MapType,
         VariantType,
-        FunctionType,
-        RecordType,
-        ModuleType,
-        ClassType>;
+        std::shared_ptr<FunctionType>,
+        std::shared_ptr<RecordType>,
+        std::shared_ptr<ModuleType>,
+        std::shared_ptr<ClassType>>;
 
     UnderlyingVariant value;
 

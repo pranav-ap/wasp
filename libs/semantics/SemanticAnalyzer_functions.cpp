@@ -45,7 +45,7 @@ void SemanticAnalyzer::visit_block(StatementVector statements)
             }
 
             auto function_signature = MAKE_OBJECT_VARIANT(
-                FunctionType(parameter_types, return_type)
+                std::make_shared<FunctionType>(parameter_types, return_type)
             );
 
             auto local_func_symbol = SymbolFactory::create_function(
@@ -99,7 +99,9 @@ void SemanticAnalyzer::visit(FunctionDefinition& function_definition)
         parameter_types.push_back(parameter_type);
     }
 
-    auto function_signature = MAKE_OBJECT_VARIANT(FunctionType(parameter_types, return_type));
+    auto function_signature = MAKE_OBJECT_VARIANT(
+        std::make_shared<FunctionType>(parameter_types, return_type)
+    );
 
     Symbol_ptr actual_function_symbol;
 

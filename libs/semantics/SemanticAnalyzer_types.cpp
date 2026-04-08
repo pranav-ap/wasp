@@ -107,9 +107,15 @@ Object_ptr SemanticAnalyzer::visit(const TypeAnnotation_ptr type_node) {
     Object_ptr SemanticAnalyzer::visit(FunctionTypeNode &expr)
     {
         ObjectVector params = visit(expr.input_types);
+
         if (expr.return_type)
-            return MAKE_OBJECT_VARIANT(FunctionType(params, visit(expr.return_type)));
-        return MAKE_OBJECT_VARIANT(FunctionType(params, MAKE_OBJECT_VARIANT(NoneType())));
+            return MAKE_OBJECT_VARIANT(
+                std::make_shared<FunctionType>(params, visit(expr.return_type))
+            );
+
+        return MAKE_OBJECT_VARIANT(
+            std::make_shared<FunctionType>(params, MAKE_OBJECT_VARIANT(NoneType()))
+        );
     }
 
     Object_ptr SemanticAnalyzer::visit(RecordTypeNode &expr)
@@ -119,6 +125,6 @@ Object_ptr SemanticAnalyzer::visit(const TypeAnnotation_ptr type_node) {
         {
             resolved_members[name] = visit(type_ann);
         }
-        return MAKE_OBJECT_VARIANT(RecordType(resolved_members));
+        return MAKE_OBJECT_VARIANT(std::make_shared<RecordType>(resolved_members));
     }
 }

@@ -25,21 +25,21 @@ void VM::execute_instantiate(CallFrame* frame)
     Object_ptr blueprint_obj = pop_from_stack();
 
     Doctor::get().assert(
-        blueprint_obj->is<ClassType>(),
+        blueprint_obj->is<std::shared_ptr<ClassType>>(),
         WaspStage::VM,
         "OpCode::INSTANTIATE expects a ClassType blueprint on the stack!"
     );
 
-    auto& blueprint = blueprint_obj->as<ClassType>();
+    auto& blueprint = blueprint_obj->as<std::shared_ptr<ClassType>>();
 
     // FIX: The VM must expect the sum of data fields AND methods!
-    size_t expected_total_size = blueprint.declaration_order.size() +
-                                 blueprint.methods_declaration_order.size();
+    size_t expected_total_size = blueprint->declaration_order.size() +
+                                 blueprint->methods_declaration_order.size();
 
     Doctor::get().assert(
         total_size == expected_total_size,
         WaspStage::VM,
-        "Arity mismatch for class " + blueprint.class_name
+        "Arity mismatch for class " + blueprint->class_name
     );
 
     auto instance = make_object(std::make_shared<InstanceObject>(std::move(memory)));

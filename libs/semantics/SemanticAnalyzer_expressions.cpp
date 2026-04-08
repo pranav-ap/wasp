@@ -257,19 +257,19 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
 
     std::string member_name = expr.right->as<Identifier>().name;
 
-    if (left_type->is<ModuleType>())
+    if (left_type->is<std::shared_ptr<ModuleType>>())
     {
-        const auto& module_type = left_type->as<ModuleType>();
+        const auto& module_type = left_type->as<std::shared_ptr<ModuleType>>();
 
-        expr.member_index = module_type.get_member_index(member_name);
-        return module_type.get_member(member_name);
+        expr.member_index = module_type->get_member_index(member_name);
+        return module_type->get_member(member_name);
     }
-    else if (left_type->is<ClassType>())
+    else if (left_type->is<std::shared_ptr<ClassType>>())
     {
-        const auto& class_type = left_type->as<ClassType>();
+        const auto class_type = left_type->as<std::shared_ptr<ClassType>>();
 
-        expr.member_index = class_type.get_member_index(member_name);
-        return class_type.get_member(member_name);
+        expr.member_index = class_type->get_member_index(member_name);
+        return class_type->get_member(member_name);
     }
 
     Doctor::get().fatal(
@@ -307,13 +307,11 @@ Object_ptr SemanticAnalyzer::visit(Call& call_expr)
             {
                 Object_ptr left_type = visit(ma.left);
 
-                if (left_type->is<ClassType>())
+                if (left_type->is<std::shared_ptr<ClassType>>())
                 {
-                    // It's an Instance Method! (e.g., my_movie.play())
                     return evaluate_instance_method_call(call_expr, ma, arg_types, left_type);
                 }
 
-                // It's a Module Call! (e.g., Math.sin())
                 return evaluate_module_method_call(call_expr, ma, arg_types);
             },
 
@@ -323,7 +321,8 @@ Object_ptr SemanticAnalyzer::visit(Call& call_expr)
                     WaspStage::Semantics,
                     "Expected an Identifier or MemberAccess as the callable."
                 );
-                return MAKE_OBJECT_VARIANT(NoneType()); // Fallback
+
+                return MAKE_OBJECT_VARIANT(NoneType());
             }
         },
         call_expr.callable->data
@@ -415,16 +414,16 @@ Object_ptr SemanticAnalyzer::evaluate_instance_method_call(
     );
 
     auto& right_id = mac.right->as<Identifier>();
-    auto& class_type = left_type->as<ClassType>();
+    auto class_type = left_type->as<std::shared_ptr<ClassType>>();
 
     auto [function_symbol, overload_index] = type_checker->resolve_class_method_call(
         current_scope,
-        class_type.class_name,
+        class_type->class_name,
         right_id.name,
         arg_types
     );
 
-    mac.member_index = class_type.get_member_index(right_id.name);
+    mac.member_index = class_type->get_member_index(right_id.name);
 
     call_expr.overload_index = overload_index;
     right_id.symbol = function_symbol;
@@ -450,19 +449,19 @@ Object_ptr SemanticAnalyzer::evaluate_instance_creation(
     }
 
     auto class_type_obj = symbol->get_payload_as<ClassData>().type;
-    auto& class_type = class_type_obj->as<ClassType>();
+    auto class_type = class_type_obj->as<std::shared_ptr<ClassType>>();
 
     Doctor::get().assert(
-        arg_types.size() == class_type.data_field_count,
+        arg_types.size() == class_type->data_field_count,
         WaspStage::Semantics,
         "Constructor Arguments Count Mismatch"
     );
 
-    for (size_t i = 0; i < class_type.data_field_count; ++i)
+    for (size_t i = 0; i < class_type->data_field_count; ++i)
     {
-        const std::string& member_name = class_type.declaration_order[i];
+        const std::string& member_name = class_type->declaration_order[i];
 
-        Object_ptr expected_type = class_type.get_member(member_name);
+        Object_ptr expected_type = class_type->get_member(member_name);
         Object_ptr actual_type = arg_types[i];
 
         Doctor::get().assert(

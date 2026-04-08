@@ -44,17 +44,17 @@ SymbolVector::iterator TypeChecker::find_matching_signature(
             auto type_obj = sym->get_type();
 
             // Skip unresolved functions (e.g., hoisted functions we haven't visited yet)
-            if (!type_obj || !type_obj->is<FunctionType>())
+            if (!type_obj || !type_obj->is<std::shared_ptr<FunctionType>>())
                 return false;
 
-            const auto& existing_signature = type_obj->as<FunctionType>();
+            const auto& existing_signature = type_obj->as<std::shared_ptr<FunctionType>>();
 
-            if (existing_signature.input_types.size() != parameter_types.size())
+            if (existing_signature->input_types.size() != parameter_types.size())
                 return false;
 
             for (size_t i = 0; i < parameter_types.size(); ++i)
             {
-                if (!equal(scope, existing_signature.input_types[i], parameter_types[i]))
+                if (!equal(scope, existing_signature->input_types[i], parameter_types[i]))
                     return false;
             }
 
@@ -77,7 +77,9 @@ void TypeChecker::validate_overload_group(
         "Symbol is not an overload group"
     );
 
-    const auto& parameter_types = new_function_symbol->get_type()->as<FunctionType>().input_types;
+    const auto& parameter_types = new_function_symbol->get_type()
+                                      ->as<std::shared_ptr<FunctionType>>()
+                                      ->input_types;
 
     auto& group_data = overload_group_symbol->get_payload_as<OverloadGroupData>();
 
@@ -101,15 +103,15 @@ void TypeChecker::validate_overload_group(
         }
 
         Doctor::get().assert(
-            type_obj->is<FunctionType>(),
+            type_obj->is<std::shared_ptr<FunctionType>>(),
             WaspStage::Semantics,
             "Internal Compiler Error: Overload group contains a non-function "
             "symbol"
         );
 
-        const auto& existing_signatures = type_obj->as<FunctionType>();
+        const auto& existing_signatures = type_obj->as<std::shared_ptr<FunctionType>>();
 
-        if (equal(scope, existing_signatures.input_types, parameter_types))
+        if (equal(scope, existing_signatures->input_types, parameter_types))
         {
             Doctor::get().fatal(
                 WaspStage::Semantics,
@@ -139,12 +141,12 @@ void TypeChecker::collect_assignable_signatures(
         auto type_obj = candidate->get_type();
 
         // Skip unresolved symbols just to be safe
-        if (!type_obj || !type_obj->is<FunctionType>())
+        if (!type_obj || !type_obj->is<std::shared_ptr<FunctionType>>())
             continue;
 
-        const auto& signature = type_obj->as<FunctionType>();
+        const auto& signature = type_obj->as<std::shared_ptr<FunctionType>>();
 
-        if (assignable(scope, signature.input_types, argument_types))
+        if (assignable(scope, signature->input_types, argument_types))
         {
             valid_matches.push_back(candidate);
         }

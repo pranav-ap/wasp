@@ -74,7 +74,7 @@
     X(XOR, "xor", true)                                                                            \
     X(LET, "let", true)                                                                            \
     X(CONST_KEYWORD, "const", true)                                                                \
-    X(SCOPE, "scope", true)                                                                        \
+    X(ENTER, "enter", true)                                                                        \
     X(WHILE, "while", true)                                                                        \
     X(UNTIL, "until", true)                                                                        \
     X(UNLESS, "unless", true)                                                                      \

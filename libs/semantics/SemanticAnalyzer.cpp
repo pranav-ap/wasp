@@ -41,7 +41,11 @@ void SemanticAnalyzer::extract_module_type(Module_ptr module)
         members[symbol->name] = symbol->get_type();
     }
 
-    auto module_type = ModuleType(module->get_name(), module->absolute_filepath, members);
+    auto module_type = std::make_shared<ModuleType>(
+        module->get_name(),
+        module->absolute_filepath,
+        members
+    );
 
     module->type = make_object(module_type);
 }

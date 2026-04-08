@@ -361,11 +361,11 @@ void Compiler::compile_constructor_call(Call& expr)
 
     auto symbol = expr.callable->as<Identifier>().symbol;
     auto class_type_obj = symbol->get_type();
-    auto& class_type = class_type_obj->as<ClassType>();
+    auto& class_type = class_type_obj->as<std::shared_ptr<ClassType>>();
 
-    for (const std::string& method_name : class_type.methods_declaration_order)
+    for (const std::string& method_name : class_type->methods_declaration_order)
     {
-        std::string mangled_name = class_type.class_name + "::" + method_name;
+        std::string mangled_name = class_type->class_name + "::" + method_name;
 
         int method_physical_index = -1;
         for (int i = static_cast<int>(locals.size()) - 1; i >= 0; --i)
@@ -387,7 +387,7 @@ void Compiler::compile_constructor_call(Call& expr)
     }
 
     int total_size = static_cast<int>(
-        expr.arguments.size() + class_type.methods_declaration_order.size()
+        expr.arguments.size() + class_type->methods_declaration_order.size()
     );
 
     emit(OpCode::INSTANTIATE, total_size);
