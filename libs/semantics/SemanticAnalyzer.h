@@ -34,8 +34,9 @@ class SemanticAnalyzer
 
     void visit(ExpressionStatement& statement);
 
-    void visit(ClassDefinition& statement);
+    void visit_block(StatementVector statements);
 
+    void visit(ClassDefinition& statement);
     void visit(AliasDefinition& statement);
     void visit(EnumDefinition& statement);
     void visit(FunctionDefinition& statement);

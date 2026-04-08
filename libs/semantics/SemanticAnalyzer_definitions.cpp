@@ -78,6 +78,9 @@ void SemanticAnalyzer::visit(ImplDefinition& statement)
     Object_ptr previous_bound_type = current_bound_instance_type;
     current_bound_instance_type = class_type_obj;
 
+    // -------------------------------------------------------------------
+    // PASS 1: Method Hoisting & V-Table Registration
+    // -------------------------------------------------------------------
     for (auto& method_stmt : statement.methods)
     {
         Doctor::get().assert(
@@ -91,11 +94,51 @@ void SemanticAnalyzer::visit(ImplDefinition& statement)
         std::string original_name = method_def.name;
         method_def.name = statement.class_name + "::" + original_name;
 
-        visit(method_def);
+        Object_ptr return_type = method_def.return_type ? visit(method_def.return_type)
+                                                        : make_object(NoneType());
 
-        Object_ptr method_type = method_def.group_symbol->get_type();
-        class_type.members[original_name] = method_type;
-        class_type.methods_declaration_order.push_back(original_name);
+        ObjectVector parameter_types;
+        for (const auto& [param_name, type_ann] : method_def.parameters)
+        {
+            parameter_types.push_back(type_ann ? visit(type_ann) : make_object(AnyType()));
+        }
+
+        auto function_signature = make_object(FunctionType(parameter_types, return_type));
+
+        auto method_symbol = SymbolFactory::create_function(
+            method_def.name,
+            function_signature,
+            false,
+            this->current_bound_instance_type,
+            current_scope->get_closure_depth(),
+            current_scope->get_lexical_depth()
+        );
+
+        if (current_scope->contains_in_current_scope(method_def.name))
+        {
+            type_checker->validate_overload_group(current_scope, method_def.name, method_symbol);
+        }
+
+        current_scope->define(method_symbol);
+
+        method_def.symbol = method_symbol;
+        method_def.group_symbol = current_scope->lookup(method_def.name);
+
+        // FIX: Prevent Duplicate V-Table entries for overloads!
+        if (class_type.members.find(original_name) == class_type.members.end())
+        {
+            class_type.methods_declaration_order.push_back(original_name);
+        }
+
+        class_type.members[original_name] = method_def.group_symbol->get_type();
+    }
+
+    // -------------------------------------------------------------------
+    // PASS 2: Body Analysis
+    // -------------------------------------------------------------------
+    for (auto& method_stmt : statement.methods)
+    {
+        visit(method_stmt);
     }
 
     current_bound_instance_type = previous_bound_type;

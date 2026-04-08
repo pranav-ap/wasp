@@ -1,3 +1,4 @@
+#include "AST.h"
 #include "Doctor.h"
 #include "Objects.h"
 #include "SemanticAnalyzer.h"
@@ -22,6 +23,58 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
+
+void SemanticAnalyzer::visit_block(StatementVector statements)
+{
+    for (auto& stmt : statements)
+    {
+        if (stmt->is<FunctionDefinition>())
+        {
+            auto& nested_func = stmt->as<FunctionDefinition>();
+
+            Object_ptr return_type = nested_func.return_type ? visit(nested_func.return_type)
+                                                             : MAKE_OBJECT_VARIANT(NoneType());
+
+            ObjectVector parameter_types;
+
+            for (const auto& [param_name, type_ann] : nested_func.parameters)
+            {
+                parameter_types.push_back(
+                    type_ann ? visit(type_ann) : MAKE_OBJECT_VARIANT(AnyType())
+                );
+            }
+
+            auto function_signature = MAKE_OBJECT_VARIANT(
+                FunctionType(parameter_types, return_type)
+            );
+
+            auto local_func_symbol = SymbolFactory::create_function(
+                nested_func.name,
+                function_signature,
+                false,
+                nullptr,
+                current_scope->get_closure_depth(),
+                current_scope->get_lexical_depth()
+            );
+
+            if (current_scope->contains_in_current_scope(nested_func.name))
+            {
+                type_checker
+                    ->validate_overload_group(current_scope, nested_func.name, local_func_symbol);
+            }
+
+            current_scope->define(local_func_symbol);
+
+            nested_func.symbol = local_func_symbol;
+            nested_func.group_symbol = current_scope->lookup(nested_func.name);
+        }
+    }
+
+    for (auto& stmt : statements)
+    {
+        visit(stmt);
+    }
+}
 
 void SemanticAnalyzer::visit(FunctionDefinition& function_definition)
 {
@@ -129,7 +182,12 @@ void SemanticAnalyzer::visit(FunctionDefinition& function_definition)
         function_definition.parameter_symbols.push_back(parameter_symbol);
     }
 
-    visit(function_definition.body);
+    Object_ptr prev_bound_type = this->current_bound_instance_type;
+    this->current_bound_instance_type = nullptr;
+
+    visit_block(function_definition.body);
+
+    this->current_bound_instance_type = prev_bound_type;
 
     return_type_stack.pop_back();
     leave_scope();
