@@ -429,6 +429,8 @@ Object_ptr SemanticAnalyzer::evaluate_instance_method_call(
     call_expr.overload_index = overload_index;
     right_id.symbol = function_symbol;
 
+    call_expr.is_method_call = true;
+
     return function_symbol->get_payload_as<FunctionData>().get_return_type();
 }
 

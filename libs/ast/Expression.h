@@ -169,8 +169,8 @@ struct Call
     Expression_ptr callable;
     ExpressionVector arguments;
 
-    // True if this call is actually a class instantiation
     bool is_constructor_call = false;
+    bool is_method_call = false;
 
     int overload_index;
 

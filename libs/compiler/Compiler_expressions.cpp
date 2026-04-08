@@ -401,12 +401,22 @@ void Compiler::compile_function_call(Call& expr)
         emit(OpCode::RESOLVE_FUNCTION, expr.overload_index);
     }
 
+    int total_arguments = static_cast<int>(expr.arguments.size());
+
+    if (expr.is_method_call)
+    {
+        auto& mac = expr.callable->as<MemberAccess>();
+        visit(mac.left);
+        // We are passing 1 extra argument (the instance itself)
+        total_arguments++;
+    }
+
     for (const auto& arg : expr.arguments)
     {
         visit(arg);
     }
 
-    emit(OpCode::CALL, static_cast<int>(expr.arguments.size()));
+    emit(OpCode::CALL, total_arguments);
 }
 
 void Compiler::visit(Call& expr)
