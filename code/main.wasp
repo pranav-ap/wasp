@@ -10,8 +10,17 @@ impl Movie
     fun yo()
         print('yo')
 
+    fun bye()
+        ciao()
+
+        fun ciao()
+            print('ciao')
+
+        print('bye')
+
 let m = Movie(1, 'sam')
 
 print(m.id + ': ' + m.name)
 
 m.edit()
+m.bye()
