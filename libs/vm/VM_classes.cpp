@@ -32,8 +32,12 @@ void VM::execute_instantiate(CallFrame* frame)
 
     auto& blueprint = blueprint_obj->as<ClassType>();
 
+    // FIX: The VM must expect the sum of data fields AND methods!
+    size_t expected_total_size = blueprint.declaration_order.size() +
+                                 blueprint.methods_declaration_order.size();
+
     Doctor::get().assert(
-        total_size == blueprint.declaration_order.size(),
+        total_size == expected_total_size,
         WaspStage::VM,
         "Arity mismatch for class " + blueprint.class_name
     );

@@ -92,7 +92,7 @@ void SemanticAnalyzer::visit(ImplDefinition& statement)
 
         Object_ptr method_type = method_def.group_symbol->get_type();
         class_type.members[original_name] = method_type;
-        class_type.declaration_order.push_back(original_name);
+        class_type.methods_declaration_order.push_back(original_name);
     }
 }
 
