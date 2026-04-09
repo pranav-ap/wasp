@@ -24,21 +24,19 @@ class SemanticAnalyzer
 
     SymbolScope_ptr current_scope;
     ObjectVector return_type_stack;
-
-    Object_ptr current_my_instance_type = nullptr;
-    Object_ptr current_our_instance_type = nullptr;
+    ObjectVector class_type_stack;
 
     // -------------------------------------------------------------------------
     // Statement Visitors
     // -------------------------------------------------------------------------
 
     void visit(const Statement_ptr statement);
-    void visit(std::vector<Statement_ptr>& statements);
+    void visit(StatementVector& statements);
 
     void visit(ExpressionStatement& statement);
 
+    void hoist_statements(StatementVector& statements);
     std::pair<Object_ptr, ObjectVector> evaluate_signature(FunctionDefinition& func);
-    void evaluate_function_definition_body(StatementVector statements);
 
     void visit(ClassDefinition& statement);
     void visit(AliasDefinition& statement);
@@ -190,7 +188,5 @@ public:
 
     void run(const std::vector<Module_ptr>& build_order);
 };
-
-using SemanticAnalyzer_ptr = std::unique_ptr<SemanticAnalyzer>;
 
 } // namespace Wasp

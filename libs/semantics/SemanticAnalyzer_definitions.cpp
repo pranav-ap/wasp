@@ -1,3 +1,4 @@
+#include "AST.h"
 #include "Doctor.h"
 #include "Objects.h"
 #include "SemanticAnalyzer.h"
@@ -9,6 +10,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -19,9 +21,27 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
+std::pair<Object_ptr, ObjectVector> SemanticAnalyzer::evaluate_signature(FunctionDefinition& func)
+{
+    Object_ptr return_type = func.return_type ? visit(func.return_type) : make_object(NoneType());
+    ObjectVector param_types;
+
+    for (const auto& [param_name, type_ann] : func.parameters)
+    {
+        param_types.push_back(type_ann ? visit(type_ann) : make_object(AnyType()));
+    }
+
+    return {return_type, param_types};
+}
+
+// ============================================================================
+// Definitions
+// ============================================================================
+
 void SemanticAnalyzer::visit(ClassDefinition& class_def)
 {
     ObjectStringMap member_types;
+
     for (const auto& [name, type_ann] : class_def.members)
     {
         member_types[name] = visit(type_ann);
@@ -35,29 +55,13 @@ void SemanticAnalyzer::visit(ClassDefinition& class_def)
         )
     );
 
-    if (class_def.symbol)
-    {
-        // Top Level Class: Hoister already defined it. Just attach the type.
-        class_def.symbol->set_type(class_type);
-    }
-    else
-    {
-        // Local nested class: Create and define the symbol now.
-        class_def.symbol = SymbolFactory::create_class(
-            class_def.name,
-            class_type,
-            current_scope->get_closure_depth(),
-            current_scope->get_lexical_depth()
-        );
+    Doctor::get().fatal_if_nullptr(
+        class_def.symbol,
+        WaspStage::Semantics,
+        "Class definition missing symbol even after hoisting was done"
+    );
 
-        Doctor::get().assert(
-            !current_scope->contains_in_current_scope(class_def.name),
-            WaspStage::Semantics,
-            "Redefinition of symbol " + class_def.name
-        );
-
-        current_scope->define(class_def.symbol);
-    }
+    class_def.symbol->set_type(class_type);
 }
 
 void SemanticAnalyzer::visit(ImplDefinition& impl_def)
@@ -67,21 +71,13 @@ void SemanticAnalyzer::visit(ImplDefinition& impl_def)
     Doctor::get().assert(
         class_symbol && class_symbol->payload_is<ClassData>(),
         WaspStage::Semantics,
-        "Impl block target '" + impl_def.class_name + "' is not a defined class."
+        "Impl block target '" + impl_def.class_name + "' is not a defined class"
     );
 
     auto class_type_obj = class_symbol->get_type();
     auto class_type = class_type_obj->as<std::shared_ptr<ClassType>>();
 
-    Object_ptr prev_my_type = current_my_instance_type;
-    Object_ptr prev_our_type = current_our_instance_type;
-
-    // -------------------------------------------------------------------
-    // State: Populate BOTH. The individual functions will decide which
-    // one they want to bind to based on their own 'is_our' flag!
-    // -------------------------------------------------------------------
-    current_my_instance_type = class_type_obj;
-    current_our_instance_type = class_type_obj;
+    class_type_stack.push_back(class_type_obj);
 
     // -------------------------------------------------------------------
     // PASS 1: Hoisting
@@ -102,12 +98,13 @@ void SemanticAnalyzer::visit(ImplDefinition& impl_def)
         auto [ret_type, param_types] = evaluate_signature(method_def);
         auto signature = make_object(std::make_shared<FunctionType>(param_types, ret_type));
 
+        Object_ptr current_class = class_type_stack.back();
+
         auto method_symbol = SymbolFactory::create_function(
             method_def.name,
             signature,
             false,
-            current_my_instance_type,
-            current_our_instance_type,
+            current_class,
             current_scope->get_closure_depth(),
             current_scope->get_lexical_depth()
         );
@@ -137,48 +134,7 @@ void SemanticAnalyzer::visit(ImplDefinition& impl_def)
         visit(method_stmt);
     }
 
-    current_my_instance_type = prev_my_type;
-    current_our_instance_type = prev_our_type;
-}
-
-void SemanticAnalyzer::evaluate_function_definition_body(StatementVector statements)
-{
-    // PASS 1: Hoist Local Functions
-    for (auto& stmt : statements)
-    {
-        if (!stmt->is<FunctionDefinition>())
-            continue;
-
-        auto& nested_func = stmt->as<FunctionDefinition>();
-        auto [ret_type, param_types] = evaluate_signature(nested_func);
-        auto signature = make_object(std::make_shared<FunctionType>(param_types, ret_type));
-
-        auto local_func_symbol = SymbolFactory::create_function(
-            nested_func.name,
-            signature,
-            false,
-            nullptr, // Local nested functions are NEVER bound to instances/classes
-            nullptr,
-            current_scope->get_closure_depth(),
-            current_scope->get_lexical_depth()
-        );
-
-        if (current_scope->contains_in_current_scope(nested_func.name))
-        {
-            type_checker
-                ->validate_overload_group(current_scope, nested_func.name, local_func_symbol);
-        }
-
-        current_scope->define(local_func_symbol);
-        nested_func.symbol = local_func_symbol;
-        nested_func.group_symbol = current_scope->lookup(nested_func.name);
-    }
-
-    // PASS 2: Analyse all statements in the function body
-    for (auto& stmt : statements)
-    {
-        visit(stmt);
-    }
+    class_type_stack.pop_back();
 }
 
 void SemanticAnalyzer::visit(FunctionDefinition& func)
@@ -186,14 +142,17 @@ void SemanticAnalyzer::visit(FunctionDefinition& func)
     auto [return_type, param_types] = evaluate_signature(func);
     auto signature = make_object(std::make_shared<FunctionType>(param_types, return_type));
 
+    Object_ptr current_class = (!class_type_stack.empty()) ? class_type_stack.back() : nullptr;
+
     if (!func.symbol)
     {
+        // Pass the class and the flag directly to the factory!
         func.symbol = SymbolFactory::create_function(
             func.name,
             signature,
             false,
-            current_my_instance_type,
-            current_our_instance_type,
+            current_class,
+            func.is_our,
             current_scope->get_closure_depth(),
             current_scope->get_lexical_depth()
         );
@@ -209,9 +168,10 @@ void SemanticAnalyzer::visit(FunctionDefinition& func)
     {
         func.symbol->set_type(signature);
 
+        // Update the clean, simplified FunctionData payload
         auto& fd = func.symbol->get_payload_as<FunctionData>();
-        fd.my_instance_type = current_my_instance_type;
-        fd.our_instance_type = current_our_instance_type;
+        fd.bound_class = current_class;
+        fd.is_our = func.is_our;
 
         type_checker->validate_overload_group(current_scope, func.name, func.symbol);
     }
@@ -238,14 +198,16 @@ void SemanticAnalyzer::visit(FunctionDefinition& func)
         func.parameter_symbols.push_back(sym);
     };
 
-    if (!func.is_our && current_my_instance_type)
+    // -------------------------------------------------------------------
+    // Inject parameters cleanly based on the streamlined state
+    // -------------------------------------------------------------------
+    if (current_class)
     {
-        define_param("my", current_my_instance_type, false);
-    }
-
-    if (current_our_instance_type)
-    {
-        define_param("our", current_our_instance_type, false);
+        if (!func.is_our)
+        {
+            define_param("my", current_class, false); // Slot 0
+        }
+        define_param("our", current_class, false); // Slot 1 (instance) or Slot 0 (class)
     }
 
     for (size_t i = 0; i < func.parameters.size(); ++i)
@@ -253,22 +215,44 @@ void SemanticAnalyzer::visit(FunctionDefinition& func)
         define_param(func.parameters[i].first, param_types[i], true);
     }
 
-    // Evaluate Body
-    Object_ptr prev_my_bound = current_my_instance_type;
-    Object_ptr prev_our_bound = current_our_instance_type;
+    class_type_stack.push_back(nullptr);
 
-    // Clear both so any nested local functions are treated as standard unbound functions
-    current_my_instance_type = nullptr;
-    current_our_instance_type = nullptr;
+    hoist_statements(func.body);
 
-    evaluate_function_definition_body(func.body);
+    for (auto& stmt : func.body)
+    {
+        visit(stmt);
+    }
 
-    current_my_instance_type = prev_my_bound;
-    current_our_instance_type = prev_our_bound;
+    class_type_stack.pop_back();
 
     return_type_stack.pop_back();
     leave_scope();
 }
+
+void SemanticAnalyzer::visit(Return& statement)
+{
+    Doctor::get().assert(
+        !return_type_stack.empty(),
+        WaspStage::Semantics,
+        "'return' statement used outside of a function."
+    );
+
+    Object_ptr expected = return_type_stack.back();
+    Object_ptr actual = statement.expression ? visit(statement.expression.value())
+                                             : make_object(NoneType());
+
+    Doctor::get().assert(
+        type_checker->assignable(current_scope, expected, actual),
+        WaspStage::Semantics,
+        "Return type mismatch. Expected " + stringify_object(expected) + ", got " +
+            stringify_object(actual)
+    );
+}
+
+// ============================================================================
+// Stubs
+// ============================================================================
 
 void SemanticAnalyzer::visit(TraitDefinition& statement)
 {
