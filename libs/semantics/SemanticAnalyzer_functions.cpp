@@ -45,6 +45,7 @@ void SemanticAnalyzer::evaluate_function_definition_body(StatementVector stateme
             signature,
             false,
             nullptr,
+            nullptr,
             current_scope->get_closure_depth(),
             current_scope->get_lexical_depth()
         );
@@ -79,6 +80,7 @@ void SemanticAnalyzer::visit(FunctionDefinition& func)
             signature,
             false,
             current_my_instance_type,
+            current_our_instance_type,
             current_scope->get_closure_depth(),
             current_scope->get_lexical_depth()
         );
@@ -96,8 +98,7 @@ void SemanticAnalyzer::visit(FunctionDefinition& func)
 
         if (current_my_instance_type)
         {
-            func.symbol->get_payload_as<FunctionData>()
-                .bound_instance_type = current_my_instance_type;
+            func.symbol->get_payload_as<FunctionData>().my_instance_type = current_my_instance_type;
         }
 
         type_checker->validate_overload_group(current_scope, func.name, func.symbol);
@@ -127,7 +128,12 @@ void SemanticAnalyzer::visit(FunctionDefinition& func)
 
     if (current_my_instance_type)
     {
-        define_param("my", current_my_instance_type, false);
+        define_param("my", current_my_instance_type, true);
+    }
+
+    if (current_our_instance_type)
+    {
+        define_param("our", current_our_instance_type, true);
     }
 
     for (size_t i = 0; i < func.parameters.size(); ++i)

@@ -84,6 +84,7 @@ struct FunctionDefinition : public Definition
     StatementVector body;
 
     std::shared_ptr<Symbol> group_symbol;
+    bool is_our;
 
     FunctionDefinition() = default;
 
@@ -94,7 +95,17 @@ struct FunctionDefinition : public Definition
         StatementVector body
     )
         : name(std::move(name)), parameters(std::move(params)), return_type(std::move(ret_type)),
-          body(std::move(body)) {};
+          body(std::move(body)), is_our(false) {};
+
+    FunctionDefinition(
+        std::string name,
+        std::vector<std::pair<std::string, TypeAnnotation_ptr>> params,
+        TypeAnnotation_ptr ret_type,
+        StatementVector body,
+        bool is_our
+    )
+        : name(std::move(name)), parameters(std::move(params)), return_type(std::move(ret_type)),
+          body(std::move(body)), is_our(is_our) {};
 };
 
 struct AnnotationDefinition : public Definition
@@ -150,17 +161,10 @@ struct ImplDefinition : public Definition
     std::string class_name;
     std::vector<Statement_ptr> methods;
 
-    bool is_our = false;
-
     ImplDefinition() = default;
 
     ImplDefinition(std::string class_name, std::vector<Statement_ptr> methods)
         : class_name(std::move(class_name)), methods(std::move(methods))
-    {
-    }
-
-    ImplDefinition(std::string class_name, std::vector<Statement_ptr> methods, bool is_our)
-        : class_name(std::move(class_name)), methods(std::move(methods)), is_our(is_our)
     {
     }
 };

@@ -26,7 +26,7 @@ class SemanticAnalyzer
     ObjectVector return_type_stack;
 
     Object_ptr current_my_instance_type = nullptr;
-    Object_ptr current_our_class_type = nullptr;
+    Object_ptr current_our_instance_type = nullptr;
 
     // -------------------------------------------------------------------------
     // Statement Visitors

@@ -49,13 +49,15 @@ struct VariableData : public TypedSymbolData
 struct FunctionData : public TypedSymbolData
 {
     bool is_native;
-    Object_ptr bound_instance_type = nullptr;
+
+    Object_ptr my_instance_type = nullptr;
+    Object_ptr our_instance_type = nullptr;
 
     Object_ptr get_return_type() const;
 
     bool is_method() const
     {
-        return bound_instance_type != nullptr;
+        return my_instance_type != nullptr || our_instance_type != nullptr;
     }
 };
 
@@ -148,7 +150,8 @@ public:
         std::string name,
         Object_ptr type,
         bool is_native = false,
-        Object_ptr bound_instance_type = nullptr,
+        Object_ptr my_instance_type = nullptr,
+        Object_ptr our_instance_type = nullptr,
         int closure_depth = 0,
         int lexical_depth = 0
     );

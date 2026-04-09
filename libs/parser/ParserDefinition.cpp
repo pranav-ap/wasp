@@ -113,6 +113,8 @@ Statement_ptr Parser::parse_function_definition(int indent_level)
 {
     token_pipe.advance_pointer();
 
+    bool is_our = token_pipe.consume_optional_in_line(TokenType::OUR).has_value();
+
     auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
     auto name = name_token.value;
 
@@ -150,7 +152,7 @@ Statement_ptr Parser::parse_function_definition(int indent_level)
     token_pipe.require_in_line(TokenType::EOL);
 
     StatementVector body = parse_statements_block(indent_level + 1);
-    return make_statement(FunctionDefinition(name, parameters, return_type, body));
+    return make_statement(FunctionDefinition(name, parameters, return_type, body, is_our));
 }
 
 Statement_ptr Parser::parse_annotation_definition()
@@ -277,9 +279,6 @@ Statement_ptr Parser::parse_impl_definition(int indent_level)
     // Consume 'impl' keyword
     token_pipe.advance_pointer();
 
-    // consume optional 'our' keyword
-    bool is_our = token_pipe.consume_optional_in_line(TokenType::OUR).has_value();
-
     // Parse the class name
     auto class_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
     std::string class_name = class_token.value;
@@ -316,6 +315,6 @@ Statement_ptr Parser::parse_impl_definition(int indent_level)
         }
     }
 
-    return make_statement(ImplDefinition(class_name, methods, is_our));
+    return make_statement(ImplDefinition(class_name, methods));
 }
 } // namespace Wasp

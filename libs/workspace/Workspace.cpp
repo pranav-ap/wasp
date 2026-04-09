@@ -73,8 +73,8 @@ Symbol::Symbol(
     int lexical_depth,
     SymbolPayload payload
 )
-    : id(id), name(std::move(name)), declaration_depth(closure_depth),
-      lexical_depth(lexical_depth), payload(std::move(payload))
+    : id(id), name(std::move(name)), declaration_depth(closure_depth), lexical_depth(lexical_depth),
+      payload(std::move(payload))
 {
 }
 
@@ -139,9 +139,7 @@ Object_ptr Symbol::get_type()
                 }
 
                 d.type = make_object(
-                    std::make_shared<OverloadedTypesSet>(
-                        std::move(overload_types)
-                    )
+                    std::make_shared<OverloadedTypesSet>(std::move(overload_types))
                 );
 
                 return d.type;
@@ -150,7 +148,8 @@ Object_ptr Symbol::get_type()
             {
                 Doctor::get().fatal(
                     WaspStage::Semantics,
-                    "This symbol does not have type information");
+                    "This symbol does not have type information"
+                );
                 return nullptr;
             }
         },
@@ -186,7 +185,8 @@ void Symbol::set_type(Object_ptr new_type)
             {
                 Doctor::get().fatal(
                     WaspStage::Semantics,
-                    "You are not allowed to set type for this object");
+                    "You are not allowed to set type for this object"
+                );
             }
         },
         payload
@@ -249,21 +249,24 @@ Symbol_ptr SymbolFactory::create_variable(
     Object_ptr type,
     bool is_mutable,
     int closure_depth,
-    int lexical_depth)
+    int lexical_depth
+)
 {
     return std::make_shared<Symbol>(
         symbol_id_counter++,
         std::move(name),
         closure_depth,
         lexical_depth,
-        VariableData{std::move(type), is_mutable});
+        VariableData{std::move(type), is_mutable}
+    );
 }
 
 Symbol_ptr SymbolFactory::create_function(
     std::string name,
     Object_ptr type,
     bool is_native,
-    Object_ptr bound_instance_type,
+    Object_ptr my_instance_type,
+    Object_ptr our_instance_type,
     int closure_depth,
     int lexical_depth
 )
@@ -273,7 +276,7 @@ Symbol_ptr SymbolFactory::create_function(
         std::move(name),
         closure_depth,
         lexical_depth,
-        FunctionData{{std::move(type)}, is_native, bound_instance_type}
+        FunctionData{{std::move(type)}, is_native, my_instance_type, our_instance_type}
     );
 
     return symbol;
@@ -283,28 +286,32 @@ Symbol_ptr SymbolFactory::create_class(
     std::string name,
     Object_ptr type,
     int closure_depth,
-    int lexical_depth)
+    int lexical_depth
+)
 {
     return std::make_shared<Symbol>(
         symbol_id_counter++,
         std::move(name),
         closure_depth,
         lexical_depth,
-        ClassData{{std::move(type)}});
+        ClassData{{std::move(type)}}
+    );
 }
 
 Symbol_ptr SymbolFactory::create_enum(
     std::string name,
     Object_ptr type,
     int closure_depth,
-    int lexical_depth)
+    int lexical_depth
+)
 {
     return std::make_shared<Symbol>(
         symbol_id_counter++,
         std::move(name),
         closure_depth,
         lexical_depth,
-        EnumData{{std::move(type)}});
+        EnumData{{std::move(type)}}
+    );
 }
 
 Symbol_ptr SymbolFactory::create_module(std::string name, Module_ptr mod)
@@ -314,7 +321,8 @@ Symbol_ptr SymbolFactory::create_module(std::string name, Module_ptr mod)
         std::move(name),
         0,
         0,
-        ModuleData{std::move(mod)});
+        ModuleData{std::move(mod)}
+    );
 }
 
 Symbol_ptr SymbolFactory::create_alias(std::string name, Symbol_ptr target)
@@ -324,20 +332,23 @@ Symbol_ptr SymbolFactory::create_alias(std::string name, Symbol_ptr target)
         std::move(name),
         0,
         0,
-        AliasData{std::move(target)});
+        AliasData{std::move(target)}
+    );
 }
 
 Symbol_ptr SymbolFactory::create_overload_set(
     std::string name,
     int closure_depth,
-    int lexical_depth)
+    int lexical_depth
+)
 {
     auto symbol = std::make_shared<Symbol>(
         symbol_id_counter++,
         std::move(name),
         closure_depth,
         lexical_depth,
-        OverloadGroupData{});
+        OverloadGroupData{}
+    );
 
     return symbol;
 }
@@ -397,9 +408,8 @@ Symbol_ptr Module::get_member(const std::string& member_name) const
 // --------------------------------------------------------------------
 
 Workspace::Workspace(std::filesystem::path root)
-    : root_path(std::filesystem::absolute(root)),
-      build_path(root_path / "build"), libs_path(root_path / "libs"),
-      pool(std::make_shared<ConstantPool>()),
+    : root_path(std::filesystem::absolute(root)), build_path(root_path / "build"),
+      libs_path(root_path / "libs"), pool(std::make_shared<ConstantPool>()),
       native_registry(std::make_shared<NativeRegistry>(pool))
 {
     std::filesystem::create_directories(build_path);
@@ -425,8 +435,7 @@ Module_ptr Workspace::get_module(int module_index)
     return it->second;
 }
 
-const std::map<std::filesystem::path, Module_ptr>& Workspace::
-    get_all_modules() const
+const std::map<std::filesystem::path, Module_ptr>& Workspace::get_all_modules() const
 {
     return module_registry;
 }
