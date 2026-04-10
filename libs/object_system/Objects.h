@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -470,15 +471,18 @@ struct ClassType : public MemberedCompositeType
     std::string class_name;
     StringVector values_declaration_order;
     StringVector methods_declaration_order;
+    std::unordered_set<std::string> is_ours;
 
     ClassType(
         std::string class_name,
         ObjectStringMap members,
-        StringVector values_declaration_order
+        StringVector values_declaration_order,
+        const StringVector& ours_list
     )
         : class_name(std::move(class_name)),
           values_declaration_order(std::move(values_declaration_order)),
-          methods_declaration_order({}), MemberedCompositeType(std::move(members))
+          methods_declaration_order({}), is_ours(ours_list.begin(), ours_list.end()),
+          MemberedCompositeType(std::move(members))
     {
     }
 

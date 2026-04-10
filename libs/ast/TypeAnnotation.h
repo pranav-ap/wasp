@@ -85,17 +85,23 @@ struct FunctionTypeNode {
         : input_types(std::move(inputs)), return_type(std::move(ret)) {}
 };
 
-struct RecordTypeNode {
-    std::map<std::string, TypeAnnotation_ptr> members;
-
-    explicit RecordTypeNode() = default;
-    explicit RecordTypeNode(std::map<std::string, TypeAnnotation_ptr> members)
-        : members(std::move(members)) {}
+struct MemberInfo
+{
+    int declaration_rank;
+    bool is_our;
+    TypeAnnotation_ptr type;
 };
 
-// Type Anno
+struct RecordTypeNode
+{
+    std::map<std::string, MemberInfo> members;
 
-// 1. Define the variant payload FIRST
+    explicit RecordTypeNode() = default;
+    explicit RecordTypeNode(std::map<std::string, MemberInfo> members) : members(std::move(members))
+    {
+    }
+};
+
 using TypeAnnotationVariant = std::variant<
     std::monostate,
 

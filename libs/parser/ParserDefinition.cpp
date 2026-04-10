@@ -7,7 +7,6 @@
 
 #include <map>
 #include <memory>
-#include <optional>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -110,8 +109,9 @@ std::vector<std::string> Parser::parse_enum_members(std::string stem, int indent
 
 // Function
 
-Statement_ptr Parser::parse_function_definition(int indent_level)
+Statement_ptr Parser::parse_function_definition(int indent_level, bool in_impl_block)
 {
+    // Consume 'fun' keyword
     token_pipe.advance_pointer();
 
     bool is_our = token_pipe.consume_optional_in_line(TokenType::OUR).has_value();
@@ -153,7 +153,22 @@ Statement_ptr Parser::parse_function_definition(int indent_level)
     token_pipe.require_in_line(TokenType::EOL);
 
     StatementVector body = parse_statements_block(indent_level + 1);
-    return make_statement(FunctionDefinition(name, parameters, return_type, body, is_our));
+
+    if (in_impl_block)
+    {
+        if (is_our)
+        {
+            return make_statement(OurMethodDefinition(name, parameters, return_type, body));
+        }
+        else
+        {
+            return make_statement(MyMethodDefinition(name, parameters, return_type, body));
+        }
+    }
+    else
+    {
+        return make_statement(FunctionDefinition(name, parameters, return_type, body));
+    }
 }
 
 Statement_ptr Parser::parse_annotation_definition()
@@ -175,41 +190,6 @@ Statement_ptr Parser::parse_annotation_definition()
 
 // Class
 
-std::tuple<
-    std::map<std::string, TypeAnnotation_ptr>,
-    std::vector<std::string>,
-    std::vector<std::string>>
-Parser::parse_name_type_block(int expected_indent)
-{
-    std::map<std::string, TypeAnnotation_ptr> members;
-    std::vector<std::string> members_declaration_order;
-    std::vector<std::string> is_ours;
-
-    while (true)
-    {
-        token_pipe.ignore_empty_lines();
-
-        if (token_pipe.lookahead_indents() != expected_indent)
-        {
-            break;
-        }
-
-        token_pipe.expect_n_indents(expected_indent);
-
-        auto [is_our, member_name, member_type] = parse_name_type_pair(expected_indent);
-        members[member_name] = member_type;
-
-        if (is_our)
-        {
-            is_ours.push_back(member_name);
-        }
-
-        members_declaration_order.push_back(member_name);
-    }
-
-    return {members, members_declaration_order, is_ours};
-}
-
 std::tuple<bool, std::string, TypeAnnotation_ptr> Parser::parse_name_type_pair(int member_indent)
 {
     auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
@@ -221,24 +201,8 @@ std::tuple<bool, std::string, TypeAnnotation_ptr> Parser::parse_name_type_pair(i
     if (token_pipe.consume_optional_in_line(TokenType::RECORD))
     {
         token_pipe.require_in_line(TokenType::EOL);
-        const int record_indent = member_indent + 1;
-        std::map<std::string, TypeAnnotation_ptr> record_members;
-
-        while (true)
-        {
-            token_pipe.ignore_empty_lines();
-
-            if (token_pipe.lookahead_indents() != record_indent)
-            {
-                break;
-            }
-
-            token_pipe.expect_n_indents(record_indent);
-            auto [is_our, member_name, member_type] = parse_name_type_pair(record_indent);
-            record_members[member_name] = member_type;
-        }
-
-        return {is_our, name, MAKE_RECURSIVE_TYPE(RecordTypeNode, record_members)};
+        auto parsed_block = parse_name_type_block(member_indent + 1);
+        return {is_our, name, MAKE_RECURSIVE_TYPE(RecordTypeNode, std::move(parsed_block))};
     }
 
     auto type = parse_type();
@@ -246,12 +210,36 @@ std::tuple<bool, std::string, TypeAnnotation_ptr> Parser::parse_name_type_pair(i
     return {is_our, name, type};
 }
 
-Statement_ptr Parser::parse_class_definition(int indent_level)
+std::map<std::string, MemberInfo> Parser::parse_name_type_block(int expected_indent)
 {
-    token_pipe.advance_pointer(); // Consume 'class' keyword
+    std::map<std::string, MemberInfo> members;
+    int current_rank = 0;
+
+    while (true)
+    {
+        token_pipe.ignore_empty_lines();
+
+        if (token_pipe.lookahead_indents() != expected_indent)
+        {
+            break;
+        }
+
+        token_pipe.expect_n_indents(expected_indent);
+        auto [is_our, member_name, member_type] = parse_name_type_pair(expected_indent);
+        members[member_name] = MemberInfo{current_rank++, is_our, member_type};
+    }
+
+    return members;
+}
+
+std::tuple<std::string, std::vector<std::string>, std::map<std::string, MemberInfo>> Parser::
+    parse_membered_definition_base(int indent_level)
+{
+    // Consume the 'class' or 'trait' keyword
+    token_pipe.advance_pointer();
 
     auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
-    auto class_name = name_token.value;
+    std::string name = name_token.value;
 
     std::vector<std::string> traits;
 
@@ -266,26 +254,20 @@ Statement_ptr Parser::parse_class_definition(int indent_level)
     }
 
     token_pipe.require_in_line(TokenType::EOL);
+    auto members = parse_name_type_block(indent_level + 1);
+    return {std::move(name), std::move(traits), std::move(members)};
+}
 
-    auto [members, members_declaration_order, is_ours] = parse_name_type_block(indent_level + 1);
-
-    return make_statement(
-        ClassDefinition(class_name, members, members_declaration_order, traits, is_ours)
-    );
+Statement_ptr Parser::parse_class_definition(int indent_level)
+{
+    auto [name, traits, members] = parse_membered_definition_base(indent_level);
+    return make_statement(ClassDefinition(name, traits, members));
 }
 
 Statement_ptr Parser::parse_trait_definition(int indent_level)
 {
-    token_pipe.advance_pointer(); // Consume 'trait' keyword
-
-    auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
-    auto trait_name = name_token.value;
-
-    token_pipe.require_in_line(TokenType::EOL);
-
-    auto [members, members_declaration_order, is_ours] = parse_name_type_block(indent_level + 1);
-
-    return make_statement(TraitDefinition(trait_name, members, members_declaration_order, is_ours));
+    auto [name, traits, members] = parse_membered_definition_base(indent_level);
+    return make_statement(TraitDefinition(name, traits, members));
 }
 
 Statement_ptr Parser::parse_impl_definition(int indent_level)
@@ -299,7 +281,6 @@ Statement_ptr Parser::parse_impl_definition(int indent_level)
 
     token_pipe.require_in_line(TokenType::EOL);
 
-    // Parse the indented block of methods
     std::vector<Statement_ptr> methods;
     const int method_indent = indent_level + 1;
 
@@ -317,15 +298,12 @@ Statement_ptr Parser::parse_impl_definition(int indent_level)
 
         if (token_pipe.consume_optional(TokenType::FUN))
         {
-            auto func = parse_function_definition(method_indent);
+            auto func = parse_function_definition(method_indent, true);
             methods.push_back(func);
         }
         else
         {
-            Doctor::get().fatal(
-                WaspStage::Parser,
-                "Expected function definition ('fun') inside impl block."
-            );
+            Doctor::get().fatal(WaspStage::Parser, "Expected 'fun' inside impl block.");
         }
     }
 

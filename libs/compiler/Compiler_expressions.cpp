@@ -346,19 +346,18 @@ void Compiler::visit(MemberAccess& expr)
 
     emit(OpCode::GET_MEMBER, expr.member_index);
 }
-
 void Compiler::compile_constructor_call(Call& expr)
 {
     visit(expr.callable);
 
-    // Evaluate and push the data arguments
+    // Evaluate and push the data arguments (Already filtered to only be instance variables by the
+    // Semantic Analyzer!)
     for (const auto& arg : expr.arguments)
     {
         visit(arg);
     }
 
     // Push the methods
-
     auto symbol = expr.callable->as<Identifier>().symbol;
     auto class_type_obj = symbol->get_type();
     auto& class_type = class_type_obj->as<std::shared_ptr<ClassType>>();
@@ -386,6 +385,7 @@ void Compiler::compile_constructor_call(Call& expr)
         emit(OpCode::GET_LOCAL, method_physical_index, "method " + mangled_name);
     }
 
+    // The total size is the filtered data arguments + methods
     int total_size = static_cast<int>(
         expr.arguments.size() + class_type->methods_declaration_order.size()
     );

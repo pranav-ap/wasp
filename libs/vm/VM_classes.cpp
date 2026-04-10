@@ -32,9 +32,12 @@ void VM::execute_instantiate(CallFrame* frame)
 
     auto& blueprint = blueprint_obj->as<std::shared_ptr<ClassType>>();
 
-    // FIX: The VM must expect the sum of data fields AND methods!
-    size_t expected_total_size = blueprint->values_declaration_order.size() +
-                                 blueprint->methods_declaration_order.size();
+    // -------------------------------------------------------------------
+    // FIX: Subtract shared 'our' variables from the expected instance size!
+    // -------------------------------------------------------------------
+    size_t instance_data_count = blueprint->values_declaration_order.size() -
+                                 blueprint->is_ours.size();
+    size_t expected_total_size = instance_data_count + blueprint->methods_declaration_order.size();
 
     Doctor::get().assert(
         total_size == expected_total_size,

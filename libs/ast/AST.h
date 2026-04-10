@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -11,6 +12,8 @@ namespace Wasp {
 // --------------------------------------------------------------
 // Forward declarations
 // --------------------------------------------------------------
+
+using StringVector = std::vector<std::string>;
 
 struct Statement;
 using Statement_ptr = std::shared_ptr<Statement>;

@@ -6,6 +6,7 @@
 #include "Statement.h"
 #include "Token.h"
 #include "TokenPipe.h"
+#include "TypeAnnotation.h"
 
 #include <map>
 #include <memory>
@@ -32,17 +33,15 @@ class Parser {
     Statement_ptr parse_return_statement();
 
     Statement_ptr parse_enum_definition(int indent_level = 0);
-    std::vector<std::string> parse_enum_members(std::string stem, int indent_level);
+    StringVector parse_enum_members(std::string stem, int indent_level);
 
-    Statement_ptr parse_function_definition(int indent_level = 0);
+    Statement_ptr parse_function_definition(int indent_level, bool in_impl_block = false);
 
-    std::tuple<
-        std::map<std::string, TypeAnnotation_ptr>,
-        std::vector<std::string>,
-        std::vector<std::string>>
-    parse_name_type_block(int expected_indent);
-
+    std::map<std::string, MemberInfo> parse_name_type_block(int expected_indent);
     std::tuple<bool, std::string, TypeAnnotation_ptr> parse_name_type_pair(int member_indent);
+
+    std::tuple<std::string, StringVector, std::map<std::string, MemberInfo>>
+    parse_membered_definition_base(int indent_level);
 
     Statement_ptr parse_class_definition(int indent_level = 0);
     Statement_ptr parse_trait_definition(int indent_level = 0);
@@ -64,7 +63,7 @@ class Parser {
 
     // Other Parsers
 
-    std::pair<std::optional<TokenType>, std::vector<std::string>> parse_module_path();
+    std::pair<std::optional<TokenType>, StringVector> parse_module_path();
     ImportedSymbol parse_imported_symbol();
 
     Statement_ptr parse_import();

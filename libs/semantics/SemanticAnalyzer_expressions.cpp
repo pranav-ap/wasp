@@ -8,11 +8,13 @@
 #include "Token.h"
 #include "Workspace.h"
 
+#include <algorithm>
 #include <ctime>
 #include <map>
 #include <memory>
 #include <string>
 #include <variant>
+#include <vector>
 
 #define MAKE_OBJECT_VARIANT(x) std::make_shared<Object>(x)
 
@@ -451,15 +453,27 @@ Object_ptr SemanticAnalyzer::evaluate_instance_creation(
     auto class_type_obj = symbol->get_payload_as<ClassData>().type;
     auto class_type = class_type_obj->as<std::shared_ptr<ClassType>>();
 
+    std::vector<std::string> instance_members;
+
+    for (const auto& member_name : class_type->values_declaration_order)
+    {
+        if (std::find(class_type->is_ours.begin(), class_type->is_ours.end(), member_name) ==
+            class_type->is_ours.end())
+        {
+            instance_members.push_back(member_name);
+        }
+    }
+
     Doctor::get().assert(
-        arg_types.size() == class_type->values_declaration_order.size(),
+        arg_types.size() == instance_members.size(),
         WaspStage::Semantics,
-        "Constructor Arguments Count Mismatch"
+        "Constructor Arguments Count Mismatch. Expected " +
+            std::to_string(instance_members.size()) + ", got " + std::to_string(arg_types.size())
     );
 
-    for (size_t i = 0; i < class_type->values_declaration_order.size(); ++i)
+    for (size_t i = 0; i < instance_members.size(); ++i)
     {
-        const std::string& member_name = class_type->values_declaration_order[i];
+        const std::string& member_name = instance_members[i];
 
         Object_ptr expected_type = class_type->get_member(member_name);
         Object_ptr actual_type = arg_types[i];
@@ -467,7 +481,7 @@ Object_ptr SemanticAnalyzer::evaluate_instance_creation(
         Doctor::get().assert(
             type_checker->assignable(current_scope, expected_type, actual_type),
             WaspStage::Semantics,
-            "Constructor Arguments Type Mismatch"
+            "Constructor Arguments Type Mismatch for member '" + member_name + "'"
         );
     }
 

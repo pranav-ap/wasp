@@ -36,12 +36,32 @@ class SemanticAnalyzer
     void visit(ExpressionStatement& statement);
 
     void hoist_statements(StatementVector& statements);
-    std::pair<Object_ptr, ObjectVector> evaluate_signature(FunctionDefinition& func);
+
+    // UPDATED: Now takes the base class so it works for all 3 function types!
+    std::pair<Object_ptr, ObjectVector> evaluate_signature(AbstractFunctionDefinition& func);
+
+    // ADDED: The new branchless core function engine
+    void analyze_function_base(
+        AbstractFunctionDefinition& fun_def,
+        bool inject_my,
+        bool inject_our
+    );
 
     void visit(ClassDefinition& statement);
     void visit(AliasDefinition& statement);
     void visit(EnumDefinition& statement);
+
+    void process_method_hoisting(
+        AbstractFunctionDefinition& method_def,
+        bool is_our,
+        const std::string& class_name,
+        std::shared_ptr<ClassType>& class_type
+    );
+
     void visit(FunctionDefinition& statement);
+    void visit(MyMethodDefinition& statement);
+    void visit(OurMethodDefinition& statement);
+
     void visit(TraitDefinition& statement);
     void visit(ImplDefinition& statement);
 
@@ -68,10 +88,7 @@ class SemanticAnalyzer
     // ------------------------------------------------------------------------
 
     Object_ptr define_variable(Expression_ptr assignment_expr, bool is_mutable);
-    Object_ptr mutate_variable(
-        Expression_ptr lhs_expr,
-        Expression_ptr rhs_expr
-    );
+    Object_ptr mutate_variable(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
 
     void visit(VariableDefinition& statement);
 
@@ -183,8 +200,7 @@ class SemanticAnalyzer
 
 public:
     SemanticAnalyzer(Workspace_ptr workspace)
-        : type_checker(std::make_shared<TypeChecker>(workspace->pool)),
-          workspace(workspace) {};
+        : type_checker(std::make_shared<TypeChecker>(workspace->pool)), workspace(workspace) {};
 
     void run(const std::vector<Module_ptr>& build_order);
 };

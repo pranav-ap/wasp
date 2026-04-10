@@ -3,6 +3,7 @@
 #include "AST.h"
 #include "Resolvable.h"
 #include "Token.h"
+#include "TypeAnnotation.h"
 
 #include <filesystem>
 #include <map>
@@ -63,7 +64,7 @@ struct EnumDefinition : public Definition
 
     EnumDefinition() = default;
 
-    EnumDefinition(std::string name, std::vector<std::string> member_list) : name(std::move(name))
+    EnumDefinition(std::string name, StringVector member_list) : name(std::move(name))
     {
         int index = 0;
         for (const auto& member : member_list)
@@ -73,7 +74,7 @@ struct EnumDefinition : public Definition
     }
 };
 
-struct FunctionDefinition : public Definition
+struct AbstractFunctionDefinition : public Definition
 {
     std::string name;
 
@@ -84,28 +85,34 @@ struct FunctionDefinition : public Definition
     StatementVector body;
 
     std::shared_ptr<Symbol> group_symbol;
-    bool is_our;
 
-    FunctionDefinition() = default;
+    AbstractFunctionDefinition() = default;
 
-    FunctionDefinition(
+    AbstractFunctionDefinition(
         std::string name,
-        std::vector<std::pair<std::string, TypeAnnotation_ptr>> params,
+        std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters,
         TypeAnnotation_ptr ret_type,
         StatementVector body
     )
-        : name(std::move(name)), parameters(std::move(params)), return_type(std::move(ret_type)),
-          body(std::move(body)), is_our(false) {};
+        : name(std::move(name)), parameters(std::move(parameters)),
+          return_type(std::move(ret_type)), body(std::move(body))
+    {
+    }
+};
 
-    FunctionDefinition(
-        std::string name,
-        std::vector<std::pair<std::string, TypeAnnotation_ptr>> params,
-        TypeAnnotation_ptr ret_type,
-        StatementVector body,
-        bool is_our
-    )
-        : name(std::move(name)), parameters(std::move(params)), return_type(std::move(ret_type)),
-          body(std::move(body)), is_our(is_our) {};
+struct FunctionDefinition : public AbstractFunctionDefinition
+{
+    using AbstractFunctionDefinition::AbstractFunctionDefinition;
+};
+
+struct MyMethodDefinition : public AbstractFunctionDefinition
+{
+    using AbstractFunctionDefinition::AbstractFunctionDefinition;
+};
+
+struct OurMethodDefinition : public AbstractFunctionDefinition
+{
+    using AbstractFunctionDefinition::AbstractFunctionDefinition;
 };
 
 struct AnnotationDefinition : public Definition
@@ -119,55 +126,60 @@ struct AnnotationDefinition : public Definition
         : name(std::move(name)), anno_values(std::move(anno_values)) {};
 };
 
-struct ClassDefinition : public Definition
+struct MemberedDefinition : public Definition
 {
     std::string name;
-    std::map<std::string, TypeAnnotation_ptr> members;
-    std::vector<std::string> members_declaration_order;
-    std::vector<std::string> traits;
-    std::vector<std::string> is_ours;
+    StringVector traits;
+    std::map<std::string, MemberInfo> members;
 
+    MemberedDefinition() = default;
+
+    MemberedDefinition(
+        std::string name,
+        StringVector traits,
+        std::map<std::string, MemberInfo> members
+    )
+        : name(std::move(name)), traits(std::move(traits)), members(std::move(members))
+    {
+    }
+};
+
+struct ClassDefinition : public MemberedDefinition
+{
     ClassDefinition() = default;
 
     ClassDefinition(
         std::string name,
-        std::map<std::string, TypeAnnotation_ptr> members,
-        std::vector<std::string> members_declaration_order,
-        std::vector<std::string> traits,
-        std::vector<std::string> is_ours
+        StringVector traits,
+        std::map<std::string, MemberInfo> members
     )
-        : name(name), members(std::move(members)),
-          members_declaration_order(std::move(members_declaration_order)),
-          traits(std::move(traits)), is_ours(is_ours) {};
+        : MemberedDefinition(std::move(name), std::move(traits), std::move(members))
+    {
+    }
 };
 
-struct TraitDefinition : public Definition
+struct TraitDefinition : public MemberedDefinition
 {
-    std::string name;
-    std::map<std::string, TypeAnnotation_ptr> members;
-    std::vector<std::string> members_declaration_order;
-    std::vector<std::string> is_ours;
-
     TraitDefinition() = default;
 
     TraitDefinition(
         std::string name,
-        std::map<std::string, TypeAnnotation_ptr> members,
-        std::vector<std::string> members_declaration_order,
-        std::vector<std::string> is_ours
+        StringVector traits,
+        std::map<std::string, MemberInfo> members
     )
-        : name(name), members(std::move(members)),
-          members_declaration_order(std::move(members_declaration_order)), is_ours(is_ours) {};
+        : MemberedDefinition(std::move(name), std::move(traits), std::move(members))
+    {
+    }
 };
 
 struct ImplDefinition : public Definition
 {
     std::string class_name;
-    std::vector<Statement_ptr> methods;
+    StatementVector methods;
 
     ImplDefinition() = default;
 
-    ImplDefinition(std::string class_name, std::vector<Statement_ptr> methods)
+    ImplDefinition(std::string class_name, StatementVector methods)
         : class_name(std::move(class_name)), methods(std::move(methods))
     {
     }
@@ -274,13 +286,13 @@ struct AbstractImport : public Resolvable
     std::optional<TokenType> access_token_type;
 
     // ["engine", "fuel"]
-    std::vector<std::string> path;
+    StringVector path;
 
     std::filesystem::path absolute_path;
 
     AbstractImport() = default;
 
-    AbstractImport(std::optional<TokenType> access_token_type, std::vector<std::string> path)
+    AbstractImport(std::optional<TokenType> access_token_type, StringVector path)
         : access_token_type(access_token_type), path(std::move(path))
     {
     }
@@ -297,7 +309,7 @@ struct SimpleImport : public AbstractImport
 
     SimpleImport(
         std::optional<TokenType> access_token_type,
-        std::vector<std::string> path,
+        StringVector path,
         std::optional<std::string> alias = std::nullopt
     )
         : AbstractImport(access_token_type, std::move(path)), alias(std::move(alias))
@@ -330,7 +342,7 @@ struct FromImport : public AbstractImport
 
     FromImport(
         std::optional<TokenType> access_token_type,
-        std::vector<std::string> path,
+        StringVector path,
         std::vector<ImportedSymbol> symbols
     )
         : AbstractImport(access_token_type, std::move(path)), symbols(std::move(symbols))
@@ -340,7 +352,6 @@ struct FromImport : public AbstractImport
 
 // Statement Variant
 
-// 1. Define the variant payload FIRST
 using StatementVariant = std::variant<
     std::monostate,
     ExpressionStatement,
@@ -349,6 +360,8 @@ using StatementVariant = std::variant<
     AliasDefinition,
     EnumDefinition,
     FunctionDefinition,
+    MyMethodDefinition,
+    OurMethodDefinition,
     ClassDefinition,
     TraitDefinition,
     ImplDefinition,
