@@ -2,6 +2,8 @@ class Movie
     id: int
     name: str
 
+    actors_count: our int
+
 impl Movie
     fun edit()
         my.yo()
@@ -25,3 +27,9 @@ print(m.id + ': ' + m.name)
 
 m.edit()
 m.bye()
+
+
+fun sample()
+    print('sample')
+
+sample()

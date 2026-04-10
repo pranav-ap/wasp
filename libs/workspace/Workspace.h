@@ -48,7 +48,8 @@ struct VariableData : public TypedSymbolData
 
 struct FunctionData : public TypedSymbolData
 {
-    bool is_native;
+    bool is_native = false;
+    bool is_our = false;
     Object_ptr bound_class = nullptr;
 
     Object_ptr get_return_type() const;
@@ -148,6 +149,7 @@ public:
         std::string name,
         Object_ptr type,
         bool is_native = false,
+        bool is_our = false,
         Object_ptr bound_class = nullptr,
         int closure_depth = 0,
         int lexical_depth = 0

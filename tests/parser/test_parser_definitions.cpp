@@ -96,15 +96,15 @@ TEST(ParseDefinitions, ClassDefinitionWithNestedRecord) {
     auto block = parse(R"(
 class Person
     name: str
-    address record
+    address: record
         street: str
         city: str
 
-    job record
+    job: record
         title: str
         salary: int
 
-        experience record
+        experience: record
             years: int
             field: str
 )");

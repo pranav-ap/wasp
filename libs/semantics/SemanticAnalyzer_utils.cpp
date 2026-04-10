@@ -1,4 +1,5 @@
 #include "AST.h"
+#include "Objects.h"
 #include "SemanticAnalyzer.h"
 #include "Statement.h"
 #include "SymbolScope.h"
@@ -26,42 +27,48 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
     {
         std::visit(
             overloaded{
-                [&](FunctionDefinition& func_def)
+                [&](FunctionDefinition& fun_def)
                 {
-                    if (func_def.symbol)
+                    if (!fun_def.symbol)
                     {
-                        return;
+                        auto [ret_type, param_types] = evaluate_signature(fun_def);
+                        auto signature = make_object(
+                            std::make_shared<FunctionType>(param_types, ret_type)
+                        );
+
+                        auto symbol = SymbolFactory::create_function(
+                            fun_def.name,
+                            signature,
+                            false,
+                            fun_def.is_our,
+                            nullptr,
+                            current_scope->get_closure_depth(),
+                            current_scope->get_lexical_depth()
+                        );
+
+                        current_scope->define(symbol);
+                        fun_def.symbol = symbol;
                     }
 
-                    auto symbol = SymbolFactory::create_function(
-                        func_def.name,
-                        nullptr,
-                        false,
-                        nullptr,
-                        nullptr,
-                        current_scope->get_closure_depth(),
-                        current_scope->get_lexical_depth()
-                    );
-
-                    current_scope->define(symbol);
-                    func_def.symbol = symbol;
-                    func_def.group_symbol = current_scope->lookup(func_def.name);
+                    if (!fun_def.group_symbol)
+                    {
+                        fun_def.group_symbol = current_scope->lookup(fun_def.name);
+                    }
                 },
                 [&](ClassDefinition& class_def)
                 {
-                    if (class_def.symbol)
+                    if (!class_def.symbol)
                     {
-                        return;
-                    }
+                        auto symbol = SymbolFactory::create_class(
+                            class_def.name,
+                            nullptr, // Classes can stay nullptr, visit(ClassDef) handles the rest
+                            current_scope->get_closure_depth(),
+                            current_scope->get_lexical_depth()
+                        );
 
-                    auto symbol = SymbolFactory::create_class(
-                        class_def.name,
-                        nullptr,
-                        current_scope->get_closure_depth(),
-                        current_scope->get_lexical_depth()
-                    );
-                    current_scope->define(symbol);
-                    class_def.symbol = symbol;
+                        current_scope->define(symbol);
+                        class_def.symbol = symbol;
+                    }
                 },
                 // Ignore other statements
                 [](auto&)

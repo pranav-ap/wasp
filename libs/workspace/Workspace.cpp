@@ -265,6 +265,7 @@ Symbol_ptr SymbolFactory::create_function(
     std::string name,
     Object_ptr type,
     bool is_native,
+    bool is_our,
     Object_ptr bound_class,
     int closure_depth,
     int lexical_depth
@@ -275,7 +276,7 @@ Symbol_ptr SymbolFactory::create_function(
         std::move(name),
         closure_depth,
         lexical_depth,
-        FunctionData{{std::move(type)}, is_native, bound_class}
+        FunctionData{{std::move(type)}, is_native, is_our, bound_class}
     );
 
     return symbol;

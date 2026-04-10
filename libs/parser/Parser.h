@@ -11,6 +11,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -35,9 +36,13 @@ class Parser {
 
     Statement_ptr parse_function_definition(int indent_level = 0);
 
-    std::pair<std::map<std::string, TypeAnnotation_ptr>, std::vector<std::string>>
+    std::tuple<
+        std::map<std::string, TypeAnnotation_ptr>,
+        std::vector<std::string>,
+        std::vector<std::string>>
     parse_name_type_block(int expected_indent);
-    std::pair<std::string, TypeAnnotation_ptr> parse_name_type_pair(int member_indent);
+
+    std::tuple<bool, std::string, TypeAnnotation_ptr> parse_name_type_pair(int member_indent);
 
     Statement_ptr parse_class_definition(int indent_level = 0);
     Statement_ptr parse_trait_definition(int indent_level = 0);

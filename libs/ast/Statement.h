@@ -125,6 +125,7 @@ struct ClassDefinition : public Definition
     std::map<std::string, TypeAnnotation_ptr> members;
     std::vector<std::string> members_declaration_order;
     std::vector<std::string> traits;
+    std::vector<std::string> is_ours;
 
     ClassDefinition() = default;
 
@@ -132,11 +133,12 @@ struct ClassDefinition : public Definition
         std::string name,
         std::map<std::string, TypeAnnotation_ptr> members,
         std::vector<std::string> members_declaration_order,
-        std::vector<std::string> traits
+        std::vector<std::string> traits,
+        std::vector<std::string> is_ours
     )
         : name(name), members(std::move(members)),
           members_declaration_order(std::move(members_declaration_order)),
-          traits(std::move(traits)) {};
+          traits(std::move(traits)), is_ours(is_ours) {};
 };
 
 struct TraitDefinition : public Definition
@@ -144,16 +146,18 @@ struct TraitDefinition : public Definition
     std::string name;
     std::map<std::string, TypeAnnotation_ptr> members;
     std::vector<std::string> members_declaration_order;
+    std::vector<std::string> is_ours;
 
     TraitDefinition() = default;
 
     TraitDefinition(
         std::string name,
         std::map<std::string, TypeAnnotation_ptr> members,
-        std::vector<std::string> members_declaration_order
+        std::vector<std::string> members_declaration_order,
+        std::vector<std::string> is_ours
     )
         : name(name), members(std::move(members)),
-          members_declaration_order(std::move(members_declaration_order)) {};
+          members_declaration_order(std::move(members_declaration_order)), is_ours(is_ours) {};
 };
 
 struct ImplDefinition : public Definition

@@ -104,6 +104,7 @@ void SemanticAnalyzer::visit(ImplDefinition& impl_def)
             method_def.name,
             signature,
             false,
+            method_def.is_our,
             current_class,
             current_scope->get_closure_depth(),
             current_scope->get_lexical_depth()
@@ -137,52 +138,38 @@ void SemanticAnalyzer::visit(ImplDefinition& impl_def)
     class_type_stack.pop_back();
 }
 
-void SemanticAnalyzer::visit(FunctionDefinition& func)
+void SemanticAnalyzer::visit(FunctionDefinition& fun_def)
 {
-    auto [return_type, param_types] = evaluate_signature(func);
-    auto signature = make_object(std::make_shared<FunctionType>(param_types, return_type));
+    Object_ptr return_type;
+    ObjectVector param_types;
 
-    Object_ptr current_class = (!class_type_stack.empty()) ? class_type_stack.back() : nullptr;
-
-    if (!func.symbol)
+    if (fun_def.symbol->get_type() == nullptr)
     {
-        // Pass the class and the flag directly to the factory!
-        func.symbol = SymbolFactory::create_function(
-            func.name,
-            signature,
-            false,
-            current_class,
-            func.is_our,
-            current_scope->get_closure_depth(),
-            current_scope->get_lexical_depth()
-        );
+        // Top-level function (SymbolHoister left the type as nullptr)
+        auto evaluated = evaluate_signature(fun_def);
+        return_type = evaluated.first;
+        param_types = evaluated.second;
 
-        if (current_scope->contains_in_current_scope(func.name))
-        {
-            type_checker->validate_overload_group(current_scope, func.name, func.symbol);
-        }
+        auto signature = make_object(std::make_shared<FunctionType>(param_types, return_type));
+        fun_def.symbol->set_type(signature);
 
-        current_scope->define(func.symbol);
+        fun_def.group_symbol = current_scope->lookup(fun_def.name);
     }
     else
     {
-        func.symbol->set_type(signature);
-
-        // Update the clean, simplified FunctionData payload
-        auto& fd = func.symbol->get_payload_as<FunctionData>();
-        fd.bound_class = current_class;
-        fd.is_our = func.is_our;
-
-        type_checker->validate_overload_group(current_scope, func.name, func.symbol);
+        // Impl method or local function (hoist_statements already evaluated this)
+        auto signature = fun_def.symbol->get_type()->as<std::shared_ptr<FunctionType>>();
+        return_type = signature->return_type.has_value() ? signature->return_type.value()
+                                                         : workspace->pool->get_none_type();
+        param_types = signature->input_types;
     }
 
-    func.group_symbol = current_scope->lookup(func.name);
-    Doctor::get().fatal_if_nullptr(func.group_symbol, WaspStage::Semantics);
+    type_checker->validate_overload_group(current_scope, fun_def.name, fun_def.symbol);
+    Doctor::get().fatal_if_nullptr(fun_def.group_symbol, WaspStage::Semantics);
 
-    // Prepare Scope
     enter_scope(ScopeType::FUNCTION);
     return_type_stack.push_back(return_type);
-    func.parameter_symbols.clear();
+    fun_def.parameter_symbols.clear();
 
     auto define_param = [&](const std::string& name, Object_ptr type, bool is_mutable)
     {
@@ -195,38 +182,46 @@ void SemanticAnalyzer::visit(FunctionDefinition& func)
         );
 
         current_scope->define(sym);
-        func.parameter_symbols.push_back(sym);
+        fun_def.parameter_symbols.push_back(sym);
     };
 
-    // -------------------------------------------------------------------
-    // Inject parameters cleanly based on the streamlined state
-    // -------------------------------------------------------------------
+    Object_ptr current_class = (!class_type_stack.empty()) ? class_type_stack.back() : nullptr;
+
+    // Inject 'my' and 'our' if this is a method
+
     if (current_class)
     {
-        if (!func.is_our)
+        if (!fun_def.is_our)
         {
-            define_param("my", current_class, false); // Slot 0
+            define_param("my", current_class, false);
         }
-        define_param("our", current_class, false); // Slot 1 (instance) or Slot 0 (class)
+
+        define_param("our", current_class, false);
     }
 
-    for (size_t i = 0; i < func.parameters.size(); ++i)
+    // Inject Explicit Parameters
+
+    for (size_t i = 0; i < fun_def.parameters.size(); ++i)
     {
-        define_param(func.parameters[i].first, param_types[i], true);
+        define_param(fun_def.parameters[i].first, param_types[i], true);
     }
 
+    // Evaluate Body
+
+    // Mask class context for nested functions
     class_type_stack.push_back(nullptr);
 
-    hoist_statements(func.body);
+    hoist_statements(fun_def.body);
 
-    for (auto& stmt : func.body)
+    for (auto& stmt : fun_def.body)
     {
         visit(stmt);
     }
 
+    // Cleanup
     class_type_stack.pop_back();
-
     return_type_stack.pop_back();
+
     leave_scope();
 }
 
@@ -249,10 +244,6 @@ void SemanticAnalyzer::visit(Return& statement)
             stringify_object(actual)
     );
 }
-
-// ============================================================================
-// Stubs
-// ============================================================================
 
 void SemanticAnalyzer::visit(TraitDefinition& statement)
 {

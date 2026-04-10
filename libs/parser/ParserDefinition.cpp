@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -174,11 +175,15 @@ Statement_ptr Parser::parse_annotation_definition()
 
 // Class
 
-std::pair<std::map<std::string, TypeAnnotation_ptr>, std::vector<std::string>> Parser::
-    parse_name_type_block(int expected_indent)
+std::tuple<
+    std::map<std::string, TypeAnnotation_ptr>,
+    std::vector<std::string>,
+    std::vector<std::string>>
+Parser::parse_name_type_block(int expected_indent)
 {
     std::map<std::string, TypeAnnotation_ptr> members;
     std::vector<std::string> members_declaration_order;
+    std::vector<std::string> is_ours;
 
     while (true)
     {
@@ -191,19 +196,27 @@ std::pair<std::map<std::string, TypeAnnotation_ptr>, std::vector<std::string>> P
 
         token_pipe.expect_n_indents(expected_indent);
 
-        auto [member_name, member_type] = parse_name_type_pair(expected_indent);
+        auto [is_our, member_name, member_type] = parse_name_type_pair(expected_indent);
         members[member_name] = member_type;
+
+        if (is_our)
+        {
+            is_ours.push_back(member_name);
+        }
 
         members_declaration_order.push_back(member_name);
     }
 
-    return make_pair(members, members_declaration_order);
+    return {members, members_declaration_order, is_ours};
 }
 
-std::pair<std::string, TypeAnnotation_ptr> Parser::parse_name_type_pair(int member_indent)
+std::tuple<bool, std::string, TypeAnnotation_ptr> Parser::parse_name_type_pair(int member_indent)
 {
     auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
     std::string name = name_token.value;
+
+    token_pipe.require_in_line(TokenType::COLON);
+    bool is_our = token_pipe.consume_optional_in_line(TokenType::OUR).has_value();
 
     if (token_pipe.consume_optional_in_line(TokenType::RECORD))
     {
@@ -221,17 +234,16 @@ std::pair<std::string, TypeAnnotation_ptr> Parser::parse_name_type_pair(int memb
             }
 
             token_pipe.expect_n_indents(record_indent);
-            auto [member_name, member_type] = parse_name_type_pair(record_indent);
+            auto [is_our, member_name, member_type] = parse_name_type_pair(record_indent);
             record_members[member_name] = member_type;
         }
 
-        return make_pair(name, MAKE_RECURSIVE_TYPE(RecordTypeNode, record_members));
+        return {is_our, name, MAKE_RECURSIVE_TYPE(RecordTypeNode, record_members)};
     }
 
-    token_pipe.require_in_line(TokenType::COLON);
     auto type = parse_type();
 
-    return make_pair(name, type);
+    return {is_our, name, type};
 }
 
 Statement_ptr Parser::parse_class_definition(int indent_level)
@@ -255,9 +267,11 @@ Statement_ptr Parser::parse_class_definition(int indent_level)
 
     token_pipe.require_in_line(TokenType::EOL);
 
-    auto [members, members_declaration_order] = parse_name_type_block(indent_level + 1);
+    auto [members, members_declaration_order, is_ours] = parse_name_type_block(indent_level + 1);
 
-    return make_statement(ClassDefinition(class_name, members, members_declaration_order, traits));
+    return make_statement(
+        ClassDefinition(class_name, members, members_declaration_order, traits, is_ours)
+    );
 }
 
 Statement_ptr Parser::parse_trait_definition(int indent_level)
@@ -269,9 +283,9 @@ Statement_ptr Parser::parse_trait_definition(int indent_level)
 
     token_pipe.require_in_line(TokenType::EOL);
 
-    auto [members, members_declaration_order] = parse_name_type_block(indent_level + 1);
+    auto [members, members_declaration_order, is_ours] = parse_name_type_block(indent_level + 1);
 
-    return make_statement(TraitDefinition(trait_name, members, members_declaration_order));
+    return make_statement(TraitDefinition(trait_name, members, members_declaration_order, is_ours));
 }
 
 Statement_ptr Parser::parse_impl_definition(int indent_level)
