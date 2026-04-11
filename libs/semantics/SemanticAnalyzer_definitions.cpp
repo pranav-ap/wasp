@@ -32,7 +32,6 @@ void SemanticAnalyzer::analyze_membered_definition(MemberedDefinition& def, bool
     StringVector methods_declaration_order;
     std::unordered_set<std::string> shared_members;
 
-    // 1. Layout Pass: Build structural layout
     for (auto& stmt : def.members)
     {
         std::visit(
