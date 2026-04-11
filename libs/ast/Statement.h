@@ -3,7 +3,6 @@
 #include "AST.h"
 #include "Resolvable.h"
 #include "Token.h"
-#include "TypeAnnotation.h"
 
 #include <filesystem>
 #include <map>
@@ -76,23 +75,28 @@ struct OurMethodDefinition : public AbstractFunctionDefinition
     using AbstractFunctionDefinition::AbstractFunctionDefinition;
 };
 
+struct FieldDefinition : public Definition
+{
+    std::string name;
+    TypeAnnotation_ptr type;
+    bool is_our;
+
+    FieldDefinition(std::string name, TypeAnnotation_ptr type, bool is_our)
+        : name(std::move(name)), type(std::move(type)), is_our(is_our)
+    {
+    }
+};
+
 struct MemberedDefinition : public Definition
 {
     std::string name;
     StringVector traits;
-    std::map<std::string, MemberInfo> members;
-    StatementVector methods;
+    StatementVector members;
 
     MemberedDefinition() = default;
 
-    MemberedDefinition(
-        std::string name,
-        StringVector traits,
-        std::map<std::string, MemberInfo> members,
-        StatementVector methods
-    )
-        : name(std::move(name)), traits(std::move(traits)), members(std::move(members)),
-          methods(std::move(methods))
+    MemberedDefinition(std::string name, StringVector traits, StatementVector members)
+        : name(std::move(name)), traits(std::move(traits)), members(std::move(members))
     {
     }
 };

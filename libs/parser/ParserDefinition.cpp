@@ -4,7 +4,6 @@
 #include "Token.h"
 #include "TypeAnnotation.h"
 
-#include <map>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -190,11 +189,9 @@ Statement_ptr Parser::parse_function_definition(int indent_level, bool in_impl_b
 
 // Class
 
-std::
-    tuple<std::string, std::vector<std::string>, std::map<std::string, MemberInfo>, StatementVector>
-    Parser::parse_membered_definition_base(int indent_level)
+std::tuple<std::string, std::vector<std::string>, StatementVector> Parser::
+    parse_membered_definition_base(int indent_level)
 {
-    // Consume 'class' or 'trait' keyword
     token_pipe.advance_pointer();
 
     auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
@@ -214,9 +211,7 @@ std::
 
     token_pipe.require_in_line(TokenType::EOL);
 
-    std::map<std::string, MemberInfo> members;
-    StatementVector methods;
-    int current_rank = 0;
+    StatementVector members;
     const int body_indent = indent_level + 1;
 
     while (true)
@@ -232,28 +227,28 @@ std::
 
         if (token_pipe.consume_optional(TokenType::FUN))
         {
-            methods.push_back(parse_function_definition(body_indent, true));
+            members.push_back(parse_function_definition(body_indent, true));
         }
         else
         {
             auto [is_our, member_name, member_type] = parse_name_type_pair(body_indent);
-            members[member_name] = MemberInfo{current_rank++, is_our, member_type};
+            members.push_back(make_statement(FieldDefinition(member_name, member_type, is_our)));
         }
     }
 
-    return {std::move(name), std::move(traits), std::move(members), std::move(methods)};
+    return {std::move(name), std::move(traits), std::move(members)};
 }
 
 Statement_ptr Parser::parse_class_definition(int indent_level)
 {
-    auto [name, traits, members, methods] = parse_membered_definition_base(indent_level);
-    return make_statement(ClassDefinition(name, traits, members, methods));
+    auto [name, traits, members] = parse_membered_definition_base(indent_level);
+    return make_statement(ClassDefinition(name, traits, members));
 }
 
 Statement_ptr Parser::parse_trait_definition(int indent_level)
 {
-    auto [name, traits, members, methods] = parse_membered_definition_base(indent_level);
-    return make_statement(TraitDefinition(name, traits, members, methods));
+    auto [name, traits, members] = parse_membered_definition_base(indent_level);
+    return make_statement(TraitDefinition(name, traits, members));
 }
 
 std::tuple<bool, std::string, TypeAnnotation_ptr> Parser::parse_name_type_pair(int member_indent)
@@ -272,14 +267,14 @@ std::tuple<bool, std::string, TypeAnnotation_ptr> Parser::parse_name_type_pair(i
     }
 
     auto type = parse_type();
+    token_pipe.require_in_line(TokenType::EOL);
 
     return {is_our, name, type};
 }
 
-std::map<std::string, MemberInfo> Parser::parse_name_type_block(int expected_indent)
+StatementVector Parser::parse_name_type_block(int expected_indent)
 {
-    std::map<std::string, MemberInfo> members;
-    int current_rank = 0;
+    StatementVector members;
 
     while (true)
     {
@@ -292,7 +287,7 @@ std::map<std::string, MemberInfo> Parser::parse_name_type_block(int expected_ind
 
         token_pipe.expect_n_indents(expected_indent);
         auto [is_our, member_name, member_type] = parse_name_type_pair(expected_indent);
-        members[member_name] = MemberInfo{current_rank++, is_our, member_type};
+        members.push_back(make_statement(FieldDefinition(member_name, member_type, is_our)));
     }
 
     return members;

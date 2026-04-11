@@ -85,19 +85,13 @@ struct FunctionTypeNode {
         : input_types(std::move(inputs)), return_type(std::move(ret)) {}
 };
 
-struct MemberInfo
-{
-    int declaration_rank;
-    bool is_our;
-    TypeAnnotation_ptr type;
-};
-
 struct RecordTypeNode
 {
-    std::map<std::string, MemberInfo> members;
+    StatementVector fields;
 
     explicit RecordTypeNode() = default;
-    explicit RecordTypeNode(std::map<std::string, MemberInfo> members) : members(std::move(members))
+
+    explicit RecordTypeNode(StatementVector fields) : fields(std::move(fields))
     {
     }
 };

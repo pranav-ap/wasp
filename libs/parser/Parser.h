@@ -6,7 +6,6 @@
 #include "Statement.h"
 #include "Token.h"
 #include "TokenPipe.h"
-#include "TypeAnnotation.h"
 
 #include <map>
 #include <memory>
@@ -37,14 +36,10 @@ class Parser {
 
     Statement_ptr parse_function_definition(int indent_level, bool in_impl_block = false);
 
-    std::map<std::string, MemberInfo> parse_name_type_block(int expected_indent);
+    StatementVector parse_name_type_block(int expected_indent);
     std::tuple<bool, std::string, TypeAnnotation_ptr> parse_name_type_pair(int member_indent);
 
-    std::tuple<
-        std::string,
-        std::vector<std::string>,
-        std::map<std::string, MemberInfo>,
-        StatementVector>
+    std::tuple<std::string, std::vector<std::string>, StatementVector>
     parse_membered_definition_base(int indent_level);
 
     Statement_ptr parse_class_definition(int indent_level = 0);

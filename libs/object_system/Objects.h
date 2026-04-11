@@ -26,57 +26,28 @@ using ObjectIntMap = std::map<int, Object_ptr>;
 using StringVector = std::vector<std::string>;
 
 // ============================================================================
-// Base Classes
+// Runtime Object Interfaces
 // ============================================================================
 
 struct AbstractObject
+{
+};
+struct ScalarObject : public AbstractObject
+{
+};
+struct CompositeObject : public AbstractObject
+{
+};
+struct ActionObject : public AbstractObject
+{
+};
+struct NoneObject : public AbstractObject
 {
 };
 
 struct IterableAbstractObject : public AbstractObject
 {
     virtual Object_ptr get_iter() = 0;
-};
-
-struct ScalarObject : public AbstractObject
-{
-};
-
-struct CompositeObject : public AbstractObject
-{
-};
-
-struct ActionObject : public AbstractObject
-{
-};
-
-struct NoneObject : public AbstractObject
-{
-};
-
-struct MemberedCompositeObject : public CompositeObject
-{
-    ObjectVector members;
-
-    MemberedCompositeObject(ObjectVector members) : members(std::move(members))
-    {
-    }
-
-    Object_ptr get_member(int member_id) const;
-    void set_member(int member_id, Object_ptr value);
-    int get_member_count() const;
-};
-
-struct OverloadsSet : public CompositeObject
-{
-    ObjectVector overloads;
-
-    OverloadsSet(ObjectVector overloads) : overloads(std::move(overloads)) {};
-
-    void add_overload(Object_ptr object)
-    {
-        overloads.push_back(std::move(object));
-    }
 };
 
 // ============================================================================
@@ -135,17 +106,14 @@ struct ListObject : public CompositeObject, public IterableAbstractObject
 
     Object_ptr append(Object_ptr value);
     Object_ptr prepend(Object_ptr value);
-
     Object_ptr pop_back();
     Object_ptr pop_front();
-
     Object_ptr get(Object_ptr index);
     Object_ptr set(Object_ptr index, Object_ptr value);
 
     void clear();
     bool is_empty();
     int get_length();
-
     virtual Object_ptr get_iter() override;
 };
 
@@ -158,7 +126,6 @@ struct TupleObject : public CompositeObject
     Object_ptr get(Object_ptr index);
     Object_ptr set(Object_ptr index, Object_ptr value);
     Object_ptr set(ObjectVector values);
-
     int get_length();
 };
 
@@ -170,9 +137,7 @@ struct SetObject : public CompositeObject, public IterableAbstractObject
 
     ObjectVector get();
     Object_ptr set(ObjectVector values);
-
     virtual Object_ptr get_iter() override;
-
     int get_length();
 };
 
@@ -186,22 +151,20 @@ struct MapObject : public CompositeObject, public IterableAbstractObject
     Object_ptr get_pair(Object_ptr key);
     Object_ptr get(Object_ptr key);
     Object_ptr set(Object_ptr key, Object_ptr value);
-
     virtual Object_ptr get_iter() override;
-
     int get_size();
 };
 
 struct VariantObject : public CompositeObject
 {
     Object_ptr value;
-
     VariantObject(Object_ptr value) : value(std::move(value)) {};
-
     bool has_value();
 };
 
-// FUNCTIONS
+// ============================================================================
+// Function Objects
+// ============================================================================
 
 struct FunctionBlueprintObject : public CompositeObject
 {
@@ -211,7 +174,6 @@ struct FunctionBlueprintObject : public CompositeObject
     FunctionBlueprintObject(CodeObject code) : code(std::move(code))
     {
     }
-
     FunctionBlueprintObject(CodeObject code, std::string name)
         : code(std::move(code)), name(std::move(name))
     {
@@ -257,12 +219,52 @@ struct NativeFunctionObject : public CompositeObject
     }
 };
 
-struct OverloadedObjectsSet : public OverloadsSet
+// ============================================================================
+// Overloads Sets
+// ============================================================================
+
+struct OverloadsSet : public CompositeObject
 {
-    OverloadedObjectsSet(ObjectVector overloads) : OverloadsSet(std::move(overloads)) {};
+    std::string name;
+    ObjectVector overloads;
+
+    OverloadsSet(std::string name, ObjectVector overloads)
+        : name(std::move(name)), overloads(std::move(overloads))
+    {
+    }
+
+    void add_overload(Object_ptr object)
+    {
+        overloads.push_back(std::move(object));
+    }
 };
 
-// MODULE
+struct OverloadedObjectsSet : public OverloadsSet
+{
+    using OverloadsSet::OverloadsSet;
+};
+
+struct OverloadedTypesSet : public OverloadsSet
+{
+    using OverloadsSet::OverloadsSet;
+};
+
+// ============================================================================
+// Membered Objects
+// ============================================================================
+
+struct MemberedCompositeObject : public CompositeObject
+{
+    ObjectVector members;
+
+    MemberedCompositeObject(ObjectVector members) : members(std::move(members))
+    {
+    }
+
+    Object_ptr get_member(int member_id) const;
+    void set_member(int member_id, Object_ptr value);
+    int get_member_count() const;
+};
 
 struct ModuleObject : public MemberedCompositeObject
 {
@@ -273,8 +275,6 @@ struct ModuleObject : public MemberedCompositeObject
     {
     }
 };
-
-// Class & Trait
 
 struct OurObject : public MemberedCompositeObject
 {
@@ -293,11 +293,9 @@ struct MyObject : public MemberedCompositeObject
 struct BreakObject : public ActionObject
 {
 };
-
 struct ContinueObject : public ActionObject
 {
 };
-
 struct RedoObject : public ActionObject
 {
 };
@@ -319,25 +317,21 @@ struct ErrorObject : public ActionObject
 };
 
 // ============================================================================
-// Type Objects
+// Type Interfaces
 // ============================================================================
 
 struct AnyType : public AbstractObject
 {
 };
-
 struct NoneType : public AnyType
 {
 };
-
 struct ScalarType : public AnyType
 {
 };
-
 struct LiteralType : public AnyType
 {
 };
-
 struct CompositeType : public AnyType
 {
 };
@@ -348,42 +342,23 @@ struct NamedDefinitionType : public AnyType
     NamedDefinitionType(std::string name) : name(std::move(name)) {};
 };
 
-struct MemberedCompositeType : public CompositeType
-{
-    ObjectStringMap members;
+// ============================================================================
+// Scalar & Literal Types
+// ============================================================================
 
-    MemberedCompositeType(ObjectStringMap members) : members(std::move(members))
-    {
-    }
-
-    bool contains_member(const std::string& member_name) const;
-    Object_ptr get_member(const std::string& member_name) const;
-    void set_member(const std::string& member_name, Object_ptr value);
-
-    Object_ptr get_member(int member_id) const;
-    void set_member(int member_id, Object_ptr value);
-
-    int get_member_index(const std::string& member_name) const;
-};
-
-// Scalar Types
 struct IntType : public ScalarType
 {
 };
-
 struct FloatType : public ScalarType
 {
 };
-
 struct StringType : public ScalarType
 {
 };
-
 struct BooleanType : public ScalarType
 {
 };
 
-// Literal Types
 struct IntLiteralType : public LiteralType
 {
     int value;
@@ -408,7 +383,10 @@ struct BooleanLiteralType : public LiteralType
     BooleanLiteralType(bool value) : value(value) {};
 };
 
+// ============================================================================
 // Composite Types
+// ============================================================================
+
 struct ListType : public CompositeType
 {
     Object_ptr element_type;
@@ -442,31 +420,9 @@ struct VariantType : public CompositeType
     VariantType(ObjectVector types) : types(std::move(types)) {};
 };
 
-struct OverloadedTypesSet : public OverloadsSet
-{
-    OverloadedTypesSet(ObjectVector overloads) : OverloadsSet(std::move(overloads)) {};
-};
-
-struct RecordType : public MemberedCompositeType
-{
-    RecordType(ObjectStringMap members) : MemberedCompositeType{std::move(members)}
-    {
-    }
-};
-
-struct ModuleType : public MemberedCompositeType
-{
-    std::string name;
-    std::filesystem::path absolute_filepath;
-
-    ModuleType(std::string name, std::filesystem::path absolute_filepath, ObjectStringMap members)
-        : name(std::move(name)), absolute_filepath(std::move(absolute_filepath)),
-          MemberedCompositeType(std::move(members))
-    {
-    }
-};
-
-// Function Type
+// ============================================================================
+// Function Types
+// ============================================================================
 
 struct FunctionType : public AnyType
 {
@@ -503,25 +459,68 @@ struct OurMethodType : public MethodType
     using MethodType::MethodType;
 };
 
-// CLASS & OBJECT
+// ============================================================================
+// Membered Types
+// ============================================================================
+
+struct MemberedCompositeType : public CompositeType
+{
+    ObjectStringMap members;
+
+    MemberedCompositeType(ObjectStringMap members) : members(std::move(members))
+    {
+    }
+
+    bool contains_member(const std::string& member_name) const;
+    Object_ptr get_member(const std::string& member_name) const;
+    void set_member(const std::string& member_name, Object_ptr value);
+
+    Object_ptr get_member(int member_id) const;
+    void set_member(int member_id, Object_ptr value);
+
+    int get_member_index(const std::string& member_name) const;
+};
+
+struct RecordType : public MemberedCompositeType
+{
+    RecordType(ObjectStringMap members) : MemberedCompositeType{std::move(members)}
+    {
+    }
+};
+
+struct ModuleType : public MemberedCompositeType
+{
+    std::string name;
+    std::filesystem::path absolute_filepath;
+
+    ModuleType(std::string name, std::filesystem::path absolute_filepath, ObjectStringMap members)
+        : name(std::move(name)), absolute_filepath(std::move(absolute_filepath)),
+          MemberedCompositeType(std::move(members))
+    {
+    }
+};
 
 struct ContainerType : public MemberedCompositeType
 {
     std::string name;
-    StringVector values_declaration_order;
+    StringVector instance_variables_declaration_order;
+    StringVector class_variables_declaration_order;
     StringVector methods_declaration_order;
     std::unordered_set<std::string> shared_members;
 
     ContainerType(
         std::string name,
         ObjectStringMap members,
-        StringVector values_declaration_order,
+        StringVector instance_variables_declaration_order,
+        StringVector class_variables_declaration_order,
         StringVector methods_declaration_order,
         std::unordered_set<std::string> shared_members
     )
-        : name(std::move(name)), values_declaration_order(std::move(values_declaration_order)),
+        : name(std::move(name)),
+          instance_variables_declaration_order(std::move(instance_variables_declaration_order)),
+          class_variables_declaration_order(std::move(class_variables_declaration_order)),
           methods_declaration_order(std::move(methods_declaration_order)),
-          shared_members(shared_members), MemberedCompositeType(std::move(members))
+          shared_members(std::move(shared_members)), MemberedCompositeType(std::move(members))
     {
     }
 
@@ -539,7 +538,7 @@ struct TraitType : public ContainerType
 };
 
 // ============================================================================
-// Object Struct
+// The Core Object Variant
 // ============================================================================
 
 struct Object

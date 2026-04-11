@@ -4,14 +4,15 @@
 #include "SemanticAnalyzer.h"
 #include "Statement.h"
 #include "SymbolScope.h"
-#include "TypeAnnotation.h"
 #include "Workspace.h"
 
 #include <algorithm>
 #include <cstddef>
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <utility>
+#include <variant>
 #include <vector>
 
 template <class... Ts> struct overloaded : Ts...
@@ -25,40 +26,64 @@ namespace Wasp
 
 void SemanticAnalyzer::analyze_membered_definition(MemberedDefinition& def, bool is_trait)
 {
-    std::vector<std::pair<std::string, MemberInfo>> ordered_members(
-        def.members.begin(),
-        def.members.end()
-    );
-
-    std::sort(
-        ordered_members.begin(),
-        ordered_members.end(),
-        [](const auto& a, const auto& b)
-        {
-            return a.second.declaration_rank < b.second.declaration_rank;
-        }
-    );
-
     ObjectStringMap member_types;
-    StringVector values_declaration_order;
-    StringVector is_ours;
+    StringVector instance_variables_declaration_order;
+    StringVector class_variables_declaration_order;
+    StringVector methods_declaration_order;
+    std::unordered_set<std::string> shared_members;
 
-    for (const auto& [name, info] : ordered_members)
+    // 1. Layout Pass: Build structural layout
+    for (auto& stmt : def.members)
     {
-        member_types[name] = visit(info.type);
-        values_declaration_order.push_back(name);
-        if (info.is_our)
-            is_ours.push_back(name);
+        std::visit(
+            overloaded{
+                [&](FieldDefinition& field)
+                {
+                    member_types[field.name] = visit(field.type);
+
+                    if (field.is_our)
+                    {
+                        class_variables_declaration_order.push_back(field.name);
+                        shared_members.insert(field.name);
+                    }
+                    else
+                    {
+                        instance_variables_declaration_order.push_back(field.name);
+                    }
+                },
+                [&](MyMethodDefinition& method)
+                {
+                    if (std::find(
+                            methods_declaration_order.begin(),
+                            methods_declaration_order.end(),
+                            method.name
+                        ) == methods_declaration_order.end())
+                        methods_declaration_order.push_back(method.name);
+                },
+                [&](OurMethodDefinition& method)
+                {
+                    if (std::find(
+                            methods_declaration_order.begin(),
+                            methods_declaration_order.end(),
+                            method.name
+                        ) == methods_declaration_order.end())
+                        methods_declaration_order.push_back(method.name);
+                },
+                [&](auto&)
+                {
+                    Doctor::get().fatal(WaspStage::Semantics, "Invalid statement in class body.");
+                }
+            },
+            stmt->data
+        );
     }
 
-    // 1. Build the specific backend type
+    // 2. Build the specific backend type
     Object_ptr target_type_obj;
     std::shared_ptr<ClassType> class_type = nullptr;
-    // std::shared_ptr<TraitType> trait_type = nullptr; // Uncomment if you have a TraitType backend
 
     if (is_trait)
     {
-        // Replace with TraitType when implemented
         Doctor::get().fatal(WaspStage::Semantics, "TraitType backend not yet implemented!");
     }
     else
@@ -66,8 +91,10 @@ void SemanticAnalyzer::analyze_membered_definition(MemberedDefinition& def, bool
         class_type = std::make_shared<ClassType>(
             def.name,
             std::move(member_types),
-            std::move(values_declaration_order),
-            std::move(is_ours)
+            std::move(instance_variables_declaration_order),
+            std::move(class_variables_declaration_order),
+            std::move(methods_declaration_order),
+            std::move(shared_members)
         );
         target_type_obj = make_object(class_type);
     }
@@ -76,7 +103,7 @@ void SemanticAnalyzer::analyze_membered_definition(MemberedDefinition& def, bool
     def.symbol->set_type(target_type_obj);
     class_type_stack.push_back(target_type_obj);
 
-    // 2. Inline Hoisting Engine
+    // Inline Hoisting Engine
     auto hoist_method = [&](AbstractFunctionDefinition& method_def, bool is_our)
     {
         std::string original_name = method_def.name;
@@ -113,16 +140,12 @@ void SemanticAnalyzer::analyze_membered_definition(MemberedDefinition& def, bool
 
         if (!is_trait && class_type)
         {
-            if (!class_type->contains_member(original_name))
-            {
-                class_type->methods_declaration_order.push_back(original_name);
-            }
             class_type->members[original_name] = method_def.group_symbol->get_type();
         }
     };
 
-    // 3. Hoist & Analyze
-    for (auto& stmt : def.methods)
+    // 3. Hoist Pass
+    for (auto& stmt : def.members)
     {
         std::visit(
             overloaded{
@@ -134,21 +157,29 @@ void SemanticAnalyzer::analyze_membered_definition(MemberedDefinition& def, bool
                 {
                     hoist_method(m, true);
                 },
-                [&](auto&)
-                {
-                    Doctor::get().fatal(
-                        WaspStage::Semantics,
-                        "Can only contain method definitions."
-                    );
-                }
+                [&](auto&) { /* Fields already handled */ }
             },
             stmt->data
         );
     }
 
-    for (auto& method_stmt : def.methods)
+    // 4. Analysis Pass
+    for (auto& stmt : def.members)
     {
-        visit(method_stmt);
+        std::visit(
+            overloaded{
+                [&](MyMethodDefinition& m)
+                {
+                    visit(m);
+                },
+                [&](OurMethodDefinition& m)
+                {
+                    visit(m);
+                },
+                [&](auto&) { /* Fields have no body */ }
+            },
+            stmt->data
+        );
     }
 
     class_type_stack.pop_back();
