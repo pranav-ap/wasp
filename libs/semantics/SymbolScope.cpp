@@ -26,7 +26,7 @@ Symbol_ptr SymbolScope::define(Symbol_ptr symbol)
 {
     Doctor::get().fatal_if_nullptr(symbol, WaspStage::Semantics, "Cannot define a null symbol");
 
-    if (symbol->payload_is<FunctionData>())
+    if (symbol->payload_is<LocalFunctionData>())
     {
         return define_function(symbol);
     }
@@ -44,9 +44,10 @@ Symbol_ptr SymbolScope::define(Symbol_ptr symbol)
 Symbol_ptr SymbolScope::define_function(Symbol_ptr new_symbol)
 {
     Doctor::get().assert(
-        new_symbol->payload_is<FunctionData>(),
+        new_symbol->payload_is<LocalFunctionData>(),
         WaspStage::Semantics,
-        "Expected a function symbol");
+        "Expected a function symbol"
+    );
 
     // Overload Group already exists locally
 

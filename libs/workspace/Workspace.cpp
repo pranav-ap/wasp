@@ -44,8 +44,7 @@ bool OverloadGroupData::is_native() const
 {
     for (const auto& sibling : siblings)
     {
-        if (sibling->payload_is<FunctionData>() &&
-            sibling->get_payload_as<FunctionData>().is_native)
+        if (sibling->is_native())
         {
             return true;
         }
@@ -53,7 +52,7 @@ bool OverloadGroupData::is_native() const
 
     for (const auto& parent : parents)
     {
-        if (parent->payload_is<FunctionData>() && parent->get_payload_as<FunctionData>().is_native)
+        if (parent->is_native())
         {
             return true;
         }
@@ -88,6 +87,26 @@ bool Symbol::is_exported() const
     return is_global() && (!payload_is<ModuleData>() && !payload_is<AliasData>());
 }
 
+bool Symbol::is_function() const
+{
+    return payload_is<LocalFunctionData>() || payload_is<MyMethodData>() ||
+           payload_is<OurMethodData>();
+}
+
+bool Symbol::is_native() const
+{
+    if (payload_is<LocalFunctionData>())
+        return get_payload_as<LocalFunctionData>().is_native;
+
+    if (payload_is<MyMethodData>())
+        return get_payload_as<MyMethodData>().is_native;
+
+    if (payload_is<OurMethodData>())
+        return get_payload_as<OurMethodData>().is_native;
+
+    return false;
+}
+
 bool Symbol::should_be_captured(int usage_depth) const
 {
     return declaration_depth < usage_depth;
@@ -101,7 +120,15 @@ Object_ptr Symbol::get_type()
             {
                 return d.type;
             },
-            [](const FunctionData& d)
+            [](const LocalFunctionData& d)
+            {
+                return d.type;
+            },
+            [](const MyMethodData& d)
+            {
+                return d.type;
+            },
+            [](const OurMethodData& d)
             {
                 return d.type;
             },
@@ -165,7 +192,15 @@ void Symbol::set_type(Object_ptr new_type)
             {
                 d.type = new_type;
             },
-            [&](FunctionData& d)
+            [&](LocalFunctionData& d)
+            {
+                d.type = new_type;
+            },
+            [&](MyMethodData& d)
+            {
+                d.type = new_type;
+            },
+            [&](OurMethodData& d)
             {
                 d.type = new_type;
             },
@@ -208,24 +243,6 @@ Symbol_ptr Symbol::resolve()
 // Payloads
 // --------------------------------------------------------------------
 
-Object_ptr FunctionData::get_return_type() const
-{
-    Doctor::get().assert(
-        type->is<std::shared_ptr<FunctionType>>(),
-        WaspStage::Semantics,
-        "FunctionData's type payload is not a FunctionType"
-    );
-
-    const auto& signature = type->as<std::shared_ptr<FunctionType>>();
-
-    if (signature->return_type.has_value())
-    {
-        return signature->return_type.value();
-    }
-
-    return make_object(NoneType());
-}
-
 int OverloadGroupData::get_overload_index(const Symbol_ptr& target) const
 {
     SymbolVector all_overloads = get_all_overloads();
@@ -261,12 +278,10 @@ Symbol_ptr SymbolFactory::create_variable(
     );
 }
 
-Symbol_ptr SymbolFactory::create_function(
+Symbol_ptr SymbolFactory::create_local_function(
     std::string name,
     Object_ptr type,
     bool is_native,
-    bool is_our,
-    Object_ptr bound_class,
     int closure_depth,
     int lexical_depth
 )
@@ -276,9 +291,52 @@ Symbol_ptr SymbolFactory::create_function(
         std::move(name),
         closure_depth,
         lexical_depth,
-        FunctionData{{std::move(type)}, is_native, is_our, bound_class}
+        LocalFunctionData(is_native)
     );
 
+    symbol->set_type(std::move(type));
+    return symbol;
+}
+
+Symbol_ptr SymbolFactory::create_my_method(
+    std::string name,
+    Object_ptr type,
+    Object_ptr bound_class,
+    bool is_native,
+    int closure_depth,
+    int lexical_depth
+)
+{
+    auto symbol = std::make_shared<Symbol>(
+        symbol_id_counter++,
+        std::move(name),
+        closure_depth,
+        lexical_depth,
+        MyMethodData(std::move(bound_class), is_native)
+    );
+
+    symbol->set_type(std::move(type));
+    return symbol;
+}
+
+Symbol_ptr SymbolFactory::create_our_method(
+    std::string name,
+    Object_ptr type,
+    Object_ptr bound_class,
+    bool is_native,
+    int closure_depth,
+    int lexical_depth
+)
+{
+    auto symbol = std::make_shared<Symbol>(
+        symbol_id_counter++,
+        std::move(name),
+        closure_depth,
+        lexical_depth,
+        OurMethodData(std::move(bound_class), is_native)
+    );
+
+    symbol->set_type(std::move(type));
     return symbol;
 }
 

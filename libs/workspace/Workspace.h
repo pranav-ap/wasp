@@ -10,6 +10,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -46,18 +47,40 @@ struct VariableData : public TypedSymbolData
     bool is_mutable;
 };
 
-struct FunctionData : public TypedSymbolData
+struct AbstractFunctionData : public TypedSymbolData
 {
     bool is_native = false;
-    bool is_our = false;
-    Object_ptr bound_class = nullptr;
 
-    Object_ptr get_return_type() const;
-
-    bool is_method() const
+    AbstractFunctionData(bool is_native = false) : is_native(is_native)
     {
-        return bound_class != nullptr;
     }
+};
+
+struct LocalFunctionData : public AbstractFunctionData
+{
+    using AbstractFunctionData::AbstractFunctionData;
+};
+
+struct AbstractMethodData : public AbstractFunctionData
+{
+    Object_ptr class_definition;
+
+    AbstractMethodData() = default;
+
+    explicit AbstractMethodData(Object_ptr class_definition, bool is_native = false)
+        : AbstractFunctionData(is_native), class_definition(std::move(class_definition))
+    {
+    }
+};
+
+struct MyMethodData : public AbstractMethodData
+{
+    using AbstractMethodData::AbstractMethodData;
+};
+
+struct OurMethodData : public AbstractMethodData
+{
+    using AbstractMethodData::AbstractMethodData;
 };
 
 struct OverloadGroupData : public TypedSymbolData
@@ -91,7 +114,9 @@ struct AliasData
 
 using SymbolPayload = std::variant<
     VariableData,
-    FunctionData,
+    LocalFunctionData,
+    MyMethodData,
+    OurMethodData,
     ModuleData,
     ClassData,
     EnumData,
@@ -116,6 +141,8 @@ struct Symbol : public std::enable_shared_from_this<Symbol>
 
     bool is_global() const;
     bool is_exported() const;
+    bool is_function() const;
+    bool is_native() const;
 
     Object_ptr get_type();
     void set_type(Object_ptr new_type);
@@ -124,8 +151,20 @@ struct Symbol : public std::enable_shared_from_this<Symbol>
 
     Symbol_ptr resolve();
 
-    template <typename T> bool payload_is() const { return std::holds_alternative<T>(payload); }
-    template <typename T> T& get_payload_as() { return std::get<T>(payload); }
+    template <typename T> bool payload_is() const
+    {
+        return std::holds_alternative<T>(payload);
+    }
+
+    template <typename T> T& get_payload_as()
+    {
+        return std::get<T>(payload);
+    }
+
+    template <typename T> const T& get_payload_as() const
+    {
+        return std::get<T>(payload);
+    }
 };
 
 // ----------------------------------------------------------------
@@ -143,14 +182,31 @@ public:
         Object_ptr type,
         bool is_mutable = false,
         int closure_depth = 0,
-        int lexical_depth = 0);
+        int lexical_depth = 0
+    );
 
-    static Symbol_ptr create_function(
+    static Symbol_ptr create_local_function(
         std::string name,
         Object_ptr type,
         bool is_native = false,
-        bool is_our = false,
-        Object_ptr bound_class = nullptr,
+        int closure_depth = 0,
+        int lexical_depth = 0
+    );
+
+    static Symbol_ptr create_my_method(
+        std::string name,
+        Object_ptr type,
+        Object_ptr class_definition = nullptr,
+        bool is_native = false,
+        int closure_depth = 0,
+        int lexical_depth = 0
+    );
+
+    static Symbol_ptr create_our_method(
+        std::string name,
+        Object_ptr type,
+        Object_ptr class_definition = nullptr,
+        bool is_native = false,
         int closure_depth = 0,
         int lexical_depth = 0
     );
@@ -159,13 +215,15 @@ public:
         std::string name,
         Object_ptr type = nullptr,
         int closure_depth = 0,
-        int lexical_depth = 0);
+        int lexical_depth = 0
+    );
 
     static Symbol_ptr create_enum(
         std::string name,
         Object_ptr type = nullptr,
         int closure_depth = 0,
-        int lexical_depth = 0);
+        int lexical_depth = 0
+    );
 
     static Symbol_ptr create_module(std::string name, Module_ptr mod);
 
@@ -174,7 +232,8 @@ public:
     static Symbol_ptr create_overload_set(
         std::string name,
         int closure_depth = 0,
-        int lexical_depth = 0);
+        int lexical_depth = 0
+    );
 };
 
 // ----------------------------------------------------------------

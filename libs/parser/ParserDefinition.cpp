@@ -1,5 +1,4 @@
 #include "AST.h"
-#include "Doctor.h"
 #include "Parser.h"
 #include "Statement.h"
 #include "Token.h"
@@ -107,6 +106,23 @@ std::vector<std::string> Parser::parse_enum_members(std::string stem, int indent
     return members;
 }
 
+Statement_ptr Parser::parse_annotation_definition()
+{
+    token_pipe.advance_pointer();
+
+    auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
+    auto name = name_token.value;
+
+    if (token_pipe.consume_optional_in_line(TokenType::OPEN_PARENTHESIS))
+    {
+        std::vector<Expression_ptr> args = parse_expressions();
+        token_pipe.require_in_line(TokenType::CLOSE_PARENTHESIS);
+        return make_statement(AnnotationDefinition(name, args));
+    }
+
+    return make_statement(AnnotationDefinition(name, {}));
+}
+
 // Function
 
 Statement_ptr Parser::parse_function_definition(int indent_level, bool in_impl_block)
@@ -122,6 +138,7 @@ Statement_ptr Parser::parse_function_definition(int indent_level, bool in_impl_b
     token_pipe.require_in_line(TokenType::OPEN_PARENTHESIS);
 
     std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters;
+
     if (!token_pipe.consume_optional(TokenType::CLOSE_PARENTHESIS))
     {
         while (true)
@@ -171,24 +188,73 @@ Statement_ptr Parser::parse_function_definition(int indent_level, bool in_impl_b
     }
 }
 
-Statement_ptr Parser::parse_annotation_definition()
+// Class
+
+std::
+    tuple<std::string, std::vector<std::string>, std::map<std::string, MemberInfo>, StatementVector>
+    Parser::parse_membered_definition_base(int indent_level)
 {
+    // Consume 'class' or 'trait' keyword
     token_pipe.advance_pointer();
 
     auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
-    auto name = name_token.value;
+    std::string name = name_token.value;
 
-    if (token_pipe.consume_optional_in_line(TokenType::OPEN_PARENTHESIS))
+    std::vector<std::string> traits;
+
+    if (token_pipe.consume_optional_in_line(TokenType::IS))
     {
-        std::vector<Expression_ptr> args = parse_expressions();
-        token_pipe.require_in_line(TokenType::CLOSE_PARENTHESIS);
-        return make_statement(AnnotationDefinition(name, args));
+        do
+        {
+            auto trait_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
+            traits.push_back(trait_token.value);
+        }
+        while (token_pipe.consume_optional_in_line(TokenType::AMPERSAND));
     }
 
-    return make_statement(AnnotationDefinition(name, {}));
+    token_pipe.require_in_line(TokenType::EOL);
+
+    std::map<std::string, MemberInfo> members;
+    StatementVector methods;
+    int current_rank = 0;
+    const int body_indent = indent_level + 1;
+
+    while (true)
+    {
+        token_pipe.ignore_empty_lines();
+
+        if (token_pipe.lookahead_indents() != body_indent)
+        {
+            break;
+        }
+
+        token_pipe.expect_n_indents(body_indent);
+
+        if (token_pipe.consume_optional(TokenType::FUN))
+        {
+            methods.push_back(parse_function_definition(body_indent, true));
+        }
+        else
+        {
+            auto [is_our, member_name, member_type] = parse_name_type_pair(body_indent);
+            members[member_name] = MemberInfo{current_rank++, is_our, member_type};
+        }
+    }
+
+    return {std::move(name), std::move(traits), std::move(members), std::move(methods)};
 }
 
-// Class
+Statement_ptr Parser::parse_class_definition(int indent_level)
+{
+    auto [name, traits, members, methods] = parse_membered_definition_base(indent_level);
+    return make_statement(ClassDefinition(name, traits, members, methods));
+}
+
+Statement_ptr Parser::parse_trait_definition(int indent_level)
+{
+    auto [name, traits, members, methods] = parse_membered_definition_base(indent_level);
+    return make_statement(TraitDefinition(name, traits, members, methods));
+}
 
 std::tuple<bool, std::string, TypeAnnotation_ptr> Parser::parse_name_type_pair(int member_indent)
 {
@@ -232,81 +298,4 @@ std::map<std::string, MemberInfo> Parser::parse_name_type_block(int expected_ind
     return members;
 }
 
-std::tuple<std::string, std::vector<std::string>, std::map<std::string, MemberInfo>> Parser::
-    parse_membered_definition_base(int indent_level)
-{
-    // Consume the 'class' or 'trait' keyword
-    token_pipe.advance_pointer();
-
-    auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
-    std::string name = name_token.value;
-
-    std::vector<std::string> traits;
-
-    if (token_pipe.consume_optional_in_line(TokenType::IS))
-    {
-        do
-        {
-            auto trait_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
-            traits.push_back(trait_token.value);
-        }
-        while (token_pipe.consume_optional_in_line(TokenType::AMPERSAND));
-    }
-
-    token_pipe.require_in_line(TokenType::EOL);
-    auto members = parse_name_type_block(indent_level + 1);
-    return {std::move(name), std::move(traits), std::move(members)};
-}
-
-Statement_ptr Parser::parse_class_definition(int indent_level)
-{
-    auto [name, traits, members] = parse_membered_definition_base(indent_level);
-    return make_statement(ClassDefinition(name, traits, members));
-}
-
-Statement_ptr Parser::parse_trait_definition(int indent_level)
-{
-    auto [name, traits, members] = parse_membered_definition_base(indent_level);
-    return make_statement(TraitDefinition(name, traits, members));
-}
-
-Statement_ptr Parser::parse_impl_definition(int indent_level)
-{
-    // Consume 'impl' keyword
-    token_pipe.advance_pointer();
-
-    // Parse the class name
-    auto class_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
-    std::string class_name = class_token.value;
-
-    token_pipe.require_in_line(TokenType::EOL);
-
-    std::vector<Statement_ptr> methods;
-    const int method_indent = indent_level + 1;
-
-    while (true)
-    {
-        token_pipe.ignore_empty_lines();
-
-        // Break if we drop out of the impl block's indentation level
-        if (token_pipe.lookahead_indents() != method_indent)
-        {
-            break;
-        }
-
-        token_pipe.expect_n_indents(method_indent);
-
-        if (token_pipe.consume_optional(TokenType::FUN))
-        {
-            auto func = parse_function_definition(method_indent, true);
-            methods.push_back(func);
-        }
-        else
-        {
-            Doctor::get().fatal(WaspStage::Parser, "Expected 'fun' inside impl block.");
-        }
-    }
-
-    return make_statement(ImplDefinition(class_name, methods));
-}
 } // namespace Wasp

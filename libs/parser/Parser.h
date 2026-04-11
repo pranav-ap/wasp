@@ -40,12 +40,15 @@ class Parser {
     std::map<std::string, MemberInfo> parse_name_type_block(int expected_indent);
     std::tuple<bool, std::string, TypeAnnotation_ptr> parse_name_type_pair(int member_indent);
 
-    std::tuple<std::string, StringVector, std::map<std::string, MemberInfo>>
+    std::tuple<
+        std::string,
+        std::vector<std::string>,
+        std::map<std::string, MemberInfo>,
+        StatementVector>
     parse_membered_definition_base(int indent_level);
 
     Statement_ptr parse_class_definition(int indent_level = 0);
     Statement_ptr parse_trait_definition(int indent_level = 0);
-    Statement_ptr parse_impl_definition(int indent_level = 0);
 
     Statement_ptr parse_annotation_definition();
 

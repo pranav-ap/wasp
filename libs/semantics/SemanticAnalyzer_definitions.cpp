@@ -24,7 +24,7 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-std::pair<Object_ptr, ObjectVector> SemanticAnalyzer::evaluate_signature(
+std::pair<Object_ptr, ObjectVector> SemanticAnalyzer::evaluate_function_signature(
     AbstractFunctionDefinition& func
 )
 {
@@ -87,7 +87,7 @@ void SemanticAnalyzer::visit(ClassDefinition& class_def)
     class_def.symbol->set_type(class_type);
 }
 
-void SemanticAnalyzer::process_method_hoisting(
+void SemanticAnalyzer::hoist_function_body(
     AbstractFunctionDefinition& method_def,
     bool is_our,
     const std::string& class_name,
@@ -97,7 +97,7 @@ void SemanticAnalyzer::process_method_hoisting(
     std::string original_name = method_def.name;
     method_def.name = class_name + "::" + original_name;
 
-    auto [ret_type, param_types] = evaluate_signature(method_def);
+    auto [ret_type, param_types] = evaluate_function_signature(method_def);
     auto signature = make_object(std::make_shared<FunctionType>(param_types, ret_type));
 
     Object_ptr current_class = class_type_stack.back();
@@ -182,7 +182,7 @@ void SemanticAnalyzer::visit(ImplDefinition& impl_def)
     class_type_stack.pop_back();
 }
 
-void SemanticAnalyzer::analyze_function_base(
+void SemanticAnalyzer::analyze_abstract_function_body(
     AbstractFunctionDefinition& fun_def,
     bool inject_my,
     bool inject_our
@@ -194,7 +194,7 @@ void SemanticAnalyzer::analyze_function_base(
     if (fun_def.symbol->get_type() == nullptr)
     {
         // Top-level function (SymbolHoister left the type as nullptr)
-        auto evaluated = evaluate_signature(fun_def);
+        auto evaluated = evaluate_function_signature(fun_def);
         return_type = evaluated.first;
         param_types = evaluated.second;
 
@@ -265,17 +265,17 @@ void SemanticAnalyzer::analyze_function_base(
 
 void SemanticAnalyzer::visit(FunctionDefinition& fun_def)
 {
-    analyze_function_base(fun_def, false, false);
+    analyze_abstract_function_body(fun_def, false, false);
 }
 
 void SemanticAnalyzer::visit(MyMethodDefinition& method_def)
 {
-    analyze_function_base(method_def, true, true);
+    analyze_abstract_function_body(method_def, true, true);
 }
 
 void SemanticAnalyzer::visit(OurMethodDefinition& method_def)
 {
-    analyze_function_base(method_def, false, true);
+    analyze_abstract_function_body(method_def, false, true);
 }
 
 // -------------------------------------------------------------------

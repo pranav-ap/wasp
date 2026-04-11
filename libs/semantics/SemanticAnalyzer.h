@@ -37,21 +37,17 @@ class SemanticAnalyzer
 
     void hoist_statements(StatementVector& statements);
 
-    // UPDATED: Now takes the base class so it works for all 3 function types!
-    std::pair<Object_ptr, ObjectVector> evaluate_signature(AbstractFunctionDefinition& func);
+    std::pair<Object_ptr, ObjectVector> evaluate_function_signature(
+        AbstractFunctionDefinition& func
+    );
 
-    // ADDED: The new branchless core function engine
-    void analyze_function_base(
+    void analyze_abstract_function_body(
         AbstractFunctionDefinition& fun_def,
         bool inject_my,
         bool inject_our
     );
 
-    void visit(ClassDefinition& statement);
-    void visit(AliasDefinition& statement);
-    void visit(EnumDefinition& statement);
-
-    void process_method_hoisting(
+    void hoist_function_body(
         AbstractFunctionDefinition& method_def,
         bool is_our,
         const std::string& class_name,
@@ -62,9 +58,11 @@ class SemanticAnalyzer
     void visit(MyMethodDefinition& statement);
     void visit(OurMethodDefinition& statement);
 
+    void visit(ClassDefinition& statement);
     void visit(TraitDefinition& statement);
-    void visit(ImplDefinition& statement);
 
+    void visit(AliasDefinition& statement);
+    void visit(EnumDefinition& statement);
     void visit(AnnotationDefinition& statement);
 
     void visit(IfBranch& statement);

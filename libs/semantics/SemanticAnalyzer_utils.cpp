@@ -31,7 +31,7 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
                 {
                     if (!fun_def.symbol)
                     {
-                        auto [ret_type, param_types] = evaluate_signature(fun_def);
+                        auto [ret_type, param_types] = evaluate_function_signature(fun_def);
                         auto signature = make_object(
                             std::make_shared<FunctionType>(param_types, ret_type)
                         );

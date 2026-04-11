@@ -351,7 +351,7 @@ Object_ptr SemanticAnalyzer::evaluate_identifier_call(
         callable_identifier.must_be_captured = true;
     }
 
-    if (function_symbol->get_payload_as<FunctionData>().is_native)
+    if (function_symbol->get_payload_as<LocalFunctionData>().is_native)
     {
         call_expr.overload_index = -1;
     }
@@ -360,7 +360,7 @@ Object_ptr SemanticAnalyzer::evaluate_identifier_call(
         call_expr.overload_index = overload_index;
     }
 
-    return function_symbol->get_payload_as<FunctionData>().get_return_type();
+    return function_symbol->get_payload_as<LocalFunctionData>().get_return_type();
 }
 
 Object_ptr SemanticAnalyzer::evaluate_module_method_call(
@@ -399,7 +399,7 @@ Object_ptr SemanticAnalyzer::evaluate_module_method_call(
     call_expr.overload_index = overload_index;
     right_id.symbol = function_symbol;
 
-    return function_symbol->get_payload_as<FunctionData>().get_return_type();
+    return function_symbol->get_payload_as<LocalFunctionData>().get_return_type();
 }
 
 Object_ptr SemanticAnalyzer::evaluate_instance_method_call(
@@ -432,7 +432,7 @@ Object_ptr SemanticAnalyzer::evaluate_instance_method_call(
 
     call_expr.is_method_call = true;
 
-    return function_symbol->get_payload_as<FunctionData>().get_return_type();
+    return function_symbol->get_payload_as<LocalFunctionData>().get_return_type();
 }
 
 Object_ptr SemanticAnalyzer::evaluate_instance_creation(
