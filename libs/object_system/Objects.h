@@ -41,12 +41,15 @@ struct IterableAbstractObject : public AbstractObject
 struct ScalarObject : public AbstractObject
 {
 };
+
 struct CompositeObject : public AbstractObject
 {
 };
+
 struct ActionObject : public AbstractObject
 {
 };
+
 struct NoneObject : public AbstractObject
 {
 };
@@ -271,6 +274,18 @@ struct ModuleObject : public MemberedCompositeObject
     }
 };
 
+// Class & Trait
+
+struct OurObject : public MemberedCompositeObject
+{
+    using MemberedCompositeObject::MemberedCompositeObject;
+};
+
+struct MyObject : public MemberedCompositeObject
+{
+    using MemberedCompositeObject::MemberedCompositeObject;
+};
+
 // ============================================================================
 // Action Objects
 // ============================================================================
@@ -347,6 +362,7 @@ struct MemberedCompositeType : public CompositeType
 
     Object_ptr get_member(int member_id) const;
     void set_member(int member_id, Object_ptr value);
+
     int get_member_index(const std::string& member_name) const;
 };
 
@@ -354,12 +370,15 @@ struct MemberedCompositeType : public CompositeType
 struct IntType : public ScalarType
 {
 };
+
 struct FloatType : public ScalarType
 {
 };
+
 struct StringType : public ScalarType
 {
 };
+
 struct BooleanType : public ScalarType
 {
 };
@@ -423,19 +442,6 @@ struct VariantType : public CompositeType
     VariantType(ObjectVector types) : types(std::move(types)) {};
 };
 
-struct FunctionType : public AnyType
-{
-    ObjectVector input_types;
-    std::optional<Object_ptr> return_type;
-
-    FunctionType(ObjectVector input_types)
-        : input_types(std::move(input_types)), return_type(std::nullopt) {};
-
-    FunctionType(ObjectVector input_types, Object_ptr return_type)
-        : input_types(std::move(input_types)),
-          return_type(std::make_optional(std::move(return_type))) {};
-};
-
 struct OverloadedTypesSet : public OverloadsSet
 {
     OverloadedTypesSet(ObjectVector overloads) : OverloadsSet(std::move(overloads)) {};
@@ -450,61 +456,90 @@ struct RecordType : public MemberedCompositeType
 
 struct ModuleType : public MemberedCompositeType
 {
-    std::string module_name;
+    std::string name;
     std::filesystem::path absolute_filepath;
 
-    ModuleType(
-        std::string module_name,
-        std::filesystem::path absolute_filepath,
-        ObjectStringMap members
-    )
-        : module_name(std::move(module_name)), absolute_filepath(std::move(absolute_filepath)),
+    ModuleType(std::string name, std::filesystem::path absolute_filepath, ObjectStringMap members)
+        : name(std::move(name)), absolute_filepath(std::move(absolute_filepath)),
           MemberedCompositeType(std::move(members))
     {
     }
 };
 
+// Function Type
+
+struct FunctionType : public AnyType
+{
+    ObjectVector input_types;
+    Object_ptr return_type;
+
+    FunctionType(ObjectVector input_types, Object_ptr return_type)
+        : input_types(std::move(input_types)), return_type(std::move(return_type)) {};
+};
+
+struct LocalFunctionType : public FunctionType
+{
+    using FunctionType::FunctionType;
+};
+
+struct MethodType : public FunctionType
+{
+    Object_ptr container;
+
+    MethodType(ObjectVector input_types, Object_ptr return_type, Object_ptr container)
+        : FunctionType(std::move(input_types), std::move(return_type)),
+          container(std::move(container))
+    {
+    }
+};
+
+struct MyMethodType : public MethodType
+{
+    using MethodType::MethodType;
+};
+
+struct OurMethodType : public MethodType
+{
+    using MethodType::MethodType;
+};
+
 // CLASS & OBJECT
 
-struct ClassType : public MemberedCompositeType
+struct ContainerType : public MemberedCompositeType
 {
-    std::string class_name;
+    std::string name;
     StringVector values_declaration_order;
     StringVector methods_declaration_order;
-    std::unordered_set<std::string> is_ours;
+    std::unordered_set<std::string> shared_members;
 
-    ClassType(
-        std::string class_name,
+    ContainerType(
+        std::string name,
         ObjectStringMap members,
         StringVector values_declaration_order,
-        const StringVector& ours_list
+        StringVector methods_declaration_order,
+        std::unordered_set<std::string> shared_members
     )
-        : class_name(std::move(class_name)),
-          values_declaration_order(std::move(values_declaration_order)),
-          methods_declaration_order({}), is_ours(ours_list.begin(), ours_list.end()),
-          MemberedCompositeType(std::move(members))
+        : name(std::move(name)), values_declaration_order(std::move(values_declaration_order)),
+          methods_declaration_order(std::move(methods_declaration_order)),
+          shared_members(shared_members), MemberedCompositeType(std::move(members))
     {
     }
 
     int get_member_index(const std::string& member_name) const;
 };
 
-struct ClassObject : public MemberedCompositeObject
+struct ClassType : public ContainerType
 {
-    ClassObject(ObjectVector members) : MemberedCompositeObject(std::move(members))
-    {
-    }
+    using ContainerType::ContainerType;
 };
 
-struct InstanceObject : public MemberedCompositeObject
+struct TraitType : public ContainerType
 {
-    InstanceObject(ObjectVector members) : MemberedCompositeObject(std::move(members))
-    {
-    }
+    using ContainerType::ContainerType;
 };
 
 // ============================================================================
-// The Core Object Struct
+// Object Struct
 // ============================================================================
 
 struct Object
@@ -529,12 +564,14 @@ struct Object
         std::shared_ptr<FunctionBlueprintObject>,
         std::shared_ptr<FunctionRuntimeObject>,
         std::shared_ptr<NativeFunctionObject>,
+
         std::shared_ptr<ModuleObject>,
+
         std::shared_ptr<OverloadedObjectsSet>,
         std::shared_ptr<OverloadedTypesSet>,
 
-        std::shared_ptr<ClassObject>,
-        std::shared_ptr<InstanceObject>,
+        std::shared_ptr<OurObject>,
+        std::shared_ptr<MyObject>,
 
         std::shared_ptr<BreakObject>,
         std::shared_ptr<ContinueObject>,
@@ -560,10 +597,14 @@ struct Object
         MapType,
         VariantType,
 
-        std::shared_ptr<FunctionType>,
+        std::shared_ptr<LocalFunctionType>,
+        std::shared_ptr<MyMethodType>,
+        std::shared_ptr<OurMethodType>,
+
         std::shared_ptr<RecordType>,
         std::shared_ptr<ModuleType>,
-        std::shared_ptr<ClassType>>;
+        std::shared_ptr<ClassType>,
+        std::shared_ptr<TraitType>>;
 
     UnderlyingVariant value;
 

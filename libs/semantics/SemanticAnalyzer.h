@@ -54,6 +54,8 @@ class SemanticAnalyzer
         std::shared_ptr<ClassType>& class_type
     );
 
+    void analyze_membered_definition(MemberedDefinition& def, bool is_trait);
+
     void visit(FunctionDefinition& statement);
     void visit(MyMethodDefinition& statement);
     void visit(OurMethodDefinition& statement);
