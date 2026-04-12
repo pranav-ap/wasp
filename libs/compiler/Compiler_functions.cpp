@@ -22,7 +22,7 @@ namespace Wasp
 // Function Definition
 // ------------------------------------------------------------------------
 
-void Compiler::visit(FunctionDefinition& function_definition)
+void Compiler::visit(LocalFunctionDefinition& function_definition)
 {
     Compiler func_compiler(this);
 

@@ -70,7 +70,7 @@ void NativeRegistry::add_native(
     native_objects.push_back(obj);
 
     auto type_obj = MAKE_OBJECT_VARIANT(
-        std::make_shared<FunctionType>(std::move(input_types), std::move(return_type))
+        std::make_shared<LocalFunctionType>(std::move(input_types), std::move(return_type))
     );
 
     native_object_types.push_back(type_obj);

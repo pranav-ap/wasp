@@ -60,7 +60,7 @@ struct AbstractFunctionDefinition : public Definition
     }
 };
 
-struct FunctionDefinition : public AbstractFunctionDefinition
+struct LocalFunctionDefinition : public AbstractFunctionDefinition
 {
     using AbstractFunctionDefinition::AbstractFunctionDefinition;
 };
@@ -336,9 +336,11 @@ using StatementVariant = std::variant<
     AliasDefinition,
     EnumDefinition,
 
-    FunctionDefinition,
+    LocalFunctionDefinition,
     MyMethodDefinition,
     OurMethodDefinition,
+
+    FieldDefinition,
 
     ClassDefinition,
     TraitDefinition,

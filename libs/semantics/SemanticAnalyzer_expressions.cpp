@@ -8,13 +8,11 @@
 #include "Token.h"
 #include "Workspace.h"
 
-#include <algorithm>
 #include <ctime>
 #include <map>
 #include <memory>
 #include <string>
 #include <variant>
-#include <vector>
 
 #define MAKE_OBJECT_VARIANT(x) std::make_shared<Object>(x)
 
@@ -330,6 +328,7 @@ Object_ptr SemanticAnalyzer::visit(Call& call_expr)
         call_expr.callable->data
     );
 }
+
 Object_ptr SemanticAnalyzer::evaluate_identifier_call(
     Call& call_expr,
     Identifier& callable_identifier,
@@ -360,7 +359,7 @@ Object_ptr SemanticAnalyzer::evaluate_identifier_call(
         call_expr.overload_index = overload_index;
     }
 
-    return function_symbol->get_payload_as<LocalFunctionData>().get_return_type();
+    return function_symbol->get_payload_as<LocalFunctionData>().type;
 }
 
 Object_ptr SemanticAnalyzer::evaluate_module_method_call(
@@ -399,7 +398,7 @@ Object_ptr SemanticAnalyzer::evaluate_module_method_call(
     call_expr.overload_index = overload_index;
     right_id.symbol = function_symbol;
 
-    return function_symbol->get_payload_as<LocalFunctionData>().get_return_type();
+    return function_symbol->get_payload_as<LocalFunctionData>().type;
 }
 
 Object_ptr SemanticAnalyzer::evaluate_instance_method_call(
@@ -420,7 +419,7 @@ Object_ptr SemanticAnalyzer::evaluate_instance_method_call(
 
     auto [function_symbol, overload_index] = type_checker->resolve_class_method_call(
         current_scope,
-        class_type->class_name,
+        class_type->name,
         right_id.name,
         arg_types
     );
@@ -432,7 +431,7 @@ Object_ptr SemanticAnalyzer::evaluate_instance_method_call(
 
     call_expr.is_method_call = true;
 
-    return function_symbol->get_payload_as<LocalFunctionData>().get_return_type();
+    return function_symbol->get_payload_as<LocalFunctionData>().type;
 }
 
 Object_ptr SemanticAnalyzer::evaluate_instance_creation(
@@ -453,16 +452,7 @@ Object_ptr SemanticAnalyzer::evaluate_instance_creation(
     auto class_type_obj = symbol->get_payload_as<ClassData>().type;
     auto class_type = class_type_obj->as<std::shared_ptr<ClassType>>();
 
-    std::vector<std::string> instance_members;
-
-    for (const auto& member_name : class_type->values_declaration_order)
-    {
-        if (std::find(class_type->is_ours.begin(), class_type->is_ours.end(), member_name) ==
-            class_type->is_ours.end())
-        {
-            instance_members.push_back(member_name);
-        }
-    }
+    StringVector instance_members = class_type->get_instance_variables_declaration_order();
 
     Doctor::get().assert(
         arg_types.size() == instance_members.size(),

@@ -166,7 +166,7 @@ Object_ptr Symbol::get_type()
                 }
 
                 d.type = make_object(
-                    std::make_shared<OverloadedTypesSet>(std::move(overload_types))
+                    std::make_shared<OverloadedTypesSet>(d.name, std::move(overload_types))
                 );
 
                 return d.type;
@@ -356,6 +356,22 @@ Symbol_ptr SymbolFactory::create_class(
     );
 }
 
+Symbol_ptr SymbolFactory::create_trait(
+    std::string name,
+    Object_ptr type,
+    int closure_depth,
+    int lexical_depth
+)
+{
+    return std::make_shared<Symbol>(
+        symbol_id_counter++,
+        std::move(name),
+        closure_depth,
+        lexical_depth,
+        TraitData{{std::move(type)}}
+    );
+}
+
 Symbol_ptr SymbolFactory::create_enum(
     std::string name,
     Object_ptr type,
@@ -405,7 +421,7 @@ Symbol_ptr SymbolFactory::create_overload_set(
         std::move(name),
         closure_depth,
         lexical_depth,
-        OverloadGroupData{}
+        OverloadGroupData(name)
     );
 
     return symbol;

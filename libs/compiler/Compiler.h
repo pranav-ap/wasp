@@ -99,7 +99,7 @@ private:
     void visit(Pass& statement);
     void visit(LoopControl& statement);
 
-    void visit(FunctionDefinition& statement);
+    void visit(LocalFunctionDefinition& statement);
     void visit(Return& statement);
 
     void visit(SimpleImport& statement);

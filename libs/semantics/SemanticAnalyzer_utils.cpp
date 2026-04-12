@@ -27,7 +27,7 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
     {
         std::visit(
             overloaded{
-                [&](FunctionDefinition& fun_def)
+                [&](LocalFunctionDefinition& fun_def)
                 {
                     if (!fun_def.symbol)
                     {
@@ -36,15 +36,19 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
                             std::make_shared<FunctionType>(param_types, ret_type)
                         );
 
-                        auto symbol = SymbolFactory::create_function(
+                        auto symbol = SymbolFactory::create_local_function(
                             fun_def.name,
                             signature,
                             false,
-                            fun_def.is_our,
-                            nullptr,
                             current_scope->get_closure_depth(),
                             current_scope->get_lexical_depth()
                         );
+
+                        if (current_scope->contains_in_current_scope(fun_def.name))
+                        {
+                            type_checker
+                                ->validate_overload_group(current_scope, fun_def.name, symbol);
+                        }
 
                         current_scope->define(symbol);
                         fun_def.symbol = symbol;
@@ -61,7 +65,7 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
                     {
                         auto symbol = SymbolFactory::create_class(
                             class_def.name,
-                            nullptr, // Classes can stay nullptr, visit(ClassDef) handles the rest
+                            nullptr,
                             current_scope->get_closure_depth(),
                             current_scope->get_lexical_depth()
                         );
@@ -70,7 +74,21 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
                         class_def.symbol = symbol;
                     }
                 },
-                // Ignore other statements
+                [&](TraitDefinition& trait_def)
+                {
+                    if (!trait_def.symbol)
+                    {
+                        auto symbol = SymbolFactory::create_trait(
+                            trait_def.name,
+                            nullptr,
+                            current_scope->get_closure_depth(),
+                            current_scope->get_lexical_depth()
+                        );
+
+                        current_scope->define(symbol);
+                        trait_def.symbol = symbol;
+                    }
+                },
                 [](auto&)
                 {
                 }

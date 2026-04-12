@@ -225,11 +225,9 @@ struct NativeFunctionObject : public CompositeObject
 
 struct OverloadsSet : public CompositeObject
 {
-    std::string name;
     ObjectVector overloads;
 
-    OverloadsSet(std::string name, ObjectVector overloads)
-        : name(std::move(name)), overloads(std::move(overloads))
+    OverloadsSet(ObjectVector overloads) : overloads(std::move(overloads))
     {
     }
 
@@ -246,7 +244,12 @@ struct OverloadedObjectsSet : public OverloadsSet
 
 struct OverloadedTypesSet : public OverloadsSet
 {
-    using OverloadsSet::OverloadsSet;
+    std::string name;
+
+    OverloadedTypesSet(std::string name, ObjectVector overloads)
+        : name(std::move(name)), OverloadsSet(std::move(overloads))
+    {
+    }
 };
 
 // ============================================================================
@@ -293,9 +296,11 @@ struct MyObject : public MemberedCompositeObject
 struct BreakObject : public ActionObject
 {
 };
+
 struct ContinueObject : public ActionObject
 {
 };
+
 struct RedoObject : public ActionObject
 {
 };
@@ -323,15 +328,19 @@ struct ErrorObject : public ActionObject
 struct AnyType : public AbstractObject
 {
 };
+
 struct NoneType : public AnyType
 {
 };
+
 struct ScalarType : public AnyType
 {
 };
+
 struct LiteralType : public AnyType
 {
 };
+
 struct CompositeType : public AnyType
 {
 };
@@ -349,12 +358,15 @@ struct NamedDefinitionType : public AnyType
 struct IntType : public ScalarType
 {
 };
+
 struct FloatType : public ScalarType
 {
 };
+
 struct StringType : public ScalarType
 {
 };
+
 struct BooleanType : public ScalarType
 {
 };
@@ -472,13 +484,14 @@ struct MemberedCompositeType : public CompositeType
     }
 
     bool contains_member(const std::string& member_name) const;
+
     Object_ptr get_member(const std::string& member_name) const;
     void set_member(const std::string& member_name, Object_ptr value);
 
     Object_ptr get_member(int member_id) const;
     void set_member(int member_id, Object_ptr value);
 
-    int get_member_index(const std::string& member_name) const;
+    virtual int get_member_index(const std::string& member_name) const;
 };
 
 struct RecordType : public MemberedCompositeType
@@ -503,28 +516,22 @@ struct ModuleType : public MemberedCompositeType
 struct ContainerType : public MemberedCompositeType
 {
     std::string name;
-    StringVector instance_variables_declaration_order;
-    StringVector class_variables_declaration_order;
-    StringVector methods_declaration_order;
     std::unordered_set<std::string> shared_members;
+    StringVector declaration_order;
 
     ContainerType(
         std::string name,
         ObjectStringMap members,
-        StringVector instance_variables_declaration_order,
-        StringVector class_variables_declaration_order,
-        StringVector methods_declaration_order,
-        std::unordered_set<std::string> shared_members
+        std::unordered_set<std::string> shared_members,
+        StringVector declaration_order
     )
-        : name(std::move(name)),
-          instance_variables_declaration_order(std::move(instance_variables_declaration_order)),
-          class_variables_declaration_order(std::move(class_variables_declaration_order)),
-          methods_declaration_order(std::move(methods_declaration_order)),
-          shared_members(std::move(shared_members)), MemberedCompositeType(std::move(members))
+        : name(std::move(name)), shared_members(std::move(shared_members)),
+          declaration_order(std::move(declaration_order)), MemberedCompositeType(std::move(members))
     {
     }
 
-    int get_member_index(const std::string& member_name) const;
+    StringVector get_instance_variables_declaration_order() const;
+    StringVector get_class_variables_declaration_order() const;
 };
 
 struct ClassType : public ContainerType

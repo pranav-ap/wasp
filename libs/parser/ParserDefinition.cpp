@@ -183,7 +183,7 @@ Statement_ptr Parser::parse_function_definition(int indent_level, bool in_impl_b
     }
     else
     {
-        return make_statement(FunctionDefinition(name, parameters, return_type, body));
+        return make_statement(LocalFunctionDefinition(name, parameters, return_type, body));
     }
 }
 

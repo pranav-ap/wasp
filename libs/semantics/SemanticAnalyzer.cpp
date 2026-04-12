@@ -84,7 +84,7 @@ void SemanticAnalyzer::register_natives()
     {
         auto symbol_type = workspace->native_registry->get_native_object_type(index);
 
-        auto symbol = SymbolFactory::create_function(name, symbol_type, true);
+        auto symbol = SymbolFactory::create_local_function(name, symbol_type, true);
         current_scope->define(symbol);
     }
 }
@@ -107,30 +107,82 @@ void SemanticAnalyzer::visit(const Statement_ptr statement)
 
     std::visit(
         overloaded{
-            [&](ExpressionStatement& stat) { visit(stat); },
-            [&](VariableDefinition& stat) { visit(stat); },
-            [&](AliasDefinition& stat) { visit(stat); },
-            [&](EnumDefinition& stat) { visit(stat); },
-            [&](FunctionDefinition& stat) { visit(stat); },
-            [&](ClassDefinition& stat) { visit(stat); },
-            [&](TraitDefinition& stat) { visit(stat); },
-            [&](ImplDefinition& stat) { visit(stat); },
-            [&](AnnotationDefinition& stat) { visit(stat); },
-            [&](IfBranch& stat) { visit(stat); },
-            [&](ElseBranch& stat) { visit(stat); },
-            [&](SimpleLoop& stat) { visit(stat); },
-            [&](ForInLoop& stat) { visit(stat); },
-            [&](LoopControl& stat) { visit(stat); },
-            [&](Pass& stat) { visit(stat); },
-            [&](Return& stat) { visit(stat); },
-            [&](SimpleImport& stat) { visit(stat); },
-            [&](FromImport& stat) { visit(stat); },
+            [&](ExpressionStatement& stat)
+            {
+                visit(stat);
+            },
+            [&](VariableDefinition& stat)
+            {
+                visit(stat);
+            },
+            [&](AliasDefinition& stat)
+            {
+                visit(stat);
+            },
+            [&](EnumDefinition& stat)
+            {
+                visit(stat);
+            },
+            [&](LocalFunctionDefinition& stat)
+            {
+                visit(stat);
+            },
+            [&](ClassDefinition& stat)
+            {
+                visit(stat);
+            },
+            [&](TraitDefinition& stat)
+            {
+                visit(stat);
+            },
+            [&](AnnotationDefinition& stat)
+            {
+                visit(stat);
+            },
+            [&](IfBranch& stat)
+            {
+                visit(stat);
+            },
+            [&](ElseBranch& stat)
+            {
+                visit(stat);
+            },
+            [&](SimpleLoop& stat)
+            {
+                visit(stat);
+            },
+            [&](ForInLoop& stat)
+            {
+                visit(stat);
+            },
+            [&](LoopControl& stat)
+            {
+                visit(stat);
+            },
+            [&](Pass& stat)
+            {
+                visit(stat);
+            },
+            [&](Return& stat)
+            {
+                visit(stat);
+            },
+            [&](SimpleImport& stat)
+            {
+                visit(stat);
+            },
+            [&](FromImport& stat)
+            {
+                visit(stat);
+            },
             [](auto)
             {
                 Doctor::get().Doctor::get().fatal(
                     WaspStage::Semantics,
                     "Unhandled Statement in Semantic Analyzer!");
-            }},
-        statement->data);
+            }
+        },
+        statement->data
+    );
 }
 } // namespace Wasp

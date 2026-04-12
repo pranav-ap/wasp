@@ -69,8 +69,6 @@ Statement_ptr Parser::parse_statement(int expected_indent_level) {
         return parse_class_definition(expected_indent_level);
     case TokenType::TRAIT:
         return parse_trait_definition(expected_indent_level);
-    case TokenType::IMPL:
-        return parse_impl_definition(expected_indent_level);
 
     case TokenType::IMPORT:
         return parse_import();

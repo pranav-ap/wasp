@@ -24,7 +24,7 @@ class SemanticAnalyzer
 
     SymbolScope_ptr current_scope;
     ObjectVector return_type_stack;
-    ObjectVector class_type_stack;
+    ObjectVector container_type_stack;
 
     // -------------------------------------------------------------------------
     // Statement Visitors
@@ -41,24 +41,25 @@ class SemanticAnalyzer
         AbstractFunctionDefinition& func
     );
 
+    void hoist_method(
+        AbstractFunctionDefinition& method_def,
+        bool is_our,
+        const std::string& container_name,
+        Object_ptr target_type_obj,
+        std::shared_ptr<ContainerType> container_type
+    );
+
     void analyze_abstract_function_body(
         AbstractFunctionDefinition& fun_def,
         bool inject_my,
         bool inject_our
     );
 
-    void hoist_function_body(
-        AbstractFunctionDefinition& method_def,
-        bool is_our,
-        const std::string& class_name,
-        std::shared_ptr<ClassType>& class_type
-    );
-
-    void analyze_membered_definition(MemberedDefinition& def, bool is_trait);
-
-    void visit(FunctionDefinition& statement);
+    void visit(LocalFunctionDefinition& statement);
     void visit(MyMethodDefinition& statement);
     void visit(OurMethodDefinition& statement);
+
+    void analyze_membered_definition(MemberedDefinition& def, bool is_trait);
 
     void visit(ClassDefinition& statement);
     void visit(TraitDefinition& statement);

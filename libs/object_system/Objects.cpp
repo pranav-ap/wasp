@@ -116,33 +116,50 @@ int MemberedCompositeType::get_member_index(const std::string& member_name) cons
     return static_cast<int>(std::distance(members.begin(), it));
 }
 
-int ContainerType::get_member_index(const std::string& member_name) const
+StringVector ContainerType::get_instance_variables_declaration_order() const
 {
-    for (size_t i = 0; i < instance_variables_declaration_order.size(); ++i)
+    StringVector instance_vars;
+
+    for (const auto& name : declaration_order)
     {
-        if (instance_variables_declaration_order[i] == member_name)
+        if (shared_members.contains(name))
+            continue;
+
+        Object_ptr type_obj = members.at(name);
+
+        if (type_obj->is<std::shared_ptr<MyMethodType>>() ||
+            type_obj->is<std::shared_ptr<OurMethodType>>())
         {
-            return static_cast<int>(i);
+            continue;
         }
+
+        instance_vars.push_back(name);
     }
 
-    for (size_t i = 0; i < class_variables_declaration_order.size(); ++i)
+    return instance_vars;
+}
+
+StringVector ContainerType::get_class_variables_declaration_order() const
+{
+    StringVector class_vars;
+
+    for (const auto& name : declaration_order)
     {
-        if (class_variables_declaration_order[i] == member_name)
+        if (!shared_members.contains(name))
+            continue;
+
+        Object_ptr type_obj = members.at(name);
+
+        if (type_obj->is<std::shared_ptr<MyMethodType>>() ||
+            type_obj->is<std::shared_ptr<OurMethodType>>())
         {
-            return static_cast<int>(i);
+            continue;
         }
+
+        class_vars.push_back(name);
     }
 
-    for (size_t i = 0; i < methods_declaration_order.size(); ++i)
-    {
-        if (methods_declaration_order[i] == member_name)
-        {
-            return static_cast<int>(instance_variables_declaration_order.size() + i);
-        }
-    }
-
-    return -1;
+    return class_vars;
 }
 
 // ============================================================================

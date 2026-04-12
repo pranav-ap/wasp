@@ -99,7 +99,7 @@ void Compiler::visit(std::vector<Statement_ptr>& statements)
     // -------------------------------------------------------------------
     for (auto& stmt : statements)
     {
-        if (stmt->is<FunctionDefinition>())
+        if (stmt->is<LocalFunctionDefinition>())
         {
             visit(stmt);
         }
@@ -112,7 +112,7 @@ void Compiler::visit(std::vector<Statement_ptr>& statements)
     // -------------------------------------------------------------------
     for (auto& stmt : statements)
     {
-        if (!stmt->is<FunctionDefinition>())
+        if (!stmt->is<LocalFunctionDefinition>())
         {
             visit(stmt);
         }
@@ -165,7 +165,7 @@ void Compiler::visit(const Statement_ptr statement)
             {
                 visit(stat);
             },
-            [&](FunctionDefinition& stat)
+            [&](LocalFunctionDefinition& stat)
             {
                 visit(stat);
             },

@@ -85,8 +85,14 @@ struct OurMethodData : public AbstractMethodData
 
 struct OverloadGroupData : public TypedSymbolData
 {
+    std::string name;
+
     SymbolVector siblings;
     SymbolVector parents;
+
+    OverloadGroupData(std::string name) : name(std::move(name))
+    {
+    }
 
     SymbolVector get_all_overloads() const;
     int get_overload_index(const Symbol_ptr& target) const;
@@ -95,6 +101,10 @@ struct OverloadGroupData : public TypedSymbolData
 };
 
 struct ClassData : public TypedSymbolData
+{
+};
+
+struct TraitData : public TypedSymbolData
 {
 };
 
@@ -119,6 +129,7 @@ using SymbolPayload = std::variant<
     OurMethodData,
     ModuleData,
     ClassData,
+    TraitData,
     EnumData,
     AliasData,
     OverloadGroupData>;
@@ -212,6 +223,13 @@ public:
     );
 
     static Symbol_ptr create_class(
+        std::string name,
+        Object_ptr type = nullptr,
+        int closure_depth = 0,
+        int lexical_depth = 0
+    );
+
+    static Symbol_ptr create_trait(
         std::string name,
         Object_ptr type = nullptr,
         int closure_depth = 0,
