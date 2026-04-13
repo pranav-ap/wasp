@@ -279,6 +279,35 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
     );
 }
 
+Object_ptr get_function_return_type(Symbol_ptr symbol)
+{
+    Object_ptr type_obj = symbol->get_type();
+    if (!type_obj)
+        return nullptr;
+
+    if (auto p = type_obj->try_as<std::shared_ptr<LocalFunctionType>>())
+        return (*p)->return_type;
+    if (auto p = type_obj->try_as<std::shared_ptr<MyMethodType>>())
+        return (*p)->return_type;
+    if (auto p = type_obj->try_as<std::shared_ptr<OurMethodType>>())
+        return (*p)->return_type;
+
+    Doctor::get().fatal(WaspStage::Semantics, "Expected a valid function signature type.");
+    return nullptr;
+}
+
+// Helper to safely check if a function/method symbol is native
+bool is_native_function(Symbol_ptr symbol)
+{
+    if (symbol->payload_is<LocalFunctionData>())
+        return symbol->get_payload_as<LocalFunctionData>().is_native;
+    if (symbol->payload_is<MyMethodData>())
+        return symbol->get_payload_as<MyMethodData>().is_native;
+    if (symbol->payload_is<OurMethodData>())
+        return symbol->get_payload_as<OurMethodData>().is_native;
+    return false;
+}
+
 Object_ptr SemanticAnalyzer::visit(Call& call_expr)
 {
     ObjectVector arg_types;
@@ -307,7 +336,9 @@ Object_ptr SemanticAnalyzer::visit(Call& call_expr)
             {
                 Object_ptr left_type = visit(ma.left);
 
-                if (left_type->is<std::shared_ptr<ClassType>>())
+                // Check for ClassType or TraitType
+                if (left_type->is<std::shared_ptr<ClassType>>() ||
+                    left_type->is<std::shared_ptr<TraitType>>())
                 {
                     return evaluate_instance_method_call(call_expr, ma, arg_types, left_type);
                 }
@@ -335,12 +366,11 @@ Object_ptr SemanticAnalyzer::evaluate_identifier_call(
     const ObjectVector& arg_types
 )
 {
-    auto [function_symbol, overload_index] = type_checker
-                                                 ->resolve_function_call(
-                                                     current_scope,
-                                                     callable_identifier.name,
-                                                     arg_types
-                                                 );
+    auto [function_symbol, overload_index] = type_checker->resolve_function_call(
+        current_scope,
+        callable_identifier.name,
+        arg_types
+    );
 
     Symbol_ptr group_symbol = current_scope->lookup(callable_identifier.name);
     callable_identifier.symbol = group_symbol;
@@ -350,7 +380,7 @@ Object_ptr SemanticAnalyzer::evaluate_identifier_call(
         callable_identifier.must_be_captured = true;
     }
 
-    if (function_symbol->get_payload_as<LocalFunctionData>().is_native)
+    if (is_native_function(function_symbol))
     {
         call_expr.overload_index = -1;
     }
@@ -359,7 +389,7 @@ Object_ptr SemanticAnalyzer::evaluate_identifier_call(
         call_expr.overload_index = overload_index;
     }
 
-    return function_symbol->get_payload_as<LocalFunctionData>().type;
+    return get_function_return_type(function_symbol);
 }
 
 Object_ptr SemanticAnalyzer::evaluate_module_method_call(
@@ -398,7 +428,7 @@ Object_ptr SemanticAnalyzer::evaluate_module_method_call(
     call_expr.overload_index = overload_index;
     right_id.symbol = function_symbol;
 
-    return function_symbol->get_payload_as<LocalFunctionData>().type;
+    return get_function_return_type(function_symbol);
 }
 
 Object_ptr SemanticAnalyzer::evaluate_instance_method_call(
@@ -415,23 +445,29 @@ Object_ptr SemanticAnalyzer::evaluate_instance_method_call(
     );
 
     auto& right_id = mac.right->as<Identifier>();
-    auto class_type = left_type->as<std::shared_ptr<ClassType>>();
+
+    // Safely get as ContainerType to support both ClassType and TraitType
+    std::shared_ptr<ContainerType> container_type;
+    if (auto p = left_type->try_as<std::shared_ptr<ClassType>>())
+        container_type = *p;
+    else if (auto p = left_type->try_as<std::shared_ptr<TraitType>>())
+        container_type = *p;
 
     auto [function_symbol, overload_index] = type_checker->resolve_class_method_call(
         current_scope,
-        class_type->name,
+        container_type->name,
         right_id.name,
         arg_types
     );
 
-    mac.member_index = class_type->get_member_index(right_id.name);
+    mac.member_index = container_type->get_member_index(right_id.name);
 
     call_expr.overload_index = overload_index;
     right_id.symbol = function_symbol;
 
     call_expr.is_method_call = true;
 
-    return function_symbol->get_payload_as<LocalFunctionData>().type;
+    return get_function_return_type(function_symbol);
 }
 
 Object_ptr SemanticAnalyzer::evaluate_instance_creation(
@@ -449,7 +485,7 @@ Object_ptr SemanticAnalyzer::evaluate_instance_creation(
         callable_identifier.must_be_captured = true;
     }
 
-    auto class_type_obj = symbol->get_payload_as<ClassData>().type;
+    auto class_type_obj = symbol->get_type();
     auto class_type = class_type_obj->as<std::shared_ptr<ClassType>>();
 
     StringVector instance_members = class_type->get_instance_variables_declaration_order();

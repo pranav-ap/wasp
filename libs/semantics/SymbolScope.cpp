@@ -21,12 +21,12 @@ SymbolScope::SymbolScope(ScopeType type, SymbolScope_ptr enclosing)
         lexical_depth = enclosing_scope->lexical_depth + 1;
     }
 }
-
 Symbol_ptr SymbolScope::define(Symbol_ptr symbol)
 {
     Doctor::get().fatal_if_nullptr(symbol, WaspStage::Semantics, "Cannot define a null symbol");
 
-    if (symbol->payload_is<LocalFunctionData>())
+    if (symbol->payload_is<LocalFunctionData>() || symbol->payload_is<MyMethodData>() ||
+        symbol->payload_is<OurMethodData>())
     {
         return define_function(symbol);
     }
@@ -34,7 +34,8 @@ Symbol_ptr SymbolScope::define(Symbol_ptr symbol)
     Doctor::get().assert(
         !contains_in_current_scope(symbol->name),
         WaspStage::Semantics,
-        "'" + symbol->name + "' already declared in this scope");
+        "'" + symbol->name + "' already declared in this scope"
+    );
 
     symbols[symbol->name] = symbol;
 
@@ -44,13 +45,13 @@ Symbol_ptr SymbolScope::define(Symbol_ptr symbol)
 Symbol_ptr SymbolScope::define_function(Symbol_ptr new_symbol)
 {
     Doctor::get().assert(
-        new_symbol->payload_is<LocalFunctionData>(),
+        new_symbol->payload_is<LocalFunctionData>() || new_symbol->payload_is<MyMethodData>() ||
+            new_symbol->payload_is<OurMethodData>(),
         WaspStage::Semantics,
-        "Expected a function symbol"
+        "Expected a function or method symbol"
     );
 
     // Overload Group already exists locally
-
     if (contains_in_current_scope(new_symbol->name))
     {
         Symbol_ptr existing_local = symbols[new_symbol->name];
@@ -58,18 +59,19 @@ Symbol_ptr SymbolScope::define_function(Symbol_ptr new_symbol)
         Doctor::get().assert(
             existing_local->payload_is<OverloadGroupData>(),
             WaspStage::Semantics,
-            new_symbol->name + " already declared in this scope and is not an overload set");
+            new_symbol->name + " already declared in this scope and is not an overload set"
+        );
 
         existing_local->get_payload_as<OverloadGroupData>().siblings.push_back(new_symbol);
         return new_symbol;
     }
 
     // Create a new Overload Group
-
     auto new_overload_set = SymbolFactory::create_overload_set(
         new_symbol->name,
         closure_depth,
-        lexical_depth);
+        lexical_depth
+    );
 
     auto& set_data = new_overload_set->get_payload_as<OverloadGroupData>();
     set_data.siblings.push_back(new_symbol);
@@ -77,7 +79,6 @@ Symbol_ptr SymbolScope::define_function(Symbol_ptr new_symbol)
     symbols[new_symbol->name] = new_overload_set;
 
     // Inherit from parent scope
-
     if (enclosing_scope)
     {
         Symbol_ptr existing_parent = enclosing_scope->lookup(new_symbol->name);
@@ -87,16 +88,17 @@ Symbol_ptr SymbolScope::define_function(Symbol_ptr new_symbol)
             const auto& parent_data = existing_parent->get_payload_as<OverloadGroupData>();
 
             // Pull in the parent's siblings and the parent's parents into our local parents vector
-
             set_data.parents.insert(
                 set_data.parents.end(),
                 parent_data.siblings.begin(),
-                parent_data.siblings.end());
+                parent_data.siblings.end()
+            );
 
             set_data.parents.insert(
                 set_data.parents.end(),
                 parent_data.parents.begin(),
-                parent_data.parents.end());
+                parent_data.parents.end()
+            );
         }
     }
 

@@ -197,8 +197,13 @@ void SemanticAnalyzer::analyze_abstract_function_body(
     if (fun_def.symbol->get_type() == nullptr)
     {
         // Top-level function (SymbolHoister left the type as nullptr)
-        auto [ret_type, param_types] = evaluate_function_signature(fun_def);
-        auto signature = make_object(std::make_shared<LocalFunctionType>(param_types, ret_type));
+        auto evaluated = evaluate_function_signature(fun_def);
+
+        // FIX: Assign to the outer variables instead of shadowing them!
+        return_type = evaluated.first;
+        param_types = evaluated.second;
+
+        auto signature = make_object(std::make_shared<LocalFunctionType>(param_types, return_type));
         fun_def.symbol->set_type(signature);
 
         fun_def.group_symbol = current_scope->lookup(fun_def.name);
@@ -225,7 +230,6 @@ void SemanticAnalyzer::analyze_abstract_function_body(
         }
         else
         {
-            // THIS REPLACES THE FAILING CODE
             Doctor::get().fatal(
                 WaspStage::Semantics,
                 "Internal Compiler Error: Expected concrete function type."
@@ -298,7 +302,6 @@ void SemanticAnalyzer::hoist_method(
     auto [ret_type, param_types] = evaluate_function_signature(method_def);
 
     Object_ptr signature;
-
     if (is_our)
     {
         signature = make_object(
@@ -338,7 +341,11 @@ void SemanticAnalyzer::hoist_method(
     method_def.symbol = method_symbol;
     method_def.group_symbol = current_scope->lookup(method_def.name);
 
-    container_type->members[original_name] = method_def.group_symbol->get_type();
+    if (container_type)
+    {
+        // FIX: Store the explicit method signature, NOT the group symbol signature!
+        container_type->members[original_name] = method_symbol->get_type();
+    }
 }
 
 std::pair<Object_ptr, ObjectVector> SemanticAnalyzer::evaluate_function_signature(

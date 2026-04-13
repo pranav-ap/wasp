@@ -63,6 +63,7 @@ class SemanticAnalyzer
 
     void visit(ClassDefinition& statement);
     void visit(TraitDefinition& statement);
+    void visit(FieldDefinition& statement);
 
     void visit(AliasDefinition& statement);
     void visit(EnumDefinition& statement);

@@ -5,7 +5,6 @@ add_library(
     Compiler_control_flow.cpp
     Compiler_expressions.cpp
     Compiler_variables.cpp
-    Compiler_functions.cpp
     Compiler_definitions.cpp
     Compiler_utils.cpp
     InstructionPrinter.cpp

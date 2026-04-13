@@ -99,7 +99,12 @@ private:
     void visit(Pass& statement);
     void visit(LoopControl& statement);
 
+    void compile_abstract_function(AbstractFunctionDefinition& function_definition);
+
     void visit(LocalFunctionDefinition& statement);
+    void visit(MyMethodDefinition& statement);
+    void visit(OurMethodDefinition& statement);
+
     void visit(Return& statement);
 
     void visit(SimpleImport& statement);
