@@ -218,10 +218,10 @@ Object_ptr SemanticAnalyzer::evaluate_instance_creation(
         target.must_be_captured = true;
     }
 
-    auto blueprint_obj = class_symbol->get_type();
-    auto blueprint = blueprint_obj->as<std::shared_ptr<ClassType>>();
+    auto class_type_obj = class_symbol->get_type();
+    auto class_type = class_type_obj->as<std::shared_ptr<ClassType>>();
 
-    StringVector instance_fields = blueprint->get_instance_variables_declaration_order();
+    StringVector instance_fields = class_type->get_instance_variable_names_in_declaration_order();
 
     Doctor::get().assert(
         argument_types.size() == instance_fields.size(),
@@ -234,7 +234,7 @@ Object_ptr SemanticAnalyzer::evaluate_instance_creation(
     {
         const std::string& field_name = instance_fields[i];
 
-        Object_ptr expected_type = blueprint->get_member_type(field_name);
+        Object_ptr expected_type = class_type->get_member_type(field_name);
         Object_ptr actual_type = argument_types[i];
 
         Doctor::get().assert(
@@ -244,7 +244,7 @@ Object_ptr SemanticAnalyzer::evaluate_instance_creation(
         );
     }
 
-    return blueprint_obj;
+    return class_type_obj;
 }
 
 Object_ptr SemanticAnalyzer::evaluate_module_method_call(

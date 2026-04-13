@@ -116,7 +116,29 @@ int MemberedCompositeType::get_member_index(const std::string& member_name) cons
     return static_cast<int>(std::distance(members.begin(), it));
 }
 
-StringVector ClassType::get_instance_variables_declaration_order() const
+int ClassType::get_member_index(const std::string& member_name) const
+{
+    int physical_index = 0;
+
+    for (const std::string& name : declaration_order)
+    {
+        if (shared_members.contains(name))
+        {
+            continue;
+        }
+
+        if (name == member_name)
+        {
+            return physical_index;
+        }
+
+        physical_index++;
+    }
+
+    return -1;
+}
+
+StringVector ClassType::get_instance_variable_names_in_declaration_order() const
 {
     StringVector instance_vars;
 

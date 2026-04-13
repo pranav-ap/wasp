@@ -530,7 +530,9 @@ struct ClassType : public MemberedCompositeType
     {
     }
 
-    StringVector get_instance_variables_declaration_order() const;
+    int get_member_index(const std::string& member_name) const;
+
+    StringVector get_instance_variable_names_in_declaration_order() const;
     StringVector get_class_variables_declaration_order() const;
 };
 

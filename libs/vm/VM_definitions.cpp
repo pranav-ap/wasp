@@ -24,7 +24,6 @@ namespace Wasp
 
 void VM::execute_instantiate(CallFrame* frame)
 {
-    // Data + Methods
     int total_size = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
 
     ObjectVector memory = pop_n_from_stack(total_size);

@@ -2,6 +2,7 @@
 #include "Compiler.h"
 #include "Doctor.h"
 #include "Expression.h"
+#include "OpCode.h"
 #include "Statement.h"
 
 #include <memory>
@@ -15,10 +16,6 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
-
-// -----------------------------------------------------------------------
-// Variable Definition
-// -----------------------------------------------------------------------
 
 void Compiler::visit(VariableDefinition& statement)
 {
@@ -65,7 +62,20 @@ void Compiler::compile_variable_definition(const Expression_ptr& assignment, boo
     auto symbol = lhs->as<Identifier>().symbol;
     Doctor::get().fatal_if_nullptr(symbol, WaspStage::Compiler);
 
-    locals.push_back(symbol);
+    int local_idx = resolve_local(symbol->id);
+
+    if (local_idx == -1)
+    {
+        local_idx = static_cast<int>(locals.size());
+        locals.push_back(symbol);
+    }
+
+    emit(OpCode::SET_LOCAL, local_idx, symbol->name);
+
+    if (as_expression)
+    {
+        emit(OpCode::GET_LOCAL, local_idx, symbol->name);
+    }
 }
 
 } // namespace Wasp
