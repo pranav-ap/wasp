@@ -36,7 +36,8 @@ void SemanticAnalyzer::extract_module_type(Module_ptr module)
         Doctor::get().fatal_if_nullptr(
             symbol->get_type(),
             WaspStage::Semantics,
-            "Symbol '" + symbol->name + "' has no type information");
+            "Symbol '" + symbol->name + "' has no type information"
+        );
 
         members[symbol->name] = symbol->get_type();
     }
@@ -131,10 +132,6 @@ void SemanticAnalyzer::visit(const Statement_ptr statement)
             {
                 visit(stat);
             },
-            [&](TraitDefinition& stat)
-            {
-                visit(stat);
-            },
             [&](AnnotationDefinition& stat)
             {
                 visit(stat);
@@ -179,7 +176,8 @@ void SemanticAnalyzer::visit(const Statement_ptr statement)
             {
                 Doctor::get().Doctor::get().fatal(
                     WaspStage::Semantics,
-                    "Unhandled Statement in Semantic Analyzer!");
+                    "Unhandled Statement in Semantic Analyzer!"
+                );
             }
         },
         statement->data

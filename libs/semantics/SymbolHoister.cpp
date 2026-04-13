@@ -31,6 +31,7 @@ void SymbolHoister::hoist(Module_ptr mod)
                         nullptr,
                         false
                     );
+
                     current_scope->define(symbol);
                     func_def.symbol = symbol;
                 },

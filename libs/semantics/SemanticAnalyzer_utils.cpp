@@ -1,9 +1,11 @@
 #include "AST.h"
+#include "Doctor.h"
 #include "Objects.h"
 #include "SemanticAnalyzer.h"
 #include "Statement.h"
 #include "SymbolScope.h"
 #include "Workspace.h"
+
 
 #include <ctime>
 #include <memory>
@@ -20,6 +22,51 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
+
+Object_ptr SemanticAnalyzer::get_function_return_type(Symbol_ptr symbol)
+{
+    Object_ptr type_obj = symbol->get_type();
+
+    if (!type_obj)
+    {
+        return nullptr;
+    }
+
+    if (auto p = type_obj->try_as<std::shared_ptr<LocalFunctionType>>())
+    {
+        return (*p)->return_type;
+    }
+    if (auto p = type_obj->try_as<std::shared_ptr<MyMethodType>>())
+    {
+        return (*p)->return_type;
+    }
+    if (auto p = type_obj->try_as<std::shared_ptr<OurMethodType>>())
+    {
+        return (*p)->return_type;
+    }
+
+    Doctor::get().fatal(WaspStage::Semantics, "Expected a valid function signature type.");
+}
+
+bool SemanticAnalyzer::is_native_function(Symbol_ptr symbol)
+{
+    if (symbol->payload_is<LocalFunctionData>())
+    {
+        return symbol->get_payload_as<LocalFunctionData>().is_native;
+    }
+
+    if (symbol->payload_is<MyMethodData>())
+    {
+        return symbol->get_payload_as<MyMethodData>().is_native;
+    }
+
+    if (symbol->payload_is<OurMethodData>())
+    {
+        return symbol->get_payload_as<OurMethodData>().is_native;
+    }
+
+    return false;
+}
 
 void SemanticAnalyzer::hoist_statements(StatementVector& statements)
 {
@@ -47,7 +94,7 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
                         if (current_scope->contains_in_current_scope(fun_def.name))
                         {
                             type_checker
-                                ->validate_overload_group(current_scope, fun_def.name, symbol);
+                                ->validate_new_overload(current_scope, fun_def.name, symbol);
                         }
 
                         current_scope->define(symbol);
@@ -72,21 +119,6 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
 
                         current_scope->define(symbol);
                         class_def.symbol = symbol;
-                    }
-                },
-                [&](TraitDefinition& trait_def)
-                {
-                    if (!trait_def.symbol)
-                    {
-                        auto symbol = SymbolFactory::create_trait(
-                            trait_def.name,
-                            nullptr,
-                            current_scope->get_closure_depth(),
-                            current_scope->get_lexical_depth()
-                        );
-
-                        current_scope->define(symbol);
-                        trait_def.symbol = symbol;
                     }
                 },
                 [](auto&)

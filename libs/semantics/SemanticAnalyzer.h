@@ -59,10 +59,7 @@ class SemanticAnalyzer
     void visit(MyMethodDefinition& statement);
     void visit(OurMethodDefinition& statement);
 
-    void analyze_membered_definition(MemberedDefinition& def, bool is_trait);
-
     void visit(ClassDefinition& statement);
-    void visit(TraitDefinition& statement);
     void visit(FieldDefinition& statement);
 
     void visit(AliasDefinition& statement);
@@ -114,6 +111,9 @@ class SemanticAnalyzer
 
     Object_ptr visit(Identifier& expr);
     Object_ptr visit(MemberAccess& expr);
+
+    Object_ptr get_function_return_type(Symbol_ptr symbol);
+    bool is_native_function(Symbol_ptr symbol);
 
     Object_ptr evaluate_identifier_call(
         Call& call_expr,

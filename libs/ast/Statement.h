@@ -32,12 +32,17 @@ struct ExpressionStatement
 
 struct Definition : public Resolvable
 {
+    std::string name;
+
+    Definition() = default;
+
+    explicit Definition(std::string name) : name(std::move(name))
+    {
+    }
 };
 
 struct AbstractFunctionDefinition : public Definition
 {
-    std::string name;
-
     std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters;
     std::vector<std::shared_ptr<Symbol>> parameter_symbols;
 
@@ -54,7 +59,7 @@ struct AbstractFunctionDefinition : public Definition
         TypeAnnotation_ptr return_type,
         StatementVector body
     )
-        : name(std::move(name)), parameters(std::move(parameters)),
+        : Definition(std::move(name)), parameters(std::move(parameters)),
           return_type(std::move(return_type)), body(std::move(body))
     {
     }
@@ -77,40 +82,28 @@ struct OurMethodDefinition : public AbstractFunctionDefinition
 
 struct FieldDefinition : public Definition
 {
-    std::string name;
     TypeAnnotation_ptr type;
     bool is_our;
 
     FieldDefinition() = default;
 
     FieldDefinition(std::string name, TypeAnnotation_ptr type, bool is_our)
-        : name(std::move(name)), type(std::move(type)), is_our(is_our)
+        : Definition(std::move(name)), type(std::move(type)), is_our(is_our)
     {
     }
 };
 
-struct MemberedDefinition : public Definition
+struct ClassDefinition : public Definition
 {
-    std::string name;
     StringVector traits;
     StatementVector members;
 
-    MemberedDefinition() = default;
+    ClassDefinition() = default;
 
-    MemberedDefinition(std::string name, StringVector traits, StatementVector members)
-        : name(std::move(name)), traits(std::move(traits)), members(std::move(members))
+    ClassDefinition(std::string name, StringVector traits, StatementVector members)
+        : Definition(std::move(name)), traits(std::move(traits)), members(std::move(members))
     {
     }
-};
-
-struct ClassDefinition : public MemberedDefinition
-{
-    using MemberedDefinition::MemberedDefinition;
-};
-
-struct TraitDefinition : public MemberedDefinition
-{
-    using MemberedDefinition::MemberedDefinition;
 };
 
 struct VariableDefinition : public Definition
@@ -126,23 +119,21 @@ struct VariableDefinition : public Definition
 
 struct AliasDefinition : public Definition
 {
-    std::string name;
     TypeAnnotation_ptr ref_type;
 
     AliasDefinition() = default;
 
     AliasDefinition(std::string name, TypeAnnotation_ptr ref_type)
-        : name(name), ref_type(ref_type) {};
+        : Definition(name), ref_type(ref_type) {};
 };
 
 struct EnumDefinition : public Definition
 {
-    std::string name;
     std::map<std::string, int> members;
 
     EnumDefinition() = default;
 
-    EnumDefinition(std::string name, StringVector member_list) : name(std::move(name))
+    EnumDefinition(std::string name, StringVector member_list) : Definition(std::move(name))
     {
         int index = 0;
         for (const auto& member : member_list)
@@ -154,13 +145,12 @@ struct EnumDefinition : public Definition
 
 struct AnnotationDefinition : public Definition
 {
-    std::string name;
     ExpressionVector anno_values;
 
     AnnotationDefinition() = default;
 
     AnnotationDefinition(std::string name, ExpressionVector anno_values)
-        : name(std::move(name)), anno_values(std::move(anno_values)) {};
+        : Definition(std::move(name)), anno_values(std::move(anno_values)) {};
 };
 
 // Branching
@@ -345,7 +335,6 @@ using StatementVariant = std::variant<
     FieldDefinition,
 
     ClassDefinition,
-    TraitDefinition,
 
     AnnotationDefinition,
 

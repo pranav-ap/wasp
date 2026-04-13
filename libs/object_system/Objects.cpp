@@ -64,7 +64,7 @@ bool MemberedCompositeType::contains_member(const std::string& member_name) cons
     return members.contains(member_name);
 }
 
-Object_ptr MemberedCompositeType::get_member(const std::string& member_name) const
+Object_ptr MemberedCompositeType::get_member_type(const std::string& member_name) const
 {
     Doctor::get().assert(
         contains_member(member_name),

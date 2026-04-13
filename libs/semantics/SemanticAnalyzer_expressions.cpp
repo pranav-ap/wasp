@@ -3,18 +3,15 @@
 #include "Expression.h"
 #include "Objects.h"
 #include "SemanticAnalyzer.h"
-#include "Statement.h"
 #include "SymbolScope.h"
-#include "Token.h"
 #include "Workspace.h"
 
 #include <ctime>
-#include <map>
 #include <memory>
 #include <string>
 #include <variant>
 
-#define MAKE_OBJECT_VARIANT(x) std::make_shared<Object>(x)
+#define make_object(x) std::make_shared<Object>(x)
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -24,211 +21,6 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
-void SemanticAnalyzer::visit(ExpressionStatement& statement) { visit(statement.expression); }
-
-ObjectVector SemanticAnalyzer::visit(ExpressionVector expressions)
-{
-    ObjectVector computed_types;
-    computed_types.reserve(expressions.size());
-
-    for (const auto& expr : expressions)
-    {
-        computed_types.push_back(visit(expr));
-    }
-
-    return computed_types;
-}
-
-Object_ptr SemanticAnalyzer::visit(const Expression_ptr expr)
-{
-    Doctor::get().fatal_if_nullptr(expr, WaspStage::Semantics);
-
-    return std::visit(
-        overloaded{
-            // Primitives
-            [&](int& node) -> Object_ptr { return visit(node); },
-            [&](double& node) -> Object_ptr { return visit(node); },
-            [&](std::string& node) -> Object_ptr { return visit(node); },
-            [&](bool& node) -> Object_ptr { return visit(node); },
-
-            [&](DotLiteral& node) -> Object_ptr { return visit(node); },
-
-            // Identifiers & Access
-            [&](Identifier& node) -> Object_ptr { return visit(node); },
-            [&](MemberAccess& node) -> Object_ptr { return visit(node); },
-
-            [&](Call& node) -> Object_ptr { return visit(node); },
-
-            // Operators
-            [&](Prefix& node) -> Object_ptr { return visit(node); },
-            [&](Infix& node) -> Object_ptr { return visit(node); },
-            [&](Postfix& node) -> Object_ptr { return visit(node); },
-
-            // Collections
-            [&](ListLiteral& node) -> Object_ptr { return visit(node); },
-            [&](TupleLiteral& node) -> Object_ptr { return visit(node); },
-            [&](MapLiteral& node) -> Object_ptr { return visit(node); },
-            [&](SetLiteral& node) -> Object_ptr { return visit(node); },
-            [&](RangeLiteral& node) -> Object_ptr { return visit(node); },
-
-            // Variables & Assignments
-            [&](VariableDefinitionExpression& node) -> Object_ptr { return visit(node); },
-            [&](UntypedAssignment& node) -> Object_ptr { return visit(node); },
-            [&](TypedAssignment& node) -> Object_ptr { return visit(node); },
-            [&](TypePattern& node) -> Object_ptr { return visit(node); },
-
-            // Control Flow
-            [&](IfTernaryBranch& node) -> Object_ptr { return visit(node); },
-            [&](ElseTernaryBranch& node) -> Object_ptr { return visit(node); },
-
-            // Fallback
-            [](auto&) -> Object_ptr
-            {
-                Doctor::get().Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "Unhandled Expression in Semantic Analyzer!");
-            }},
-        expr->data);
-}
-
-// -----------------------------------------------
-// Simple Boring Expressions
-// -----------------------------------------------
-
-Object_ptr SemanticAnalyzer::visit(int expr) { return MAKE_OBJECT_VARIANT(IntType()); }
-
-Object_ptr SemanticAnalyzer::visit(double expr) { return MAKE_OBJECT_VARIANT(FloatType()); }
-
-Object_ptr SemanticAnalyzer::visit(std::string expr) { return MAKE_OBJECT_VARIANT(StringType()); }
-
-Object_ptr SemanticAnalyzer::visit(bool expr) { return MAKE_OBJECT_VARIANT(BooleanType()); }
-
-Object_ptr SemanticAnalyzer::visit(DotLiteral& expr) { return nullptr; }
-
-Object_ptr SemanticAnalyzer::visit(Prefix& expr)
-{
-    Object_ptr right_type = visit(expr.operand);
-    return type_checker->infer(current_scope, right_type, expr.op.type);
-}
-
-Object_ptr SemanticAnalyzer::visit(Infix& expr)
-{
-    Object_ptr left_type = visit(expr.left);
-    Object_ptr right_type = visit(expr.right);
-    return type_checker->infer(current_scope, left_type, expr.op.type, right_type);
-}
-
-Object_ptr SemanticAnalyzer::visit(Postfix& expr)
-{
-    Object_ptr left_type = visit(expr.operand);
-    type_checker->expect_number_type(left_type);
-    return left_type;
-}
-
-Object_ptr SemanticAnalyzer::visit(ListLiteral& expr)
-{
-    if (expr.expressions.empty())
-        return MAKE_OBJECT_VARIANT(ListType(MAKE_OBJECT_VARIANT(AnyType())));
-
-    ObjectVector element_types;
-    for (const auto& element : expr.expressions)
-        element_types.push_back(visit(element));
-
-    ObjectVector unique_types = type_checker->remove_duplicates(current_scope, element_types);
-
-    if (unique_types.size() == 1)
-        return MAKE_OBJECT_VARIANT(ListType(unique_types[0]));
-    return MAKE_OBJECT_VARIANT(ListType(MAKE_OBJECT_VARIANT(VariantType(unique_types))));
-}
-
-Object_ptr SemanticAnalyzer::visit(TupleLiteral& expr)
-{
-    ObjectVector element_types;
-    for (const auto& element : expr.expressions)
-        element_types.push_back(visit(element));
-    return MAKE_OBJECT_VARIANT(TupleType(element_types));
-}
-
-Object_ptr SemanticAnalyzer::visit(MapLiteral& expr)
-{
-    if (expr.pairs.empty())
-        return MAKE_OBJECT_VARIANT(
-            MapType(MAKE_OBJECT_VARIANT(AnyType()), MAKE_OBJECT_VARIANT(AnyType())));
-
-    ObjectVector key_types;
-    ObjectVector val_types;
-
-    for (const auto& [key_expr, val_expr] : expr.pairs)
-    {
-        Object_ptr k_type = visit(key_expr);
-        type_checker->expect_key_type(current_scope, k_type);
-        key_types.push_back(k_type);
-        val_types.push_back(visit(val_expr));
-    }
-
-    ObjectVector unique_keys = type_checker->remove_duplicates(current_scope, key_types);
-    ObjectVector unique_vals = type_checker->remove_duplicates(current_scope, val_types);
-
-    Object_ptr final_key_type = unique_keys.size() == 1
-                                    ? unique_keys[0]
-                                    : MAKE_OBJECT_VARIANT(VariantType(unique_keys));
-    Object_ptr final_val_type = unique_vals.size() == 1
-                                    ? unique_vals[0]
-                                    : MAKE_OBJECT_VARIANT(VariantType(unique_vals));
-
-    return MAKE_OBJECT_VARIANT(MapType(final_key_type, final_val_type));
-}
-
-Object_ptr SemanticAnalyzer::visit(SetLiteral& expr)
-{
-    if (expr.expressions.empty())
-        return MAKE_OBJECT_VARIANT(SetType(MAKE_OBJECT_VARIANT(AnyType())));
-
-    ObjectVector element_types;
-    for (const auto& element : expr.expressions)
-    {
-        Object_ptr el_type = visit(element);
-        type_checker->expect_key_type(current_scope, el_type);
-        element_types.push_back(el_type);
-    }
-
-    ObjectVector unique_types = type_checker->remove_duplicates(current_scope, element_types);
-
-    if (unique_types.size() == 1)
-        return MAKE_OBJECT_VARIANT(SetType(unique_types[0]));
-    return MAKE_OBJECT_VARIANT(SetType(MAKE_OBJECT_VARIANT(VariantType(unique_types))));
-}
-
-Object_ptr SemanticAnalyzer::visit(RangeLiteral& expr)
-{
-    Object_ptr start_type = nullptr;
-    Object_ptr end_type = nullptr;
-
-    if (expr.start)
-    {
-        start_type = visit(expr.start);
-        type_checker->expect_number_type(start_type);
-    }
-
-    if (expr.end)
-    {
-        end_type = visit(expr.end);
-        type_checker->expect_number_type(end_type);
-    }
-
-    if (type_checker->is_float_type(start_type) || type_checker->is_float_type(end_type))
-    {
-        return MAKE_OBJECT_VARIANT(ListType(MAKE_OBJECT_VARIANT(FloatType())));
-    }
-
-    return MAKE_OBJECT_VARIANT(ListType(MAKE_OBJECT_VARIANT(IntType())));
-}
-
-Object_ptr SemanticAnalyzer::visit(TypePattern& expr) { return nullptr; }
-
-// -----------------------------------------------
-// Identifiers, Member Access & Calls
-// -----------------------------------------------
 
 Object_ptr SemanticAnalyzer::visit(Identifier& expr)
 {
@@ -259,17 +51,17 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
 
     if (left_type->is<std::shared_ptr<ModuleType>>())
     {
-        const auto& module_type = left_type->as<std::shared_ptr<ModuleType>>();
+        const auto module_type = left_type->as<std::shared_ptr<ModuleType>>();
 
         expr.member_index = module_type->get_member_index(member_name);
-        return module_type->get_member(member_name);
+        return module_type->get_member_type(member_name);
     }
     else if (left_type->is<std::shared_ptr<ClassType>>())
     {
         const auto class_type = left_type->as<std::shared_ptr<ClassType>>();
 
         expr.member_index = class_type->get_member_index(member_name);
-        return class_type->get_member(member_name);
+        return class_type->get_member_type(member_name);
     }
 
     Doctor::get().fatal(
@@ -277,35 +69,6 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
         "Cannot access member '" + member_name +
             "'. The left-hand side is neither a module nor a class instance."
     );
-}
-
-Object_ptr get_function_return_type(Symbol_ptr symbol)
-{
-    Object_ptr type_obj = symbol->get_type();
-    if (!type_obj)
-        return nullptr;
-
-    if (auto p = type_obj->try_as<std::shared_ptr<LocalFunctionType>>())
-        return (*p)->return_type;
-    if (auto p = type_obj->try_as<std::shared_ptr<MyMethodType>>())
-        return (*p)->return_type;
-    if (auto p = type_obj->try_as<std::shared_ptr<OurMethodType>>())
-        return (*p)->return_type;
-
-    Doctor::get().fatal(WaspStage::Semantics, "Expected a valid function signature type.");
-    return nullptr;
-}
-
-// Helper to safely check if a function/method symbol is native
-bool is_native_function(Symbol_ptr symbol)
-{
-    if (symbol->payload_is<LocalFunctionData>())
-        return symbol->get_payload_as<LocalFunctionData>().is_native;
-    if (symbol->payload_is<MyMethodData>())
-        return symbol->get_payload_as<MyMethodData>().is_native;
-    if (symbol->payload_is<OurMethodData>())
-        return symbol->get_payload_as<OurMethodData>().is_native;
-    return false;
 }
 
 Object_ptr SemanticAnalyzer::visit(Call& call_expr)
@@ -336,9 +99,7 @@ Object_ptr SemanticAnalyzer::visit(Call& call_expr)
             {
                 Object_ptr left_type = visit(ma.left);
 
-                // Check for ClassType or TraitType
-                if (left_type->is<std::shared_ptr<ClassType>>() ||
-                    left_type->is<std::shared_ptr<TraitType>>())
+                if (left_type->is<std::shared_ptr<ClassType>>())
                 {
                     return evaluate_instance_method_call(call_expr, ma, arg_types, left_type);
                 }
@@ -346,14 +107,14 @@ Object_ptr SemanticAnalyzer::visit(Call& call_expr)
                 return evaluate_module_method_call(call_expr, ma, arg_types);
             },
 
-            [](auto&) -> Object_ptr
+            [&](auto&) -> Object_ptr
             {
                 Doctor::get().fatal(
                     WaspStage::Semantics,
                     "Expected an Identifier or MemberAccess as the callable."
                 );
 
-                return MAKE_OBJECT_VARIANT(NoneType());
+                return workspace->pool->get_none_type();
             }
         },
         call_expr.callable->data
@@ -366,13 +127,12 @@ Object_ptr SemanticAnalyzer::evaluate_identifier_call(
     const ObjectVector& arg_types
 )
 {
-    auto [function_symbol, overload_index] = type_checker->resolve_function_call(
+    auto [group_symbol, function_symbol, overload_index] = type_checker->resolve_function_call(
         current_scope,
         callable_identifier.name,
         arg_types
     );
 
-    Symbol_ptr group_symbol = current_scope->lookup(callable_identifier.name);
     callable_identifier.symbol = group_symbol;
 
     if (function_symbol->should_be_captured(current_scope->get_closure_depth()))
@@ -388,45 +148,6 @@ Object_ptr SemanticAnalyzer::evaluate_identifier_call(
     {
         call_expr.overload_index = overload_index;
     }
-
-    return get_function_return_type(function_symbol);
-}
-
-Object_ptr SemanticAnalyzer::evaluate_module_method_call(
-    Call& call_expr,
-    MemberAccess& mac,
-    const ObjectVector& arg_types
-)
-{
-    Doctor::get().assert(
-        mac.left->is<Identifier>() && mac.right->is<Identifier>(),
-        WaspStage::Semantics,
-        "Supports calls of the form module.function()"
-    );
-
-    auto& left_id = mac.left->as<Identifier>();
-    auto& right_id = mac.right->as<Identifier>();
-
-    Symbol_ptr module_symbol = current_scope->lookup(left_id.name);
-    Doctor::get().fatal_if_nullptr(module_symbol, WaspStage::Semantics);
-
-    left_id.symbol = module_symbol;
-
-    if (module_symbol->should_be_captured(current_scope->get_closure_depth()))
-    {
-        left_id.must_be_captured = true;
-    }
-
-    auto [function_symbol, overload_index, member_index] = type_checker->resolve_module_call(
-        current_scope,
-        left_id.name,
-        right_id.name,
-        arg_types
-    );
-
-    mac.member_index = member_index;
-    call_expr.overload_index = overload_index;
-    right_id.symbol = function_symbol;
 
     return get_function_return_type(function_symbol);
 }
@@ -453,7 +174,7 @@ Object_ptr SemanticAnalyzer::evaluate_instance_method_call(
     else if (auto p = left_type->try_as<std::shared_ptr<TraitType>>())
         container_type = *p;
 
-    auto [function_symbol, overload_index] = type_checker->resolve_class_method_call(
+    auto [group_symbol, function_symbol, overload_index] = type_checker->resolve_class_method_call(
         current_scope,
         container_type->name,
         right_id.name,
@@ -501,7 +222,7 @@ Object_ptr SemanticAnalyzer::evaluate_instance_creation(
     {
         const std::string& member_name = instance_members[i];
 
-        Object_ptr expected_type = class_type->get_member(member_name);
+        Object_ptr expected_type = class_type->get_member_type(member_name);
         Object_ptr actual_type = arg_types[i];
 
         Doctor::get().assert(
@@ -512,6 +233,46 @@ Object_ptr SemanticAnalyzer::evaluate_instance_creation(
     }
 
     return class_type_obj;
+}
+
+Object_ptr SemanticAnalyzer::evaluate_module_method_call(
+    Call& call_expr,
+    MemberAccess& mac,
+    const ObjectVector& arg_types
+)
+{
+    Doctor::get().assert(
+        mac.left->is<Identifier>() && mac.right->is<Identifier>(),
+        WaspStage::Semantics,
+        "Supports calls of the form module.function()"
+    );
+
+    auto& left_id = mac.left->as<Identifier>();
+    auto& right_id = mac.right->as<Identifier>();
+
+    Symbol_ptr module_symbol = current_scope->lookup(left_id.name);
+    Doctor::get().fatal_if_nullptr(module_symbol, WaspStage::Semantics);
+
+    left_id.symbol = module_symbol;
+
+    if (module_symbol->should_be_captured(current_scope->get_closure_depth()))
+    {
+        left_id.must_be_captured = true;
+    }
+
+    auto [function_symbol, overload_index, member_index] = type_checker
+                                                               ->resolve_module_function_call(
+                                                                   current_scope,
+                                                                   left_id.name,
+                                                                   right_id.name,
+                                                                   arg_types
+                                                               );
+
+    mac.member_index = member_index;
+    call_expr.overload_index = overload_index;
+    right_id.symbol = function_symbol;
+
+    return get_function_return_type(function_symbol);
 }
 
 } // namespace Wasp

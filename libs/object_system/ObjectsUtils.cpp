@@ -115,17 +115,17 @@ namespace Wasp
                 [](const std::shared_ptr<LocalFunctionType>& l,
                    const std::shared_ptr<LocalFunctionType>& r)
                 {
-                    return are_equal_types(l->input_types, r->input_types);
+                    return are_equal_types(l->parameter_types, r->parameter_types);
                 },
 
                 [](const std::shared_ptr<MyMethodType>& l, const std::shared_ptr<MyMethodType>& r)
                 {
-                    return are_equal_types(l->input_types, r->input_types);
+                    return are_equal_types(l->parameter_types, r->parameter_types);
                 },
 
                 [](const std::shared_ptr<OurMethodType>& l, const std::shared_ptr<OurMethodType>& r)
                 {
-                    return are_equal_types(l->input_types, r->input_types);
+                    return are_equal_types(l->parameter_types, r->parameter_types);
                 },
 
                 [](const NamedDefinitionType& l, const NamedDefinitionType& r)

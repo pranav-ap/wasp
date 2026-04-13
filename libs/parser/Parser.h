@@ -43,7 +43,6 @@ class Parser {
     parse_membered_definition_base(int indent_level);
 
     Statement_ptr parse_class_definition(int indent_level = 0);
-    Statement_ptr parse_trait_definition(int indent_level = 0);
 
     Statement_ptr parse_annotation_definition();
 

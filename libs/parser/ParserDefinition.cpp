@@ -245,12 +245,6 @@ Statement_ptr Parser::parse_class_definition(int indent_level)
     return make_statement(ClassDefinition(name, traits, members));
 }
 
-Statement_ptr Parser::parse_trait_definition(int indent_level)
-{
-    auto [name, traits, members] = parse_membered_definition_base(indent_level);
-    return make_statement(TraitDefinition(name, traits, members));
-}
-
 std::tuple<bool, std::string, TypeAnnotation_ptr> Parser::parse_name_type_pair(int member_indent)
 {
     auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);

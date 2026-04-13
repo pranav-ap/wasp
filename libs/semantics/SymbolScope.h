@@ -34,6 +34,7 @@ private:
     SymbolStringMap symbols;
 
     Symbol_ptr define_function(Symbol_ptr symbol);
+    Symbol_ptr define_method(Symbol_ptr new_symbol);
 
 public:
     SymbolScope(ScopeType type, SymbolScope_ptr enclosing_scope = nullptr);

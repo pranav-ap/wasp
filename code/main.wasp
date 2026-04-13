@@ -2,10 +2,8 @@ class Movie
     id: int
     name: str
 
-    actors_count: our int
-
     fun edit()
-        print('Hello! My name is ' + my.name)
+        print('Hello!')
 
 
 

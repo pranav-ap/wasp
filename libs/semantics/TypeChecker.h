@@ -18,40 +18,45 @@ class TypeChecker
     SymbolVector::iterator find_matching_signature(
         SymbolScope_ptr scope,
         SymbolVector& target_vector,
-        const ObjectVector& parameter_types);
+        const ObjectVector& parameter_types
+    );
 
-    void collect_assignable_signatures(
+    SymbolVector get_assignable_function_signatures(
         SymbolScope_ptr scope,
         const SymbolVector& candidates,
-        const ObjectVector& argument_types,
-        SymbolVector& valid_matches) const;
+        const ObjectVector& argument_types
+    ) const;
 
-    std::shared_ptr<FunctionType> extract_function_signature(Object_ptr type_obj) const;
+    std::shared_ptr<FunctionType> get_function_signature(Object_ptr type_obj) const;
 
 public:
     ConstantPool_ptr pool;
 
     TypeChecker(ConstantPool_ptr pool) : pool(pool) {};
 
-    void validate_overload_group(
+    void validate_new_function_wrt_overload_group(
         SymbolScope_ptr scope,
         std::string& function_name,
-        const Symbol_ptr new_func_symbol);
+        const Symbol_ptr new_func_symbol
+    );
 
-    std::pair<Symbol_ptr, int> resolve_function_call(
+    // group symbol, function symbol, overload index
+    std::tuple<Symbol_ptr, Symbol_ptr, int> resolve_function_call(
         SymbolScope_ptr scope,
         std::string& function_name,
         const ObjectVector& argument_types
     ) const;
 
-    std::tuple<Symbol_ptr, int, int> resolve_module_call(
+    // group symbol, function symbol, overload index, module member index
+    std::tuple<Symbol_ptr, Symbol_ptr, int, int> resolve_module_function_call(
         SymbolScope_ptr scope,
         const std::string& module_name,
         const std::string& method_name,
         const ObjectVector& argument_types
     ) const;
 
-    std::pair<Symbol_ptr, int> resolve_class_method_call(
+    // group symbol, function symbol, overload index
+    std::tuple<Symbol_ptr, Symbol_ptr, int> resolve_class_method_call(
         SymbolScope_ptr scope,
         const std::string& class_name,
         const std::string& method_name,
@@ -63,26 +68,34 @@ public:
     bool equal(
         SymbolScope_ptr scope,
         const ObjectVector& type_vector_1,
-        const ObjectVector& type_vector_2) const;
+        const ObjectVector& type_vector_2
+    ) const;
 
     bool equal_unordered(
         SymbolScope_ptr scope,
         const ObjectVector& type_vector_1,
-        const ObjectVector& type_vector_2) const;
+        const ObjectVector& type_vector_2
+    ) const;
 
-    bool assignable(SymbolScope_ptr scope, const Object_ptr lhs_type, const Object_ptr rhs_type)
-        const;
+    bool assignable(
+        SymbolScope_ptr scope,
+        const Object_ptr lhs_type,
+        const Object_ptr rhs_type
+    ) const;
 
     bool assignable(
         SymbolScope_ptr scope,
         const ObjectVector& type_vector_1,
-        const ObjectVector& type_vector_2) const;
+        const ObjectVector& type_vector_2
+    ) const;
 
     Object_ptr infer(
         SymbolScope_ptr scope,
         Object_ptr left_type,
         TokenType op,
-        Object_ptr right_type);
+        Object_ptr right_type
+    );
+
     Object_ptr infer(SymbolScope_ptr scope, Object_ptr left_type, TokenType op);
 
     Object_ptr spread_type(Object_ptr type);

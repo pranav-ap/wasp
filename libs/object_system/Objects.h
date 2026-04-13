@@ -438,11 +438,11 @@ struct VariantType : public CompositeType
 
 struct FunctionType : public AnyType
 {
-    ObjectVector input_types;
+    ObjectVector parameter_types;
     Object_ptr return_type;
 
     FunctionType(ObjectVector input_types, Object_ptr return_type)
-        : input_types(std::move(input_types)), return_type(std::move(return_type)) {};
+        : parameter_types(std::move(input_types)), return_type(std::move(return_type)) {};
 };
 
 struct LocalFunctionType : public FunctionType
@@ -485,7 +485,7 @@ struct MemberedCompositeType : public CompositeType
 
     bool contains_member(const std::string& member_name) const;
 
-    Object_ptr get_member(const std::string& member_name) const;
+    Object_ptr get_member_type(const std::string& member_name) const;
     void set_member(const std::string& member_name, Object_ptr value);
 
     Object_ptr get_member(int member_id) const;

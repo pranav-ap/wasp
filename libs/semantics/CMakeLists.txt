@@ -3,6 +3,7 @@ add_library(
     SemanticAnalyzer.cpp
     SemanticAnalyzer_types.cpp
     SemanticAnalyzer_expressions.cpp
+    SemanticAnalyzer_expressions_boring.cpp
     SemanticAnalyzer_control_flow.cpp
     SemanticAnalyzer_variables.cpp
     SemanticAnalyzer_definitions.cpp
@@ -12,6 +13,8 @@ add_library(
     DependencyCrawler.cpp
     SymbolHoister.cpp
     TypeChecker.cpp
+    TypeChecker_hell.cpp
+    TypeChecker_utils.cpp
 )
 
 target_link_libraries(SemanticAnalyzerLib PUBLIC TokenLib ASTLib  ObjectSystemLib WorkspaceLib DoctorLib)
