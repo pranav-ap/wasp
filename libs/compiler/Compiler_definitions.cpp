@@ -1,7 +1,10 @@
+#include "CFGraph.h"
 #include "Compiler.h"
 #include "Objects.h"
 #include "OpCode.h"
 #include "Statement.h"
+#include <cstddef>
+#include <utility>
 #include <variant>
 
 template <class... Ts> struct overloaded : Ts...
@@ -12,6 +15,52 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
+// ============================================================================
+// CLASS
+// ============================================================================
+
+void Compiler::visit(ClassDefinition& class_definition)
+{
+    // Compile Methods
+    for (auto& stmt : class_definition.members)
+    {
+        std::visit(
+            overloaded{
+                [&](MyMethodDefinition& method)
+                {
+                    visit(method);
+                },
+                [&](OurMethodDefinition& method)
+                {
+                    visit(method);
+                },
+                [&](auto&)
+                {
+                }
+            },
+            stmt->data
+        );
+    }
+
+    Object_ptr class_blueprint = class_definition.symbol->get_type();
+
+    int const_id = workspace->pool->allocate(class_blueprint);
+    emit(OpCode::LOAD_CONST, const_id, "class " + class_definition.name);
+
+    int physical_index = resolve_local(class_definition.symbol->id);
+
+    if (physical_index == -1)
+    {
+        physical_index = static_cast<int>(locals.size());
+        locals.push_back(class_definition.symbol);
+    }
+
+    emit(OpCode::SET_LOCAL, physical_index, "class " + class_definition.name);
+}
+
+// ==========================================================================
+// FUNCTIONS & METHODS
+// ==========================================================================
 
 void Compiler::compile_abstract_function(AbstractFunctionDefinition& function_definition)
 {
@@ -19,7 +68,7 @@ void Compiler::compile_abstract_function(AbstractFunctionDefinition& function_de
 
     func_compiler.enter_scope();
 
-    // The Semantic Analyzer already injected 'my' and 'our' in here for methods!
+    // The Semantic Analyzer already injected 'my' and 'our' in parameter_symbols
     for (const auto& param_symbol : function_definition.parameter_symbols)
     {
         func_compiler.locals.push_back(param_symbol);
@@ -71,10 +120,6 @@ void Compiler::compile_abstract_function(AbstractFunctionDefinition& function_de
     emit(OpCode::OVERLOAD_FUNCTION, physical_index, "fun " + function_definition.name);
 }
 
-// -------------------------------------------------------------------------
-// Route all three AST nodes to the exact same compiler logic
-// -------------------------------------------------------------------------
-
 void Compiler::visit(LocalFunctionDefinition& function_definition)
 {
     compile_abstract_function(function_definition);
@@ -98,48 +143,6 @@ void Compiler::visit(Return& statement)
         emit(OpCode::LOAD_NONE);
 
     emit(OpCode::RETURN);
-}
-
-void Compiler::visit(ClassDefinition& class_definition)
-{
-    // 1. Compile the methods body bytecode first!
-    for (auto& stmt : class_definition.members)
-    {
-        std::visit(
-            overloaded{
-                [&](MyMethodDefinition& method)
-                {
-                    visit(method);
-                },
-                [&](OurMethodDefinition& method)
-                {
-                    visit(method);
-                },
-                [&](auto&)
-                {
-                    // Fields are handled dynamically at instantiation,
-                    // no bytecode body to compile here.
-                }
-            },
-            stmt->data
-        );
-    }
-
-    // 2. Load and store the Class Blueprint
-    Object_ptr class_blueprint = class_definition.symbol->get_type();
-
-    int const_id = workspace->pool->allocate(class_blueprint);
-    emit(OpCode::LOAD_CONST, const_id, "class " + class_definition.name);
-
-    int physical_index = resolve_local(class_definition.symbol->id);
-
-    if (physical_index == -1)
-    {
-        physical_index = static_cast<int>(locals.size());
-        locals.push_back(class_definition.symbol);
-    }
-
-    emit(OpCode::SET_LOCAL, physical_index, "class " + class_definition.name);
 }
 
 } // namespace Wasp

@@ -49,9 +49,9 @@ struct VariableData : public TypedSymbolData
 
 struct AbstractFunctionData : public TypedSymbolData
 {
-    bool is_native = false;
+    bool is_native;
 
-    AbstractFunctionData(bool is_native = false) : is_native(is_native)
+    AbstractFunctionData(bool is_native) : is_native(is_native)
     {
     }
 };
@@ -65,9 +65,7 @@ struct AbstractMethodData : public AbstractFunctionData
 {
     Object_ptr class_definition;
 
-    AbstractMethodData() = default;
-
-    explicit AbstractMethodData(Object_ptr class_definition, bool is_native = false)
+    explicit AbstractMethodData(Object_ptr class_definition, bool is_native)
         : AbstractFunctionData(is_native), class_definition(std::move(class_definition))
     {
     }

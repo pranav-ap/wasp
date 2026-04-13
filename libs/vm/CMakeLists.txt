@@ -4,8 +4,7 @@ add_library(
     VM_utils.cpp
     VM_math.cpp
     VM_execute.cpp
-    VM_functions.cpp
-    VM_classes.cpp
+    VM_definitions.cpp
     VM_members.cpp
     VM_modules.cpp
     )

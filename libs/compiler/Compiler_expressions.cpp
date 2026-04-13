@@ -4,14 +4,10 @@
 #include "Expression.h"
 #include "Objects.h"
 #include "OpCode.h"
-#include "Token.h"
 #include "Workspace.h"
 
-#include <map>
 #include <memory>
 #include <string>
-#include <variant>
-#include <vector>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -21,296 +17,13 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
-// -----------------------------------------------------------------------
-// Expressions
-// -----------------------------------------------------------------------
-
-void Compiler::visit(std::vector<Expression_ptr>& expressions)
-{
-    for (const auto& expr : expressions)
-    {
-        visit(expr);
-    }
-}
-
-void Compiler::visit(const Expression_ptr expr)
-{
-    Doctor::get().fatal_if_nullptr(expr, WaspStage::Compiler);
-
-    std::visit(
-        overloaded{
-            [&](int val)
-            {
-                visit(val);
-            },
-            [&](double val)
-            {
-                visit(val);
-            },
-            [&](std::string val)
-            {
-                visit(val);
-            },
-            [&](bool val)
-            {
-                visit(val);
-            },
-            [&](UntypedAssignment& a)
-            {
-                visit(a);
-            },
-            [&](TypedAssignment& a)
-            {
-                visit(a);
-            },
-            [&](Prefix& p)
-            {
-                visit(p);
-            },
-            [&](Infix& i)
-            {
-                visit(i);
-            },
-            [&](Identifier& id)
-            {
-                visit(id);
-            },
-            [&](MemberAccess& m)
-            {
-                visit(m);
-            },
-            [&](Call& c)
-            {
-                visit(c);
-            },
-            [&](ListLiteral& l)
-            {
-                visit(l);
-            },
-            [&](TupleLiteral& t)
-            {
-                visit(t);
-            },
-            [&](MapLiteral& m)
-            {
-                visit(m);
-            },
-            [&](SetLiteral& s)
-            {
-                visit(s);
-            },
-            [&](RangeLiteral& r)
-            {
-                visit(r);
-            },
-            [&](VariableDefinitionExpression& v)
-            {
-                visit(v);
-            },
-            [&](IfTernaryBranch& i)
-            {
-                visit(i);
-            },
-            [&](ElseTernaryBranch& e)
-            {
-                visit(e);
-            },
-            [&](auto&) { /* Fallback */ }
-        },
-        expr->data
-    );
-}
-
-void Compiler::visit(int expr)
-{
-    emit(OpCode::LOAD_CONST, workspace->pool->allocate(expr), std::to_string(expr));
-}
-
-void Compiler::visit(double expr)
-{
-    emit(OpCode::LOAD_CONST, workspace->pool->allocate(expr), std::to_string(expr));
-}
-
-void Compiler::visit(std::string expr)
-{
-    emit(OpCode::LOAD_CONST, workspace->pool->allocate(expr), expr);
-}
-
-void Compiler::visit(bool expr)
-{
-    emit(expr ? OpCode::LOAD_TRUE : OpCode::LOAD_FALSE);
-}
-
-void Compiler::visit(UntypedAssignment& expr)
-{
-    Doctor::get().fatal_if_nullptr(expr.lhs_expression, WaspStage::Compiler);
-
-    std::visit(
-        overloaded{
-            [&](Identifier& id)
-            {
-                compile_identifier_assignment(id, expr.rhs_expression);
-            },
-            [&](MemberAccess& mac)
-            {
-                compile_member_assignment(mac, expr.rhs_expression);
-            },
-            [&](auto&)
-            {
-                Doctor::get().fatal(
-                    WaspStage::Compiler,
-                    "Invalid left-hand side for assignment. Must be an Identifier or "
-                    "MemberAccess."
-                );
-            }
-        },
-        expr.lhs_expression->data
-    );
-}
-
-void Compiler::visit(TypedAssignment& expr)
-{
-    // do nothing
-}
-
-void Compiler::visit(Prefix& expr)
-{
-    visit(expr.operand);
-
-    switch (expr.op.type)
-    {
-    case TokenType::MINUS:
-        emit(OpCode::NEGATE);
-        break;
-    case TokenType::NOT:
-        emit(OpCode::NOT);
-        break;
-    default:
-        break;
-    }
-}
-
-void Compiler::visit(Infix& expr)
-{
-    visit(expr.left);
-    visit(expr.right);
-
-    switch (expr.op.type)
-    {
-    case TokenType::PLUS:
-        emit(OpCode::ADD);
-        break;
-    case TokenType::MINUS:
-        emit(OpCode::SUB);
-        break;
-    case TokenType::STAR:
-        emit(OpCode::MUL);
-        break;
-    case TokenType::DIVISION:
-        emit(OpCode::DIV);
-        break;
-    case TokenType::MOD:
-        emit(OpCode::MOD);
-        break;
-    case TokenType::EQUAL_EQUAL:
-        emit(OpCode::EQ);
-        break;
-    case TokenType::BANG_EQUAL:
-        emit(OpCode::NE);
-        break;
-    case TokenType::GREATER_THAN:
-        emit(OpCode::GT);
-        break;
-    case TokenType::GREATER_THAN_EQUAL:
-        emit(OpCode::GE);
-        break;
-    case TokenType::LESSER_THAN:
-        emit(OpCode::LT);
-        break;
-    case TokenType::LESSER_THAN_EQUAL:
-        emit(OpCode::LE);
-        break;
-    default:
-        Doctor::get().fatal(
-            WaspStage::Compiler,
-            "Unsupported infix operator in compiler: " + to_string(expr.op.type)
-        );
-        break;
-    }
-}
-
-void Compiler::visit(ListLiteral& expr)
-{
-    visit(expr.expressions);
-    emit(OpCode::BUILD_LIST, static_cast<int>(expr.expressions.size()));
-}
-
-void Compiler::visit(TupleLiteral& expr)
-{
-    visit(expr.expressions);
-    emit(OpCode::BUILD_TUPLE, static_cast<int>(expr.expressions.size()));
-}
-
-void Compiler::visit(SetLiteral& expr)
-{
-    visit(expr.expressions);
-    emit(OpCode::BUILD_SET, static_cast<int>(expr.expressions.size()));
-}
-
-void Compiler::visit(MapLiteral& expr)
-{
-    for (auto& [k, v] : expr.pairs)
-    {
-        visit(k);
-        visit(v);
-    }
-    emit(OpCode::BUILD_MAP, static_cast<int>(expr.pairs.size()));
-}
-
-void Compiler::visit(RangeLiteral& expr)
-{
-    if (expr.start)
-        visit(expr.start);
-    else
-        emit(OpCode::LOAD_NONE);
-    if (expr.end)
-        visit(expr.end);
-    else
-        emit(OpCode::LOAD_NONE);
-    if (expr.step)
-        visit(expr.step);
-    else
-        emit(OpCode::LOAD_NONE);
-
-    emit(OpCode::BUILD_RANGE, expr.is_inclusive ? 1 : 0);
-}
-
-void Compiler::visit(DotLiteral& expr)
-{
-}
-void Compiler::visit(TypePattern& expr)
-{
-}
-void Compiler::visit(Postfix& expr)
-{
-}
-
-// ----------------------------------------------
-// Identifiers, Member Access & Calls
-// ----------------------------------------------
 
 void Compiler::visit(Identifier& expr)
 {
     auto symbol = expr.symbol;
     Doctor::get().fatal_if_nullptr(symbol, WaspStage::Compiler);
 
-    bool is_native = false;
-    if (symbol->payload_is<OverloadGroupData>())
-    {
-        is_native = symbol->get_payload_as<OverloadGroupData>().is_native();
-    }
-
-    if (is_native)
+    if (symbol->is_native())
     {
         auto native_registry_id = workspace->native_registry->get_native_index(symbol->name);
         emit(OpCode::GET_NATIVE, native_registry_id, symbol->name);
@@ -340,13 +53,75 @@ void Compiler::visit(MemberAccess& expr)
     emit(OpCode::GET_MEMBER, expr.member_index);
 }
 
+// ===========================================================================
+// ASSIGNMENTS
+// ===========================================================================
+
+void Compiler::compile_identifier_assignment(Identifier& id, const Expression_ptr& rhs)
+{
+    visit(rhs);
+
+    auto symbol = id.symbol;
+    Doctor::get().fatal_if_nullptr(symbol, WaspStage::Compiler);
+
+    if (id.must_be_captured)
+    {
+        int idx = resolve_upvalue(this, symbol);
+        emit(OpCode::SET_UPVALUE, idx, symbol->name);
+    }
+    else
+    {
+        int stack_index = resolve_local(symbol->id);
+
+        Doctor::get().assert(
+            stack_index != -1,
+            WaspStage::Compiler,
+            "Attempted to assign to an unresolved local variable: " + symbol->name
+        );
+
+        emit(OpCode::SET_LOCAL, stack_index, symbol->name);
+    }
+}
+
+void Compiler::compile_member_assignment(MemberAccess& mac, const Expression_ptr& rhs)
+{
+    // Evaluate the object first (Stack: [obj])
+    visit(mac.left);
+
+    // Evaluate the value second (Stack: [obj, val])
+    visit(rhs);
+
+    Doctor::get().assert(
+        mac.right->is<Identifier>(),
+        WaspStage::Compiler,
+        "Right side of member assignment must be an Identifier"
+    );
+
+    emit(OpCode::SET_MEMBER, mac.member_index, mac.right->as<Identifier>().name);
+}
+
+// ===========================================================================
+// CALL
+// ==========================================================================
+
+void Compiler::visit(Call& expr)
+{
+    if (expr.is_constructor_call)
+    {
+        compile_constructor_call(expr);
+    }
+    else
+    {
+        compile_function_call(expr);
+    }
+}
+
 void Compiler::compile_constructor_call(Call& expr)
 {
     visit(expr.callable);
 
     auto symbol = expr.callable->as<Identifier>().symbol;
-    auto class_type_obj = symbol->get_type();
-    auto class_type = class_type_obj->as<std::shared_ptr<ClassType>>();
+    auto class_type = symbol->get_type()->as<std::shared_ptr<ClassType>>();
 
     int arg_index = 0;
     int total_size = 0;
@@ -366,12 +141,9 @@ void Compiler::compile_constructor_call(Call& expr)
             int method_physical_index = -1;
             for (int i = static_cast<int>(locals.size()) - 1; i >= 0; --i)
             {
-                // Fallback added: Check both mangled AND unmangled just in case the symbol table
-                // registered the group with the raw name.
-                if (locals[i]->name == mangled_name || locals[i]->name == member_name)
+                if (locals[i]->name == mangled_name)
                 {
                     method_physical_index = i;
-                    mangled_name = locals[i]->name; // Sync name for VM byte logging
                     break;
                 }
             }
@@ -427,61 +199,6 @@ void Compiler::compile_function_call(Call& expr)
     }
 
     emit(OpCode::CALL, total_arguments);
-}
-
-void Compiler::visit(Call& expr)
-{
-    if (expr.is_constructor_call)
-    {
-        compile_constructor_call(expr);
-    }
-    else
-    {
-        compile_function_call(expr);
-    }
-}
-
-void Compiler::compile_identifier_assignment(Identifier& id, const Expression_ptr& rhs)
-{
-    visit(rhs);
-
-    auto symbol = id.symbol;
-    Doctor::get().fatal_if_nullptr(symbol, WaspStage::Compiler);
-
-    if (id.must_be_captured)
-    {
-        int idx = resolve_upvalue(this, symbol);
-        emit(OpCode::SET_UPVALUE, idx, symbol->name);
-    }
-    else
-    {
-        int stack_index = resolve_local(symbol->id);
-
-        Doctor::get().assert(
-            stack_index != -1,
-            WaspStage::Compiler,
-            "Attempted to assign to an unresolved local variable: " + symbol->name
-        );
-
-        emit(OpCode::SET_LOCAL, stack_index, symbol->name);
-    }
-}
-
-void Compiler::compile_member_assignment(MemberAccess& mac, const Expression_ptr& rhs)
-{
-    // Evaluate the object first (Stack: [obj])
-    visit(mac.left);
-
-    // Evaluate the value second (Stack: [obj, val])
-    visit(rhs);
-
-    Doctor::get().assert(
-        mac.right->is<Identifier>(),
-        WaspStage::Compiler,
-        "Right side of member assignment must be an Identifier"
-    );
-
-    emit(OpCode::SET_MEMBER, mac.member_index, mac.right->as<Identifier>().name);
 }
 
 } // namespace Wasp

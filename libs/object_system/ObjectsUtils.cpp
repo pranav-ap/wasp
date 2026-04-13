@@ -1,4 +1,5 @@
 #include "ConstantPool.h"
+#include "Doctor.h"
 #include "Objects.h"
 #include <algorithm>
 #include <cstddef>
@@ -163,8 +164,8 @@ namespace Wasp
 
     std::string stringify_object(Object_ptr value)
     {
-        if (!value)
-            return "null";
+        Doctor::get()
+            .fatal_if_nullptr(value, WaspStage::VM, "Attempted to stringify a null object pointer");
 
         return std::visit(
             overloaded{
@@ -275,6 +276,20 @@ namespace Wasp
                     return "variant type";
                 },
 
+                // User Defined Types
+                [](const std::shared_ptr<RecordType>&) -> std::string
+                {
+                    return "record type";
+                },
+                [](const std::shared_ptr<ModuleType>& mod) -> std::string
+                {
+                    return "module type: " + mod->name;
+                },
+                [](const std::shared_ptr<ClassType>& cls) -> std::string
+                {
+                    return "class type: " + cls->name;
+                },
+
                 // Composite Objects
                 [](const std::shared_ptr<IteratorObject>&) -> std::string
                 {
@@ -336,24 +351,42 @@ namespace Wasp
                     return "<variant>";
                 },
 
+                // Callables and Modules
                 [](const std::shared_ptr<FunctionBlueprintObject>& func) -> std::string
                 {
                     return "<Static Function " + func->name + ">";
                 },
-
                 [](const std::shared_ptr<FunctionRuntimeObject>& func) -> std::string
                 {
                     return "<Runtime function " + func->blueprint->name + ">";
                 },
-
                 [](const std::shared_ptr<NativeFunctionObject>& func) -> std::string
                 {
                     return "<Native function " + func->name + ">";
                 },
-
                 [](const std::shared_ptr<ModuleObject>& mod) -> std::string
                 {
                     return "<module " + mod->name + ">";
+                },
+
+                // Overload Groups
+                [](const std::shared_ptr<OverloadedObjectsSet>&) -> std::string
+                {
+                    return "<overloaded objects>";
+                },
+                [](const std::shared_ptr<OverloadedTypesSet>& set) -> std::string
+                {
+                    return "<overloaded types: " + set->name + ">";
+                },
+
+                // Instances
+                [](const std::shared_ptr<OurObject>&) -> std::string
+                {
+                    return "<our object>";
+                },
+                [](const std::shared_ptr<MyObject>&) -> std::string
+                {
+                    return "<my object>";
                 },
 
                 // Action Objects

@@ -116,7 +116,7 @@ int MemberedCompositeType::get_member_index(const std::string& member_name) cons
     return static_cast<int>(std::distance(members.begin(), it));
 }
 
-StringVector ContainerType::get_instance_variables_declaration_order() const
+StringVector ClassType::get_instance_variables_declaration_order() const
 {
     StringVector instance_vars;
 
@@ -139,7 +139,7 @@ StringVector ContainerType::get_instance_variables_declaration_order() const
     return instance_vars;
 }
 
-StringVector ContainerType::get_class_variables_declaration_order() const
+StringVector ClassType::get_class_variables_declaration_order() const
 {
     StringVector class_vars;
 

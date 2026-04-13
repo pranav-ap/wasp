@@ -104,6 +104,9 @@ bool Symbol::is_native() const
     if (payload_is<OurMethodData>())
         return get_payload_as<OurMethodData>().is_native;
 
+    if (payload_is<OverloadGroupData>())
+        return get_payload_as<OverloadGroupData>().is_native();
+
     return false;
 }
 

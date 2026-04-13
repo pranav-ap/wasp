@@ -2,7 +2,6 @@
 #include "Compiler.h"
 #include "Doctor.h"
 #include "Expression.h"
-#include "OpCode.h"
 #include "Statement.h"
 
 #include <memory>

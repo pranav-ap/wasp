@@ -28,11 +28,83 @@ namespace Wasp
 // CLASS
 // ============================================================================
 
+void SemanticAnalyzer::hoist_method(
+    AbstractFunctionDefinition& method_def,
+    bool is_our,
+    const std::string& container_name,
+    Object_ptr target_type_obj,
+    std::shared_ptr<ClassType> class_type
+)
+{
+    std::string original_name = method_def.name;
+    method_def.name = container_name + "::" + original_name;
+
+    auto [return_type, parameter_types] = get_function_signature(method_def);
+
+    Object_ptr signature = is_our ? make_object(
+                                        std::make_shared<OurMethodType>(
+                                            parameter_types,
+                                            return_type,
+                                            target_type_obj
+                                        )
+                                    )
+                                  : make_object(
+                                        std::make_shared<MyMethodType>(
+                                            parameter_types,
+                                            return_type,
+                                            target_type_obj
+                                        )
+                                    );
+
+    Symbol_ptr method_symbol = is_our ? SymbolFactory::create_our_method(
+                                            method_def.name,
+                                            signature,
+                                            target_type_obj,
+                                            false,
+                                            current_scope->get_closure_depth(),
+                                            current_scope->get_lexical_depth()
+                                        )
+                                      : SymbolFactory::create_my_method(
+                                            method_def.name,
+                                            signature,
+                                            target_type_obj,
+                                            false,
+                                            current_scope->get_closure_depth(),
+                                            current_scope->get_lexical_depth()
+                                        );
+
+    if (current_scope->contains_in_current_scope(method_def.name))
+    {
+        type_checker->validate_new_function_wrt_overload_group(
+            current_scope,
+            method_def.name,
+            method_symbol
+        );
+    }
+
+    current_scope->define(method_symbol);
+    method_def.symbol = method_symbol;
+    method_def.group_symbol = current_scope->lookup(method_def.name);
+
+    class_type->members[original_name] = method_symbol->get_type();
+}
+
 void SemanticAnalyzer::visit(ClassDefinition& def)
 {
     ObjectStringMap member_types;
     StringVector declaration_order;
     std::unordered_set<std::string> shared_members;
+
+    auto add_unique_declaration = [&](const std::string& name)
+    {
+        if (std::find(declaration_order.begin(), declaration_order.end(), name) ==
+            declaration_order.end())
+        {
+            declaration_order.push_back(name);
+        }
+    };
+
+    // Create Class Type
 
     for (auto& stmt : def.members)
     {
@@ -42,86 +114,64 @@ void SemanticAnalyzer::visit(ClassDefinition& def)
                 {
                     member_types[field.name] = visit(field.type);
                     declaration_order.push_back(field.name);
-
                     if (field.is_our)
-                    {
                         shared_members.insert(field.name);
-                    }
                 },
                 [&](MyMethodDefinition& method)
                 {
-                    if (std::find(
-                            declaration_order.begin(),
-                            declaration_order.end(),
-                            method.name
-                        ) == declaration_order.end())
-                    {
-                        declaration_order.push_back(method.name);
-                    }
+                    add_unique_declaration(method.name);
                 },
                 [&](OurMethodDefinition& method)
                 {
-                    if (std::find(
-                            declaration_order.begin(),
-                            declaration_order.end(),
-                            method.name
-                        ) == declaration_order.end())
-                    {
-                        declaration_order.push_back(method.name);
-                    }
+                    add_unique_declaration(method.name);
                     shared_members.insert(method.name);
                 },
                 [&](auto&)
                 {
-                    Doctor::get().fatal(
-                        WaspStage::Semantics,
-                        "Invalid statement in container body."
-                    );
+                    Doctor::get().fatal(WaspStage::Semantics, "Invalid statement in class body.");
                 }
             },
             stmt->data
         );
     }
 
-    Object_ptr target_type_obj;
-    std::shared_ptr<ContainerType> container_type = nullptr;
+    auto class_type = std::make_shared<ClassType>(
+        def.name,
+        std::move(member_types),
+        std::move(shared_members),
+        std::move(declaration_order)
+    );
 
-        auto class_type = std::make_shared<ClassType>(
-            def.name,
-            std::move(member_types),
-            std::move(shared_members),
-            std::move(declaration_order)
-        );
+    Object_ptr target_type_obj = make_object(class_type);
 
-        target_type_obj = make_object(class_type);
-        container_type = class_type;
+    Doctor::get().fatal_if_nullptr(def.symbol, WaspStage::Semantics);
+    def.symbol->set_type(target_type_obj);
+    class_type_stack.push_back(target_type_obj);
 
-        Doctor::get().fatal_if_nullptr(def.symbol, WaspStage::Semantics);
-        def.symbol->set_type(target_type_obj);
-        container_type_stack.push_back(target_type_obj);
+    // Hoist Methods
 
-        // Hoist methods
-        for (auto& stmt : def.members)
-        {
-            std::visit(
-                overloaded{
-                    [&](MyMethodDefinition& m)
-                    {
-                        hoist_method(m, false, def.name, target_type_obj, container_type);
-                    },
-                    [&](OurMethodDefinition& m)
-                    {
-                        hoist_method(m, true, def.name, target_type_obj, container_type);
-                    },
-                    [&](auto&)
-                    {
-                    }
+    for (auto& stmt : def.members)
+    {
+        std::visit(
+            overloaded{
+                [&](MyMethodDefinition& m)
+                {
+                    hoist_method(m, false, def.name, target_type_obj, class_type);
                 },
-                stmt->data
-            );
-        }
+                [&](OurMethodDefinition& m)
+                {
+                    hoist_method(m, true, def.name, target_type_obj, class_type);
+                },
+                [&](auto&)
+                {
+                }
+            },
+            stmt->data
+        );
+    }
 
-    // Analysis Pass
+    // Analyze Method Bodies
+
     for (auto& stmt : def.members)
     {
         std::visit(
@@ -136,13 +186,13 @@ void SemanticAnalyzer::visit(ClassDefinition& def)
                 },
                 [&](auto&)
                 {
-                }
+                } // Ignore fields
             },
             stmt->data
         );
     }
 
-    container_type_stack.pop_back();
+    class_type_stack.pop_back();
 }
 
 // ============================================================================
@@ -164,6 +214,22 @@ void SemanticAnalyzer::visit(OurMethodDefinition& method_def)
     analyze_abstract_function_body(method_def, false, true);
 }
 
+std::pair<Object_ptr, ObjectVector> SemanticAnalyzer::get_function_signature(
+    AbstractFunctionDefinition& func
+)
+{
+    Object_ptr return_type = func.return_type ? visit(func.return_type)
+                                              : workspace->pool->get_none_type();
+    ObjectVector param_types;
+
+    for (const auto& [param_name, type_ann] : func.parameters)
+    {
+        param_types.push_back(type_ann ? visit(type_ann) : workspace->pool->get_any_type());
+    }
+
+    return {return_type, param_types};
+}
+
 void SemanticAnalyzer::analyze_abstract_function_body(
     AbstractFunctionDefinition& fun_def,
     bool inject_my,
@@ -176,7 +242,7 @@ void SemanticAnalyzer::analyze_abstract_function_body(
     if (fun_def.symbol->get_type() == nullptr)
     {
         // Top-level function (SymbolHoister left the type as nullptr)
-        auto evaluated = evaluate_function_signature(fun_def);
+        auto evaluated = get_function_signature(fun_def);
 
         return_type = evaluated.first;
         param_types = evaluated.second;
@@ -217,6 +283,7 @@ void SemanticAnalyzer::analyze_abstract_function_body(
 
     type_checker
         ->validate_new_function_wrt_overload_group(current_scope, fun_def.name, fun_def.symbol);
+
     Doctor::get().fatal_if_nullptr(fun_def.group_symbol, WaspStage::Semantics);
 
     enter_scope(ScopeType::FUNCTION);
@@ -237,9 +304,9 @@ void SemanticAnalyzer::analyze_abstract_function_body(
         fun_def.parameter_symbols.push_back(sym);
     };
 
-    if (!container_type_stack.empty())
+    if (!class_type_stack.empty())
     {
-        Object_ptr current_class = container_type_stack.back();
+        Object_ptr current_class = class_type_stack.back();
 
         if (inject_my)
             define_param("my", current_class, false);
@@ -253,7 +320,7 @@ void SemanticAnalyzer::analyze_abstract_function_body(
     }
 
     // Mask class context for nested functions
-    container_type_stack.push_back(nullptr);
+    class_type_stack.push_back(nullptr);
 
     hoist_statements(fun_def.body);
 
@@ -262,88 +329,9 @@ void SemanticAnalyzer::analyze_abstract_function_body(
         visit(stmt);
     }
 
-    container_type_stack.pop_back();
+    class_type_stack.pop_back();
     return_type_stack.pop_back();
     leave_scope();
-}
-
-void SemanticAnalyzer::hoist_method(
-    AbstractFunctionDefinition& method_def,
-    bool is_our,
-    const std::string& container_name,
-    Object_ptr target_type_obj,
-    std::shared_ptr<ContainerType> container_type
-)
-{
-    std::string original_name = method_def.name;
-    method_def.name = container_name + "::" + original_name;
-
-    auto [ret_type, param_types] = evaluate_function_signature(method_def);
-
-    Object_ptr signature;
-    if (is_our)
-    {
-        signature = make_object(
-            std::make_shared<OurMethodType>(param_types, ret_type, target_type_obj)
-        );
-    }
-    else
-    {
-        signature = make_object(
-            std::make_shared<MyMethodType>(param_types, ret_type, target_type_obj)
-        );
-    }
-
-    Symbol_ptr method_symbol = is_our ? SymbolFactory::create_our_method(
-                                            method_def.name,
-                                            signature,
-                                            target_type_obj,
-                                            false,
-                                            current_scope->get_closure_depth(),
-                                            current_scope->get_lexical_depth()
-                                        )
-                                      : SymbolFactory::create_my_method(
-                                            method_def.name,
-                                            signature,
-                                            target_type_obj,
-                                            false,
-                                            current_scope->get_closure_depth(),
-                                            current_scope->get_lexical_depth()
-                                        );
-
-    if (current_scope->contains_in_current_scope(method_def.name))
-    {
-        type_checker->validate_new_function_wrt_overload_group(
-            current_scope,
-            method_def.name,
-            method_symbol
-        );
-    }
-
-    current_scope->define(method_symbol);
-    method_def.symbol = method_symbol;
-    method_def.group_symbol = current_scope->lookup(method_def.name);
-
-    if (container_type)
-    {
-        container_type->members[original_name] = method_symbol->get_type();
-    }
-}
-
-std::pair<Object_ptr, ObjectVector> SemanticAnalyzer::evaluate_function_signature(
-    AbstractFunctionDefinition& func
-)
-{
-    Object_ptr return_type = func.return_type ? visit(func.return_type)
-                                              : workspace->pool->get_none_type();
-    ObjectVector param_types;
-
-    for (const auto& [param_name, type_ann] : func.parameters)
-    {
-        param_types.push_back(type_ann ? visit(type_ann) : workspace->pool->get_any_type());
-    }
-
-    return {return_type, param_types};
 }
 
 void SemanticAnalyzer::visit(Return& statement)

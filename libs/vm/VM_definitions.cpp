@@ -18,8 +18,42 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
+// =========================================================================
+// CLASS
+// ======================================================================
+
+void VM::execute_instantiate(CallFrame* frame)
+{
+    // Data + Methods
+    int total_size = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
+
+    ObjectVector memory = pop_n_from_stack(total_size);
+    Object_ptr blueprint_obj = pop_from_stack();
+
+    Doctor::get().assert(
+        blueprint_obj->is<std::shared_ptr<ClassType>>(),
+        WaspStage::VM,
+        "OpCode::INSTANTIATE expects a ClassType blueprint on the stack!"
+    );
+
+    auto& blueprint = blueprint_obj->as<std::shared_ptr<ClassType>>();
+
+    size_t expected_total_size = blueprint->declaration_order.size() -
+                                 blueprint->shared_members.size();
+
+    Doctor::get().assert(
+        total_size == expected_total_size,
+        WaspStage::VM,
+        "Arity mismatch for class " + blueprint->name
+    );
+
+    auto instance = make_object(std::make_shared<MyObject>(std::move(memory)));
+
+    push_to_stack(instance);
+}
+
 // --------------------------------------
-// Function Calls
+// FUNCTIONS & METHODS
 // --------------------------------------
 
 void VM::execute_make_function(CallFrame* frame)
@@ -27,7 +61,7 @@ void VM::execute_make_function(CallFrame* frame)
     // 1. How many upvalues to capture?
     int upvalue_count = static_cast<int>(frame->consume_byte());
 
-    // 2. The FunctionBlueprintObject (blueprint) is on the stack
+    // FunctionBlueprintObject is on the stack
     Object_ptr blueprint_obj = pop_from_stack();
 
     Doctor::get().assert(
@@ -38,10 +72,11 @@ void VM::execute_make_function(CallFrame* frame)
 
     auto blueprint = blueprint_obj->as<std::shared_ptr<FunctionBlueprintObject>>();
 
+    // Capture the variables
+
     ObjectVector captured_upvalues;
     captured_upvalues.reserve(upvalue_count);
 
-    // 3. Capture the variables
     for (int i = 0; i < upvalue_count; i++)
     {
         bool is_local_to_parent = (frame->consume_byte() == std::byte{1});
@@ -49,8 +84,6 @@ void VM::execute_make_function(CallFrame* frame)
 
         if (is_local_to_parent)
         {
-            // THE FIX: The compiler now emits the physical slot index relative
-            // to the current frame's base pointer.
             size_t absolute_idx = frame->base_pointer + slot_or_index;
 
             Doctor::get().assert(
@@ -60,18 +93,14 @@ void VM::execute_make_function(CallFrame* frame)
                     std::to_string(slot_or_index)
             );
 
-            // We grab the value directly from the stack
             captured_upvalues.push_back(stack[absolute_idx]);
         }
         else
         {
-            // Capturing an upvalue that the current function already holds.
-            // This was already index-based, so it stays simple.
             captured_upvalues.push_back(frame->function->upvalues[slot_or_index]);
         }
     }
 
-    // 4. Create the runtime closure with the actual captured values
     auto runtime_closure = std::make_shared<FunctionRuntimeObject>(
         blueprint,
         std::move(captured_upvalues)
@@ -85,13 +114,10 @@ void VM::execute_overload_function(CallFrame* frame)
     // The operand is now the physical slot index (0, 1, 2...)
     int slot_index = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
 
-    // The new function version (pushed by LOAD_CONST or MAKE_FUNCTION)
     Object_ptr new_func = pop_from_stack();
 
     size_t absolute_idx = frame->base_pointer + slot_index;
 
-    // Ensure the stack is physically large enough to hold this slot
-    // (Usually handles the very first definition in a module/function)
     if (absolute_idx >= stack.size())
     {
         stack.resize(absolute_idx + 1, nullptr);
@@ -114,7 +140,6 @@ void VM::execute_overload_function(CallFrame* frame)
     }
     else
     {
-        // The group already exists in this slot!
         Doctor::get().assert(
             existing_obj->is<std::shared_ptr<OverloadedObjectsSet>>(),
             WaspStage::VM,

@@ -513,13 +513,13 @@ struct ModuleType : public MemberedCompositeType
     }
 };
 
-struct ContainerType : public MemberedCompositeType
+struct ClassType : public MemberedCompositeType
 {
     std::string name;
     std::unordered_set<std::string> shared_members;
     StringVector declaration_order;
 
-    ContainerType(
+    ClassType(
         std::string name,
         ObjectStringMap members,
         std::unordered_set<std::string> shared_members,
@@ -532,16 +532,6 @@ struct ContainerType : public MemberedCompositeType
 
     StringVector get_instance_variables_declaration_order() const;
     StringVector get_class_variables_declaration_order() const;
-};
-
-struct ClassType : public ContainerType
-{
-    using ContainerType::ContainerType;
-};
-
-struct TraitType : public ContainerType
-{
-    using ContainerType::ContainerType;
 };
 
 // ============================================================================
@@ -609,8 +599,7 @@ struct Object
 
         std::shared_ptr<RecordType>,
         std::shared_ptr<ModuleType>,
-        std::shared_ptr<ClassType>,
-        std::shared_ptr<TraitType>>;
+        std::shared_ptr<ClassType>>;
 
     UnderlyingVariant value;
 
