@@ -212,9 +212,9 @@ Object_ptr SemanticAnalyzer::visit(FunctionTypeNode& expr)
     ObjectVector params = visit(expr.input_types);
 
     if (expr.return_type)
-        return make_object(std::make_shared<FunctionType>(params, visit(expr.return_type)));
+        return make_object(std::make_shared<LocalFunctionType>(params, visit(expr.return_type)));
 
-    return make_object(std::make_shared<FunctionType>(params, make_object(NoneType())));
+    return make_object(std::make_shared<LocalFunctionType>(params, make_object(NoneType())));
 }
 
 Object_ptr SemanticAnalyzer::visit(RecordTypeNode& node)

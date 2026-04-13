@@ -94,24 +94,28 @@ void SemanticAnalyzer::analyze_membered_definition(MemberedDefinition& def, bool
 
     if (is_trait)
     {
-        container_type = std::make_shared<TraitType>(
+        auto trait_type = std::make_shared<TraitType>(
             def.name,
             std::move(member_types),
             std::move(shared_members),
             std::move(declaration_order)
         );
+
+        target_type_obj = make_object(trait_type);
+        container_type = trait_type;
     }
     else
     {
-        container_type = std::make_shared<ClassType>(
+        auto class_type = std::make_shared<ClassType>(
             def.name,
             std::move(member_types),
             std::move(shared_members),
             std::move(declaration_order)
         );
-    }
 
-    target_type_obj = make_object(container_type);
+        target_type_obj = make_object(class_type);
+        container_type = class_type;
+    }
 
     Doctor::get().fatal_if_nullptr(def.symbol, WaspStage::Semantics);
     def.symbol->set_type(target_type_obj);
@@ -193,11 +197,8 @@ void SemanticAnalyzer::analyze_abstract_function_body(
     if (fun_def.symbol->get_type() == nullptr)
     {
         // Top-level function (SymbolHoister left the type as nullptr)
-        auto evaluated = evaluate_function_signature(fun_def);
-        return_type = evaluated.first;
-        param_types = evaluated.second;
-
-        auto signature = make_object(std::make_shared<FunctionType>(param_types, return_type));
+        auto [ret_type, param_types] = evaluate_function_signature(fun_def);
+        auto signature = make_object(std::make_shared<LocalFunctionType>(param_types, ret_type));
         fun_def.symbol->set_type(signature);
 
         fun_def.group_symbol = current_scope->lookup(fun_def.name);
@@ -205,9 +206,31 @@ void SemanticAnalyzer::analyze_abstract_function_body(
     else
     {
         // Impl method or local function (already evaluated!)
-        auto signature = fun_def.symbol->get_type()->as<std::shared_ptr<FunctionType>>();
-        return_type = signature->return_type;
-        param_types = signature->input_types;
+        Object_ptr type_obj = fun_def.symbol->get_type();
+
+        if (auto ptr = type_obj->try_as<std::shared_ptr<MyMethodType>>())
+        {
+            return_type = (*ptr)->return_type;
+            param_types = (*ptr)->input_types;
+        }
+        else if (auto ptr = type_obj->try_as<std::shared_ptr<OurMethodType>>())
+        {
+            return_type = (*ptr)->return_type;
+            param_types = (*ptr)->input_types;
+        }
+        else if (auto ptr = type_obj->try_as<std::shared_ptr<LocalFunctionType>>())
+        {
+            return_type = (*ptr)->return_type;
+            param_types = (*ptr)->input_types;
+        }
+        else
+        {
+            // THIS REPLACES THE FAILING CODE
+            Doctor::get().fatal(
+                WaspStage::Semantics,
+                "Internal Compiler Error: Expected concrete function type."
+            );
+        }
     }
 
     type_checker->validate_overload_group(current_scope, fun_def.name, fun_def.symbol);
@@ -273,7 +296,21 @@ void SemanticAnalyzer::hoist_method(
     method_def.name = container_name + "::" + original_name;
 
     auto [ret_type, param_types] = evaluate_function_signature(method_def);
-    auto signature = make_object(std::make_shared<FunctionType>(param_types, ret_type));
+
+    Object_ptr signature;
+
+    if (is_our)
+    {
+        signature = make_object(
+            std::make_shared<OurMethodType>(param_types, ret_type, target_type_obj)
+        );
+    }
+    else
+    {
+        signature = make_object(
+            std::make_shared<MyMethodType>(param_types, ret_type, target_type_obj)
+        );
+    }
 
     Symbol_ptr method_symbol = is_our ? SymbolFactory::create_our_method(
                                             method_def.name,

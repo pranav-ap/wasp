@@ -106,7 +106,6 @@ private:
     void visit(FromImport& statement);
 
     void visit(ClassDefinition& statement);
-    void visit(ImplDefinition& statement);
 
     // Expressions
 

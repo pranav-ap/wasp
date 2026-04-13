@@ -30,6 +30,21 @@ namespace Wasp
 // Overload Resolution
 // ============================================================================
 
+std::shared_ptr<FunctionType> TypeChecker::extract_function_signature(Object_ptr type_obj) const
+{
+    if (!type_obj)
+        return nullptr;
+
+    if (auto p = type_obj->try_as<std::shared_ptr<LocalFunctionType>>())
+        return *p;
+    if (auto p = type_obj->try_as<std::shared_ptr<MyMethodType>>())
+        return *p;
+    if (auto p = type_obj->try_as<std::shared_ptr<OurMethodType>>())
+        return *p;
+
+    return nullptr;
+}
+
 SymbolVector::iterator TypeChecker::find_matching_signature(
     SymbolScope_ptr scope,
     SymbolVector& target_vector,
@@ -41,13 +56,11 @@ SymbolVector::iterator TypeChecker::find_matching_signature(
         target_vector.end(),
         [&](const Symbol_ptr& sym)
         {
-            auto type_obj = sym->get_type();
+            auto existing_signature = extract_function_signature(sym->get_type());
 
-            // Skip unresolved functions (e.g., hoisted functions we haven't visited yet)
-            if (!type_obj || !type_obj->is<std::shared_ptr<FunctionType>>())
+            // Skip unresolved functions or non-functions
+            if (!existing_signature)
                 return false;
-
-            const auto& existing_signature = type_obj->as<std::shared_ptr<FunctionType>>();
 
             if (existing_signature->input_types.size() != parameter_types.size())
                 return false;
@@ -77,14 +90,18 @@ void TypeChecker::validate_overload_group(
         "Symbol is not an overload group"
     );
 
-    const auto& parameter_types = new_function_symbol->get_type()
-                                      ->as<std::shared_ptr<FunctionType>>()
-                                      ->input_types;
+    auto new_signature = extract_function_signature(new_function_symbol->get_type());
 
+    Doctor::get().assert(
+        new_signature != nullptr,
+        WaspStage::Semantics,
+        "Internal Compiler Error: New function symbol lacks a valid function type"
+    );
+
+    const auto& parameter_types = new_signature->input_types;
     auto& group_data = overload_group_symbol->get_payload_as<OverloadGroupData>();
 
     // Sibling Duplicate Check
-
     for (const auto& sibling : group_data.siblings)
     {
         if (sibling == new_function_symbol)
@@ -94,24 +111,21 @@ void TypeChecker::validate_overload_group(
 
         auto type_obj = sibling->get_type();
 
-        // If the sibling hasn't been type-checked yet (only hoisted so far),
-        // skip it. Semantic Analyzer will visit it later to check for duplciate
-        // siblings
+        // If the sibling hasn't been type-checked yet (only hoisted so far), skip it.
         if (!type_obj)
         {
             continue;
         }
 
+        auto existing_signature = extract_function_signature(type_obj);
+
         Doctor::get().assert(
-            type_obj->is<std::shared_ptr<FunctionType>>(),
+            existing_signature != nullptr,
             WaspStage::Semantics,
-            "Internal Compiler Error: Overload group contains a non-function "
-            "symbol"
+            "Internal Compiler Error: Overload group contains a non-function symbol"
         );
 
-        const auto& existing_signatures = type_obj->as<std::shared_ptr<FunctionType>>();
-
-        if (equal(scope, existing_signatures->input_types, parameter_types))
+        if (equal(scope, existing_signature->input_types, parameter_types))
         {
             Doctor::get().fatal(
                 WaspStage::Semantics,
@@ -138,13 +152,11 @@ void TypeChecker::collect_assignable_signatures(
 {
     for (const auto& candidate : candidates)
     {
-        auto type_obj = candidate->get_type();
+        auto signature = extract_function_signature(candidate->get_type());
 
-        // Skip unresolved symbols just to be safe
-        if (!type_obj || !type_obj->is<std::shared_ptr<FunctionType>>())
+        // Skip unresolved symbols or non-functions just to be safe
+        if (!signature)
             continue;
-
-        const auto& signature = type_obj->as<std::shared_ptr<FunctionType>>();
 
         if (assignable(scope, signature->input_types, argument_types))
         {

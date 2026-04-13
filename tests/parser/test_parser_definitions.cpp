@@ -5,7 +5,8 @@
 #include <gtest/gtest.h>
 #include <memory>
 
-TEST(ParseDefinitions, AliasDefinition) {
+TEST(ParseDefinitions, AliasDefinition)
+{
     auto block = parse("type int_list = [int]");
     ASSERT_EQ(block.size(), 1);
 
@@ -16,7 +17,8 @@ TEST(ParseDefinitions, AliasDefinition) {
     check<Wasp::IntTypeNode>(list_type_ptr->element_type);
 }
 
-TEST(ParseDefinitions, EnumNestedDefinition) {
+TEST(ParseDefinitions, EnumNestedDefinition)
+{
     auto block = parse(R"(
 enum Animal
     Dog
@@ -33,7 +35,8 @@ enum Animal
     EXPECT_EQ(enum_def.members.size(), 3);
 }
 
-TEST(ParseDefinitions, FunctionDefinitionWithIfElifElse) {
+TEST(ParseDefinitions, FunctionDefinitionWithIfElifElse)
+{
     auto block = parse(R"(
 fun add(a: int, b: int) => int
     if a > b then
@@ -69,7 +72,8 @@ fun add(a: int, b: int) => int
     }
 }
 
-TEST(ParseDefinitions, FunctionDefinitionWithWhile) {
+TEST(ParseDefinitions, FunctionDefinitionWithWhile)
+{
     auto block = parse(R"(
 fun add(a: int, b: int) => int
     while a < b do
@@ -92,7 +96,8 @@ fun add(a: int, b: int) => int
 
 // CLASS
 
-TEST(ParseDefinitions, ClassDefinitionWithNestedRecord) {
+TEST(ParseDefinitions, ClassDefinitionWithNestedRecord)
+{
     auto block = parse(R"(
 class Person
     name: str
@@ -113,23 +118,34 @@ class Person
 
     auto& class_def = check<Wasp::ClassDefinition>(block[0]);
 
-    ASSERT_EQ(class_def.members.count("job"), 1);
-    auto& job_record = check<std::shared_ptr<Wasp::RecordTypeNode>>(class_def.members.at("job"));
+    // 'name', 'address', 'job'
+    ASSERT_EQ(class_def.members.size(), 3);
+
+    auto& job_field = check<Wasp::FieldDefinition>(class_def.members[2]);
+    EXPECT_EQ(job_field.name, "job");
+
+    auto& job_record = check<std::shared_ptr<Wasp::RecordTypeNode>>(job_field.type);
+
     // title, salary, experience
-    ASSERT_EQ(job_record->members.size(), 3);
+    ASSERT_EQ(job_record->fields.size(), 3);
 
-    ASSERT_EQ(job_record->members.count("experience"), 1);
-    auto& exp_record = check<std::shared_ptr<Wasp::RecordTypeNode>>(job_record->members.at("experience"));
-    ASSERT_EQ(exp_record->members.size(), 2);
+    auto& exp_field = check<Wasp::FieldDefinition>(job_record->fields[2]);
+    EXPECT_EQ(exp_field.name, "experience");
 
-    ASSERT_EQ(exp_record->members.count("years"), 1);
-    check<Wasp::IntTypeNode>(exp_record->members.at("years"));
+    auto& exp_record = check<std::shared_ptr<Wasp::RecordTypeNode>>(exp_field.type);
+    ASSERT_EQ(exp_record->fields.size(), 2);
 
-    ASSERT_EQ(exp_record->members.count("field"), 1);
-    check<Wasp::StringTypeNode>(exp_record->members.at("field"));
+    auto& years_field = check<Wasp::FieldDefinition>(exp_record->fields[0]);
+    EXPECT_EQ(years_field.name, "years");
+    check<Wasp::IntTypeNode>(years_field.type);
+
+    auto& field_field = check<Wasp::FieldDefinition>(exp_record->fields[1]);
+    EXPECT_EQ(field_field.name, "field");
+    check<Wasp::StringTypeNode>(field_field.type);
 }
 
-TEST(ParseDefinitions, ClassDefinitionWithManyTraits) {
+TEST(ParseDefinitions, ClassDefinitionWithManyTraits)
+{
     auto block = parse(R"(
 class Person is Fortifiable & Movable & Serializable
     name: str
@@ -143,9 +159,10 @@ class Person is Fortifiable & Movable & Serializable
     ASSERT_EQ(class_def.traits.size(), 3);
 }
 
-TEST(ParseDefinitions, ClassImplMultipleFunctions) {
+TEST(ParseDefinitions, ClassMultipleFunctions)
+{
     auto block = parse(R"(
-impl Person
+class Person
     fun fortify()
         if my.age > 30 then
             my.defense = my.defense + 15
@@ -161,15 +178,15 @@ impl Person
 
     ASSERT_EQ(block.size(), 1);
 
-    auto& impl_def = check<Wasp::ImplDefinition>(block[0]);
-    EXPECT_EQ(impl_def.class_name, "Person");
-    ASSERT_EQ(impl_def.methods.size(), 2);
+    auto& class_def = check<Wasp::ClassDefinition>(block[0]);
+    EXPECT_EQ(class_def.name, "Person");
+    ASSERT_EQ(class_def.members.size(), 2);
 
-    auto& func_def1 = check<Wasp::LocalFunctionDefinition>(impl_def.methods[0]);
+    auto& func_def1 = check<Wasp::MyMethodDefinition>(class_def.members[0]);
     EXPECT_EQ(func_def1.name, "fortify");
     ASSERT_EQ(func_def1.parameters.size(), 0);
 
-    auto& func_def2 = check<Wasp::LocalFunctionDefinition>(impl_def.methods[1]);
+    auto& func_def2 = check<Wasp::MyMethodDefinition>(class_def.members[1]);
     EXPECT_EQ(func_def2.name, "weaken");
 
     ASSERT_EQ(func_def2.parameters.size(), 1);

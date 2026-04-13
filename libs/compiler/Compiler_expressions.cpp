@@ -346,49 +346,54 @@ void Compiler::visit(MemberAccess& expr)
 
     emit(OpCode::GET_MEMBER, expr.member_index);
 }
+
 void Compiler::compile_constructor_call(Call& expr)
 {
     visit(expr.callable);
 
-    // Evaluate and push the data arguments (Already filtered to only be instance variables by the
-    // Semantic Analyzer!)
     for (const auto& arg : expr.arguments)
     {
         visit(arg);
     }
 
-    // Push the methods
     auto symbol = expr.callable->as<Identifier>().symbol;
     auto class_type_obj = symbol->get_type();
-    auto& class_type = class_type_obj->as<std::shared_ptr<ClassType>>();
+    auto class_type = class_type_obj->as<std::shared_ptr<ClassType>>();
 
-    for (const std::string& method_name : class_type->methods_declaration_order)
+    int instance_methods_count = 0;
+
+    for (const std::string& member_name : class_type->declaration_order)
     {
-        std::string mangled_name = class_type->class_name + "::" + method_name;
+        if (class_type->shared_members.contains(member_name))
+            continue;
 
-        int method_physical_index = -1;
-        for (int i = static_cast<int>(locals.size()) - 1; i >= 0; --i)
+        auto type_obj = class_type->members.at(member_name);
+        if (type_obj->is<std::shared_ptr<MyMethodType>>())
         {
-            if (locals[i]->name == mangled_name)
+            std::string mangled_name = class_type->name + "::" + member_name;
+
+            int method_physical_index = -1;
+            for (int i = static_cast<int>(locals.size()) - 1; i >= 0; --i)
             {
-                method_physical_index = i;
-                break;
+                if (locals[i]->name == mangled_name)
+                {
+                    method_physical_index = i;
+                    break;
+                }
             }
+
+            Doctor::get().assert(
+                method_physical_index != -1,
+                WaspStage::Compiler,
+                "Compiler error: Could not find method " + mangled_name + " in locals."
+            );
+
+            emit(OpCode::GET_LOCAL, method_physical_index, "method " + mangled_name);
+            instance_methods_count++;
         }
-
-        Doctor::get().assert(
-            method_physical_index != -1,
-            WaspStage::Compiler,
-            "Compiler error: Could not find method " + mangled_name + " in locals."
-        );
-
-        emit(OpCode::GET_LOCAL, method_physical_index, "method " + mangled_name);
     }
 
-    // The total size is the filtered data arguments + methods
-    int total_size = static_cast<int>(
-        expr.arguments.size() + class_type->methods_declaration_order.size()
-    );
+    int total_size = static_cast<int>(expr.arguments.size()) + instance_methods_count;
 
     emit(OpCode::INSTANTIATE, total_size);
 }
@@ -408,7 +413,6 @@ void Compiler::compile_function_call(Call& expr)
     {
         auto& mac = expr.callable->as<MemberAccess>();
         visit(mac.left);
-        // We are passing 1 extra argument (the instance itself)
         total_arguments++;
     }
 

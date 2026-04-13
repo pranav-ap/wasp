@@ -26,6 +26,8 @@ class TypeChecker
         const ObjectVector& argument_types,
         SymbolVector& valid_matches) const;
 
+    std::shared_ptr<FunctionType> extract_function_signature(Object_ptr type_obj) const;
+
 public:
     ConstantPool_ptr pool;
 

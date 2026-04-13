@@ -32,21 +32,18 @@ void VM::execute_instantiate(CallFrame* frame)
 
     auto& blueprint = blueprint_obj->as<std::shared_ptr<ClassType>>();
 
-    // -------------------------------------------------------------------
-    // FIX: Subtract shared 'our' variables from the expected instance size!
-    // -------------------------------------------------------------------
-    size_t instance_data_count = blueprint->values_declaration_order.size() -
-                                 blueprint->is_ours.size();
-    size_t expected_total_size = instance_data_count + blueprint->methods_declaration_order.size();
+    size_t expected_total_size = blueprint->declaration_order.size() -
+                                 blueprint->shared_members.size();
 
     Doctor::get().assert(
         total_size == expected_total_size,
         WaspStage::VM,
-        "Arity mismatch for class " + blueprint->class_name
+        "Arity mismatch for class " + blueprint->name
     );
 
     auto instance = make_object(std::make_shared<MyObject>(std::move(memory)));
 
     push_to_stack(instance);
 }
+
 } // namespace Wasp

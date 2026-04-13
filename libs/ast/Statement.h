@@ -81,6 +81,8 @@ struct FieldDefinition : public Definition
     TypeAnnotation_ptr type;
     bool is_our;
 
+    FieldDefinition() = default;
+
     FieldDefinition(std::string name, TypeAnnotation_ptr type, bool is_our)
         : name(std::move(name)), type(std::move(type)), is_our(is_our)
     {

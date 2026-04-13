@@ -33,7 +33,7 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
                     {
                         auto [ret_type, param_types] = evaluate_function_signature(fun_def);
                         auto signature = make_object(
-                            std::make_shared<FunctionType>(param_types, ret_type)
+                            std::make_shared<LocalFunctionType>(param_types, ret_type)
                         );
 
                         auto symbol = SymbolFactory::create_local_function(

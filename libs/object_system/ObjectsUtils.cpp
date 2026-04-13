@@ -112,10 +112,22 @@ namespace Wasp
                            are_equal_types(l.value_type, r.value_type);
                 },
 
-                [](const std::shared_ptr<FunctionType>& l, const std::shared_ptr<FunctionType>& r)
+                [](const std::shared_ptr<LocalFunctionType>& l,
+                   const std::shared_ptr<LocalFunctionType>& r)
                 {
                     return are_equal_types(l->input_types, r->input_types);
                 },
+
+                [](const std::shared_ptr<MyMethodType>& l, const std::shared_ptr<MyMethodType>& r)
+                {
+                    return are_equal_types(l->input_types, r->input_types);
+                },
+
+                [](const std::shared_ptr<OurMethodType>& l, const std::shared_ptr<OurMethodType>& r)
+                {
+                    return are_equal_types(l->input_types, r->input_types);
+                },
+
                 [](const NamedDefinitionType& l, const NamedDefinitionType& r)
                 {
                     return l.name == r.name;
@@ -170,9 +182,17 @@ namespace Wasp
                 {
                     return "named definition: " + obj.name;
                 },
-                [](const std::shared_ptr<FunctionType>&) -> std::string
+                [](const std::shared_ptr<LocalFunctionType>&) -> std::string
                 {
                     return "function type";
+                },
+                [](const std::shared_ptr<MyMethodType>&) -> std::string
+                {
+                    return "my method type";
+                },
+                [](const std::shared_ptr<OurMethodType>&) -> std::string
+                {
+                    return "our method type";
                 },
 
                 // Scalar Objects
