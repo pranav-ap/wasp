@@ -21,7 +21,7 @@ namespace Wasp
 // CLASS
 // ============================================================================
 
-void Compiler::visit(ClassDefinition& class_definition)
+void Compiler::compile_class_members(ClassDefinition& class_definition)
 {
     for (auto& stmt : class_definition.members)
     {
@@ -60,6 +60,11 @@ void Compiler::visit(ClassDefinition& class_definition)
             stmt->data
         );
     }
+}
+
+void Compiler::visit(ClassDefinition& class_definition)
+{
+    compile_class_members(class_definition);
 
     Object_ptr class_blueprint = class_definition.symbol->get_type();
 

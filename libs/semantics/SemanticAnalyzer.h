@@ -11,6 +11,7 @@
 
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -39,14 +40,6 @@ class SemanticAnalyzer
 
     std::pair<Object_ptr, ObjectVector> get_function_signature(AbstractFunctionDefinition& func);
 
-    void hoist_method(
-        AbstractFunctionDefinition& method_def,
-        bool is_our,
-        const std::string& container_name,
-        Object_ptr target_type_obj,
-        std::shared_ptr<ClassType> class_type
-    );
-
     void analyze_abstract_function_body(
         AbstractFunctionDefinition& fun_def,
         bool inject_my,
@@ -56,6 +49,29 @@ class SemanticAnalyzer
     void visit(LocalFunctionDefinition& statement);
     void visit(MyMethodDefinition& statement);
     void visit(OurMethodDefinition& statement);
+
+    void extract_class_signatures(
+        ClassDefinition& def,
+        ObjectStringMap& member_types,
+        StringVector& declaration_order,
+        std::unordered_set<std::string>& shared_members
+    );
+
+    void hoist_class_methods(
+        ClassDefinition& def,
+        Object_ptr target_type_obj,
+        std::shared_ptr<ClassType> class_type
+    );
+
+    void hoist_method(
+        AbstractFunctionDefinition& method_def,
+        bool is_our,
+        const std::string& container_name,
+        Object_ptr target_type_obj,
+        std::shared_ptr<ClassType> class_type
+    );
+
+    void analyze_class_methods(ClassDefinition& def);
 
     void visit(ClassDefinition& statement);
     void visit(FieldDefinition& statement);
@@ -86,7 +102,7 @@ class SemanticAnalyzer
 
     Object_ptr define_variable(Expression_ptr assignment_expr, bool is_mutable);
     Object_ptr mutate_variable(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
-
+    Object_ptr mutate_member(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
     void visit(VariableDefinition& statement);
 
     Object_ptr visit(VariableDefinitionExpression& expr);

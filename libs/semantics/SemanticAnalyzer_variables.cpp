@@ -39,7 +39,52 @@ Object_ptr SemanticAnalyzer::visit(VariableDefinitionExpression& expr)
 
 Object_ptr SemanticAnalyzer::visit(UntypedAssignment& expr)
 {
-    return mutate_variable(expr.lhs_expression, expr.rhs_expression);
+    if (expr.lhs_expression->is<Identifier>())
+    {
+        return mutate_variable(expr.lhs_expression, expr.rhs_expression);
+    }
+
+    if (expr.lhs_expression->is<MemberAccess>())
+    {
+        return mutate_member(expr.lhs_expression, expr.rhs_expression);
+    }
+
+    Doctor::get().fatal(
+        WaspStage::Semantics,
+        "Left-hand side of assignment must be an Identifier or MemberAccess."
+    );
+
+    return nullptr;
+}
+
+Object_ptr SemanticAnalyzer::mutate_member(Expression_ptr lhs_expr, Expression_ptr rhs_expr)
+{
+    auto& mac = lhs_expr->as<MemberAccess>();
+
+    Object_ptr expected_type = visit(mac);
+
+    if (mac.member_index == -1)
+    {
+        auto symbol = mac.right->as<Identifier>().symbol;
+        if (symbol && symbol->payload_is<VariableData>())
+        {
+            Doctor::get().assert(
+                symbol->get_payload_as<VariableData>().is_mutable,
+                WaspStage::Semantics,
+                "Cannot reassign immutable shared member: " + symbol->name
+            );
+        }
+    }
+
+    Object_ptr actual_type = visit(rhs_expr);
+
+    Doctor::get().assert(
+        type_checker->assignable(current_scope, expected_type, actual_type),
+        WaspStage::Semantics,
+        "Type mismatch in member assignment."
+    );
+
+    return expected_type;
 }
 
 Object_ptr SemanticAnalyzer::visit(TypedAssignment& expr)

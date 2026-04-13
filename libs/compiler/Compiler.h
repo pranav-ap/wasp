@@ -110,6 +110,8 @@ private:
     void visit(SimpleImport& statement);
     void visit(FromImport& statement);
 
+    void compile_class_members(ClassDefinition& class_definition);
+
     void visit(ClassDefinition& statement);
 
     // Expressions
