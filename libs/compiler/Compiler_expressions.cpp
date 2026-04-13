@@ -212,8 +212,6 @@ void Compiler::visit(Infix& expr)
     case TokenType::MOD:
         emit(OpCode::MOD);
         break;
-
-    // --- Comparisons ---
     case TokenType::EQUAL_EQUAL:
         emit(OpCode::EQ);
         break;
@@ -232,7 +230,6 @@ void Compiler::visit(Infix& expr)
     case TokenType::LESSER_THAN_EQUAL:
         emit(OpCode::LE);
         break;
-
     default:
         Doctor::get().fatal(
             WaspStage::Compiler,
@@ -267,7 +264,6 @@ void Compiler::visit(MapLiteral& expr)
         visit(k);
         visit(v);
     }
-
     emit(OpCode::BUILD_MAP, static_cast<int>(expr.pairs.size()));
 }
 
@@ -292,11 +288,9 @@ void Compiler::visit(RangeLiteral& expr)
 void Compiler::visit(DotLiteral& expr)
 {
 }
-
 void Compiler::visit(TypePattern& expr)
 {
 }
-
 void Compiler::visit(Postfix& expr)
 {
 }
@@ -343,7 +337,6 @@ void Compiler::visit(Identifier& expr)
 void Compiler::visit(MemberAccess& expr)
 {
     visit(expr.left);
-
     emit(OpCode::GET_MEMBER, expr.member_index);
 }
 
@@ -351,23 +344,21 @@ void Compiler::compile_constructor_call(Call& expr)
 {
     visit(expr.callable);
 
-    for (const auto& arg : expr.arguments)
-    {
-        visit(arg);
-    }
-
     auto symbol = expr.callable->as<Identifier>().symbol;
     auto class_type_obj = symbol->get_type();
     auto class_type = class_type_obj->as<std::shared_ptr<ClassType>>();
 
-    int instance_methods_count = 0;
+    int arg_index = 0;
+    int total_size = 0;
 
     for (const std::string& member_name : class_type->declaration_order)
     {
+        // Skip shared members ('our' variables and 'our' methods)
         if (class_type->shared_members.contains(member_name))
             continue;
 
         auto type_obj = class_type->members.at(member_name);
+
         if (type_obj->is<std::shared_ptr<MyMethodType>>())
         {
             std::string mangled_name = class_type->name + "::" + member_name;
@@ -375,9 +366,12 @@ void Compiler::compile_constructor_call(Call& expr)
             int method_physical_index = -1;
             for (int i = static_cast<int>(locals.size()) - 1; i >= 0; --i)
             {
-                if (locals[i]->name == mangled_name)
+                // Fallback added: Check both mangled AND unmangled just in case the symbol table
+                // registered the group with the raw name.
+                if (locals[i]->name == mangled_name || locals[i]->name == member_name)
                 {
                     method_physical_index = i;
+                    mangled_name = locals[i]->name; // Sync name for VM byte logging
                     break;
                 }
             }
@@ -389,11 +383,22 @@ void Compiler::compile_constructor_call(Call& expr)
             );
 
             emit(OpCode::GET_LOCAL, method_physical_index, "method " + mangled_name);
-            instance_methods_count++;
         }
-    }
+        else
+        {
+            // It's an instance field! Evaluate the next provided constructor argument.
+            Doctor::get().assert(
+                arg_index < expr.arguments.size(),
+                WaspStage::Compiler,
+                "Compiler error: Not enough arguments provided for constructor."
+            );
 
-    int total_size = static_cast<int>(expr.arguments.size()) + instance_methods_count;
+            visit(expr.arguments[arg_index]);
+            arg_index++;
+        }
+
+        total_size++;
+    }
 
     emit(OpCode::INSTANTIATE, total_size);
 }
