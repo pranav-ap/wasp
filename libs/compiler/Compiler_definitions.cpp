@@ -1,11 +1,13 @@
 #include "CFGraph.h"
 #include "Compiler.h"
+#include "Doctor.h"
 #include "Objects.h"
 #include "OpCode.h"
 #include "Statement.h"
 #include <cstddef>
 #include <utility>
 #include <variant>
+
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -21,7 +23,6 @@ namespace Wasp
 
 void Compiler::visit(ClassDefinition& class_definition)
 {
-    // Compile Methods
     for (auto& stmt : class_definition.members)
     {
         std::visit(
@@ -33,6 +34,24 @@ void Compiler::visit(ClassDefinition& class_definition)
                 [&](OurMethodDefinition& method)
                 {
                     visit(method);
+                },
+                [&](FieldDefinition& field)
+                {
+                    if (field.is_our)
+                    {
+                        Doctor::get().fatal_if_nullptr(field.symbol, WaspStage::Compiler);
+
+                        emit(OpCode::LOAD_NONE);
+
+                        int physical_index = static_cast<int>(locals.size());
+                        locals.push_back(field.symbol);
+
+                        emit(
+                            OpCode::SET_LOCAL,
+                            physical_index,
+                            "shared " + class_definition.name + "::" + field.name
+                        );
+                    }
                 },
                 [&](auto&)
                 {

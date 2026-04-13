@@ -213,21 +213,22 @@ while x < 5 do
         B(Wasp::OpCode::ENTER_MODULE),
 
         B(Wasp::OpCode::LOAD_CONST),    B(val_1),
-        B(Wasp::OpCode::JUMP),          B(6), B(0),
+        B(Wasp::OpCode::SET_LOCAL),     B(0),
+        B(Wasp::OpCode::JUMP),          B(8), B(0),
 
         B(Wasp::OpCode::PUSH_SCOPE),
         B(Wasp::OpCode::GET_LOCAL),     B(0),
         B(Wasp::OpCode::LOAD_CONST),    B(val_5),
         B(Wasp::OpCode::LT),
-        B(Wasp::OpCode::JUMP_IF_FALSE), B(22), B(0),
-        B(Wasp::OpCode::JUMP),          B(18), B(0),
+        B(Wasp::OpCode::JUMP_IF_FALSE), B(24), B(0),
+        B(Wasp::OpCode::JUMP),          B(20), B(0),
 
         B(Wasp::OpCode::PUSH_SCOPE),
-        B(Wasp::OpCode::JUMP),          B(29), B(0),
+        B(Wasp::OpCode::JUMP),          B(31), B(0),
 
         B(Wasp::OpCode::POP_SCOPE),
-        B(Wasp::OpCode::JUMP),          B(26), B(0),
-        B(Wasp::OpCode::JUMP),          B(73), B(0),
+        B(Wasp::OpCode::JUMP),          B(28), B(0),
+        B(Wasp::OpCode::JUMP),          B(75), B(0),
 
         B(Wasp::OpCode::PUSH_SCOPE),
         B(Wasp::OpCode::GET_LOCAL),     B(0),
@@ -235,19 +236,19 @@ while x < 5 do
         B(Wasp::OpCode::MOD),
         B(Wasp::OpCode::LOAD_CONST),    B(val_0),
         B(Wasp::OpCode::EQ),
-        B(Wasp::OpCode::JUMP_IF_FALSE), B(55), B(0),
-        B(Wasp::OpCode::JUMP),          B(44), B(0),
+        B(Wasp::OpCode::JUMP_IF_FALSE), B(57), B(0),
+        B(Wasp::OpCode::JUMP),          B(46), B(0),
 
         B(Wasp::OpCode::GET_NATIVE),    B(0),
         B(Wasp::OpCode::GET_LOCAL),     B(0),
         B(Wasp::OpCode::CALL),          B(1),
         B(Wasp::OpCode::POP),
         B(Wasp::OpCode::POP_SCOPE),
-        B(Wasp::OpCode::JUMP),          B(60), B(0),
+        B(Wasp::OpCode::JUMP),          B(62), B(0),
 
         B(Wasp::OpCode::POP_SCOPE),
         B(Wasp::OpCode::PUSH_SCOPE),
-        B(Wasp::OpCode::JUMP),          B(60), B(0),
+        B(Wasp::OpCode::JUMP),          B(62), B(0),
 
         B(Wasp::OpCode::GET_LOCAL),     B(0),
         B(Wasp::OpCode::LOAD_CONST),    B(val_1),
@@ -257,7 +258,7 @@ while x < 5 do
 
         B(Wasp::OpCode::POP_SCOPE),
         B(Wasp::OpCode::POP_SCOPE),
-        B(Wasp::OpCode::JUMP),          B(6), B(0),
+        B(Wasp::OpCode::JUMP),          B(8), B(0),
 
         B(Wasp::OpCode::GET_LOCAL),     B(0),
         B(Wasp::OpCode::EXIT_MODULE),   B(1),

@@ -37,38 +37,102 @@ Object_ptr SemanticAnalyzer::visit(Identifier& identifier)
     return resolved_symbol->get_type();
 }
 
-Object_ptr SemanticAnalyzer::visit(MemberAccess& access)
+Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
 {
-    Object_ptr receiver_type = visit(access.left);
+    Object_ptr left_type = visit(expr.left);
 
     Doctor::get().assert(
-        access.right->is<Identifier>(),
+        expr.right->is<Identifier>(),
         WaspStage::Semantics,
         "RHS of member access must be an identifier."
     );
 
-    std::string target_name = access.right->as<Identifier>().name;
+    std::string member_name = expr.right->as<Identifier>().name;
 
-    if (receiver_type->is<std::shared_ptr<ModuleType>>())
+    if (left_type->is<std::shared_ptr<ModuleType>>())
     {
-        const auto module_ref = receiver_type->as<std::shared_ptr<ModuleType>>();
+        const auto module_ref = left_type->as<std::shared_ptr<ModuleType>>();
 
-        access.member_index = module_ref->get_member_index(target_name);
-        return module_ref->get_member_type(target_name);
+        expr.member_index = module_ref->get_member_index(member_name);
+        return module_ref->get_member_type(member_name);
     }
-    else if (receiver_type->is<std::shared_ptr<ClassType>>())
+    else if (left_type->is<std::shared_ptr<ClassType>>())
     {
-        const auto class_ref = receiver_type->as<std::shared_ptr<ClassType>>();
+        const auto class_ref = left_type->as<std::shared_ptr<ClassType>>();
 
-        access.member_index = class_ref->get_member_index(target_name);
-        return class_ref->get_member_type(target_name);
+        if (class_ref->shared_members.contains(member_name))
+        {
+            // Flag as a shared/static member
+            expr.member_index = -1;
+
+            // Map to the compiler's mangled local variable
+            std::string mangled_name = class_ref->name + "::" + member_name;
+            Symbol_ptr symbol = current_scope->lookup(mangled_name);
+            Doctor::get().fatal_if_nullptr(
+                symbol,
+                WaspStage::Semantics,
+                "Could not find shared member: " + mangled_name
+            );
+
+            auto& right_id = expr.right->as<Identifier>();
+            right_id.symbol = symbol;
+
+            if (symbol->should_be_captured(current_scope->get_closure_depth()))
+            {
+                right_id.must_be_captured = true;
+            }
+        }
+        else
+        {
+            expr.member_index = class_ref->get_member_index(member_name);
+        }
+
+        return class_ref->get_member_type(member_name);
     }
 
     Doctor::get().fatal(
         WaspStage::Semantics,
-        "Cannot access member '" + target_name +
+        "Cannot access member '" + member_name +
             "'. The left-hand side is neither a module nor a class instance."
     );
+    return nullptr;
+}
+
+Object_ptr SemanticAnalyzer::evaluate_our_method_call(
+    Call& call,
+    MemberAccess& access,
+    const ObjectVector& argument_types,
+    Object_ptr receiver_type
+)
+{
+    Doctor::get().assert(
+        access.right->is<Identifier>(),
+        WaspStage::Semantics,
+        "Method name must be an identifier."
+    );
+
+    auto& method_identifier = access.right->as<Identifier>();
+    auto receiver_class = receiver_type->as<std::shared_ptr<ClassType>>();
+
+    auto [group_symbol, resolved_method, overload_index] = type_checker->resolve_class_method_call(
+        current_scope,
+        receiver_class->name,
+        method_identifier.name,
+        argument_types
+    );
+
+    // Crucial Flags: Indicates an 'our' member, and passes the Overload Group for GET_LOCAL
+    access.member_index = -1;
+    call.overload_index = overload_index;
+    method_identifier.symbol = group_symbol;
+    call.is_method_call = true;
+
+    if (resolved_method->should_be_captured(current_scope->get_closure_depth()))
+    {
+        method_identifier.must_be_captured = true;
+    }
+
+    return get_function_return_type(resolved_method);
 }
 
 Object_ptr SemanticAnalyzer::visit(Call& call)
@@ -106,12 +170,28 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
 
                 if (receiver_type->is<std::shared_ptr<ClassType>>())
                 {
-                    return evaluate_instance_method_call(
-                        call,
-                        access,
-                        argument_types,
-                        receiver_type
-                    );
+                    bool is_class_blueprint = false;
+
+                    if (access.left->is<Identifier>())
+                    {
+                        auto sym = access.left->as<Identifier>().symbol;
+                        if (sym && sym->payload_is<ClassData>())
+                        {
+                            is_class_blueprint = true;
+                        }
+                    }
+
+                    if (is_class_blueprint)
+                    {
+                        return evaluate_our_method_call(
+                            call,
+                            access,
+                            argument_types,
+                            receiver_type
+                        );
+                    }
+
+                    return evaluate_my_method_call(call, access, argument_types, receiver_type);
                 }
 
                 return evaluate_module_method_call(call, access, argument_types);
@@ -162,7 +242,7 @@ Object_ptr SemanticAnalyzer::evaluate_identifier_call(
     return get_function_return_type(resolved_function);
 }
 
-Object_ptr SemanticAnalyzer::evaluate_instance_method_call(
+Object_ptr SemanticAnalyzer::evaluate_my_method_call(
     Call& call,
     MemberAccess& access,
     const ObjectVector& argument_types,

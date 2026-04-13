@@ -2,11 +2,14 @@ class Movie
     id: int
     name: str
 
-    fun edit()
-        print('Hello!')
+    total: our int
+
+    fun our get_total()
+        print(our.total)
 
 
 
 let m = Movie(1, 'sam')
+Movie.total = 42
 
-m.edit()
+Movie.get_total()

@@ -28,6 +28,123 @@ namespace Wasp
 // CLASS
 // ============================================================================
 
+void SemanticAnalyzer::visit(ClassDefinition& def)
+{
+    ObjectStringMap member_types;
+    StringVector declaration_order;
+    std::unordered_set<std::string> shared_members;
+
+    auto add_unique_declaration = [&](const std::string& name)
+    {
+        if (std::find(declaration_order.begin(), declaration_order.end(), name) ==
+            declaration_order.end())
+        {
+            declaration_order.push_back(name);
+        }
+    };
+
+    for (auto& stmt : def.members)
+    {
+        std::visit(
+            overloaded{
+                [&](FieldDefinition& field)
+                {
+                    auto field_type = visit(field.type);
+                    member_types[field.name] = field_type;
+                    declaration_order.push_back(field.name);
+
+                    if (field.is_our)
+                    {
+                        shared_members.insert(field.name);
+
+                        std::string mangled_name = def.name + "::" + field.name;
+
+                        auto symbol = SymbolFactory::create_variable(
+                            mangled_name,
+                            field_type,
+                            true,
+                            current_scope->get_closure_depth(),
+                            current_scope->get_lexical_depth()
+                        );
+
+                        current_scope->define(symbol);
+                        field.symbol = symbol;
+                    }
+                },
+                [&](MyMethodDefinition& method)
+                {
+                    add_unique_declaration(method.name);
+                },
+                [&](OurMethodDefinition& method)
+                {
+                    add_unique_declaration(method.name);
+                    shared_members.insert(method.name);
+                },
+                [&](auto&)
+                {
+                    Doctor::get().fatal(WaspStage::Semantics, "Invalid statement in class body.");
+                }
+            },
+            stmt->data
+        );
+    }
+
+    auto class_type = std::make_shared<ClassType>(
+        def.name,
+        std::move(member_types),
+        std::move(shared_members),
+        std::move(declaration_order)
+    );
+
+    Object_ptr target_type_obj = make_object(class_type);
+
+    Doctor::get().fatal_if_nullptr(def.symbol, WaspStage::Semantics);
+    def.symbol->set_type(target_type_obj);
+    class_type_stack.push_back(target_type_obj);
+
+    for (auto& stmt : def.members)
+    {
+        std::visit(
+            overloaded{
+                [&](MyMethodDefinition& m)
+                {
+                    hoist_method(m, false, def.name, target_type_obj, class_type);
+                },
+                [&](OurMethodDefinition& m)
+                {
+                    hoist_method(m, true, def.name, target_type_obj, class_type);
+                },
+                [&](auto&)
+                {
+                }
+            },
+            stmt->data
+        );
+    }
+
+    for (auto& stmt : def.members)
+    {
+        std::visit(
+            overloaded{
+                [&](MyMethodDefinition& m)
+                {
+                    visit(m);
+                },
+                [&](OurMethodDefinition& m)
+                {
+                    visit(m);
+                },
+                [&](auto&)
+                {
+                }
+            },
+            stmt->data
+        );
+    }
+
+    class_type_stack.pop_back();
+}
+
 void SemanticAnalyzer::hoist_method(
     AbstractFunctionDefinition& method_def,
     bool is_our,
@@ -87,112 +204,6 @@ void SemanticAnalyzer::hoist_method(
     method_def.group_symbol = current_scope->lookup(method_def.name);
 
     class_type->members[original_name] = method_symbol->get_type();
-}
-
-void SemanticAnalyzer::visit(ClassDefinition& def)
-{
-    ObjectStringMap member_types;
-    StringVector declaration_order;
-    std::unordered_set<std::string> shared_members;
-
-    auto add_unique_declaration = [&](const std::string& name)
-    {
-        if (std::find(declaration_order.begin(), declaration_order.end(), name) ==
-            declaration_order.end())
-        {
-            declaration_order.push_back(name);
-        }
-    };
-
-    // Create Class Type
-
-    for (auto& stmt : def.members)
-    {
-        std::visit(
-            overloaded{
-                [&](FieldDefinition& field)
-                {
-                    member_types[field.name] = visit(field.type);
-                    declaration_order.push_back(field.name);
-                    if (field.is_our)
-                        shared_members.insert(field.name);
-                },
-                [&](MyMethodDefinition& method)
-                {
-                    add_unique_declaration(method.name);
-                },
-                [&](OurMethodDefinition& method)
-                {
-                    add_unique_declaration(method.name);
-                    shared_members.insert(method.name);
-                },
-                [&](auto&)
-                {
-                    Doctor::get().fatal(WaspStage::Semantics, "Invalid statement in class body.");
-                }
-            },
-            stmt->data
-        );
-    }
-
-    auto class_type = std::make_shared<ClassType>(
-        def.name,
-        std::move(member_types),
-        std::move(shared_members),
-        std::move(declaration_order)
-    );
-
-    Object_ptr target_type_obj = make_object(class_type);
-
-    Doctor::get().fatal_if_nullptr(def.symbol, WaspStage::Semantics);
-    def.symbol->set_type(target_type_obj);
-    class_type_stack.push_back(target_type_obj);
-
-    // Hoist Methods
-
-    for (auto& stmt : def.members)
-    {
-        std::visit(
-            overloaded{
-                [&](MyMethodDefinition& m)
-                {
-                    hoist_method(m, false, def.name, target_type_obj, class_type);
-                },
-                [&](OurMethodDefinition& m)
-                {
-                    hoist_method(m, true, def.name, target_type_obj, class_type);
-                },
-                [&](auto&)
-                {
-                }
-            },
-            stmt->data
-        );
-    }
-
-    // Analyze Method Bodies
-
-    for (auto& stmt : def.members)
-    {
-        std::visit(
-            overloaded{
-                [&](MyMethodDefinition& m)
-                {
-                    visit(m);
-                },
-                [&](OurMethodDefinition& m)
-                {
-                    visit(m);
-                },
-                [&](auto&)
-                {
-                } // Ignore fields
-            },
-            stmt->data
-        );
-    }
-
-    class_type_stack.pop_back();
 }
 
 // ============================================================================

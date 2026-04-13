@@ -8,7 +8,6 @@
 class CompileVariables : public CompilerTestBase
 {
 };
-
 TEST_F(CompileVariables, DefineAndUseVariable)
 {
     auto actual_bytes = compile(R"(
@@ -26,13 +25,14 @@ x + 1
         B(Wasp::OpCode::ENTER_MODULE),
 
         B(Wasp::OpCode::LOAD_CONST),    B(val_42),
+        B(Wasp::OpCode::SET_LOCAL),     B(var_x),
 
         B(Wasp::OpCode::GET_LOCAL),     B(var_x),
         B(Wasp::OpCode::LOAD_CONST),    B(val_1),
         B(Wasp::OpCode::ADD),
         B(Wasp::OpCode::POP),
 
-        B(Wasp::OpCode::JUMP),          B(12), B(0),
+        B(Wasp::OpCode::JUMP),          B(14), B(0),
 
         B(Wasp::OpCode::GET_LOCAL),     B(var_x),
         B(Wasp::OpCode::EXIT_MODULE),   B(1)
@@ -59,6 +59,7 @@ x = x + 1
         B(Wasp::OpCode::ENTER_MODULE),
 
         B(Wasp::OpCode::LOAD_CONST),    B(val_42),
+        B(Wasp::OpCode::SET_LOCAL),     B(var_x),
 
         B(Wasp::OpCode::GET_LOCAL),     B(var_x),
         B(Wasp::OpCode::LOAD_CONST),    B(val_1),
@@ -66,7 +67,7 @@ x = x + 1
         B(Wasp::OpCode::SET_LOCAL),     B(var_x),
         B(Wasp::OpCode::POP),
 
-        B(Wasp::OpCode::JUMP),          B(14), B(0),
+        B(Wasp::OpCode::JUMP),          B(16), B(0),
 
         B(Wasp::OpCode::GET_LOCAL),     B(var_x),
         B(Wasp::OpCode::EXIT_MODULE),   B(1)

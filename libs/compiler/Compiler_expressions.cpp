@@ -47,10 +47,96 @@ void Compiler::visit(Identifier& expr)
     }
 }
 
-void Compiler::visit(MemberAccess& expr)
+void Compiler::visit(MemberAccess& access)
 {
-    visit(expr.left);
-    emit(OpCode::GET_MEMBER, expr.member_index);
+    if (access.member_index == -1)
+    {
+        // It's an 'our' member. It exists as a standalone local variable!
+        auto& target_identifier = access.right->as<Identifier>();
+        auto symbol = target_identifier.symbol;
+
+        Doctor::get().fatal_if_nullptr(symbol, WaspStage::Compiler);
+
+        if (symbol->is_native())
+        {
+            auto native_registry_id = workspace->native_registry->get_native_index(symbol->name);
+            emit(OpCode::GET_NATIVE, native_registry_id, symbol->name);
+        }
+        else if (target_identifier.must_be_captured)
+        {
+            int upval_index = resolve_upvalue(this, symbol);
+            emit(OpCode::GET_UPVALUE, upval_index, symbol->name);
+        }
+        else
+        {
+            int stack_index = resolve_local(symbol->id);
+
+            Doctor::get().assert(
+                stack_index != -1,
+                WaspStage::Compiler,
+                "Attempted to read an unresolved shared member: " + symbol->name
+            );
+
+            emit(OpCode::GET_LOCAL, stack_index, symbol->name);
+        }
+    }
+    else
+    {
+        // Standard instance/module memory lookup
+        visit(access.left);
+        emit(OpCode::GET_MEMBER, access.member_index);
+    }
+}
+
+void Compiler::compile_member_assignment(MemberAccess& access, const Expression_ptr& value)
+{
+    if (access.member_index == -1)
+    {
+        // Assigning to an 'our' variable. Evaluate the value first (Stack: [val])
+        visit(value);
+
+        auto& target_identifier = access.right->as<Identifier>();
+        auto symbol = target_identifier.symbol;
+
+        Doctor::get().fatal_if_nullptr(symbol, WaspStage::Compiler);
+
+        if (target_identifier.must_be_captured)
+        {
+            int idx = resolve_upvalue(this, symbol);
+            emit(OpCode::SET_UPVALUE, idx, symbol->name);
+        }
+        else
+        {
+            int stack_index = resolve_local(symbol->id);
+
+            Doctor::get().assert(
+                stack_index != -1,
+                WaspStage::Compiler,
+                "Attempted to assign to an unresolved shared member: " + symbol->name
+            );
+
+            emit(OpCode::SET_LOCAL, stack_index, symbol->name);
+        }
+    }
+    else
+    {
+        // Standard Instance Memory Assignment
+
+        // Evaluate the object first (Stack: [obj])
+        visit(access.left);
+
+        // Evaluate the value second (Stack: [obj, val])
+        visit(value);
+
+        Doctor::get().assert(
+            access.right->is<Identifier>(),
+            WaspStage::Compiler,
+            "Right side of member assignment must be an Identifier"
+        );
+
+        auto target_name = access.right->as<Identifier>().name;
+        emit(OpCode::SET_MEMBER, access.member_index, target_name);
+    }
 }
 
 // ===========================================================================
@@ -81,23 +167,6 @@ void Compiler::compile_identifier_assignment(Identifier& id, const Expression_pt
 
         emit(OpCode::SET_LOCAL, stack_index, symbol->name);
     }
-}
-
-void Compiler::compile_member_assignment(MemberAccess& mac, const Expression_ptr& rhs)
-{
-    // Evaluate the object first (Stack: [obj])
-    visit(mac.left);
-
-    // Evaluate the value second (Stack: [obj, val])
-    visit(rhs);
-
-    Doctor::get().assert(
-        mac.right->is<Identifier>(),
-        WaspStage::Compiler,
-        "Right side of member assignment must be an Identifier"
-    );
-
-    emit(OpCode::SET_MEMBER, mac.member_index, mac.right->as<Identifier>().name);
 }
 
 // ===========================================================================

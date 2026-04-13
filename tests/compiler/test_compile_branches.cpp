@@ -66,22 +66,25 @@ if let x = true then 3 else 1
         B(Wasp::OpCode::JUMP),          B(4), B(0),
         B(Wasp::OpCode::PUSH_SCOPE),
         B(Wasp::OpCode::LOAD_TRUE),
-        B(Wasp::OpCode::JUMP_IF_FALSE), B(20), B(0),
-        B(Wasp::OpCode::JUMP),          B(12), B(0),
+        B(Wasp::OpCode::SET_LOCAL),     B(0),
+        B(Wasp::OpCode::GET_LOCAL),     B(0),
+        B(Wasp::OpCode::JUMP_IF_FALSE), B(24), B(0),
+        B(Wasp::OpCode::JUMP),          B(16), B(0),
 
         B(Wasp::OpCode::PUSH_SCOPE),
         B(Wasp::OpCode::LOAD_CONST),    B(val_3),
         B(Wasp::OpCode::POP_SCOPE_KEEP_TOS),
         B(Wasp::OpCode::POP_SCOPE_KEEP_TOS),
-        B(Wasp::OpCode::JUMP),          B(28), B(0),
+        B(Wasp::OpCode::JUMP),          B(32), B(0),
 
         B(Wasp::OpCode::POP_SCOPE),
         B(Wasp::OpCode::PUSH_SCOPE),
         B(Wasp::OpCode::LOAD_CONST),    B(val_1),
         B(Wasp::OpCode::POP_SCOPE_KEEP_TOS),
-        B(Wasp::OpCode::JUMP),          B(28), B(0),
-        B(Wasp::OpCode::POP),
         B(Wasp::OpCode::JUMP),          B(32), B(0),
+
+        B(Wasp::OpCode::POP),
+        B(Wasp::OpCode::JUMP),          B(36), B(0),
 
         B(Wasp::OpCode::EXIT_MODULE),   B(0)
     };
