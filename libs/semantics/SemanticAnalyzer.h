@@ -11,7 +11,6 @@
 
 #include <memory>
 #include <string>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -39,38 +38,16 @@ class SemanticAnalyzer
     void hoist_statements(StatementVector& statements);
 
     std::pair<Object_ptr, ObjectVector> get_function_signature(AbstractFunctionDefinition& func);
+    std::pair<Object_ptr, ObjectVector> get_function_signature(Object_ptr type_obj);
 
-    void analyze_abstract_function_body(
-        AbstractFunctionDefinition& fun_def,
-        bool inject_my,
-        bool inject_our
-    );
+    void analyze_abstract_function_body(AbstractFunctionDefinition& fun_def, bool is_method);
 
-    void visit(LocalFunctionDefinition& statement);
-    void visit(MyMethodDefinition& statement);
-    void visit(OurMethodDefinition& statement);
+    void visit(FunctionDefinition& statement);
+    void visit(MethodDefinition& statement);
 
-    void extract_class_signatures(
-        ClassDefinition& def,
-        ObjectStringMap& member_types,
-        StringVector& declaration_order,
-        std::unordered_set<std::string>& shared_members
-    );
-
-    void hoist_class_methods(
-        ClassDefinition& def,
-        Object_ptr target_type_obj,
-        std::shared_ptr<ClassType> class_type
-    );
-
-    void hoist_method(
-        AbstractFunctionDefinition& method_def,
-        bool is_our,
-        const std::string& container_name,
-        Object_ptr target_type_obj,
-        std::shared_ptr<ClassType> class_type
-    );
-
+    ClassType_ptr extract_class_type(ClassDefinition& def);
+    void hoist_class_methods(ClassDefinition& def);
+    void hoist_method(AbstractFunctionDefinition& method_def, const std::string& container_name);
     void analyze_class_methods(ClassDefinition& def);
 
     void visit(ClassDefinition& statement);
@@ -141,18 +118,11 @@ class SemanticAnalyzer
         const ObjectVector& arg_types
     );
 
-    Object_ptr evaluate_my_method_call(
+    Object_ptr evaluate_instance_method_call(
         Call& call_expr,
         MemberAccess& mac,
         const ObjectVector& arg_types,
         Object_ptr left_type
-    );
-
-    Object_ptr evaluate_our_method_call(
-        Call& call,
-        MemberAccess& access,
-        const ObjectVector& argument_types,
-        Object_ptr receiver_type
     );
 
     Object_ptr evaluate_instance_creation(

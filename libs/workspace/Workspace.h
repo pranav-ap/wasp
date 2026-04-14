@@ -56,29 +56,19 @@ struct AbstractFunctionData : public TypedSymbolData
     }
 };
 
-struct LocalFunctionData : public AbstractFunctionData
+struct FunctionData : public AbstractFunctionData
 {
     using AbstractFunctionData::AbstractFunctionData;
 };
 
-struct AbstractMethodData : public AbstractFunctionData
+struct MethodData : public AbstractFunctionData
 {
     Object_ptr class_definition;
 
-    explicit AbstractMethodData(Object_ptr class_definition, bool is_native)
+    MethodData(Object_ptr class_definition, bool is_native)
         : AbstractFunctionData(is_native), class_definition(std::move(class_definition))
     {
     }
-};
-
-struct MyMethodData : public AbstractMethodData
-{
-    using AbstractMethodData::AbstractMethodData;
-};
-
-struct OurMethodData : public AbstractMethodData
-{
-    using AbstractMethodData::AbstractMethodData;
 };
 
 struct OverloadGroupData : public TypedSymbolData
@@ -122,9 +112,8 @@ struct AliasData
 
 using SymbolPayload = std::variant<
     VariableData,
-    LocalFunctionData,
-    MyMethodData,
-    OurMethodData,
+    FunctionData,
+    MethodData,
     ModuleData,
     ClassData,
     TraitData,
@@ -194,7 +183,7 @@ public:
         int lexical_depth = 0
     );
 
-    static Symbol_ptr create_local_function(
+    static Symbol_ptr create_function(
         std::string name,
         Object_ptr type,
         bool is_native = false,
@@ -202,16 +191,7 @@ public:
         int lexical_depth = 0
     );
 
-    static Symbol_ptr create_my_method(
-        std::string name,
-        Object_ptr type,
-        Object_ptr class_definition = nullptr,
-        bool is_native = false,
-        int closure_depth = 0,
-        int lexical_depth = 0
-    );
-
-    static Symbol_ptr create_our_method(
+    static Symbol_ptr create_method(
         std::string name,
         Object_ptr type,
         Object_ptr class_definition = nullptr,

@@ -1,14 +1,37 @@
-class for Movie
-    total: int
+import my.catalog as c
+import my.utils
 
+utils.print_header(c.store_name)
+utils.print_header('Welcome Traveler', '*')
 
-class Movie
-    id: int
-    name: str
+let sword = c.Item(1, 'Iron Sword', 150)
+let potion = c.Item(2, 'Health Potion', 25)
+let boots = c.Item(3, 'Leather Boots', 45)
 
-    fun defaults()
-        pass
+print('')
+print('Items for sale:')
+sword.print_details()
+potion.print_details()
+boots.print_details()
 
+print('')
 
-let m = Movie(1, 'sam')
+let wallet = 100
+let target_item = sword
 
+print('You have $' + wallet + ' and want to buy the ' + target_item.name + '.')
+
+if wallet >= target_item.price then
+    wallet = wallet - target_item.price
+    print('Purchase successful! Remaining gold: $' + wallet)
+elif wallet == 0 then
+    print('You are completely broke!')
+else
+    let shortage = target_item.price - wallet
+    print('Not enough gold. You need $' + shortage + ' more.')
+
+print('')
+
+print('Checking your inventory slots...')
+for let slot in [1, 2, 3] do
+    print('Bag slot ' + slot + ' is empty.')

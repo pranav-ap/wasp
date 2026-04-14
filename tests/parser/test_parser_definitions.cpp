@@ -50,7 +50,7 @@ fun add(a: int, b: int) => int
 
     ASSERT_EQ(block.size(), 1);
 
-    auto& func_def = check<Wasp::LocalFunctionDefinition>(block[0]);
+    auto& func_def = check<Wasp::FunctionDefinition>(block[0]);
     ASSERT_EQ(func_def.body.size(), 2);
 
     // IF ELSE NESTING
@@ -84,7 +84,7 @@ fun add(a: int, b: int) => int
 
     ASSERT_EQ(block.size(), 1);
 
-    auto& func_def = check<Wasp::LocalFunctionDefinition>(block[0]);
+    auto& func_def = check<Wasp::FunctionDefinition>(block[0]);
     ASSERT_EQ(func_def.body.size(), 2);
 
     auto& loop = check<Wasp::SimpleLoop>(func_def.body[0]);
@@ -182,11 +182,11 @@ class Person
     EXPECT_EQ(class_def.name, "Person");
     ASSERT_EQ(class_def.members.size(), 2);
 
-    auto& func_def1 = check<Wasp::MyMethodDefinition>(class_def.members[0]);
+    auto& func_def1 = check<Wasp::MethodDefinition>(class_def.members[0]);
     EXPECT_EQ(func_def1.name, "fortify");
     ASSERT_EQ(func_def1.parameters.size(), 0);
 
-    auto& func_def2 = check<Wasp::MyMethodDefinition>(class_def.members[1]);
+    auto& func_def2 = check<Wasp::MethodDefinition>(class_def.members[1]);
     EXPECT_EQ(func_def2.name, "weaken");
 
     ASSERT_EQ(func_def2.parameters.size(), 1);

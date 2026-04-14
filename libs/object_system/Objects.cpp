@@ -77,31 +77,33 @@ Object_ptr MemberedCompositeType::get_member_type(const std::string& member_name
 
 void MemberedCompositeType::set_member(const std::string& member_name, Object_ptr value)
 {
+    if (!members.contains(member_name))
+    {
+        ordered_keys.push_back(member_name);
+    }
     members[member_name] = std::move(value);
 }
 
 Object_ptr MemberedCompositeType::get_member(int member_id) const
 {
     Doctor::get().assert(
-        member_id >= 0 && member_id < static_cast<int>(members.size()),
+        member_id >= 0 && member_id < static_cast<int>(ordered_keys.size()),
         WaspStage::Semantics,
         "Type Member index out of bounds!"
     );
-    auto it = members.begin();
-    std::advance(it, member_id);
-    return it->second;
+
+    return members.at(ordered_keys[member_id]);
 }
 
 void MemberedCompositeType::set_member(int member_id, Object_ptr value)
 {
     Doctor::get().assert(
-        member_id >= 0 && member_id < static_cast<int>(members.size()),
+        member_id >= 0 && member_id < static_cast<int>(ordered_keys.size()),
         WaspStage::Semantics,
         "Type Member index out of bounds!"
     );
-    auto it = members.begin();
-    std::advance(it, member_id);
-    it->second = std::move(value);
+
+    members[ordered_keys[member_id]] = std::move(value);
 }
 
 int MemberedCompositeType::get_member_index(const std::string& member_name) const
@@ -112,76 +114,110 @@ int MemberedCompositeType::get_member_index(const std::string& member_name) cons
         "Member '" + member_name + "' not found!"
     );
 
-    auto it = members.find(member_name);
-    return static_cast<int>(std::distance(members.begin(), it));
-}
-
-int ClassType::get_member_index(const std::string& member_name) const
-{
-    int physical_index = 0;
-
-    for (const std::string& name : declaration_order)
+    for (size_t i = 0; i < ordered_keys.size(); ++i)
     {
-        if (shared_members.contains(name))
+        if (ordered_keys[i] == member_name)
         {
-            continue;
+            return static_cast<int>(i);
         }
-
-        if (name == member_name)
-        {
-            return physical_index;
-        }
-
-        physical_index++;
     }
 
     return -1;
 }
 
-StringVector ClassType::get_instance_variable_names_in_declaration_order() const
+// ============================================================================
+// Class Type
+// ============================================================================
+
+ObjectVector ClassType::get_fields() const
 {
-    StringVector instance_vars;
-
-    for (const auto& name : declaration_order)
+    ObjectVector field_types;
+    for (const auto& field_name : fields)
     {
-        if (shared_members.contains(name))
-            continue;
-
-        Object_ptr type_obj = members.at(name);
-
-        if (type_obj->is<std::shared_ptr<MyMethodType>>() ||
-            type_obj->is<std::shared_ptr<OurMethodType>>())
-        {
-            continue;
-        }
-
-        instance_vars.push_back(name);
+        field_types.push_back(members.at(field_name));
     }
-
-    return instance_vars;
+    return field_types;
 }
 
-StringVector ClassType::get_class_variables_declaration_order() const
+ObjectVector ClassType::get_methods() const
 {
-    StringVector class_vars;
-
-    for (const auto& name : declaration_order)
+    ObjectVector method_types;
+    for (const auto& method_name : methods)
     {
-        if (!shared_members.contains(name))
-            continue;
+        method_types.push_back(members.at(method_name));
+    }
+    return method_types;
+}
 
-        Object_ptr type_obj = members.at(name);
+ObjectVector ClassType::get_members() const
+{
+    ObjectVector members = get_fields();
+    ObjectVector methods = get_methods();
+    members.insert(members.end(), methods.begin(), methods.end());
+    return members;
+}
 
-        if (type_obj->is<std::shared_ptr<MyMethodType>>() ||
-            type_obj->is<std::shared_ptr<OurMethodType>>())
-        {
-            continue;
-        }
+bool ClassType::contains_member(const std::string& member_name) const
+{
+    return members.contains(member_name);
+}
 
-        class_vars.push_back(name);
+int ClassType::get_member_index(const std::string& member_name) const
+{
+    Doctor::get().assert(
+        contains_member(member_name),
+        WaspStage::Semantics,
+        "Member '" + member_name + "' not found in class " + name
+    );
+
+    for (size_t i = 0; i < fields.size(); ++i)
+    {
+        if (fields[i] == member_name)
+            return static_cast<int>(i);
     }
 
-    return class_vars;
+    for (size_t i = 0; i < methods.size(); ++i)
+    {
+        if (methods[i] == member_name)
+            return static_cast<int>(fields.size() + i);
+    }
+
+    return -1;
+}
+
+Object_ptr ClassType::get_member(int member_id) const
+{
+    int field_count = static_cast<int>(fields.size());
+
+    if (member_id < field_count)
+    {
+        return members.at(fields[member_id]);
+    }
+
+    int method_index = member_id - field_count;
+
+    if (method_index < static_cast<int>(methods.size()))
+    {
+        return members.at(methods[method_index]);
+    }
+
+    Doctor::get().fatal(WaspStage::Semantics, "ClassType member index out of bounds!");
+}
+
+Object_ptr ClassType::get_member(const std::string& member_name) const
+{
+    Doctor::get().assert(
+        contains_member(member_name),
+        WaspStage::Semantics,
+        "Member '" + member_name + "' not found in class " + name
+    );
+
+    return members.at(member_name);
+}
+
+void ClassType::set_member(const std::string& member_name, Object_ptr value)
+{
+    members[member_name] = std::move(value);
 }
 
 // ============================================================================

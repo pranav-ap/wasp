@@ -123,13 +123,10 @@ Statement_ptr Parser::parse_annotation_definition()
 }
 
 // Function
-
 Statement_ptr Parser::parse_function_definition(int indent_level, bool in_impl_block)
 {
     // Consume 'fun' keyword
     token_pipe.advance_pointer();
-
-    bool is_our = token_pipe.consume_optional_in_line(TokenType::OUR).has_value();
 
     auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
     auto name = name_token.value;
@@ -172,18 +169,11 @@ Statement_ptr Parser::parse_function_definition(int indent_level, bool in_impl_b
 
     if (in_impl_block)
     {
-        if (is_our)
-        {
-            return make_statement(OurMethodDefinition(name, parameters, return_type, body));
-        }
-        else
-        {
-            return make_statement(MyMethodDefinition(name, parameters, return_type, body));
-        }
+        return make_statement(MethodDefinition(name, parameters, return_type, body));
     }
     else
     {
-        return make_statement(LocalFunctionDefinition(name, parameters, return_type, body));
+        return make_statement(FunctionDefinition(name, parameters, return_type, body));
     }
 }
 
@@ -231,8 +221,8 @@ std::tuple<std::string, std::vector<std::string>, StatementVector> Parser::
         }
         else
         {
-            auto [is_our, member_name, member_type] = parse_name_type_pair(body_indent);
-            members.push_back(make_statement(FieldDefinition(member_name, member_type, is_our)));
+            auto [member_name, member_type] = parse_name_type_pair(body_indent);
+            members.push_back(make_statement(FieldDefinition(member_name, member_type)));
         }
     }
 
@@ -245,25 +235,24 @@ Statement_ptr Parser::parse_class_definition(int indent_level)
     return make_statement(ClassDefinition(name, traits, members));
 }
 
-std::tuple<bool, std::string, TypeAnnotation_ptr> Parser::parse_name_type_pair(int member_indent)
+std::pair<std::string, TypeAnnotation_ptr> Parser::parse_name_type_pair(int member_indent)
 {
     auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
     std::string name = name_token.value;
 
     token_pipe.require_in_line(TokenType::COLON);
-    bool is_our = token_pipe.consume_optional_in_line(TokenType::OUR).has_value();
 
     if (token_pipe.consume_optional_in_line(TokenType::RECORD))
     {
         token_pipe.require_in_line(TokenType::EOL);
         auto parsed_block = parse_name_type_block(member_indent + 1);
-        return {is_our, name, MAKE_RECURSIVE_TYPE(RecordTypeNode, std::move(parsed_block))};
+        return {name, MAKE_RECURSIVE_TYPE(RecordTypeNode, std::move(parsed_block))};
     }
 
     auto type = parse_type();
     token_pipe.require_in_line(TokenType::EOL);
 
-    return {is_our, name, type};
+    return {name, type};
 }
 
 StatementVector Parser::parse_name_type_block(int expected_indent)
@@ -280,8 +269,8 @@ StatementVector Parser::parse_name_type_block(int expected_indent)
         }
 
         token_pipe.expect_n_indents(expected_indent);
-        auto [is_our, member_name, member_type] = parse_name_type_pair(expected_indent);
-        members.push_back(make_statement(FieldDefinition(member_name, member_type, is_our)));
+        auto [member_name, member_type] = parse_name_type_pair(expected_indent);
+        members.push_back(make_statement(FieldDefinition(member_name, member_type)));
     }
 
     return members;

@@ -56,7 +56,7 @@ Object_ptr VM::perform_get_member(Object_ptr obj, int member_index)
                 return mod->get_member(member_index);
             },
 
-            [&](std::shared_ptr<MyObject>& instance) -> Object_ptr
+            [&](std::shared_ptr<InstanceObject>& instance) -> Object_ptr
             {
                 return instance->get_member(member_index);
             },
@@ -84,7 +84,7 @@ void VM::perform_set_member(Object_ptr obj, int member_index, Object_ptr value)
                 mod->set_member(member_index, value);
             },
 
-            [&](std::shared_ptr<MyObject>& instance)
+            [&](std::shared_ptr<InstanceObject>& instance)
             {
                 instance->set_member(member_index, value);
             },

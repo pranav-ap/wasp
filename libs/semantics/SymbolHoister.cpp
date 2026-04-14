@@ -24,13 +24,9 @@ void SymbolHoister::hoist(Module_ptr mod)
     {
         std::visit(
             overloaded{
-                [&](LocalFunctionDefinition& func_def)
+                [&](FunctionDefinition& func_def)
                 {
-                    auto symbol = SymbolFactory::create_local_function(
-                        func_def.name,
-                        nullptr,
-                        false
-                    );
+                    auto symbol = SymbolFactory::create_function(func_def.name, nullptr, false);
 
                     current_scope->define(symbol);
                     func_def.symbol = symbol;

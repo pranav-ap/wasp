@@ -26,11 +26,11 @@ Symbol_ptr SymbolScope::define(Symbol_ptr symbol)
 {
     Doctor::get().fatal_if_nullptr(symbol, WaspStage::Semantics, "Cannot define a null symbol");
 
-    if (symbol->payload_is<LocalFunctionData>())
+    if (symbol->payload_is<FunctionData>())
     {
         return define_function(symbol);
     }
-    else if (symbol->payload_is<MyMethodData>() || symbol->payload_is<OurMethodData>())
+    else if (symbol->payload_is<MethodData>())
     {
         return define_method(symbol);
     }
@@ -49,7 +49,7 @@ Symbol_ptr SymbolScope::define(Symbol_ptr symbol)
 Symbol_ptr SymbolScope::define_function(Symbol_ptr new_symbol)
 {
     Doctor::get().assert(
-        new_symbol->payload_is<LocalFunctionData>(),
+        new_symbol->payload_is<FunctionData>(),
         WaspStage::Semantics,
         "Expected a function symbol"
     );
@@ -109,7 +109,7 @@ Symbol_ptr SymbolScope::define_function(Symbol_ptr new_symbol)
 Symbol_ptr SymbolScope::define_method(Symbol_ptr new_symbol)
 {
     Doctor::get().assert(
-        new_symbol->payload_is<MyMethodData>() || new_symbol->payload_is<OurMethodData>(),
+        new_symbol->payload_is<MethodData>(),
         WaspStage::Semantics,
         "Expected a method symbol"
     );
@@ -150,7 +150,7 @@ Symbol_ptr SymbolScope::lookup(const std::string& name) const
     {
         if (current->symbols.contains(name))
         {
-            return current->symbols.at(name);
+            return current->symbols.at(name)->resolve();
         }
 
         current = current->enclosing_scope.get();

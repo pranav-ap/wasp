@@ -49,94 +49,23 @@ void Compiler::visit(Identifier& expr)
 
 void Compiler::visit(MemberAccess& access)
 {
-    if (access.member_index == -1)
-    {
-        // It's an 'our' member. It exists as a standalone local variable!
-        auto& target_identifier = access.right->as<Identifier>();
-        auto symbol = target_identifier.symbol;
-
-        Doctor::get().fatal_if_nullptr(symbol, WaspStage::Compiler);
-
-        if (symbol->is_native())
-        {
-            auto native_registry_id = workspace->native_registry->get_native_index(symbol->name);
-            emit(OpCode::GET_NATIVE, native_registry_id, symbol->name);
-        }
-        else if (target_identifier.must_be_captured)
-        {
-            int upval_index = resolve_upvalue(this, symbol);
-            emit(OpCode::GET_UPVALUE, upval_index, symbol->name);
-        }
-        else
-        {
-            int stack_index = resolve_local(symbol->id);
-
-            Doctor::get().assert(
-                stack_index != -1,
-                WaspStage::Compiler,
-                "Attempted to read an unresolved shared member: " + symbol->name
-            );
-
-            emit(OpCode::GET_LOCAL, stack_index, symbol->name);
-        }
-    }
-    else
-    {
-        // Standard instance/module memory lookup
-        visit(access.left);
-        emit(OpCode::GET_MEMBER, access.member_index);
-    }
+    visit(access.left);
+    emit(OpCode::GET_MEMBER, access.member_index);
 }
 
 void Compiler::compile_member_assignment(MemberAccess& access, const Expression_ptr& value)
 {
-    if (access.member_index == -1)
-    {
-        // Assigning to an 'our' variable. Evaluate the value first (Stack: [val])
-        visit(value);
+    visit(access.left);
+    visit(value);
 
-        auto& target_identifier = access.right->as<Identifier>();
-        auto symbol = target_identifier.symbol;
+    Doctor::get().assert(
+        access.right->is<Identifier>(),
+        WaspStage::Compiler,
+        "Right side of member assignment must be an Identifier"
+    );
 
-        Doctor::get().fatal_if_nullptr(symbol, WaspStage::Compiler);
-
-        if (target_identifier.must_be_captured)
-        {
-            int idx = resolve_upvalue(this, symbol);
-            emit(OpCode::SET_UPVALUE, idx, symbol->name);
-        }
-        else
-        {
-            int stack_index = resolve_local(symbol->id);
-
-            Doctor::get().assert(
-                stack_index != -1,
-                WaspStage::Compiler,
-                "Attempted to assign to an unresolved shared member: " + symbol->name
-            );
-
-            emit(OpCode::SET_LOCAL, stack_index, symbol->name);
-        }
-    }
-    else
-    {
-        // Standard Instance Memory Assignment
-
-        // Evaluate the object first (Stack: [obj])
-        visit(access.left);
-
-        // Evaluate the value second (Stack: [obj, val])
-        visit(value);
-
-        Doctor::get().assert(
-            access.right->is<Identifier>(),
-            WaspStage::Compiler,
-            "Right side of member assignment must be an Identifier"
-        );
-
-        auto target_name = access.right->as<Identifier>().name;
-        emit(OpCode::SET_MEMBER, access.member_index, target_name);
-    }
+    auto target_name = access.right->as<Identifier>().name;
+    emit(OpCode::SET_MEMBER, access.member_index, target_name);
 }
 
 // ===========================================================================
@@ -189,58 +118,60 @@ void Compiler::compile_constructor_call(Call& expr)
 {
     visit(expr.callable);
 
-    auto symbol = expr.callable->as<Identifier>().symbol;
-    auto class_type = symbol->get_type()->as<std::shared_ptr<ClassType>>();
+    Symbol_ptr class_symbol;
 
-    int arg_index = 0;
-    int total_size = 0;
-
-    for (const std::string& member_name : class_type->declaration_order)
+    if (expr.callable->is<Identifier>())
     {
-        // Skip shared members ('our' variables and 'our' methods)
-        if (class_type->shared_members.contains(member_name))
-            continue;
+        class_symbol = expr.callable->as<Identifier>().symbol;
+    }
+    else
+    {
+        class_symbol = expr.callable->as<MemberAccess>().right->as<Identifier>().symbol;
+    }
 
-        auto type_obj = class_type->members.at(member_name);
+    auto class_type = class_symbol->get_type()->as<std::shared_ptr<ClassType>>();
 
-        if (type_obj->is<std::shared_ptr<MyMethodType>>())
+    Doctor::get().assert(
+        expr.arguments.size() == class_type->fields.size(),
+        WaspStage::Compiler,
+        "Compiler error: Argument count does not match instance field count."
+    );
+
+    for (const auto& arg : expr.arguments)
+    {
+        visit(arg);
+    }
+
+    for (const std::string& method_name : class_type->methods)
+    {
+        std::string mangled_name = class_type->name + "::" + method_name;
+        int method_physical_index = resolve_local(mangled_name);
+
+        if (method_physical_index != -1)
         {
-            std::string mangled_name = class_type->name + "::" + member_name;
-
-            int method_physical_index = -1;
-            for (int i = static_cast<int>(locals.size()) - 1; i >= 0; --i)
-            {
-                if (locals[i]->name == mangled_name)
-                {
-                    method_physical_index = i;
-                    break;
-                }
-            }
-
-            Doctor::get().assert(
-                method_physical_index != -1,
-                WaspStage::Compiler,
-                "Compiler error: Could not find method " + mangled_name + " in locals."
-            );
-
             emit(OpCode::GET_LOCAL, method_physical_index, "method " + mangled_name);
         }
         else
         {
-            // It's an instance field! Evaluate the next provided constructor argument.
-            Doctor::get().assert(
-                arg_index < expr.arguments.size(),
-                WaspStage::Compiler,
-                "Compiler error: Not enough arguments provided for constructor."
-            );
+            auto& mac = expr.callable->as<MemberAccess>();
 
-            visit(expr.arguments[arg_index]);
-            arg_index++;
+            visit(mac.left);
+
+            auto module_symbol = mac.left->as<Identifier>().symbol->resolve();
+            auto module_type = module_symbol->get_type()->as<std::shared_ptr<ModuleType>>();
+
+            if (!module_type->contains_member(mangled_name))
+            {
+                Object_ptr method_type = class_type->get_member(method_name);
+                module_type->set_member(mangled_name, method_type);
+            }
+
+            int mod_index = module_type->get_member_index(mangled_name);
+            emit(OpCode::GET_MEMBER, mod_index, "imported method " + mangled_name);
         }
-
-        total_size++;
     }
 
+    int total_size = static_cast<int>(class_type->fields.size() + class_type->methods.size());
     emit(OpCode::INSTANTIATE, total_size);
 }
 

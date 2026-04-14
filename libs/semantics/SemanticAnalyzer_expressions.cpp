@@ -11,8 +11,6 @@
 #include <string>
 #include <variant>
 
-#define make_object(x) std::make_shared<Object>(x)
-
 template <class... Ts> struct overloaded : Ts...
 {
     using Ts::operator()...;
@@ -60,79 +58,15 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
     {
         const auto class_ref = left_type->as<std::shared_ptr<ClassType>>();
 
-        if (class_ref->shared_members.contains(member_name))
-        {
-            // Flag as a shared/static member
-            expr.member_index = -1;
-
-            // Map to the compiler's mangled local variable
-            std::string mangled_name = class_ref->name + "::" + member_name;
-            Symbol_ptr symbol = current_scope->lookup(mangled_name);
-            Doctor::get().fatal_if_nullptr(
-                symbol,
-                WaspStage::Semantics,
-                "Could not find shared member: " + mangled_name
-            );
-
-            auto& right_id = expr.right->as<Identifier>();
-            right_id.symbol = symbol;
-
-            if (symbol->should_be_captured(current_scope->get_closure_depth()))
-            {
-                right_id.must_be_captured = true;
-            }
-        }
-        else
-        {
-            expr.member_index = class_ref->get_member_index(member_name);
-        }
-
-        return class_ref->get_member_type(member_name);
+        expr.member_index = class_ref->get_member_index(member_name);
+        return class_ref->get_member(member_name);
     }
 
     Doctor::get().fatal(
         WaspStage::Semantics,
-        "Cannot access member '" + member_name +
-            "'. The left-hand side is neither a module nor a class instance."
+        "Cannot access member " + member_name +
+            ". The left-hand side is neither a module nor a class instance."
     );
-    return nullptr;
-}
-
-Object_ptr SemanticAnalyzer::evaluate_our_method_call(
-    Call& call,
-    MemberAccess& access,
-    const ObjectVector& argument_types,
-    Object_ptr receiver_type
-)
-{
-    Doctor::get().assert(
-        access.right->is<Identifier>(),
-        WaspStage::Semantics,
-        "Method name must be an identifier."
-    );
-
-    auto& method_identifier = access.right->as<Identifier>();
-    auto receiver_class = receiver_type->as<std::shared_ptr<ClassType>>();
-
-    auto [group_symbol, resolved_method, overload_index] = type_checker->resolve_class_method_call(
-        current_scope,
-        receiver_class->name,
-        method_identifier.name,
-        argument_types
-    );
-
-    // Crucial Flags: Indicates an 'our' member, and passes the Overload Group for GET_LOCAL
-    access.member_index = -1;
-    call.overload_index = overload_index;
-    method_identifier.symbol = group_symbol;
-    call.is_method_call = true;
-
-    if (resolved_method->should_be_captured(current_scope->get_closure_depth()))
-    {
-        method_identifier.must_be_captured = true;
-    }
-
-    return get_function_return_type(resolved_method);
 }
 
 Object_ptr SemanticAnalyzer::visit(Call& call)
@@ -168,30 +102,14 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
             {
                 Object_ptr receiver_type = visit(access.left);
 
-                if (receiver_type->is<std::shared_ptr<ClassType>>())
+                if (receiver_type->is<ClassType_ptr>())
                 {
-                    bool is_class_blueprint = false;
-
-                    if (access.left->is<Identifier>())
-                    {
-                        auto sym = access.left->as<Identifier>().symbol;
-                        if (sym && sym->payload_is<ClassData>())
-                        {
-                            is_class_blueprint = true;
-                        }
-                    }
-
-                    if (is_class_blueprint)
-                    {
-                        return evaluate_our_method_call(
-                            call,
-                            access,
-                            argument_types,
-                            receiver_type
-                        );
-                    }
-
-                    return evaluate_my_method_call(call, access, argument_types, receiver_type);
+                    return evaluate_instance_method_call(
+                        call,
+                        access,
+                        argument_types,
+                        receiver_type
+                    );
                 }
 
                 return evaluate_module_method_call(call, access, argument_types);
@@ -203,8 +121,6 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                     WaspStage::Semantics,
                     "Expected an Identifier or MemberAccess as the callable."
                 );
-
-                return workspace->pool->get_none_type();
             }
         },
         call.callable->data
@@ -242,7 +158,48 @@ Object_ptr SemanticAnalyzer::evaluate_identifier_call(
     return get_function_return_type(resolved_function);
 }
 
-Object_ptr SemanticAnalyzer::evaluate_my_method_call(
+Object_ptr SemanticAnalyzer::evaluate_instance_creation(
+    Call& call,
+    Identifier& target,
+    Symbol_ptr class_symbol,
+    ObjectVector argument_types
+)
+{
+    call.is_constructor_call = true;
+    target.symbol = class_symbol;
+
+    if (class_symbol->should_be_captured(current_scope->get_closure_depth()))
+    {
+        target.must_be_captured = true;
+    }
+
+    auto class_type_obj = class_symbol->get_type();
+    auto class_type = class_type_obj->as<std::shared_ptr<ClassType>>();
+
+    Doctor::get().assert(
+        argument_types.size() == class_type->fields.size(),
+        WaspStage::Semantics,
+        "Constructor Arguments Count Mismatch. Expected " +
+            std::to_string(class_type->fields.size()) + ", got " +
+            std::to_string(argument_types.size())
+    );
+
+    for (size_t i = 0; i < class_type->fields.size(); ++i)
+    {
+        Object_ptr expected_type = class_type->get_member(class_type->fields[i]);
+        Object_ptr actual_type = argument_types[i];
+
+        Doctor::get().assert(
+            type_checker->assignable(current_scope, expected_type, actual_type),
+            WaspStage::Semantics,
+            "Constructor Arguments Type Mismatch for member '" + class_type->fields[i] + "'"
+        );
+    }
+
+    return class_type_obj;
+}
+
+Object_ptr SemanticAnalyzer::evaluate_instance_method_call(
     Call& call,
     MemberAccess& access,
     const ObjectVector& argument_types,
@@ -268,7 +225,7 @@ Object_ptr SemanticAnalyzer::evaluate_my_method_call(
     auto [overload_group, resolved_method, overload_index] = type_checker
                                                                  ->resolve_class_method_call(
                                                                      current_scope,
-                                                                     receiver_class->name,
+                                                                     receiver_class,
                                                                      method_identifier.name,
                                                                      argument_types
                                                                  );
@@ -281,50 +238,6 @@ Object_ptr SemanticAnalyzer::evaluate_my_method_call(
     call.is_method_call = true;
 
     return get_function_return_type(resolved_method);
-}
-
-Object_ptr SemanticAnalyzer::evaluate_instance_creation(
-    Call& call,
-    Identifier& target,
-    Symbol_ptr class_symbol,
-    ObjectVector argument_types
-)
-{
-    call.is_constructor_call = true;
-    target.symbol = class_symbol;
-
-    if (class_symbol->should_be_captured(current_scope->get_closure_depth()))
-    {
-        target.must_be_captured = true;
-    }
-
-    auto class_type_obj = class_symbol->get_type();
-    auto class_type = class_type_obj->as<std::shared_ptr<ClassType>>();
-
-    StringVector instance_fields = class_type->get_instance_variable_names_in_declaration_order();
-
-    Doctor::get().assert(
-        argument_types.size() == instance_fields.size(),
-        WaspStage::Semantics,
-        "Constructor Arguments Count Mismatch. Expected " + std::to_string(instance_fields.size()) +
-            ", got " + std::to_string(argument_types.size())
-    );
-
-    for (size_t i = 0; i < instance_fields.size(); ++i)
-    {
-        const std::string& field_name = instance_fields[i];
-
-        Object_ptr expected_type = class_type->get_member_type(field_name);
-        Object_ptr actual_type = argument_types[i];
-
-        Doctor::get().assert(
-            type_checker->assignable(current_scope, expected_type, actual_type),
-            WaspStage::Semantics,
-            "Constructor Arguments Type Mismatch for member '" + field_name + "'"
-        );
-    }
-
-    return class_type_obj;
 }
 
 Object_ptr SemanticAnalyzer::evaluate_module_method_call(
@@ -352,6 +265,22 @@ Object_ptr SemanticAnalyzer::evaluate_module_method_call(
         module_identifier.must_be_captured = true;
     }
 
+    auto& module_data = module_symbol->get_payload_as<ModuleData>();
+    Symbol_ptr member_symbol = module_data.mod->get_member(method_identifier.name);
+
+    Doctor::get().fatal_if_nullptr(
+        member_symbol,
+        WaspStage::Semantics,
+        "Member '" + method_identifier.name + "' not found in module."
+    );
+
+    if (member_symbol->payload_is<ClassData>())
+    {
+        access.member_index = module_data.mod->get_member_index(method_identifier.name);
+
+        return evaluate_instance_creation(call, method_identifier, member_symbol, argument_types);
+    }
+
     auto
         [overload_group,
          resolved_function,
@@ -370,4 +299,5 @@ Object_ptr SemanticAnalyzer::evaluate_module_method_call(
 
     return get_function_return_type(resolved_function);
 }
+
 } // namespace Wasp

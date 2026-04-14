@@ -31,6 +31,21 @@ struct Upvalue
 
 class Compiler
 {
+public:
+    Compiler(Workspace_ptr workspace);
+    Compiler(Compiler* parent);
+
+    const CFGraph& get_graph() const
+    {
+        return graph;
+    }
+
+    FunctionBlueprintObject_ptr run(
+        const StatementVector& block,
+        std::string name,
+        bool is_main = false
+    );
+
 private:
     Workspace_ptr workspace;
     Compiler* parent;
@@ -49,6 +64,7 @@ private:
     int resolve_upvalue(Compiler* current_compiler, Symbol_ptr symbol);
 
     int resolve_local(int symbol_id);
+    int resolve_local(const std::string& name);
 
     // ------------------------------------------------------------------------
     // Control Flow Graph
@@ -101,9 +117,8 @@ private:
 
     void compile_abstract_function(AbstractFunctionDefinition& function_definition);
 
-    void visit(LocalFunctionDefinition& statement);
-    void visit(MyMethodDefinition& statement);
-    void visit(OurMethodDefinition& statement);
+    void visit(FunctionDefinition& statement);
+    void visit(MethodDefinition& statement);
 
     void visit(Return& statement);
 
@@ -171,21 +186,6 @@ private:
     Object_ptr get_default_value_for_type(Object_ptr type);
 
     CodeObject flatten();
-
-public:
-    Compiler(Workspace_ptr workspace);
-    Compiler(Compiler* parent);
-
-    const CFGraph& get_graph() const
-    {
-        return graph;
-    }
-
-    FunctionBlueprintObject_ptr run(
-        const StatementVector& block,
-        std::string name,
-        bool is_main = false
-    );
 };
 
 using Compiler_ptr = std::shared_ptr<Compiler>;

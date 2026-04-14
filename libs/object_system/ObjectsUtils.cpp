@@ -119,12 +119,7 @@ namespace Wasp
                     return are_equal_types(l->parameter_types, r->parameter_types);
                 },
 
-                [](const std::shared_ptr<MyMethodType>& l, const std::shared_ptr<MyMethodType>& r)
-                {
-                    return are_equal_types(l->parameter_types, r->parameter_types);
-                },
-
-                [](const std::shared_ptr<OurMethodType>& l, const std::shared_ptr<OurMethodType>& r)
+                [](const std::shared_ptr<MethodType>& l, const std::shared_ptr<MethodType>& r)
                 {
                     return are_equal_types(l->parameter_types, r->parameter_types);
                 },
@@ -187,13 +182,9 @@ namespace Wasp
                 {
                     return "function type";
                 },
-                [](const std::shared_ptr<MyMethodType>&) -> std::string
+                [](const std::shared_ptr<MethodType>&) -> std::string
                 {
                     return "my method type";
-                },
-                [](const std::shared_ptr<OurMethodType>&) -> std::string
-                {
-                    return "our method type";
                 },
 
                 // Scalar Objects
@@ -370,21 +361,17 @@ namespace Wasp
                 },
 
                 // Overload Groups
-                [](const std::shared_ptr<OverloadedObjectsSet>&) -> std::string
+                [](const std::shared_ptr<ObjectOverloadList>&) -> std::string
                 {
                     return "<overloaded objects>";
                 },
-                [](const std::shared_ptr<OverloadedTypesSet>& set) -> std::string
+                [](const std::shared_ptr<TypeOverloadedSet>& set) -> std::string
                 {
                     return "<overloaded types: " + set->name + ">";
                 },
 
                 // Instances
-                [](const std::shared_ptr<OurObject>&) -> std::string
-                {
-                    return "<our object>";
-                },
-                [](const std::shared_ptr<MyObject>&) -> std::string
+                [](const std::shared_ptr<InstanceObject>&) -> std::string
                 {
                     return "<my object>";
                 },
