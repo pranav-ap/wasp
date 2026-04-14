@@ -30,6 +30,7 @@ namespace Wasp
 void SemanticAnalyzer::extract_module_type(Module_ptr module)
 {
     ObjectStringMap members;
+    StringVector ordered_keys;
 
     for (const auto& symbol : module->exports)
     {
@@ -40,11 +41,13 @@ void SemanticAnalyzer::extract_module_type(Module_ptr module)
         );
 
         members[symbol->name] = symbol->get_type();
+        ordered_keys.push_back(symbol->name);
     }
 
     auto module_type = std::make_shared<ModuleType>(
         module->get_name(),
         module->absolute_filepath,
+        ordered_keys,
         members
     );
 

@@ -463,12 +463,9 @@ struct MemberedCompositeType : public CompositeType
     ObjectStringMap members;
     StringVector ordered_keys;
 
-    MemberedCompositeType(ObjectStringMap members) : members(std::move(members))
+    MemberedCompositeType(StringVector ordered_keys, ObjectStringMap members)
+        : ordered_keys(std::move(ordered_keys)), members(std::move(members))
     {
-        for (const auto& [key, _] : this->members)
-        {
-            ordered_keys.push_back(key);
-        }
     }
 
     bool contains_member(const std::string& member_name) const;
@@ -487,9 +484,14 @@ struct ModuleType : public MemberedCompositeType
     std::string name;
     std::filesystem::path absolute_filepath;
 
-    ModuleType(std::string name, std::filesystem::path absolute_filepath, ObjectStringMap members)
+    ModuleType(
+        std::string name,
+        std::filesystem::path absolute_filepath,
+        StringVector ordered_keys,
+        ObjectStringMap members
+    )
         : name(std::move(name)), absolute_filepath(std::move(absolute_filepath)),
-          MemberedCompositeType(std::move(members))
+          MemberedCompositeType(std::move(ordered_keys), std::move(members))
     {
     }
 };
@@ -524,9 +526,8 @@ struct ClassType : public CompositeType
 
 using ClassType_ptr = std::shared_ptr<ClassType>;
 
-struct RecordType : public MemberedCompositeType
+struct RecordType
 {
-    using MemberedCompositeType::MemberedCompositeType;
 };
 
 // ============================================================================

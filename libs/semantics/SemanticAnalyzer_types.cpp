@@ -242,6 +242,6 @@ Object_ptr SemanticAnalyzer::visit(RecordTypeNode& node)
         );
     }
 
-    return make_object(std::make_shared<RecordType>(std::move(record_members)));
+    return make_object(std::make_shared<RecordType>());
 }
 } // namespace Wasp
