@@ -161,7 +161,7 @@ Object_ptr Symbol::get_type()
                 }
 
                 d.type = make_object(
-                    std::make_shared<OverloadedTypesSet>(d.name, std::move(overload_types))
+                    std::make_shared<TypeOverloadedSet>(d.name, std::move(overload_types))
                 );
 
                 return d.type;

@@ -361,17 +361,17 @@ namespace Wasp
                 },
 
                 // Overload Groups
-                [](const std::shared_ptr<OverloadedObjectsSet>&) -> std::string
+                [](const std::shared_ptr<ObjectOverloadList>&) -> std::string
                 {
                     return "<overloaded objects>";
                 },
-                [](const std::shared_ptr<OverloadedTypesSet>& set) -> std::string
+                [](const std::shared_ptr<TypeOverloadedSet>& set) -> std::string
                 {
                     return "<overloaded types: " + set->name + ">";
                 },
 
                 // Instances
-                [](const std::shared_ptr<MyObject>&) -> std::string
+                [](const std::shared_ptr<InstanceObject>&) -> std::string
                 {
                     return "<my object>";
                 },

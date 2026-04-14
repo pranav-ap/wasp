@@ -31,14 +31,13 @@ namespace Wasp
 void SemanticAnalyzer::visit(ClassDefinition& def)
 {
     auto class_type = extract_class_type(def);
-    Object_ptr target_type_obj = make_object(class_type);
 
     Doctor::get().fatal_if_nullptr(def.symbol, WaspStage::Semantics);
-    def.symbol->set_type(target_type_obj);
+    def.symbol->set_type(make_object(class_type));
 
-    class_type_stack.push_back(target_type_obj);
+    class_type_stack.push_back(make_object(class_type));
 
-    hoist_class_methods(def, target_type_obj, class_type);
+    hoist_class_methods(def);
     analyze_class_methods(def);
 
     class_type_stack.pop_back();
@@ -46,17 +45,9 @@ void SemanticAnalyzer::visit(ClassDefinition& def)
 
 std::shared_ptr<ClassType> SemanticAnalyzer::extract_class_type(ClassDefinition& def)
 {
-    ObjectStringMap member_types;
+    ObjectStringMap members;
     StringVector fields;
     StringVector methods;
-
-    auto add_unique_method = [&](const std::string& name)
-    {
-        if (std::find(methods.begin(), methods.end(), name) == methods.end())
-        {
-            methods.push_back(name);
-        }
-    };
 
     for (auto& stmt : def.members)
     {
@@ -65,12 +56,22 @@ std::shared_ptr<ClassType> SemanticAnalyzer::extract_class_type(ClassDefinition&
                 [&](FieldDefinition& field)
                 {
                     auto field_type = visit(field.type);
-                    member_types[field.name] = field_type;
+
+                    Doctor::get().assert(
+                        std::find(fields.begin(), fields.end(), field.name) == fields.end(),
+                        WaspStage::Semantics,
+                        "Duplicate field name " + field.name + " in class " + def.name
+                    );
+
                     fields.push_back(field.name);
+                    members[field.name] = field_type;
                 },
                 [&](MethodDefinition& method)
                 {
-                    add_unique_method(method.name);
+                    if (std::find(methods.begin(), methods.end(), method.name) == methods.end())
+                    {
+                        methods.push_back(method.name);
+                    }
                 },
                 [&](auto&)
                 {
@@ -81,19 +82,17 @@ std::shared_ptr<ClassType> SemanticAnalyzer::extract_class_type(ClassDefinition&
         );
     }
 
+    // only holds variable types in members at this point
+
     return std::make_shared<ClassType>(
         def.name,
-        std::move(member_types),
+        std::move(members),
         std::move(fields),
         std::move(methods)
     );
 }
 
-void SemanticAnalyzer::hoist_class_methods(
-    ClassDefinition& def,
-    Object_ptr target_type_obj,
-    std::shared_ptr<ClassType> class_type
-)
+void SemanticAnalyzer::hoist_class_methods(ClassDefinition& def)
 {
     for (auto& stmt : def.members)
     {
@@ -101,7 +100,7 @@ void SemanticAnalyzer::hoist_class_methods(
             overloaded{
                 [&](MethodDefinition& m)
                 {
-                    hoist_method(m, def.name, target_type_obj, class_type);
+                    hoist_method(m, def.name);
                 },
                 [&](auto&)
                 {
@@ -114,9 +113,7 @@ void SemanticAnalyzer::hoist_class_methods(
 
 void SemanticAnalyzer::hoist_method(
     AbstractFunctionDefinition& method_def,
-    const std::string& container_name,
-    Object_ptr target_type_obj,
-    std::shared_ptr<ClassType> class_type
+    const std::string& container_name
 )
 {
     std::string original_name = method_def.name;
@@ -124,18 +121,16 @@ void SemanticAnalyzer::hoist_method(
 
     auto [return_type, parameter_types] = get_function_signature(method_def);
 
-    Object_ptr signature = make_object(
-        std::make_shared<MethodType>(parameter_types, return_type, target_type_obj)
-    );
+    Object_ptr signature = make_object(std::make_shared<MethodType>(parameter_types, return_type));
 
-    Symbol_ptr class_symbol = current_scope->lookup(container_name);
-    bool is_exported = class_symbol ? class_symbol->is_exported() : true;
+    auto class_type_obj = class_type_stack.back();
+    auto class_type = class_type_obj->as<std::shared_ptr<ClassType>>();
 
     Symbol_ptr method_symbol = SymbolFactory::create_method(
         method_def.name,
         signature,
-        target_type_obj,
-        is_exported,
+        class_type_obj,
+        false,
         current_scope->get_closure_depth(),
         current_scope->get_lexical_depth()
     );
@@ -153,8 +148,7 @@ void SemanticAnalyzer::hoist_method(
     method_def.symbol = method_symbol;
     method_def.group_symbol = current_scope->lookup(method_def.name);
 
-    class_type->members[original_name] = method_symbol->get_type();
-    class_type->method_group_symbols[original_name] = method_def.group_symbol;
+    class_type->members[original_name] = method_def.group_symbol->get_type();
 }
 
 void SemanticAnalyzer::analyze_class_methods(ClassDefinition& def)
@@ -261,52 +255,6 @@ void SemanticAnalyzer::analyze_abstract_function_body(
     return_type_stack.pop_back();
 
     leave_scope();
-}
-
-std::pair<Object_ptr, ObjectVector> SemanticAnalyzer::get_function_signature(
-    AbstractFunctionDefinition& func
-)
-{
-    Object_ptr return_type = func.return_type ? visit(func.return_type)
-                                              : workspace->pool->get_none_type();
-
-    ObjectVector param_types;
-    param_types.reserve(func.parameters.size());
-
-    for (const auto& [param_name, type_ann] : func.parameters)
-    {
-        param_types.push_back(type_ann ? visit(type_ann) : workspace->pool->get_any_type());
-    }
-
-    return {return_type, param_types};
-}
-
-std::pair<Object_ptr, ObjectVector> SemanticAnalyzer::get_function_signature(Object_ptr type_obj)
-{
-    Object_ptr return_type = nullptr;
-    ObjectVector param_types;
-
-    std::visit(
-        overloaded{
-            [&](const std::shared_ptr<LocalFunctionType>& t)
-            {
-                return_type = t->return_type;
-                param_types = t->parameter_types;
-            },
-            [&](const std::shared_ptr<MethodType>& t)
-            {
-                return_type = t->return_type;
-                param_types = t->parameter_types;
-            },
-            [&](const auto&)
-            {
-                Doctor::get().fatal(WaspStage::Semantics, "Expected concrete function type.");
-            }
-        },
-        type_obj->value
-    );
-
-    return {return_type, param_types};
 }
 
 void SemanticAnalyzer::visit(Return& statement)

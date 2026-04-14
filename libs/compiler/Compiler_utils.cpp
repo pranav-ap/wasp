@@ -100,6 +100,7 @@ int Compiler::resolve_local(const std::string& name)
             return i;
         }
     }
+
     return -1;
 }
 

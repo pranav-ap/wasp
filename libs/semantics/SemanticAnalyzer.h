@@ -45,21 +45,9 @@ class SemanticAnalyzer
     void visit(FunctionDefinition& statement);
     void visit(MethodDefinition& statement);
 
-    std::shared_ptr<ClassType> extract_class_type(ClassDefinition& def);
-
-    void hoist_class_methods(
-        ClassDefinition& def,
-        Object_ptr target_type_obj,
-        std::shared_ptr<ClassType> class_type
-    );
-
-    void hoist_method(
-        AbstractFunctionDefinition& method_def,
-        const std::string& container_name,
-        Object_ptr target_type_obj,
-        std::shared_ptr<ClassType> class_type
-    );
-
+    ClassType_ptr extract_class_type(ClassDefinition& def);
+    void hoist_class_methods(ClassDefinition& def);
+    void hoist_method(AbstractFunctionDefinition& method_def, const std::string& container_name);
     void analyze_class_methods(ClassDefinition& def);
 
     void visit(ClassDefinition& statement);

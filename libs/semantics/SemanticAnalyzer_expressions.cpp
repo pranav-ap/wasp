@@ -11,8 +11,6 @@
 #include <string>
 #include <variant>
 
-#define make_object(x) std::make_shared<Object>(x)
-
 template <class... Ts> struct overloaded : Ts...
 {
     using Ts::operator()...;
@@ -61,13 +59,13 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
         const auto class_ref = left_type->as<std::shared_ptr<ClassType>>();
 
         expr.member_index = class_ref->get_member_index(member_name);
-        return class_ref->get_member_type(member_name);
+        return class_ref->get_member(member_name);
     }
 
     Doctor::get().fatal(
         WaspStage::Semantics,
-        "Cannot access member '" + member_name +
-            "'. The left-hand side is neither a module nor a class instance."
+        "Cannot access member " + member_name +
+            ". The left-hand side is neither a module nor a class instance."
     );
 }
 
@@ -104,7 +102,7 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
             {
                 Object_ptr receiver_type = visit(access.left);
 
-                if (receiver_type->is<std::shared_ptr<ClassType>>())
+                if (receiver_type->is<ClassType_ptr>())
                 {
                     return evaluate_instance_method_call(
                         call,
@@ -123,8 +121,6 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                     WaspStage::Semantics,
                     "Expected an Identifier or MemberAccess as the callable."
                 );
-
-                return workspace->pool->get_none_type();
             }
         },
         call.callable->data
@@ -190,7 +186,7 @@ Object_ptr SemanticAnalyzer::evaluate_instance_creation(
 
     for (size_t i = 0; i < class_type->fields.size(); ++i)
     {
-        Object_ptr expected_type = class_type->get_member_type(class_type->fields[i]);
+        Object_ptr expected_type = class_type->get_member(class_type->fields[i]);
         Object_ptr actual_type = argument_types[i];
 
         Doctor::get().assert(
@@ -262,8 +258,6 @@ Object_ptr SemanticAnalyzer::evaluate_module_method_call(
     Symbol_ptr module_symbol = current_scope->lookup(module_identifier.name);
     Doctor::get().fatal_if_nullptr(module_symbol, WaspStage::Semantics);
 
-    // Resolve the alias!
-    module_symbol = module_symbol->resolve();
     module_identifier.symbol = module_symbol;
 
     if (module_symbol->should_be_captured(current_scope->get_closure_depth()))

@@ -77,31 +77,33 @@ Object_ptr MemberedCompositeType::get_member_type(const std::string& member_name
 
 void MemberedCompositeType::set_member(const std::string& member_name, Object_ptr value)
 {
+    if (!members.contains(member_name))
+    {
+        ordered_keys.push_back(member_name);
+    }
     members[member_name] = std::move(value);
 }
 
 Object_ptr MemberedCompositeType::get_member(int member_id) const
 {
     Doctor::get().assert(
-        member_id >= 0 && member_id < static_cast<int>(members.size()),
+        member_id >= 0 && member_id < static_cast<int>(ordered_keys.size()),
         WaspStage::Semantics,
         "Type Member index out of bounds!"
     );
-    auto it = members.begin();
-    std::advance(it, member_id);
-    return it->second;
+
+    return members.at(ordered_keys[member_id]);
 }
 
 void MemberedCompositeType::set_member(int member_id, Object_ptr value)
 {
     Doctor::get().assert(
-        member_id >= 0 && member_id < static_cast<int>(members.size()),
+        member_id >= 0 && member_id < static_cast<int>(ordered_keys.size()),
         WaspStage::Semantics,
         "Type Member index out of bounds!"
     );
-    auto it = members.begin();
-    std::advance(it, member_id);
-    it->second = std::move(value);
+
+    members[ordered_keys[member_id]] = std::move(value);
 }
 
 int MemberedCompositeType::get_member_index(const std::string& member_name) const
@@ -112,26 +114,74 @@ int MemberedCompositeType::get_member_index(const std::string& member_name) cons
         "Member '" + member_name + "' not found!"
     );
 
-    auto it = members.find(member_name);
-    return static_cast<int>(std::distance(members.begin(), it));
+    for (size_t i = 0; i < ordered_keys.size(); ++i)
+    {
+        if (ordered_keys[i] == member_name)
+        {
+            return static_cast<int>(i);
+        }
+    }
+
+    return -1;
 }
 
 // ============================================================================
-// ClassType
+// Class Type
 // ============================================================================
+
+ObjectVector ClassType::get_fields() const
+{
+    ObjectVector field_types;
+    for (const auto& field_name : fields)
+    {
+        field_types.push_back(members.at(field_name));
+    }
+    return field_types;
+}
+
+ObjectVector ClassType::get_methods() const
+{
+    ObjectVector method_types;
+    for (const auto& method_name : methods)
+    {
+        method_types.push_back(members.at(method_name));
+    }
+    return method_types;
+}
+
+ObjectVector ClassType::get_members() const
+{
+    ObjectVector members = get_fields();
+    ObjectVector methods = get_methods();
+    members.insert(members.end(), methods.begin(), methods.end());
+    return members;
+}
+
+bool ClassType::contains_member(const std::string& member_name) const
+{
+    return members.contains(member_name);
+}
 
 int ClassType::get_member_index(const std::string& member_name) const
 {
+    Doctor::get().assert(
+        contains_member(member_name),
+        WaspStage::Semantics,
+        "Member '" + member_name + "' not found in class " + name
+    );
+
     for (size_t i = 0; i < fields.size(); ++i)
     {
         if (fields[i] == member_name)
             return static_cast<int>(i);
     }
+
     for (size_t i = 0; i < methods.size(); ++i)
     {
         if (methods[i] == member_name)
             return static_cast<int>(fields.size() + i);
     }
+
     return -1;
 }
 
@@ -152,6 +202,22 @@ Object_ptr ClassType::get_member(int member_id) const
     }
 
     Doctor::get().fatal(WaspStage::Semantics, "ClassType member index out of bounds!");
+}
+
+Object_ptr ClassType::get_member(const std::string& member_name) const
+{
+    Doctor::get().assert(
+        contains_member(member_name),
+        WaspStage::Semantics,
+        "Member '" + member_name + "' not found in class " + name
+    );
+
+    return members.at(member_name);
+}
+
+void ClassType::set_member(const std::string& member_name, Object_ptr value)
+{
+    members[member_name] = std::move(value);
 }
 
 // ============================================================================

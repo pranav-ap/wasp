@@ -199,20 +199,25 @@ std::tuple<Symbol_ptr, Symbol_ptr, int> TypeChecker::resolve_class_method_call(
     const ObjectVector& argument_types
 ) const
 {
-    auto it = class_type->method_group_symbols.find(method_name);
-
     Doctor::get().assert(
-        it != class_type->method_group_symbols.end(),
+        class_type->contains_member(method_name),
         WaspStage::Semantics,
         "Method '" + method_name + "()' does not exist on class '" + class_type->name + "'."
     );
 
-    Symbol_ptr overload_group_symbol = it->second;
+    std::string mangled_name = class_type->name + "::" + method_name;
+    Symbol_ptr overload_group_symbol = scope->lookup(mangled_name);
+
+    Doctor::get().fatal_if_nullptr(
+        overload_group_symbol,
+        WaspStage::Semantics,
+        "Could not find method symbol '" + mangled_name + "' in current scope."
+    );
 
     Doctor::get().assert(
         overload_group_symbol->payload_is<OverloadGroupData>(),
         WaspStage::Semantics,
-        "Symbol '" + method_name + "' is not an overload group"
+        "Symbol '" + mangled_name + "' is not an overload group."
     );
 
     const auto& group_data = overload_group_symbol->get_payload_as<OverloadGroupData>();
@@ -226,13 +231,13 @@ std::tuple<Symbol_ptr, Symbol_ptr, int> TypeChecker::resolve_class_method_call(
     Doctor::get().assert(
         !valid_matches.empty(),
         WaspStage::Semantics,
-        "No matching function signature found for " + overload_group_symbol->name
+        "No matching method signature found for '" + mangled_name + "'"
     );
 
     Doctor::get().assert(
         valid_matches.size() == 1,
         WaspStage::Semantics,
-        "Ambiguous function call to " + overload_group_symbol->name
+        "Ambiguous method call to '" + mangled_name + "'"
     );
 
     int index = group_data.get_overload_index(valid_matches.front());

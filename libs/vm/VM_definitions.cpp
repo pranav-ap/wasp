@@ -30,14 +30,14 @@ void VM::execute_instantiate(CallFrame* frame)
     Object_ptr blueprint_obj = pop_from_stack();
 
     Doctor::get().assert(
-        blueprint_obj->is<std::shared_ptr<ClassObject>>(),
+        blueprint_obj->is<ClassType_ptr>(),
         WaspStage::VM,
-        "OpCode::INSTANTIATE expects a ClassObject blueprint on the stack!"
+        "OpCode::INSTANTIATE expects a ClassType blueprint on the stack!"
     );
 
-    auto& blueprint = blueprint_obj->as<std::shared_ptr<ClassObject>>();
+    auto blueprint = blueprint_obj->as<ClassType_ptr>();
 
-    int expected_total_size = blueprint->get_total_arity();
+    int expected_total_size = blueprint->fields.size() + blueprint->methods.size();
 
     Doctor::get().assert(
         total_size == expected_total_size,
@@ -45,7 +45,7 @@ void VM::execute_instantiate(CallFrame* frame)
         "Arity mismatch for class " + blueprint->name
     );
 
-    auto instance = make_object(std::make_shared<MyObject>(std::move(memory)));
+    auto instance = make_object(std::make_shared<InstanceObject>(std::move(memory)));
 
     push_to_stack(instance);
 }
@@ -130,7 +130,7 @@ void VM::execute_overload_function(CallFrame* frame)
         initial_overloads.push_back(new_func);
 
         auto group = make_object(
-            std::make_shared<OverloadedObjectsSet>(std::move(initial_overloads))
+            std::make_shared<ObjectOverloadList>(std::move(initial_overloads))
         );
 
         // Store the group container directly in its assigned slot
@@ -139,12 +139,12 @@ void VM::execute_overload_function(CallFrame* frame)
     else
     {
         Doctor::get().assert(
-            existing_obj->is<std::shared_ptr<OverloadedObjectsSet>>(),
+            existing_obj->is<std::shared_ptr<ObjectOverloadList>>(),
             WaspStage::VM,
             "Cannot add overload to a slot that contains a non-function object."
         );
 
-        auto group = existing_obj->as<std::shared_ptr<OverloadedObjectsSet>>();
+        auto group = existing_obj->as<std::shared_ptr<ObjectOverloadList>>();
 
         // Simply append the new version to the existing set
         group->overloads.push_back(new_func);
@@ -158,12 +158,12 @@ void VM::execute_resolve_function(CallFrame* frame)
     Object_ptr group_obj = pop_from_stack();
 
     Doctor::get().assert(
-        group_obj->is<std::shared_ptr<OverloadedObjectsSet>>(),
+        group_obj->is<std::shared_ptr<ObjectOverloadList>>(),
         WaspStage::VM,
         "RESOLVE_FUNCTION expects an Overload Group on the stack!"
     );
 
-    auto group = group_obj->as<std::shared_ptr<OverloadedObjectsSet>>();
+    auto group = group_obj->as<std::shared_ptr<ObjectOverloadList>>();
 
     Doctor::get().assert(
         overload_index >= 0 && overload_index < group->overloads.size(),

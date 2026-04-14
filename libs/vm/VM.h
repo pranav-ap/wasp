@@ -65,6 +65,7 @@ class VM
     void execute_call(CallFrame* frame);
     void execute_return(CallFrame* frame);
 
+    void execute_bind_class_method(CallFrame* frame);
     void execute_instantiate(CallFrame* frame);
 
     void execute_import_module(CallFrame* frame);

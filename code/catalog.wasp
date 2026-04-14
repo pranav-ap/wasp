@@ -6,7 +6,9 @@ class Item
     price: int
 
     fun print_details()
-        print('[' + my.id + '] ' + my.name + ' - $' + my.price)
+        print('print details')
 
     fun apply_discount(discount: int)
         my.price = my.price - discount
+
+
