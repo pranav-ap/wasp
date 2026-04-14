@@ -122,11 +122,6 @@ int ClassType::get_member_index(const std::string& member_name) const
 
     for (const std::string& name : declaration_order)
     {
-        if (shared_members.contains(name))
-        {
-            continue;
-        }
-
         if (name == member_name)
         {
             return physical_index;
@@ -144,13 +139,10 @@ StringVector ClassType::get_instance_variable_names_in_declaration_order() const
 
     for (const auto& name : declaration_order)
     {
-        if (shared_members.contains(name))
-            continue;
 
         Object_ptr type_obj = members.at(name);
 
-        if (type_obj->is<std::shared_ptr<MethodType>>() ||
-            type_obj->is<std::shared_ptr<OurMethodType>>())
+        if (type_obj->is<std::shared_ptr<MethodType>>())
         {
             continue;
         }
@@ -159,29 +151,6 @@ StringVector ClassType::get_instance_variable_names_in_declaration_order() const
     }
 
     return instance_vars;
-}
-
-StringVector ClassType::get_class_variables_declaration_order() const
-{
-    StringVector class_vars;
-
-    for (const auto& name : declaration_order)
-    {
-        if (!shared_members.contains(name))
-            continue;
-
-        Object_ptr type_obj = members.at(name);
-
-        if (type_obj->is<std::shared_ptr<MethodType>>() ||
-            type_obj->is<std::shared_ptr<OurMethodType>>())
-        {
-            continue;
-        }
-
-        class_vars.push_back(name);
-    }
-
-    return class_vars;
 }
 
 // ============================================================================

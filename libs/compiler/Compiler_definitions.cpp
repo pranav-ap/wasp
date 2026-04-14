@@ -8,7 +8,6 @@
 #include <utility>
 #include <variant>
 
-
 template <class... Ts> struct overloaded : Ts...
 {
     using Ts::operator()...;
@@ -30,28 +29,6 @@ void Compiler::compile_class_members(ClassDefinition& class_definition)
                 [&](MethodDefinition& method)
                 {
                     visit(method);
-                },
-                [&](OurMethodDefinition& method)
-                {
-                    visit(method);
-                },
-                [&](FieldDefinition& field)
-                {
-                    if (field.is_our)
-                    {
-                        Doctor::get().fatal_if_nullptr(field.symbol, WaspStage::Compiler);
-
-                        emit(OpCode::LOAD_NONE);
-
-                        int physical_index = static_cast<int>(locals.size());
-                        locals.push_back(field.symbol);
-
-                        emit(
-                            OpCode::SET_LOCAL,
-                            physical_index,
-                            "shared " + class_definition.name + "::" + field.name
-                        );
-                    }
                 },
                 [&](auto&)
                 {
@@ -92,7 +69,6 @@ void Compiler::compile_abstract_function(AbstractFunctionDefinition& function_de
 
     func_compiler.enter_scope();
 
-    // The Semantic Analyzer already injected 'my' and 'our' in parameter_symbols
     for (const auto& param_symbol : function_definition.parameter_symbols)
     {
         func_compiler.locals.push_back(param_symbol);
@@ -111,14 +87,11 @@ void Compiler::compile_abstract_function(AbstractFunctionDefinition& function_de
         function_definition.name
     );
 
-    // Push the FunctionBlueprintObject onto the stack
     emit(OpCode::LOAD_CONST, const_id, "fun " + function_definition.name);
 
-    // Transform it into a FunctionRuntimeObject & capture upvalues
     int upvalue_count = static_cast<int>(func_compiler.upvalues.size());
     emit(OpCode::MAKE_FUNCTION, upvalue_count);
 
-    // Emit closure routing bytes for the VM
     for (const auto& uv : func_compiler.upvalues)
     {
         if (uv.is_local_to_parent)
@@ -150,11 +123,6 @@ void Compiler::visit(FunctionDefinition& function_definition)
 }
 
 void Compiler::visit(MethodDefinition& method_definition)
-{
-    compile_abstract_function(method_definition);
-}
-
-void Compiler::visit(OurMethodDefinition& method_definition)
 {
     compile_abstract_function(method_definition);
 }

@@ -37,8 +37,7 @@ void VM::execute_instantiate(CallFrame* frame)
 
     auto& blueprint = blueprint_obj->as<std::shared_ptr<ClassType>>();
 
-    size_t expected_total_size = blueprint->declaration_order.size() -
-                                 blueprint->shared_members.size();
+    size_t expected_total_size = blueprint->declaration_order.size();
 
     Doctor::get().assert(
         total_size == expected_total_size,

@@ -169,10 +169,6 @@ void Compiler::visit(const Statement_ptr statement)
             {
                 visit(stat);
             },
-            [&](OurMethodDefinition& stat)
-            {
-                visit(stat);
-            },
             [&](Return& stat)
             {
                 visit(stat);

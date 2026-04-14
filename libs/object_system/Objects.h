@@ -481,9 +481,7 @@ struct MemberedCompositeType : public CompositeType
 
 struct RecordType : public MemberedCompositeType
 {
-    RecordType(ObjectStringMap members) : MemberedCompositeType{std::move(members)}
-    {
-    }
+    using MemberedCompositeType::MemberedCompositeType;
 };
 
 struct ModuleType : public MemberedCompositeType
@@ -501,24 +499,16 @@ struct ModuleType : public MemberedCompositeType
 struct ClassType : public MemberedCompositeType
 {
     std::string name;
-    std::unordered_set<std::string> shared_members;
     StringVector declaration_order;
 
-    ClassType(
-        std::string name,
-        ObjectStringMap members,
-        std::unordered_set<std::string> shared_members,
-        StringVector declaration_order
-    )
-        : name(std::move(name)), shared_members(std::move(shared_members)),
-          declaration_order(std::move(declaration_order)), MemberedCompositeType(std::move(members))
+    ClassType(std::string name, ObjectStringMap members, StringVector declaration_order)
+        : name(std::move(name)), declaration_order(std::move(declaration_order)),
+          MemberedCompositeType(std::move(members))
     {
     }
 
     int get_member_index(const std::string& member_name) const;
-
     StringVector get_instance_variable_names_in_declaration_order() const;
-    StringVector get_class_variables_declaration_order() const;
 };
 
 // ============================================================================
@@ -553,7 +543,6 @@ struct Object
         std::shared_ptr<OverloadedObjectsSet>,
         std::shared_ptr<OverloadedTypesSet>,
 
-        std::shared_ptr<OurObject>,
         std::shared_ptr<MyObject>,
 
         std::shared_ptr<BreakObject>,

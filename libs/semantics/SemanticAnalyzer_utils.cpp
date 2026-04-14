@@ -40,10 +40,6 @@ Object_ptr SemanticAnalyzer::get_function_return_type(Symbol_ptr symbol)
     {
         return (*p)->return_type;
     }
-    if (auto p = type_obj->try_as<std::shared_ptr<OurMethodType>>())
-    {
-        return (*p)->return_type;
-    }
 
     Doctor::get().fatal(WaspStage::Semantics, "Expected a valid function signature type.");
 }
@@ -58,11 +54,6 @@ bool SemanticAnalyzer::is_native_function(Symbol_ptr symbol)
     if (symbol->payload_is<MethodData>())
     {
         return symbol->get_payload_as<MethodData>().is_native;
-    }
-
-    if (symbol->payload_is<OurMethodData>())
-    {
-        return symbol->get_payload_as<OurMethodData>().is_native;
     }
 
     return false;

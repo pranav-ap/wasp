@@ -124,11 +124,6 @@ namespace Wasp
                     return are_equal_types(l->parameter_types, r->parameter_types);
                 },
 
-                [](const std::shared_ptr<OurMethodType>& l, const std::shared_ptr<OurMethodType>& r)
-                {
-                    return are_equal_types(l->parameter_types, r->parameter_types);
-                },
-
                 [](const NamedDefinitionType& l, const NamedDefinitionType& r)
                 {
                     return l.name == r.name;
@@ -190,10 +185,6 @@ namespace Wasp
                 [](const std::shared_ptr<MethodType>&) -> std::string
                 {
                     return "my method type";
-                },
-                [](const std::shared_ptr<OurMethodType>&) -> std::string
-                {
-                    return "our method type";
                 },
 
                 // Scalar Objects
@@ -380,10 +371,6 @@ namespace Wasp
                 },
 
                 // Instances
-                [](const std::shared_ptr<OurObject>&) -> std::string
-                {
-                    return "<our object>";
-                },
                 [](const std::shared_ptr<MyObject>&) -> std::string
                 {
                     return "<my object>";

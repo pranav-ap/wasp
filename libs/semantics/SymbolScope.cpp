@@ -30,7 +30,7 @@ Symbol_ptr SymbolScope::define(Symbol_ptr symbol)
     {
         return define_function(symbol);
     }
-    else if (symbol->payload_is<MethodData>() || symbol->payload_is<OurMethodData>())
+    else if (symbol->payload_is<MethodData>())
     {
         return define_method(symbol);
     }
@@ -109,7 +109,7 @@ Symbol_ptr SymbolScope::define_function(Symbol_ptr new_symbol)
 Symbol_ptr SymbolScope::define_method(Symbol_ptr new_symbol)
 {
     Doctor::get().assert(
-        new_symbol->payload_is<MethodData>() || new_symbol->payload_is<OurMethodData>(),
+        new_symbol->payload_is<MethodData>(),
         WaspStage::Semantics,
         "Expected a method symbol"
     );

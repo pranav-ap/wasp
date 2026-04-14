@@ -31,6 +31,21 @@ struct Upvalue
 
 class Compiler
 {
+public:
+    Compiler(Workspace_ptr workspace);
+    Compiler(Compiler* parent);
+
+    const CFGraph& get_graph() const
+    {
+        return graph;
+    }
+
+    FunctionBlueprintObject_ptr run(
+        const StatementVector& block,
+        std::string name,
+        bool is_main = false
+    );
+
 private:
     Workspace_ptr workspace;
     Compiler* parent;
@@ -103,7 +118,6 @@ private:
 
     void visit(FunctionDefinition& statement);
     void visit(MethodDefinition& statement);
-    void visit(OurMethodDefinition& statement);
 
     void visit(Return& statement);
 
@@ -171,21 +185,6 @@ private:
     Object_ptr get_default_value_for_type(Object_ptr type);
 
     CodeObject flatten();
-
-public:
-    Compiler(Workspace_ptr workspace);
-    Compiler(Compiler* parent);
-
-    const CFGraph& get_graph() const
-    {
-        return graph;
-    }
-
-    FunctionBlueprintObject_ptr run(
-        const StatementVector& block,
-        std::string name,
-        bool is_main = false
-    );
 };
 
 using Compiler_ptr = std::shared_ptr<Compiler>;

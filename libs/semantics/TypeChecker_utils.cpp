@@ -34,11 +34,6 @@ std::shared_ptr<FunctionType> TypeChecker::get_function_signature(Object_ptr typ
         return *p;
     }
 
-    if (auto p = type_obj->try_as<std::shared_ptr<OurMethodType>>())
-    {
-        return *p;
-    }
-
     return nullptr;
 }
 
