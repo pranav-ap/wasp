@@ -30,14 +30,14 @@ void VM::execute_instantiate(CallFrame* frame)
     Object_ptr blueprint_obj = pop_from_stack();
 
     Doctor::get().assert(
-        blueprint_obj->is<std::shared_ptr<ClassType>>(),
+        blueprint_obj->is<std::shared_ptr<ClassObject>>(),
         WaspStage::VM,
-        "OpCode::INSTANTIATE expects a ClassType blueprint on the stack!"
+        "OpCode::INSTANTIATE expects a ClassObject blueprint on the stack!"
     );
 
-    auto& blueprint = blueprint_obj->as<std::shared_ptr<ClassType>>();
+    auto& blueprint = blueprint_obj->as<std::shared_ptr<ClassObject>>();
 
-    size_t expected_total_size = blueprint->declaration_order.size();
+    int expected_total_size = blueprint->get_total_arity();
 
     Doctor::get().assert(
         total_size == expected_total_size,
@@ -56,7 +56,7 @@ void VM::execute_instantiate(CallFrame* frame)
 
 void VM::execute_make_function(CallFrame* frame)
 {
-    // 1. How many upvalues to capture?
+    // How many upvalues to capture?
     int upvalue_count = static_cast<int>(frame->consume_byte());
 
     // FunctionBlueprintObject is on the stack

@@ -1,10 +1,11 @@
 #include "CFGraph.h"
 #include "Compiler.h"
-#include "Doctor.h"
 #include "Objects.h"
 #include "OpCode.h"
 #include "Statement.h"
+
 #include <cstddef>
+#include <memory>
 #include <utility>
 #include <variant>
 
@@ -43,9 +44,15 @@ void Compiler::visit(ClassDefinition& class_definition)
 {
     compile_class_members(class_definition);
 
-    Object_ptr class_blueprint = class_definition.symbol->get_type();
+    auto class_type_obj = class_definition.symbol->get_type();
+    auto class_type = class_type_obj->as<std::shared_ptr<ClassType>>();
 
-    int const_id = workspace->pool->allocate(class_blueprint);
+    int arity = static_cast<int>(class_type->fields.size() + class_type->methods.size());
+    Object_ptr runtime_blueprint = make_object(
+        std::make_shared<ClassObject>(class_type->name, arity)
+    );
+
+    int const_id = workspace->pool->allocate(runtime_blueprint);
     emit(OpCode::LOAD_CONST, const_id, "class " + class_definition.name);
 
     int physical_index = resolve_local(class_definition.symbol->id);

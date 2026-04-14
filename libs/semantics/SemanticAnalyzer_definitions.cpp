@@ -47,14 +47,14 @@ void SemanticAnalyzer::visit(ClassDefinition& def)
 std::shared_ptr<ClassType> SemanticAnalyzer::extract_class_type(ClassDefinition& def)
 {
     ObjectStringMap member_types;
-    StringVector declaration_order;
+    StringVector fields;
+    StringVector methods;
 
-    auto add_unique_declaration = [&](const std::string& name)
+    auto add_unique_method = [&](const std::string& name)
     {
-        if (std::find(declaration_order.begin(), declaration_order.end(), name) ==
-            declaration_order.end())
+        if (std::find(methods.begin(), methods.end(), name) == methods.end())
         {
-            declaration_order.push_back(name);
+            methods.push_back(name);
         }
     };
 
@@ -66,11 +66,11 @@ std::shared_ptr<ClassType> SemanticAnalyzer::extract_class_type(ClassDefinition&
                 {
                     auto field_type = visit(field.type);
                     member_types[field.name] = field_type;
-                    declaration_order.push_back(field.name);
+                    fields.push_back(field.name);
                 },
                 [&](MethodDefinition& method)
                 {
-                    add_unique_declaration(method.name);
+                    add_unique_method(method.name);
                 },
                 [&](auto&)
                 {
@@ -84,7 +84,8 @@ std::shared_ptr<ClassType> SemanticAnalyzer::extract_class_type(ClassDefinition&
     return std::make_shared<ClassType>(
         def.name,
         std::move(member_types),
-        std::move(declaration_order)
+        std::move(fields),
+        std::move(methods)
     );
 }
 

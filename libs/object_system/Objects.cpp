@@ -116,41 +116,42 @@ int MemberedCompositeType::get_member_index(const std::string& member_name) cons
     return static_cast<int>(std::distance(members.begin(), it));
 }
 
+// ============================================================================
+// ClassType
+// ============================================================================
+
 int ClassType::get_member_index(const std::string& member_name) const
 {
-    int physical_index = 0;
-
-    for (const std::string& name : declaration_order)
+    for (size_t i = 0; i < fields.size(); ++i)
     {
-        if (name == member_name)
-        {
-            return physical_index;
-        }
-
-        physical_index++;
+        if (fields[i] == member_name)
+            return static_cast<int>(i);
     }
-
+    for (size_t i = 0; i < methods.size(); ++i)
+    {
+        if (methods[i] == member_name)
+            return static_cast<int>(fields.size() + i);
+    }
     return -1;
 }
 
-StringVector ClassType::get_instance_variable_names_in_declaration_order() const
+Object_ptr ClassType::get_member(int member_id) const
 {
-    StringVector instance_vars;
+    int field_count = static_cast<int>(fields.size());
 
-    for (const auto& name : declaration_order)
+    if (member_id < field_count)
     {
-
-        Object_ptr type_obj = members.at(name);
-
-        if (type_obj->is<std::shared_ptr<MethodType>>())
-        {
-            continue;
-        }
-
-        instance_vars.push_back(name);
+        return members.at(fields[member_id]);
     }
 
-    return instance_vars;
+    int method_index = member_id - field_count;
+
+    if (method_index < static_cast<int>(methods.size()))
+    {
+        return members.at(methods[method_index]);
+    }
+
+    Doctor::get().fatal(WaspStage::Semantics, "ClassType member index out of bounds!");
 }
 
 // ============================================================================

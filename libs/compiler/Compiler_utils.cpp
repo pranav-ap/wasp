@@ -91,6 +91,18 @@ int Compiler::resolve_local(int symbol_id)
     return -1;
 }
 
+int Compiler::resolve_local(const std::string& name)
+{
+    for (int i = static_cast<int>(locals.size()) - 1; i >= 0; --i)
+    {
+        if (locals[i]->name == name)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
 int Compiler::add_upvalue(const Upvalue& uv, const std::string& name)
 {
     // Check if we have already captured this exact variable

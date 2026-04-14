@@ -162,6 +162,47 @@ Object_ptr SemanticAnalyzer::evaluate_identifier_call(
     return get_function_return_type(resolved_function);
 }
 
+Object_ptr SemanticAnalyzer::evaluate_instance_creation(
+    Call& call,
+    Identifier& target,
+    Symbol_ptr class_symbol,
+    ObjectVector argument_types
+)
+{
+    call.is_constructor_call = true;
+    target.symbol = class_symbol;
+
+    if (class_symbol->should_be_captured(current_scope->get_closure_depth()))
+    {
+        target.must_be_captured = true;
+    }
+
+    auto class_type_obj = class_symbol->get_type();
+    auto class_type = class_type_obj->as<std::shared_ptr<ClassType>>();
+
+    Doctor::get().assert(
+        argument_types.size() == class_type->fields.size(),
+        WaspStage::Semantics,
+        "Constructor Arguments Count Mismatch. Expected " +
+            std::to_string(class_type->fields.size()) + ", got " +
+            std::to_string(argument_types.size())
+    );
+
+    for (size_t i = 0; i < class_type->fields.size(); ++i)
+    {
+        Object_ptr expected_type = class_type->get_member_type(class_type->fields[i]);
+        Object_ptr actual_type = argument_types[i];
+
+        Doctor::get().assert(
+            type_checker->assignable(current_scope, expected_type, actual_type),
+            WaspStage::Semantics,
+            "Constructor Arguments Type Mismatch for member '" + class_type->fields[i] + "'"
+        );
+    }
+
+    return class_type_obj;
+}
+
 Object_ptr SemanticAnalyzer::evaluate_instance_method_call(
     Call& call,
     MemberAccess& access,
@@ -201,50 +242,6 @@ Object_ptr SemanticAnalyzer::evaluate_instance_method_call(
     call.is_method_call = true;
 
     return get_function_return_type(resolved_method);
-}
-
-Object_ptr SemanticAnalyzer::evaluate_instance_creation(
-    Call& call,
-    Identifier& target,
-    Symbol_ptr class_symbol,
-    ObjectVector argument_types
-)
-{
-    call.is_constructor_call = true;
-    target.symbol = class_symbol;
-
-    if (class_symbol->should_be_captured(current_scope->get_closure_depth()))
-    {
-        target.must_be_captured = true;
-    }
-
-    auto class_type_obj = class_symbol->get_type();
-    auto class_type = class_type_obj->as<std::shared_ptr<ClassType>>();
-
-    StringVector instance_fields = class_type->get_instance_variable_names_in_declaration_order();
-
-    Doctor::get().assert(
-        argument_types.size() == instance_fields.size(),
-        WaspStage::Semantics,
-        "Constructor Arguments Count Mismatch. Expected " + std::to_string(instance_fields.size()) +
-            ", got " + std::to_string(argument_types.size())
-    );
-
-    for (size_t i = 0; i < instance_fields.size(); ++i)
-    {
-        const std::string& field_name = instance_fields[i];
-
-        Object_ptr expected_type = class_type->get_member_type(field_name);
-        Object_ptr actual_type = argument_types[i];
-
-        Doctor::get().assert(
-            type_checker->assignable(current_scope, expected_type, actual_type),
-            WaspStage::Semantics,
-            "Constructor Arguments Type Mismatch for member " + field_name
-        );
-    }
-
-    return class_type_obj;
 }
 
 Object_ptr SemanticAnalyzer::evaluate_module_method_call(

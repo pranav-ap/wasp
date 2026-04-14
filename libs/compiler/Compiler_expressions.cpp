@@ -121,50 +121,32 @@ void Compiler::compile_constructor_call(Call& expr)
     auto symbol = expr.callable->as<Identifier>().symbol;
     auto class_type = symbol->get_type()->as<std::shared_ptr<ClassType>>();
 
-    int arg_index = 0;
-    int total_size = 0;
+    Doctor::get().assert(
+        expr.arguments.size() == class_type->fields.size(),
+        WaspStage::Compiler,
+        "Compiler error: Argument count does not match instance field count."
+    );
 
-    for (const std::string& member_name : class_type->declaration_order)
+    for (const auto& arg : expr.arguments)
     {
-        auto type_obj = class_type->members.at(member_name);
-
-        if (type_obj->is<std::shared_ptr<MethodType>>())
-        {
-            std::string mangled_name = class_type->name + "::" + member_name;
-
-            int method_physical_index = -1;
-            for (int i = static_cast<int>(locals.size()) - 1; i >= 0; --i)
-            {
-                if (locals[i]->name == mangled_name)
-                {
-                    method_physical_index = i;
-                    break;
-                }
-            }
-
-            Doctor::get().assert(
-                method_physical_index != -1,
-                WaspStage::Compiler,
-                "Compiler error: Could not find method " + mangled_name + " in locals."
-            );
-
-            emit(OpCode::GET_LOCAL, method_physical_index, "method " + mangled_name);
-        }
-        else
-        {
-            Doctor::get().assert(
-                arg_index < expr.arguments.size(),
-                WaspStage::Compiler,
-                "Compiler error: Not enough arguments provided for constructor."
-            );
-
-            visit(expr.arguments[arg_index]);
-            arg_index++;
-        }
-
-        total_size++;
+        visit(arg);
     }
 
+    for (const std::string& method_name : class_type->methods)
+    {
+        std::string mangled_name = class_type->name + "::" + method_name;
+        int method_physical_index = resolve_local(mangled_name);
+
+        Doctor::get().assert(
+            method_physical_index != -1,
+            WaspStage::Compiler,
+            "Compiler error: Could not find method " + mangled_name + " in locals."
+        );
+
+        emit(OpCode::GET_LOCAL, method_physical_index, "method " + mangled_name);
+    }
+
+    int total_size = static_cast<int>(class_type->fields.size() + class_type->methods.size());
     emit(OpCode::INSTANTIATE, total_size);
 }
 

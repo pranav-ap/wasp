@@ -279,11 +279,6 @@ struct ModuleObject : public MemberedCompositeObject
     }
 };
 
-struct MyObject : public MemberedCompositeObject
-{
-    using MemberedCompositeObject::MemberedCompositeObject;
-};
-
 // ============================================================================
 // Action Objects
 // ============================================================================
@@ -473,7 +468,7 @@ struct MemberedCompositeType : public CompositeType
     Object_ptr get_member_type(const std::string& member_name) const;
     void set_member(const std::string& member_name, Object_ptr value);
 
-    Object_ptr get_member(int member_id) const;
+    virtual Object_ptr get_member(int member_id) const;
     void set_member(int member_id, Object_ptr value);
 
     virtual int get_member_index(const std::string& member_name) const;
@@ -496,19 +491,44 @@ struct ModuleType : public MemberedCompositeType
     }
 };
 
+// ============================================================================
+// CLASS
+// ============================================================================
+
 struct ClassType : public MemberedCompositeType
 {
     std::string name;
-    StringVector declaration_order;
+    StringVector fields;
+    StringVector methods;
 
-    ClassType(std::string name, ObjectStringMap members, StringVector declaration_order)
-        : name(std::move(name)), declaration_order(std::move(declaration_order)),
+    ClassType(std::string name, ObjectStringMap members, StringVector fields, StringVector methods)
+        : name(std::move(name)), fields(std::move(fields)), methods(std::move(methods)),
           MemberedCompositeType(std::move(members))
     {
     }
 
-    int get_member_index(const std::string& member_name) const;
-    StringVector get_instance_variable_names_in_declaration_order() const;
+    int get_member_index(const std::string& member_name) const override;
+    Object_ptr get_member(int member_id) const override;
+};
+
+struct ClassObject : public CompositeObject
+{
+    std::string name;
+    int arity;
+
+    ClassObject(std::string name, int arity) : name(std::move(name)), arity(arity)
+    {
+    }
+
+    int get_total_arity() const
+    {
+        return arity;
+    }
+};
+
+struct MyObject : public MemberedCompositeObject
+{
+    using MemberedCompositeObject::MemberedCompositeObject;
 };
 
 // ============================================================================
@@ -540,10 +560,11 @@ struct Object
 
         std::shared_ptr<ModuleObject>,
 
+        std::shared_ptr<ClassObject>,
+        std::shared_ptr<MyObject>,
+
         std::shared_ptr<OverloadedObjectsSet>,
         std::shared_ptr<OverloadedTypesSet>,
-
-        std::shared_ptr<MyObject>,
 
         std::shared_ptr<BreakObject>,
         std::shared_ptr<ContinueObject>,

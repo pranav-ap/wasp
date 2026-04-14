@@ -64,6 +64,7 @@ private:
     int resolve_upvalue(Compiler* current_compiler, Symbol_ptr symbol);
 
     int resolve_local(int symbol_id);
+    int resolve_local(const std::string& name);
 
     // ------------------------------------------------------------------------
     // Control Flow Graph
