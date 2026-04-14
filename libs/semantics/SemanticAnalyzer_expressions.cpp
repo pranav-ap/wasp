@@ -229,7 +229,7 @@ Object_ptr SemanticAnalyzer::evaluate_instance_method_call(
     auto [overload_group, resolved_method, overload_index] = type_checker
                                                                  ->resolve_class_method_call(
                                                                      current_scope,
-                                                                     receiver_class->name,
+                                                                     receiver_class,
                                                                      method_identifier.name,
                                                                      argument_types
                                                                  );
@@ -262,11 +262,29 @@ Object_ptr SemanticAnalyzer::evaluate_module_method_call(
     Symbol_ptr module_symbol = current_scope->lookup(module_identifier.name);
     Doctor::get().fatal_if_nullptr(module_symbol, WaspStage::Semantics);
 
+    // Resolve the alias!
+    module_symbol = module_symbol->resolve();
     module_identifier.symbol = module_symbol;
 
     if (module_symbol->should_be_captured(current_scope->get_closure_depth()))
     {
         module_identifier.must_be_captured = true;
+    }
+
+    auto& module_data = module_symbol->get_payload_as<ModuleData>();
+    Symbol_ptr member_symbol = module_data.mod->get_member(method_identifier.name);
+
+    Doctor::get().fatal_if_nullptr(
+        member_symbol,
+        WaspStage::Semantics,
+        "Member '" + method_identifier.name + "' not found in module."
+    );
+
+    if (member_symbol->payload_is<ClassData>())
+    {
+        access.member_index = module_data.mod->get_member_index(method_identifier.name);
+
+        return evaluate_instance_creation(call, method_identifier, member_symbol, argument_types);
     }
 
     auto
@@ -287,4 +305,5 @@ Object_ptr SemanticAnalyzer::evaluate_module_method_call(
 
     return get_function_return_type(resolved_function);
 }
+
 } // namespace Wasp

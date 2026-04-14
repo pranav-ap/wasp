@@ -9,13 +9,15 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <unordered_set>
 #include <utility>
 #include <variant>
 #include <vector>
 
 namespace Wasp
 {
+
+struct Symbol;
+using Symbol_ptr = std::shared_ptr<Symbol>;
 
 struct Object;
 using Object_ptr = std::shared_ptr<Object>;
@@ -500,6 +502,8 @@ struct ClassType : public MemberedCompositeType
     std::string name;
     StringVector fields;
     StringVector methods;
+
+    std::map<std::string, Symbol_ptr> method_group_symbols;
 
     ClassType(std::string name, ObjectStringMap members, StringVector fields, StringVector methods)
         : name(std::move(name)), fields(std::move(fields)), methods(std::move(methods)),

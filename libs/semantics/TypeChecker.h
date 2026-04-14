@@ -57,7 +57,7 @@ public:
     // group symbol, function symbol, overload index
     std::tuple<Symbol_ptr, Symbol_ptr, int> resolve_class_method_call(
         SymbolScope_ptr scope,
-        const std::string& class_name,
+        std::shared_ptr<ClassType> class_type,
         const std::string& method_name,
         const ObjectVector& argument_types
     ) const;

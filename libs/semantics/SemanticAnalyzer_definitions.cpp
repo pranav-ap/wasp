@@ -128,11 +128,14 @@ void SemanticAnalyzer::hoist_method(
         std::make_shared<MethodType>(parameter_types, return_type, target_type_obj)
     );
 
+    Symbol_ptr class_symbol = current_scope->lookup(container_name);
+    bool is_exported = class_symbol ? class_symbol->is_exported() : true;
+
     Symbol_ptr method_symbol = SymbolFactory::create_method(
         method_def.name,
         signature,
         target_type_obj,
-        false,
+        is_exported,
         current_scope->get_closure_depth(),
         current_scope->get_lexical_depth()
     );
@@ -151,6 +154,7 @@ void SemanticAnalyzer::hoist_method(
     method_def.group_symbol = current_scope->lookup(method_def.name);
 
     class_type->members[original_name] = method_symbol->get_type();
+    class_type->method_group_symbols[original_name] = method_def.group_symbol;
 }
 
 void SemanticAnalyzer::analyze_class_methods(ClassDefinition& def)

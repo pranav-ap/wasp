@@ -10,7 +10,6 @@
 #include <memory>
 #include <string>
 #include <tuple>
-#include <utility>
 #include <vector>
 
 template <class... Ts> struct overloaded : Ts...
@@ -195,22 +194,50 @@ std::tuple<Symbol_ptr, Symbol_ptr, int> TypeChecker::resolve_function_call(
 
 std::tuple<Symbol_ptr, Symbol_ptr, int> TypeChecker::resolve_class_method_call(
     SymbolScope_ptr scope,
-    const std::string& class_name,
+    std::shared_ptr<ClassType> class_type,
     const std::string& method_name,
     const ObjectVector& argument_types
 ) const
 {
-    std::string mangled_name = class_name + "::" + method_name;
+    auto it = class_type->method_group_symbols.find(method_name);
 
-    Symbol_ptr overload_group_symbol = scope->lookup(mangled_name);
-
-    Doctor::get().fatal_if_nullptr(
-        overload_group_symbol,
+    Doctor::get().assert(
+        it != class_type->method_group_symbols.end(),
         WaspStage::Semantics,
-        "Method '" + method_name + "()' does not exist on class '" + class_name + "'."
+        "Method '" + method_name + "()' does not exist on class '" + class_type->name + "'."
     );
 
-    return resolve_function_call(scope, mangled_name, argument_types);
+    Symbol_ptr overload_group_symbol = it->second;
+
+    Doctor::get().assert(
+        overload_group_symbol->payload_is<OverloadGroupData>(),
+        WaspStage::Semantics,
+        "Symbol '" + method_name + "' is not an overload group"
+    );
+
+    const auto& group_data = overload_group_symbol->get_payload_as<OverloadGroupData>();
+
+    SymbolVector valid_matches = get_assignable_function_signatures(
+        scope,
+        group_data.get_all_overloads(),
+        argument_types
+    );
+
+    Doctor::get().assert(
+        !valid_matches.empty(),
+        WaspStage::Semantics,
+        "No matching function signature found for " + overload_group_symbol->name
+    );
+
+    Doctor::get().assert(
+        valid_matches.size() == 1,
+        WaspStage::Semantics,
+        "Ambiguous function call to " + overload_group_symbol->name
+    );
+
+    int index = group_data.get_overload_index(valid_matches.front());
+
+    return {overload_group_symbol, valid_matches.front(), index};
 }
 
 std::tuple<Symbol_ptr, Symbol_ptr, int, int> TypeChecker::resolve_module_function_call(

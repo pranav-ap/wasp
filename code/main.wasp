@@ -1,30 +1,40 @@
-class BankAccount
-    owner: str
-    balance: int
+import my.catalog as c
+import my.utils
 
-    fun deposit(amount: int)
-        my.balance = my.balance + amount
-        my.print_receipt()
+utils.print_header(c.store_name)
+utils.print_header('Welcome Traveler', '*')
 
-    fun withdraw(amount: int)
-        fun dispense_cash()
-            print('Whirrr... dispensing cash...')
+let sword = c.Item(1, 'Iron Sword', 150)
+let potion = c.Item(2, 'Health Potion', 25)
+let boots = c.Item(3, 'Leather Boots', 45)
 
-        my.balance = my.balance - amount
-        dispense_cash()
-        my.print_receipt()
+print('Looks like the boots are on sale!')
+boots.apply_discount(15)
 
-    fun print_receipt()
-        print('Account: ' + my.owner + ' | Balance: $' + my.balance)
+print('')
+print('Items for sale:')
+sword.print_details()
+potion.print_details()
+boots.print_details()
 
-fun greet()
-    print('Welcome to Wasp Bank!')
+print('')
 
-greet()
+let wallet = 100
+let target_item = sword
 
-let account = BankAccount('Sam', 500)
+print('You have $' + wallet + ' and want to buy the ' + target_item.name + '.')
 
-account.print_receipt()
+if wallet >= target_item.price then
+    wallet = wallet - target_item.price
+    print('Purchase successful! Remaining gold: $' + wallet)
+elif wallet == 0 then
+    print('You are completely broke!')
+else
+    let shortage = target_item.price - wallet
+    print('Not enough gold. You need $' + shortage + ' more.')
 
-account.deposit(250)
-account.withdraw(50)
+print('')
+
+print('Checking your inventory slots...')
+for let slot in [1, 2, 3] do
+    print('Bag slot ' + slot + ' is empty.')

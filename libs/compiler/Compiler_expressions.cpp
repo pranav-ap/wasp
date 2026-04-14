@@ -118,8 +118,18 @@ void Compiler::compile_constructor_call(Call& expr)
 {
     visit(expr.callable);
 
-    auto symbol = expr.callable->as<Identifier>().symbol;
-    auto class_type = symbol->get_type()->as<std::shared_ptr<ClassType>>();
+    // Safely extract the symbol whether it's a direct Identifier or a MemberAccess
+    Symbol_ptr class_symbol;
+    if (expr.callable->is<Identifier>())
+    {
+        class_symbol = expr.callable->as<Identifier>().symbol;
+    }
+    else
+    {
+        class_symbol = expr.callable->as<MemberAccess>().right->as<Identifier>().symbol;
+    }
+
+    auto class_type = class_symbol->get_type()->as<std::shared_ptr<ClassType>>();
 
     Doctor::get().assert(
         expr.arguments.size() == class_type->fields.size(),
@@ -127,25 +137,54 @@ void Compiler::compile_constructor_call(Call& expr)
         "Compiler error: Argument count does not match instance field count."
     );
 
+    // 1. Push all instance fields
     for (const auto& arg : expr.arguments)
     {
         visit(arg);
     }
 
+    // 2. Push all methods
     for (const std::string& method_name : class_type->methods)
     {
         std::string mangled_name = class_type->name + "::" + method_name;
         int method_physical_index = resolve_local(mangled_name);
 
-        Doctor::get().assert(
-            method_physical_index != -1,
-            WaspStage::Compiler,
-            "Compiler error: Could not find method " + mangled_name + " in locals."
-        );
+        if (method_physical_index != -1)
+        {
+            // The class was defined in this file. Method closure is local.
+            emit(OpCode::GET_LOCAL, method_physical_index, "method " + mangled_name);
+        }
+        else
+        {
+            // The class was imported! We must grab the closure from the module's runtime memory.
+            auto& mac = expr.callable->as<MemberAccess>();
 
-        emit(OpCode::GET_LOCAL, method_physical_index, "method " + mangled_name);
+            // Push the module object to the stack
+            visit(mac.left);
+
+            // Find the method's physical index inside the module
+            auto module_symbol = mac.left->as<Identifier>().symbol->resolve();
+            auto module_type = module_symbol->get_type()->as<std::shared_ptr<ModuleType>>();
+
+            // --- THE FIX: Dynamic ModuleType Injection ---
+            // If the AST SymbolHoister missed the methods, we inject them here.
+            // Because std::map sorts alphabetically, this guarantees our compile-time
+            // index perfectly aligns with the runtime ModuleObject's exported array!
+            if (!module_type->contains_member(mangled_name))
+            {
+                Object_ptr method_type = class_type->get_member_type(method_name);
+                module_type->set_member(mangled_name, method_type);
+            }
+            // ---------------------------------------------
+
+            int mod_index = module_type->get_member_index(mangled_name);
+
+            // Pop the module, push the method closure!
+            emit(OpCode::GET_MEMBER, mod_index, "imported method " + mangled_name);
+        }
     }
 
+    // 3. Instantiate with the total size of fields + methods
     int total_size = static_cast<int>(class_type->fields.size() + class_type->methods.size());
     emit(OpCode::INSTANTIATE, total_size);
 }

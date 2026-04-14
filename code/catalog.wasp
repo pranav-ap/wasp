@@ -1,0 +1,12 @@
+let store_name = 'Wasp General Store'
+
+class Item
+    id: int
+    name: str
+    price: int
+
+    fun print_details()
+        print('[' + my.id + '] ' + my.name + ' - $' + my.price)
+
+    fun apply_discount(discount: int)
+        my.price = my.price - discount
