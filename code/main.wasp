@@ -1,15 +1,14 @@
+class for Movie
+    total: int
+
+
 class Movie
     id: int
     name: str
 
-    total: our int
-
-    fun our get_total()
-        print(our.total)
-
+    fun defaults()
+        pass
 
 
 let m = Movie(1, 'sam')
-Movie.total = 42
 
-Movie.get_total()
