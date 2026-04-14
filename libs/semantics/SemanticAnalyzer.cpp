@@ -85,7 +85,7 @@ void SemanticAnalyzer::register_natives()
     {
         auto symbol_type = workspace->native_registry->get_native_object_type(index);
 
-        auto symbol = SymbolFactory::create_local_function(name, symbol_type, true);
+        auto symbol = SymbolFactory::create_function(name, symbol_type, true);
         current_scope->define(symbol);
     }
 }
@@ -124,7 +124,7 @@ void SemanticAnalyzer::visit(const Statement_ptr statement)
             {
                 visit(stat);
             },
-            [&](LocalFunctionDefinition& stat)
+            [&](FunctionDefinition& stat)
             {
                 visit(stat);
             },

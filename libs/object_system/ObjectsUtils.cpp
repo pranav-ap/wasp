@@ -119,7 +119,7 @@ namespace Wasp
                     return are_equal_types(l->parameter_types, r->parameter_types);
                 },
 
-                [](const std::shared_ptr<MyMethodType>& l, const std::shared_ptr<MyMethodType>& r)
+                [](const std::shared_ptr<MethodType>& l, const std::shared_ptr<MethodType>& r)
                 {
                     return are_equal_types(l->parameter_types, r->parameter_types);
                 },
@@ -187,7 +187,7 @@ namespace Wasp
                 {
                     return "function type";
                 },
-                [](const std::shared_ptr<MyMethodType>&) -> std::string
+                [](const std::shared_ptr<MethodType>&) -> std::string
                 {
                     return "my method type";
                 },

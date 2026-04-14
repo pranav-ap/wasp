@@ -65,17 +65,12 @@ struct AbstractFunctionDefinition : public Definition
     }
 };
 
-struct LocalFunctionDefinition : public AbstractFunctionDefinition
+struct FunctionDefinition : public AbstractFunctionDefinition
 {
     using AbstractFunctionDefinition::AbstractFunctionDefinition;
 };
 
-struct MyMethodDefinition : public AbstractFunctionDefinition
-{
-    using AbstractFunctionDefinition::AbstractFunctionDefinition;
-};
-
-struct OurMethodDefinition : public AbstractFunctionDefinition
+struct MethodDefinition : public AbstractFunctionDefinition
 {
     using AbstractFunctionDefinition::AbstractFunctionDefinition;
 };
@@ -83,12 +78,11 @@ struct OurMethodDefinition : public AbstractFunctionDefinition
 struct FieldDefinition : public Definition
 {
     TypeAnnotation_ptr type;
-    bool is_our;
 
     FieldDefinition() = default;
 
-    FieldDefinition(std::string name, TypeAnnotation_ptr type, bool is_our)
-        : Definition(std::move(name)), type(std::move(type)), is_our(is_our)
+    FieldDefinition(std::string name, TypeAnnotation_ptr type)
+        : Definition(std::move(name)), type(std::move(type))
     {
     }
 };
@@ -328,9 +322,8 @@ using StatementVariant = std::variant<
     AliasDefinition,
     EnumDefinition,
 
-    LocalFunctionDefinition,
-    MyMethodDefinition,
-    OurMethodDefinition,
+    FunctionDefinition,
+    MethodDefinition,
 
     FieldDefinition,
 

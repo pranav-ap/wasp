@@ -27,7 +27,7 @@ void Compiler::compile_class_members(ClassDefinition& class_definition)
     {
         std::visit(
             overloaded{
-                [&](MyMethodDefinition& method)
+                [&](MethodDefinition& method)
                 {
                     visit(method);
                 },
@@ -144,12 +144,12 @@ void Compiler::compile_abstract_function(AbstractFunctionDefinition& function_de
     emit(OpCode::OVERLOAD_FUNCTION, physical_index, "fun " + function_definition.name);
 }
 
-void Compiler::visit(LocalFunctionDefinition& function_definition)
+void Compiler::visit(FunctionDefinition& function_definition)
 {
     compile_abstract_function(function_definition);
 }
 
-void Compiler::visit(MyMethodDefinition& method_definition)
+void Compiler::visit(MethodDefinition& method_definition)
 {
     compile_abstract_function(method_definition);
 }

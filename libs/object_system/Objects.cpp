@@ -149,7 +149,7 @@ StringVector ClassType::get_instance_variable_names_in_declaration_order() const
 
         Object_ptr type_obj = members.at(name);
 
-        if (type_obj->is<std::shared_ptr<MyMethodType>>() ||
+        if (type_obj->is<std::shared_ptr<MethodType>>() ||
             type_obj->is<std::shared_ptr<OurMethodType>>())
         {
             continue;
@@ -172,7 +172,7 @@ StringVector ClassType::get_class_variables_declaration_order() const
 
         Object_ptr type_obj = members.at(name);
 
-        if (type_obj->is<std::shared_ptr<MyMethodType>>() ||
+        if (type_obj->is<std::shared_ptr<MethodType>>() ||
             type_obj->is<std::shared_ptr<OurMethodType>>())
         {
             continue;

@@ -279,11 +279,6 @@ struct ModuleObject : public MemberedCompositeObject
     }
 };
 
-struct OurObject : public MemberedCompositeObject
-{
-    using MemberedCompositeObject::MemberedCompositeObject;
-};
-
 struct MyObject : public MemberedCompositeObject
 {
     using MemberedCompositeObject::MemberedCompositeObject;
@@ -461,16 +456,6 @@ struct MethodType : public FunctionType
     }
 };
 
-struct MyMethodType : public MethodType
-{
-    using MethodType::MethodType;
-};
-
-struct OurMethodType : public MethodType
-{
-    using MethodType::MethodType;
-};
-
 // ============================================================================
 // Membered Types
 // ============================================================================
@@ -596,8 +581,7 @@ struct Object
         VariantType,
 
         std::shared_ptr<LocalFunctionType>,
-        std::shared_ptr<MyMethodType>,
-        std::shared_ptr<OurMethodType>,
+        std::shared_ptr<MethodType>,
 
         std::shared_ptr<RecordType>,
         std::shared_ptr<ModuleType>,

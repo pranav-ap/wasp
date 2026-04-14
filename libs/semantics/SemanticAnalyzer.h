@@ -46,8 +46,8 @@ class SemanticAnalyzer
         bool inject_our
     );
 
-    void visit(LocalFunctionDefinition& statement);
-    void visit(MyMethodDefinition& statement);
+    void visit(FunctionDefinition& statement);
+    void visit(MethodDefinition& statement);
     void visit(OurMethodDefinition& statement);
 
     void extract_class_signatures(

@@ -36,7 +36,7 @@ Object_ptr SemanticAnalyzer::get_function_return_type(Symbol_ptr symbol)
     {
         return (*p)->return_type;
     }
-    if (auto p = type_obj->try_as<std::shared_ptr<MyMethodType>>())
+    if (auto p = type_obj->try_as<std::shared_ptr<MethodType>>())
     {
         return (*p)->return_type;
     }
@@ -50,14 +50,14 @@ Object_ptr SemanticAnalyzer::get_function_return_type(Symbol_ptr symbol)
 
 bool SemanticAnalyzer::is_native_function(Symbol_ptr symbol)
 {
-    if (symbol->payload_is<LocalFunctionData>())
+    if (symbol->payload_is<FunctionData>())
     {
-        return symbol->get_payload_as<LocalFunctionData>().is_native;
+        return symbol->get_payload_as<FunctionData>().is_native;
     }
 
-    if (symbol->payload_is<MyMethodData>())
+    if (symbol->payload_is<MethodData>())
     {
-        return symbol->get_payload_as<MyMethodData>().is_native;
+        return symbol->get_payload_as<MethodData>().is_native;
     }
 
     if (symbol->payload_is<OurMethodData>())
@@ -74,7 +74,7 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
     {
         std::visit(
             overloaded{
-                [&](LocalFunctionDefinition& fun_def)
+                [&](FunctionDefinition& fun_def)
                 {
                     if (!fun_def.symbol)
                     {
@@ -83,7 +83,7 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
                             std::make_shared<LocalFunctionType>(param_types, ret_type)
                         );
 
-                        auto symbol = SymbolFactory::create_local_function(
+                        auto symbol = SymbolFactory::create_function(
                             fun_def.name,
                             signature,
                             false,

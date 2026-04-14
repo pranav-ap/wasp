@@ -71,7 +71,7 @@ void SemanticAnalyzer::extract_class_signatures(
                         field.symbol = symbol;
                     }
                 },
-                [&](MyMethodDefinition& method)
+                [&](MethodDefinition& method)
                 {
                     add_unique_declaration(method.name);
                 },
@@ -111,7 +111,7 @@ void SemanticAnalyzer::hoist_method(
                                         )
                                     )
                                   : make_object(
-                                        std::make_shared<MyMethodType>(
+                                        std::make_shared<MethodType>(
                                             parameter_types,
                                             return_type,
                                             target_type_obj
@@ -126,7 +126,7 @@ void SemanticAnalyzer::hoist_method(
                                             current_scope->get_closure_depth(),
                                             current_scope->get_lexical_depth()
                                         )
-                                      : SymbolFactory::create_my_method(
+                                      : SymbolFactory::create_method(
                                             method_def.name,
                                             signature,
                                             target_type_obj,
@@ -161,7 +161,7 @@ void SemanticAnalyzer::hoist_class_methods(
     {
         std::visit(
             overloaded{
-                [&](MyMethodDefinition& m)
+                [&](MethodDefinition& m)
                 {
                     hoist_method(m, false, def.name, target_type_obj, class_type);
                 },
@@ -184,7 +184,7 @@ void SemanticAnalyzer::analyze_class_methods(ClassDefinition& def)
     {
         std::visit(
             overloaded{
-                [&](MyMethodDefinition& m)
+                [&](MethodDefinition& m)
                 {
                     visit(m);
                 },
@@ -232,12 +232,12 @@ void SemanticAnalyzer::visit(ClassDefinition& def)
 // FUNCTIONS
 // ============================================================================
 
-void SemanticAnalyzer::visit(LocalFunctionDefinition& fun_def)
+void SemanticAnalyzer::visit(FunctionDefinition& fun_def)
 {
     analyze_abstract_function_body(fun_def, false, false);
 }
 
-void SemanticAnalyzer::visit(MyMethodDefinition& method_def)
+void SemanticAnalyzer::visit(MethodDefinition& method_def)
 {
     analyze_abstract_function_body(method_def, true, true);
 }
@@ -290,7 +290,7 @@ void SemanticAnalyzer::analyze_abstract_function_body(
         // Impl method or local function (already evaluated!)
         Object_ptr type_obj = fun_def.symbol->get_type();
 
-        if (auto ptr = type_obj->try_as<std::shared_ptr<MyMethodType>>())
+        if (auto ptr = type_obj->try_as<std::shared_ptr<MethodType>>())
         {
             return_type = (*ptr)->return_type;
             param_types = (*ptr)->parameter_types;

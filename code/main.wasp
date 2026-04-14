@@ -1,13 +1,6 @@
-class for Movie
-    total: int
-
-
 class Movie
     id: int
     name: str
-
-    fun defaults()
-        pass
 
 
 let m = Movie(1, 'sam')

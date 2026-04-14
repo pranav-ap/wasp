@@ -203,7 +203,7 @@ void Compiler::compile_constructor_call(Call& expr)
 
         auto type_obj = class_type->members.at(member_name);
 
-        if (type_obj->is<std::shared_ptr<MyMethodType>>())
+        if (type_obj->is<std::shared_ptr<MethodType>>())
         {
             std::string mangled_name = class_type->name + "::" + member_name;
 

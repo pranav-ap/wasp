@@ -101,8 +101,8 @@ private:
 
     void compile_abstract_function(AbstractFunctionDefinition& function_definition);
 
-    void visit(LocalFunctionDefinition& statement);
-    void visit(MyMethodDefinition& statement);
+    void visit(FunctionDefinition& statement);
+    void visit(MethodDefinition& statement);
     void visit(OurMethodDefinition& statement);
 
     void visit(Return& statement);
