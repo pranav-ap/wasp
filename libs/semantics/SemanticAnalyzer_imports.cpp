@@ -21,29 +21,28 @@ void SemanticAnalyzer::visit(SimpleImport& import_stmt)
     auto mod = workspace->get_module(import_stmt.absolute_path);
     Doctor::get().fatal_if_nullptr(mod, WaspStage::Semantics, "Failed to load module");
 
-    Symbol_ptr module_symbol = SymbolFactory::create_module(mod->get_name(), mod);
+    std::string module_name = mod->get_name();
+    Symbol_ptr module_symbol = SymbolFactory::create_module(module_name, mod);
 
     if (import_stmt.alias.has_value())
     {
-        Symbol_ptr alias_symbol = SymbolFactory::create_alias(
-            import_stmt.alias.value(),
-            module_symbol);
+        module_name = import_stmt.alias.value();
 
+        Symbol_ptr alias_symbol = SymbolFactory::create_alias(module_name, module_symbol);
         current_scope->define(alias_symbol);
         import_stmt.symbol = module_symbol;
-
-        return;
     }
-
-    current_scope->define(module_symbol);
-    import_stmt.symbol = module_symbol;
+    else
+    {
+        current_scope->define(module_symbol);
+        import_stmt.symbol = module_symbol;
+    }
 
     // setup aliases for all exported symbols
 
     for (const auto& exported_symbol : mod->exports)
     {
-        std::string local_name = exported_symbol->name;
-        std::string alias_name = mod->get_name() + "::" + local_name;
+        std::string alias_name = module_name + "::" + exported_symbol->name;
 
         Symbol_ptr alias_symbol = SymbolFactory::create_alias(alias_name, exported_symbol);
         current_scope->define(alias_symbol);

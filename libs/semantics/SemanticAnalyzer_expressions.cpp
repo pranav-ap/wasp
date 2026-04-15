@@ -111,8 +111,15 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                         receiver_type
                     );
                 }
+                else if (receiver_type->is<std::shared_ptr<ModuleType>>())
+                {
+                    return evaluate_module_method_call(call, access, argument_types);
+                }
 
-                return evaluate_module_method_call(call, access, argument_types);
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Cannot invoke method. Receiver is neither a class nor a module."
+                );
             },
 
             [&](auto&) -> Object_ptr

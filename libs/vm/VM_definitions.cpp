@@ -25,28 +25,9 @@ namespace Wasp
 void VM::execute_instantiate(CallFrame* frame)
 {
     int total_size = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
-
-    Object_ptr blueprint_obj = pop_from_stack();
     ObjectVector memory = pop_n_from_stack(total_size);
 
-    Doctor::get().assert(
-        blueprint_obj->is<ClassType_ptr>(),
-        WaspStage::VM,
-        "OpCode::INSTANTIATE expects a ClassType blueprint on the stack!"
-    );
-
-    auto blueprint = blueprint_obj->as<ClassType_ptr>();
-
-    int expected_total_size = blueprint->fields.size() + blueprint->methods.size();
-
-    Doctor::get().assert(
-        total_size == expected_total_size,
-        WaspStage::VM,
-        "Arity mismatch for class " + blueprint->name
-    );
-
     auto instance = make_object(std::make_shared<InstanceObject>(std::move(memory)));
-
     push_to_stack(instance);
 }
 

@@ -116,8 +116,6 @@ void Compiler::visit(Call& expr)
 
 void Compiler::compile_constructor_call(Call& expr)
 {
-    visit(expr.callable);
-
     Symbol_ptr class_symbol;
 
     if (expr.callable->is<Identifier>())
