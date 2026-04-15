@@ -30,6 +30,8 @@ class SemanticAnalyzer
     // Statement Visitors
     // -------------------------------------------------------------------------
 
+    void setup_exports(Module_ptr mod);
+
     void visit(const Statement_ptr statement);
     void visit(StatementVector& statements);
 

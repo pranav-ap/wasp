@@ -32,24 +32,37 @@ void SemanticAnalyzer::run(const std::vector<Module_ptr>& build_order)
     enter_scope(ScopeType::WORKSPACE);
     register_natives();
 
-    for (const auto& module : build_order)
+    for (const auto mod : build_order)
     {
         enter_scope(ScopeType::MODULE);
-
-        // Push this module's hoisted symbols into its scope before visiting the statements,
-        // so that they can be referenced in the module body
-        for (auto& symbol : module->exports)
-        {
-            current_scope->define(symbol);
-        }
-
-        visit(module->stmts);
+        visit(mod->stmts);
+        setup_exports(mod);
         leave_scope();
 
-        extract_module_type(module);
+        extract_module_type(mod);
     }
 
     leave_scope();
+}
+
+void SemanticAnalyzer::setup_exports(Module_ptr mod)
+{
+    SymbolVector result;
+    result.reserve(current_scope->symbols.size());
+
+    for (const auto& [name, symbol] : current_scope->symbols)
+    {
+        if (symbol->is_exported())
+        {
+            Doctor::get().fatal_if_nullptr(
+                symbol->get_type(),
+                WaspStage::Semantics,
+                "Symbol '" + name + "' has no type information"
+            );
+
+            mod->exports.push_back(symbol);
+        }
+    }
 }
 
 void SemanticAnalyzer::register_natives()
@@ -188,4 +201,5 @@ void SemanticAnalyzer::visit(const Statement_ptr statement)
         statement->data
     );
 }
+
 } // namespace Wasp
