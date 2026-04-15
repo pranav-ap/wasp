@@ -31,12 +31,12 @@ private:
     int closure_depth;
     int lexical_depth;
 
-    SymbolStringMap symbols;
-
     Symbol_ptr define_function(Symbol_ptr symbol);
     Symbol_ptr define_method(Symbol_ptr new_symbol);
 
 public:
+    SymbolStringMap symbols;
+
     SymbolScope(ScopeType type, SymbolScope_ptr enclosing_scope = nullptr);
 
     SymbolScope(const SymbolScope&) = delete;
@@ -57,7 +57,5 @@ public:
     int get_closure_depth() const;
     int get_lexical_depth() const;
     int get_function_distance(int target_closure_depth) const;
-
-    SymbolVector get_all_symbols() const;
 };
 } // namespace Wasp

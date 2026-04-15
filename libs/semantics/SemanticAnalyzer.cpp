@@ -27,6 +27,58 @@ namespace Wasp
 // ENTRY POINT
 // ============================================================================
 
+void SemanticAnalyzer::run(const std::vector<Module_ptr>& build_order)
+{
+    enter_scope(ScopeType::WORKSPACE);
+    register_natives();
+
+    for (const auto mod : build_order)
+    {
+        enter_scope(ScopeType::MODULE);
+        visit(mod->stmts);
+        setup_exports(mod);
+        leave_scope();
+
+        extract_module_type(mod);
+    }
+
+    leave_scope();
+}
+
+void SemanticAnalyzer::setup_exports(Module_ptr mod)
+{
+    SymbolVector result;
+    result.reserve(current_scope->symbols.size());
+
+    for (const auto& [name, symbol] : current_scope->symbols)
+    {
+        if (symbol->is_exported())
+        {
+            Doctor::get().fatal_if_nullptr(
+                symbol->get_type(),
+                WaspStage::Semantics,
+                "Symbol '" + name + "' has no type information"
+            );
+
+            mod->exports.push_back(symbol);
+        }
+    }
+}
+
+void SemanticAnalyzer::register_natives()
+{
+    std::unordered_map<std::string, int> native_names = workspace->native_registry
+                                                            ->get_all_native_names();
+
+    for (const auto& [name, index] : native_names)
+    {
+        auto symbol_type = workspace->native_registry->get_native_object_type(index);
+
+        auto symbol = SymbolFactory::create_function(name, symbol_type, true);
+        current_scope->define(symbol);
+    }
+}
+
 void SemanticAnalyzer::extract_module_type(Module_ptr module)
 {
     ObjectStringMap members;
@@ -54,51 +106,14 @@ void SemanticAnalyzer::extract_module_type(Module_ptr module)
     module->type = make_object(module_type);
 }
 
-void SemanticAnalyzer::run(const std::vector<Module_ptr>& build_order)
-{
-    enter_scope(ScopeType::WORKSPACE);
-    register_natives();
-
-    for (const auto& module : build_order)
-    {
-        enter_scope(ScopeType::MODULE);
-
-        // Push this module's hoisted symbols into its scope before visiting the statements,
-        // so that they can be referenced in the module body
-        for (auto& symbol : module->exports)
-        {
-            current_scope->define(symbol);
-        }
-
-        visit(module->stmts);
-        leave_scope();
-
-        extract_module_type(module);
-    }
-
-    leave_scope();
-}
-
-void SemanticAnalyzer::register_natives()
-{
-    std::unordered_map<std::string, int> native_names = workspace->native_registry
-                                                            ->get_all_native_names();
-
-    for (const auto& [name, index] : native_names)
-    {
-        auto symbol_type = workspace->native_registry->get_native_object_type(index);
-
-        auto symbol = SymbolFactory::create_function(name, symbol_type, true);
-        current_scope->define(symbol);
-    }
-}
-
 // ============================================================================
 // High Level Visitors
 // ============================================================================
 
 void SemanticAnalyzer::visit(std::vector<Statement_ptr>& statements)
 {
+    hoist_statements(statements);
+
     for (const auto& stmt : statements)
     {
         visit(stmt);
@@ -186,4 +201,5 @@ void SemanticAnalyzer::visit(const Statement_ptr statement)
         statement->data
     );
 }
+
 } // namespace Wasp

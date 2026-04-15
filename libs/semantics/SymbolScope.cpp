@@ -17,11 +17,20 @@ SymbolScope::SymbolScope(ScopeType type, SymbolScope_ptr enclosing)
 {
     if (enclosing_scope)
     {
-        closure_depth = enclosing_scope->closure_depth + (type == ScopeType::FUNCTION ? 1 : 0);
-        lexical_depth = enclosing_scope->lexical_depth + 1;
+        closure_depth = enclosing_scope->closure_depth;
+        lexical_depth = enclosing_scope->lexical_depth;
+
+        if (type == ScopeType::FUNCTION)
+        {
+            closure_depth++;
+        }
+
+        if (type != ScopeType::WORKSPACE && type != ScopeType::MODULE)
+        {
+            lexical_depth++;
+        }
     }
 }
-
 Symbol_ptr SymbolScope::define(Symbol_ptr symbol)
 {
     Doctor::get().fatal_if_nullptr(symbol, WaspStage::Semantics, "Cannot define a null symbol");
@@ -210,28 +219,6 @@ int SymbolScope::get_lexical_depth() const { return lexical_depth; }
 int SymbolScope::get_function_distance(int target_closure_depth) const
 {
     return this->closure_depth - target_closure_depth;
-}
-
-SymbolVector SymbolScope::get_all_symbols() const
-{
-    SymbolVector result;
-    result.reserve(symbols.size());
-
-    for (const auto& [name, symbol] : symbols)
-    {
-        result.push_back(symbol);
-    }
-
-    std::sort(
-        result.begin(),
-        result.end(),
-        [](const Symbol_ptr& a, const Symbol_ptr& b)
-        {
-            return a->id < b->id;
-        }
-    );
-
-    return result;
 }
 
 } // namespace Wasp

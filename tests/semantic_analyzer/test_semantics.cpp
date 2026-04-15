@@ -1,5 +1,4 @@
 #include "SemanticAnalyzer.h"
-#include "SymbolHoister.h"
 #include "Workspace.h"
 #include "test_utils.h"
 
@@ -17,13 +16,6 @@ TEST(Semantics, Simple) {
 
     workspace->add_module(module->absolute_filepath, module);
     std::vector<Wasp::Module_ptr> build_order = {module};
-
-    Wasp::SymbolHoister hoister(workspace);
-
-    for (const auto& mod : build_order)
-    {
-        hoister.run(mod);
-    }
 
     Wasp::SemanticAnalyzer semantic_analyzer(workspace);
 

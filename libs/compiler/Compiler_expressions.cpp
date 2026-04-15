@@ -116,8 +116,6 @@ void Compiler::visit(Call& expr)
 
 void Compiler::compile_constructor_call(Call& expr)
 {
-    visit(expr.callable);
-
     Symbol_ptr class_symbol;
 
     if (expr.callable->is<Identifier>())
@@ -171,7 +169,7 @@ void Compiler::compile_constructor_call(Call& expr)
         }
     }
 
-    int total_size = static_cast<int>(class_type->fields.size());
+    int total_size = static_cast<int>(class_type->fields.size() + class_type->methods.size());
     emit(OpCode::INSTANTIATE, total_size);
 }
 
