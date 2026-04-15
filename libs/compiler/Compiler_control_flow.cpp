@@ -188,7 +188,7 @@ void Compiler::visit(ForInLoop& statement)
 
     visit(statement.body);
 
-    emit(OpCode::POP, "remove loop variable for next iteration");
+    emit(OpCode::POP, "pop loop variable of this iteration");
     emit(OpCode::JUMP, static_cast<int>(header));
 
     loop_tracking_stack.pop_back();

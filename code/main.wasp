@@ -1,4 +1,15 @@
-let a = [1, 2]
+import my.utils as u
 
-for let x in a do
-    print(x)
+u.print_header('welcome', '*')
+
+class Book
+    id: int
+    text: str
+
+    fun read() => str
+        return my.text
+
+
+let b = Book(1, 'to be or not to be')
+
+print(b.id + ': ' + b.text)

@@ -154,6 +154,8 @@ namespace Wasp
 
     Object_ptr convert_type(Object_ptr type, Object_ptr operand)
     {
+        Doctor::get().fatal(WaspStage::VM, "convert_type is not implemented yet");
+
         return nullptr;
     }
 
@@ -185,6 +187,11 @@ namespace Wasp
                 [](const std::shared_ptr<MethodType>&) -> std::string
                 {
                     return "my method type";
+                },
+
+                [](const NoneType&) -> std::string
+                {
+                    return "none type";
                 },
 
                 // Scalar Objects
