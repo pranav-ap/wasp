@@ -3,3 +3,8 @@ fun print_header(title: str)
 
 fun print_header(title: str, border: str)
     print(border + border + border + ' ' + title + ' ' + border + border + border)
+
+
+class Garbage
+    fun empty()
+        print('throw away')

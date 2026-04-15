@@ -84,7 +84,8 @@ bool Symbol::is_global() const
 
 bool Symbol::is_exported() const
 {
-    return is_global() && (!payload_is<ModuleData>() && !payload_is<AliasData>());
+    return (is_global() && (!payload_is<ModuleData>() && !payload_is<AliasData>())) ||
+           payload_is<OverloadGroupData>();
 }
 
 bool Symbol::is_function() const

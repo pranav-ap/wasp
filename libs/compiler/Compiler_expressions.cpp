@@ -171,7 +171,7 @@ void Compiler::compile_constructor_call(Call& expr)
         }
     }
 
-    int total_size = static_cast<int>(class_type->fields.size() + class_type->methods.size());
+    int total_size = static_cast<int>(class_type->fields.size());
     emit(OpCode::INSTANTIATE, total_size);
 }
 
