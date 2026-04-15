@@ -5,11 +5,9 @@
 #include "Lexer.h"
 #include "Parser.h"
 #include "SemanticAnalyzer.h"
-#include "SymbolHoister.h"
 #include "VM.h"
 #include "Workspace.h"
 
-#include <algorithm>
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -91,15 +89,6 @@ std::vector<Module_ptr> Captain::calculate_build_order()
     return build_order;
 }
 
-void Captain::hoist_symbols(const std::vector<Module_ptr>& build_order)
-{
-    for (const auto& mod : build_order)
-    {
-        SymbolHoister hoister(workspace);
-        hoister.run(mod);
-    }
-}
-
 void Captain::type_check_and_link(const std::vector<Module_ptr>& build_order)
 {
     SemanticAnalyzer sa(workspace);
@@ -126,7 +115,6 @@ Workspace_ptr Captain::build()
     parse_modules();
 
     auto build_order = calculate_build_order();
-    hoist_symbols(build_order);
     type_check_and_link(build_order);
     compile(build_order);
 

@@ -1,3 +1,4 @@
 import my.utils as u
 
 let g = u.Garbage()
+g.empty()

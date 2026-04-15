@@ -19,7 +19,6 @@ private:
     void parse_module(const std::filesystem::path& file_path);
 
     std::vector<Module_ptr> calculate_build_order();
-    void hoist_symbols(const std::vector<Module_ptr>& build_order);
     void type_check_and_link(const std::vector<Module_ptr>& build_order);
     void compile(const std::vector<Module_ptr>& build_order);
 

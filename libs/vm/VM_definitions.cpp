@@ -26,8 +26,8 @@ void VM::execute_instantiate(CallFrame* frame)
 {
     int total_size = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
 
-    ObjectVector memory = pop_n_from_stack(total_size);
     Object_ptr blueprint_obj = pop_from_stack();
+    ObjectVector memory = pop_n_from_stack(total_size);
 
     Doctor::get().assert(
         blueprint_obj->is<ClassType_ptr>(),

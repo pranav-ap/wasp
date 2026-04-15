@@ -1,12 +1,10 @@
 #include "CFGraph.h"
 #include "Compiler.h"
-#include "Doctor.h"
 #include "Objects.h"
 #include "OpCode.h"
 #include "Statement.h"
 
 #include <cstddef>
-#include <memory>
 #include <string>
 #include <utility>
 #include <variant>

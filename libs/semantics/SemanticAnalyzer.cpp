@@ -27,33 +27,6 @@ namespace Wasp
 // ENTRY POINT
 // ============================================================================
 
-void SemanticAnalyzer::extract_module_type(Module_ptr module)
-{
-    ObjectStringMap members;
-    StringVector ordered_keys;
-
-    for (const auto& symbol : module->exports)
-    {
-        Doctor::get().fatal_if_nullptr(
-            symbol->get_type(),
-            WaspStage::Semantics,
-            "Symbol '" + symbol->name + "' has no type information"
-        );
-
-        members[symbol->name] = symbol->get_type();
-        ordered_keys.push_back(symbol->name);
-    }
-
-    auto module_type = std::make_shared<ModuleType>(
-        module->get_name(),
-        module->absolute_filepath,
-        ordered_keys,
-        members
-    );
-
-    module->type = make_object(module_type);
-}
-
 void SemanticAnalyzer::run(const std::vector<Module_ptr>& build_order)
 {
     enter_scope(ScopeType::WORKSPACE);
@@ -93,12 +66,41 @@ void SemanticAnalyzer::register_natives()
     }
 }
 
+void SemanticAnalyzer::extract_module_type(Module_ptr module)
+{
+    ObjectStringMap members;
+    StringVector ordered_keys;
+
+    for (const auto& symbol : module->exports)
+    {
+        Doctor::get().fatal_if_nullptr(
+            symbol->get_type(),
+            WaspStage::Semantics,
+            "Symbol '" + symbol->name + "' has no type information"
+        );
+
+        members[symbol->name] = symbol->get_type();
+        ordered_keys.push_back(symbol->name);
+    }
+
+    auto module_type = std::make_shared<ModuleType>(
+        module->get_name(),
+        module->absolute_filepath,
+        ordered_keys,
+        members
+    );
+
+    module->type = make_object(module_type);
+}
+
 // ============================================================================
 // High Level Visitors
 // ============================================================================
 
 void SemanticAnalyzer::visit(std::vector<Statement_ptr>& statements)
 {
+    hoist_statements(statements);
+
     for (const auto& stmt : statements)
     {
         visit(stmt);

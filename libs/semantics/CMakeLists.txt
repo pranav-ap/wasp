@@ -11,7 +11,6 @@ add_library(
     SemanticAnalyzer_utils.cpp
     SymbolScope.cpp
     DependencyCrawler.cpp
-    SymbolHoister.cpp
     TypeChecker.cpp
     TypeChecker_hell.cpp
     TypeChecker_utils.cpp
