@@ -55,7 +55,7 @@ private:
     // ------------------------------------------------------------------------
 
     std::vector<Upvalue> upvalues;
-    SymbolVector locals;
+    SymbolVector stack;
 
     int compiler_depth = 0;
     int current_lexical_scope_depth = 0;

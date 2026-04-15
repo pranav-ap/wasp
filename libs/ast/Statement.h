@@ -198,6 +198,8 @@ struct ForInLoop : public Loop
     Expression_ptr lhs;
     Expression_ptr iterable_expression;
 
+    std::shared_ptr<Symbol> iterator_symbol;
+
     ForInLoop() = default;
 
     ForInLoop(

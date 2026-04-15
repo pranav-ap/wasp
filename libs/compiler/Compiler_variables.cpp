@@ -66,8 +66,8 @@ void Compiler::compile_variable_definition(const Expression_ptr& assignment, boo
 
     if (local_idx == -1)
     {
-        local_idx = static_cast<int>(locals.size());
-        locals.push_back(symbol);
+        local_idx = static_cast<int>(stack.size());
+        stack.push_back(symbol);
     }
 
     emit(OpCode::SET_LOCAL, local_idx, symbol->name);

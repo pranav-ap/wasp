@@ -38,9 +38,9 @@ void Compiler::dumb_leave_scope(std::string comment)
 
 void Compiler::leave_scope(std::string comment)
 {
-    while (!locals.empty() && locals.back()->lexical_depth == current_lexical_scope_depth)
+    while (!stack.empty() && stack.back()->lexical_depth == current_lexical_scope_depth)
     {
-        locals.pop_back();
+        stack.pop_back();
     }
 
     emit(OpCode::POP_SCOPE, std::move(comment));
@@ -51,14 +51,14 @@ void Compiler::leave_scope_keep_tos(std::string comment)
 {
     Symbol_ptr tos = nullptr;
 
-    if (!locals.empty() && locals.back()->lexical_depth == current_lexical_scope_depth)
+    if (!stack.empty() && stack.back()->lexical_depth == current_lexical_scope_depth)
     {
-        tos = locals.back();
+        tos = stack.back();
     }
 
-    while (!locals.empty() && locals.back()->lexical_depth == current_lexical_scope_depth)
+    while (!stack.empty() && stack.back()->lexical_depth == current_lexical_scope_depth)
     {
-        locals.pop_back();
+        stack.pop_back();
     }
 
     emit(OpCode::POP_SCOPE_KEEP_TOS, std::move(comment));
@@ -67,7 +67,7 @@ void Compiler::leave_scope_keep_tos(std::string comment)
     if (tos)
     {
         tos->lexical_depth = current_lexical_scope_depth;
-        locals.push_back(tos);
+        stack.push_back(tos);
     }
 }
 
@@ -78,9 +78,9 @@ void Compiler::leave_scope_keep_tos(std::string comment)
 int Compiler::resolve_local(int symbol_id)
 {
     // Search backward to find the most recent declaration (shadowing support)
-    for (int i = static_cast<int>(locals.size()) - 1; i >= 0; i--)
+    for (int i = static_cast<int>(stack.size()) - 1; i >= 0; i--)
     {
-        if (locals[i]->id == symbol_id)
+        if (stack[i]->id == symbol_id)
         {
             // This is the stack index
             return i;
@@ -93,9 +93,9 @@ int Compiler::resolve_local(int symbol_id)
 
 int Compiler::resolve_local(const std::string& name)
 {
-    for (int i = static_cast<int>(locals.size()) - 1; i >= 0; --i)
+    for (int i = static_cast<int>(stack.size()) - 1; i >= 0; --i)
     {
-        if (locals[i]->name == name)
+        if (stack[i]->name == name)
         {
             return i;
         }

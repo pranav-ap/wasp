@@ -52,8 +52,8 @@ void Compiler::visit(ClassDefinition& class_definition)
 
     if (physical_index == -1)
     {
-        physical_index = static_cast<int>(locals.size());
-        locals.push_back(class_definition.symbol);
+        physical_index = static_cast<int>(stack.size());
+        stack.push_back(class_definition.symbol);
     }
 
     emit(OpCode::SET_LOCAL, physical_index, "class " + class_definition.name);
@@ -67,7 +67,7 @@ void Compiler::compile_abstract_function(AbstractFunctionDefinition& function_de
 
     for (const auto& param_symbol : function_definition.parameter_symbols)
     {
-        func_compiler.locals.push_back(param_symbol);
+        func_compiler.stack.push_back(param_symbol);
     }
 
     func_compiler.visit(function_definition.body);
@@ -106,8 +106,8 @@ void Compiler::compile_abstract_function(AbstractFunctionDefinition& function_de
 
     if (physical_index == -1)
     {
-        physical_index = static_cast<int>(locals.size());
-        locals.push_back(function_definition.group_symbol);
+        physical_index = static_cast<int>(stack.size());
+        stack.push_back(function_definition.group_symbol);
     }
 
     emit(OpCode::OVERLOAD_FUNCTION, physical_index, "fun " + function_definition.name);

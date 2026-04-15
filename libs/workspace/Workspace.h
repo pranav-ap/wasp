@@ -175,6 +175,13 @@ private:
     inline static int symbol_id_counter{0};
 
 public:
+    static Symbol_ptr create_dummy(
+        std::string name,
+        Object_ptr type,
+        int closure_depth = 0,
+        int lexical_depth = 0
+    );
+
     static Symbol_ptr create_variable(
         std::string name,
         Object_ptr type,

@@ -121,6 +121,16 @@ void SemanticAnalyzer::visit(ForInLoop& loop_stmt)
 
     enter_scope(ScopeType::LOOP);
 
+    auto iterator_symbol = SymbolFactory::create_dummy(
+        ".iter",
+        iterable_type,
+        current_scope->get_closure_depth(),
+        current_scope->get_lexical_depth()
+    );
+
+    current_scope->define(iterator_symbol);
+    loop_stmt.iterator_symbol = iterator_symbol;
+
     Doctor::get().assert(
         loop_stmt.lhs->is<Identifier>(),
         WaspStage::Semantics,
@@ -128,10 +138,9 @@ void SemanticAnalyzer::visit(ForInLoop& loop_stmt)
     );
 
     auto& identifier_node = loop_stmt.lhs->as<Identifier>();
-    std::string symbol_name = identifier_node.name;
 
     auto loop_variable_symbol = SymbolFactory::create_variable(
-        symbol_name,
+        identifier_node.name,
         element_type,
         loop_stmt.lhs_is_mutable,
         current_scope->get_closure_depth(),

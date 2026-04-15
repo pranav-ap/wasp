@@ -2,10 +2,8 @@
 #include "Compiler.h"
 #include "Doctor.h"
 #include "Expression.h"
-#include "Objects.h"
 #include "OpCode.h"
 #include "Token.h"
-#include "Workspace.h"
 
 #include <map>
 #include <memory>

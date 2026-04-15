@@ -61,7 +61,7 @@ FunctionBlueprintObject_ptr Compiler::run(
 
     int export_count = 0;
 
-    for (const auto& sym : locals)
+    for (const auto& sym : stack)
     {
         if (sym->is_exported())
         {
@@ -108,7 +108,7 @@ void Compiler::visit(std::vector<Statement_ptr>& statements)
     // -------------------------------------------------------------------
     // PASS 2: Compile the rest of the logic
     // Now things like `ciao()` can successfully resolve because the
-    // function compiler already pushed `ciao` into the `locals` vector!
+    // function compiler already pushed `ciao` into the `stack`!
     // -------------------------------------------------------------------
     for (auto& stmt : statements)
     {

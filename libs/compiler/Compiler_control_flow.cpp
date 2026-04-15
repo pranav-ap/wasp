@@ -5,6 +5,7 @@
 #include "OpCode.h"
 #include "Statement.h"
 #include "Token.h"
+#include "Workspace.h"
 
 #include <memory>
 #include <optional>
@@ -156,14 +157,12 @@ void Compiler::visit(ForInLoop& statement)
     graph.add_edge(header, end);
     graph.add_edge(body, header);
 
+    enter_scope("for-in loop");
+
     visit(statement.iterable_expression);
     emit(OpCode::GET_ITER);
-    emit(OpCode::JUMP, static_cast<int>(header));
 
-    set_current_block(header);
-    enter_scope("For Loop Header and Body");
-
-    emit(OpCode::LOOP_ITER, static_cast<int>(end));
+    stack.push_back(statement.iterator_symbol);
 
     Doctor::get().assert(
         statement.lhs->is<Identifier>(),
@@ -173,8 +172,13 @@ void Compiler::visit(ForInLoop& statement)
 
     auto symbol = statement.lhs->as<Identifier>().symbol;
     Doctor::get().fatal_if_nullptr(symbol, WaspStage::Compiler);
-    locals.push_back(symbol);
+    stack.push_back(symbol);
 
+    emit(OpCode::JUMP, static_cast<int>(header));
+
+    set_current_block(header);
+
+    emit(OpCode::LOOP_ITER, static_cast<int>(end));
     emit(OpCode::JUMP, static_cast<int>(body));
 
     loop_tracking_stack
@@ -183,15 +187,15 @@ void Compiler::visit(ForInLoop& statement)
     set_current_block(body);
 
     visit(statement.body);
-    leave_scope("For Loop Header and Body");
+
+    emit(OpCode::POP, "remove loop variable for next iteration");
     emit(OpCode::JUMP, static_cast<int>(header));
 
     loop_tracking_stack.pop_back();
-
     set_current_block(end);
 
-    // Clean up the iterator object
     emit(OpCode::POP, "remove iterator object");
+    leave_scope("for-in loop");
 }
 
 void Compiler::visit(SimpleLoop& statement)

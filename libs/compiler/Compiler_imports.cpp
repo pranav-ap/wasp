@@ -32,7 +32,7 @@ void Compiler::visit(SimpleImport& import_stmt)
     // Tell the VM to execute this module and push a ModuleObject onto the stack
     emit(OpCode::IMPORT_MODULE, module_index, "module " + module_symbol->name);
 
-    locals.push_back(module_symbol);
+    stack.push_back(module_symbol);
 }
 
 void Compiler::visit(FromImport& import_stmt)
@@ -72,7 +72,7 @@ void Compiler::visit(FromImport& import_stmt)
             emit(OpCode::GET_MEMBER, member_id);
 
             // Stack: [ Module ]
-            locals.push_back(symbol);
+            stack.push_back(symbol);
         }
     }
 

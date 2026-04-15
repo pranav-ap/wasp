@@ -252,6 +252,22 @@ int OverloadGroupData::get_overload_index(const Symbol_ptr& target) const
 // SymbolFactory
 // --------------------------------------------------------------------
 
+Symbol_ptr SymbolFactory::create_dummy(
+    std::string name,
+    Object_ptr type,
+    int closure_depth,
+    int lexical_depth
+)
+{
+    return std::make_shared<Symbol>(
+        symbol_id_counter++,
+        std::move(name),
+        closure_depth,
+        lexical_depth,
+        VariableData{std::move(type), false}
+    );
+}
+
 Symbol_ptr SymbolFactory::create_variable(
     std::string name,
     Object_ptr type,
