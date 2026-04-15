@@ -115,17 +115,19 @@ private:
     void visit(Pass& statement);
     void visit(LoopControl& statement);
 
-    void compile_abstract_function(AbstractFunctionDefinition& function_definition);
+    void visit(SimpleImport& statement);
+    void visit(FromImport& statement);
 
     void visit(FunctionDefinition& statement);
     void visit(MethodDefinition& statement);
 
     void visit(Return& statement);
 
-    void visit(SimpleImport& statement);
-    void visit(FromImport& statement);
-
-    void compile_class_members(ClassDefinition& class_definition);
+    void compile_function_closure(
+        const std::string& name,
+        const std::vector<Symbol_ptr>& parameters,
+        StatementVector body
+    );
 
     void visit(ClassDefinition& statement);
 

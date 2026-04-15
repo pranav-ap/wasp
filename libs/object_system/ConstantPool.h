@@ -74,7 +74,6 @@ namespace Wasp
         int allocate(std::string value);
 
         int allocate_function_definition(FunctionBlueprintObject_ptr func_obj);
-        int allocate_function_definition(CodeObject code);
         int allocate_function_definition(CodeObject code, std::string name);
 
         int allocate_class_definition(Object_ptr class_obj);

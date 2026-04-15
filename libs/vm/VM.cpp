@@ -162,7 +162,7 @@ void VM::run(FunctionBlueprintObject_ptr function_object)
             break;
         }
 
-        case OpCode::OVERLOAD_FUNCTION: {
+        case OpCode::STORE_FUNCTION_OVERLOAD: {
             execute_overload_function(frame);
             break;
         }
@@ -185,6 +185,11 @@ void VM::run(FunctionBlueprintObject_ptr function_object)
                 return;
             }
 
+            break;
+        }
+
+        case OpCode::BUILD_CLASS: {
+            execute_build_class(frame);
             break;
         }
 
