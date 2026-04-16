@@ -2,7 +2,6 @@
 #include "Doctor.h"
 #include "Workspace.h"
 
-#include <algorithm>
 #include <map>
 #include <memory>
 #include <string>
@@ -31,6 +30,7 @@ SymbolScope::SymbolScope(ScopeType type, SymbolScope_ptr enclosing)
         }
     }
 }
+
 Symbol_ptr SymbolScope::define(Symbol_ptr symbol)
 {
     Doctor::get().fatal_if_nullptr(symbol, WaspStage::Semantics, "Cannot define a null symbol");

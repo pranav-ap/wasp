@@ -24,7 +24,6 @@ class SemanticAnalyzer
 
     SymbolScope_ptr current_scope;
     ObjectVector return_type_stack;
-    ObjectVector class_type_stack;
 
     // -------------------------------------------------------------------------
     // Statement Visitors
@@ -47,9 +46,9 @@ class SemanticAnalyzer
     void visit(FunctionDefinition& statement);
     void visit(MethodDefinition& statement);
 
-    ClassType_ptr extract_class_type(ClassDefinition& def);
-    void hoist_class_methods(ClassDefinition& def);
-    void hoist_method(AbstractFunctionDefinition& method_def, const std::string& container_name);
+    ClassType_ptr initialize_class_type(ClassDefinition& def);
+    void hoist_class_methods(ClassDefinition& def, ClassType_ptr class_type);
+    void hoist_method(AbstractFunctionDefinition& method_def, ClassType_ptr class_type);
     void analyze_class_methods(ClassDefinition& def);
 
     void visit(ClassDefinition& statement);
@@ -108,23 +107,16 @@ class SemanticAnalyzer
     Object_ptr get_function_return_type(Symbol_ptr symbol);
     bool is_native_function(Symbol_ptr symbol);
 
-    Object_ptr evaluate_identifier_call(
+    Object_ptr evaluate_function_call(
         Call& call_expr,
         Identifier& callable_identifier,
         const ObjectVector& arg_types
     );
 
-    Object_ptr evaluate_module_method_call(
+    Object_ptr evaluate_module_function_call_or_instance_creation(
         Call& call_expr,
         MemberAccess& mac,
         const ObjectVector& arg_types
-    );
-
-    Object_ptr evaluate_instance_method_call(
-        Call& call_expr,
-        MemberAccess& mac,
-        const ObjectVector& arg_types,
-        Object_ptr left_type
     );
 
     Object_ptr evaluate_instance_creation(
@@ -132,6 +124,13 @@ class SemanticAnalyzer
         Identifier& callable_identifier,
         Symbol_ptr symbol,
         ObjectVector arg_types
+    );
+
+    Object_ptr evaluate_instance_method_call(
+        Call& call_expr,
+        MemberAccess& mac,
+        const ObjectVector& arg_types,
+        Object_ptr left_type
     );
 
     Object_ptr visit(Call& expr);

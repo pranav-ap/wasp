@@ -17,14 +17,14 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-std::shared_ptr<FunctionType> TypeChecker::get_function_signature(Object_ptr type_obj) const
+std::shared_ptr<AbstractFunctionType> TypeChecker::get_function_signature(Object_ptr type_obj) const
 {
     if (!type_obj)
     {
         return nullptr;
     }
 
-    if (auto p = type_obj->try_as<std::shared_ptr<LocalFunctionType>>())
+    if (auto p = type_obj->try_as<std::shared_ptr<FunctionType>>())
     {
         return *p;
     }

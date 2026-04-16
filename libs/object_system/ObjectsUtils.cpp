@@ -113,8 +113,7 @@ namespace Wasp
                            are_equal_types(l.value_type, r.value_type);
                 },
 
-                [](const std::shared_ptr<LocalFunctionType>& l,
-                   const std::shared_ptr<LocalFunctionType>& r)
+                [](const std::shared_ptr<FunctionType>& l, const std::shared_ptr<FunctionType>& r)
                 {
                     return are_equal_types(l->parameter_types, r->parameter_types);
                 },
@@ -180,7 +179,7 @@ namespace Wasp
                 {
                     return "named definition: " + obj.name;
                 },
-                [](const std::shared_ptr<LocalFunctionType>&) -> std::string
+                [](const std::shared_ptr<FunctionType>&) -> std::string
                 {
                     return "function type";
                 },

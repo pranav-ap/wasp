@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 #include <tuple>
+#include <vector>
 
 namespace Wasp
 {
@@ -26,7 +27,13 @@ class TypeChecker
         const ObjectVector& argument_types
     ) const;
 
-    std::shared_ptr<FunctionType> get_function_signature(Object_ptr type_obj) const;
+    std::vector<std::shared_ptr<AbstractFunctionType>> get_assignable_function_signatures(
+        SymbolScope_ptr scope,
+        const std::vector<std::shared_ptr<AbstractFunctionType>>& candidates,
+        const ObjectVector& argument_types
+    ) const;
+
+    std::shared_ptr<AbstractFunctionType> get_function_signature(Object_ptr type_obj) const;
 
 public:
     ConstantPool_ptr pool;

@@ -37,17 +37,13 @@ using Workspace_ptr = std::shared_ptr<Workspace>;
 // Symbol Payloads
 // --------------------------------------------------------------------
 
-struct TypedSymbolData
+struct VariableData
 {
     Object_ptr type;
-};
-
-struct VariableData : public TypedSymbolData
-{
     bool is_mutable;
 };
 
-struct AbstractFunctionData : public TypedSymbolData
+struct AbstractFunctionData
 {
     bool is_native;
 
@@ -58,20 +54,43 @@ struct AbstractFunctionData : public TypedSymbolData
 
 struct FunctionData : public AbstractFunctionData
 {
-    using AbstractFunctionData::AbstractFunctionData;
-};
+    FunctionType type;
 
-struct MethodData : public AbstractFunctionData
-{
-    Object_ptr class_definition;
-
-    MethodData(Object_ptr class_definition, bool is_native)
-        : AbstractFunctionData(is_native), class_definition(std::move(class_definition))
+    FunctionData(bool is_native, FunctionType type)
+        : AbstractFunctionData(is_native), type(std::move(type))
     {
     }
 };
 
-struct OverloadGroupData : public TypedSymbolData
+struct MethodData : public AbstractFunctionData
+{
+    MethodType type;
+
+    MethodData(bool is_native, MethodType type)
+        : AbstractFunctionData(is_native), type(std::move(type))
+    {
+    }
+};
+
+struct FunctionDataOverload : public AbstractFunctionData
+{
+    std::vector<FunctionData> overloads;
+
+    FunctionDataOverload(bool is_native) : AbstractFunctionData(is_native)
+    {
+    }
+};
+
+struct MethodDataOverload : public AbstractFunctionData
+{
+    std::vector<MethodData> overloads;
+
+    MethodDataOverload(bool is_native) : AbstractFunctionData(is_native)
+    {
+    }
+};
+
+struct OverloadGroupData
 {
     std::string name;
 
@@ -88,16 +107,19 @@ struct OverloadGroupData : public TypedSymbolData
     bool is_native() const;
 };
 
-struct ClassData : public TypedSymbolData
+struct ClassData
 {
+    Object_ptr type;
 };
 
-struct TraitData : public TypedSymbolData
+struct TraitData
 {
+    Object_ptr type;
 };
 
-struct EnumData : public TypedSymbolData
+struct EnumData
 {
+    Object_ptr type;
 };
 
 struct ModuleData
@@ -112,14 +134,13 @@ struct AliasData
 
 using SymbolPayload = std::variant<
     VariableData,
-    FunctionData,
-    MethodData,
+    FunctionDataOverload,
+    MethodDataOverload,
     ModuleData,
     ClassData,
     TraitData,
     EnumData,
-    AliasData,
-    OverloadGroupData>;
+    AliasData>;
 
 // --------------------------------------------------------------------
 // Symbol
@@ -201,7 +222,6 @@ public:
     static Symbol_ptr create_method(
         std::string name,
         Object_ptr type,
-        Object_ptr class_definition = nullptr,
         bool is_native = false,
         int closure_depth = 0,
         int lexical_depth = 0

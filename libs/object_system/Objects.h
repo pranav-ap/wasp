@@ -439,25 +439,45 @@ struct VariantType : public CompositeType
 // Function Types
 // ============================================================================
 
-struct FunctionType : public AnyType
+struct AbstractFunctionType : public AnyType
 {
     ObjectVector parameter_types;
     Object_ptr return_type;
 
-    FunctionType(ObjectVector input_types, Object_ptr return_type)
+    AbstractFunctionType(ObjectVector input_types, Object_ptr return_type)
         : parameter_types(std::move(input_types)), return_type(std::move(return_type)) {};
 };
 
-struct LocalFunctionType : public FunctionType
+struct FunctionType : public AbstractFunctionType
 {
-    using FunctionType::FunctionType;
+    using AbstractFunctionType::AbstractFunctionType;
 };
 
-struct MethodType : public FunctionType
+struct MethodType : public AbstractFunctionType
 {
     MethodType(ObjectVector input_types, Object_ptr return_type)
-        : FunctionType(std::move(input_types), std::move(return_type))
+        : AbstractFunctionType(std::move(input_types), std::move(return_type))
     {
+    }
+};
+
+struct FunctionTypeOverload : public CompositeType
+{
+    std::vector<FunctionType> overloads;
+
+    void add_overload(FunctionType function_type)
+    {
+        overloads.push_back(std::move(function_type));
+    }
+};
+
+struct MethodTypeOverload : public CompositeType
+{
+    std::vector<MethodType> overloads;
+
+    void add_overload(MethodType method_type)
+    {
+        overloads.push_back(std::move(method_type));
     }
 };
 
@@ -595,8 +615,10 @@ struct Object
         MapType,
         VariantType,
 
-        std::shared_ptr<LocalFunctionType>,
+        std::shared_ptr<FunctionType>,
+        std::shared_ptr<FunctionTypeOverload>,
         std::shared_ptr<MethodType>,
+        std::shared_ptr<MethodTypeOverload>,
 
         std::shared_ptr<RecordType>,
         std::shared_ptr<ModuleType>,

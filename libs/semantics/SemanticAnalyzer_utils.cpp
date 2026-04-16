@@ -48,7 +48,7 @@ std::pair<Object_ptr, ObjectVector> SemanticAnalyzer::get_function_signature(Obj
 
     std::visit(
         overloaded{
-            [&](const std::shared_ptr<LocalFunctionType>& t)
+            [&](const std::shared_ptr<FunctionType>& t)
             {
                 return_type = t->return_type;
                 param_types = t->parameter_types;
@@ -78,7 +78,7 @@ Object_ptr SemanticAnalyzer::get_function_return_type(Symbol_ptr symbol)
         return nullptr;
     }
 
-    if (auto p = type_obj->try_as<std::shared_ptr<LocalFunctionType>>())
+    if (auto p = type_obj->try_as<std::shared_ptr<FunctionType>>())
     {
         return (*p)->return_type;
     }
@@ -117,7 +117,7 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
                     {
                         auto [ret_type, param_types] = get_function_signature(fun_def);
                         auto signature = make_object(
-                            std::make_shared<LocalFunctionType>(param_types, ret_type)
+                            std::make_shared<FunctionType>(param_types, ret_type)
                         );
 
                         auto symbol = SymbolFactory::create_function(

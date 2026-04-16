@@ -152,6 +152,25 @@ SymbolVector TypeChecker::get_assignable_function_signatures(
     return valid_matches;
 }
 
+std::vector<std::shared_ptr<AbstractFunctionType>> TypeChecker::get_assignable_function_signatures(
+    SymbolScope_ptr scope,
+    const std::vector<std::shared_ptr<AbstractFunctionType>>& candidates,
+    const ObjectVector& argument_types
+) const
+{
+    std::vector<std::shared_ptr<AbstractFunctionType>> valid_matches;
+
+    for (const auto& candidate : candidates)
+    {
+        if (assignable(scope, candidate->parameter_types, argument_types))
+        {
+            valid_matches.push_back(candidate);
+        }
+    }
+
+    return valid_matches;
+}
+
 std::tuple<Symbol_ptr, Symbol_ptr, int> TypeChecker::resolve_function_call(
     SymbolScope_ptr scope,
     std::string& function_name,
@@ -205,19 +224,18 @@ std::tuple<Symbol_ptr, Symbol_ptr, int> TypeChecker::resolve_class_method_call(
         "Method '" + method_name + "()' does not exist on class '" + class_type->name + "'."
     );
 
-    std::string mangled_name = class_type->name + "::" + method_name;
-    Symbol_ptr overload_group_symbol = scope->lookup(mangled_name);
+    Symbol_ptr overload_group_symbol = class_type->method_symbols[method_name];
 
     Doctor::get().fatal_if_nullptr(
         overload_group_symbol,
         WaspStage::Semantics,
-        "Could not find method symbol '" + mangled_name + "' in current scope."
+        "Could not find method symbol '" + method_name + "' in class."
     );
 
     Doctor::get().assert(
         overload_group_symbol->payload_is<OverloadGroupData>(),
         WaspStage::Semantics,
-        "Symbol '" + mangled_name + "' is not an overload group."
+        "Symbol '" + class_type->name + "::" + method_name + "' is not an overload group."
     );
 
     const auto& group_data = overload_group_symbol->get_payload_as<OverloadGroupData>();
@@ -231,13 +249,13 @@ std::tuple<Symbol_ptr, Symbol_ptr, int> TypeChecker::resolve_class_method_call(
     Doctor::get().assert(
         !valid_matches.empty(),
         WaspStage::Semantics,
-        "No matching method signature found for '" + mangled_name + "'"
+        "No matching method signature found for '" + class_type->name + "::" + method_name + "'"
     );
 
     Doctor::get().assert(
         valid_matches.size() == 1,
         WaspStage::Semantics,
-        "Ambiguous method call to '" + mangled_name + "'"
+        "Ambiguous method call to '" + class_type->name + "::" + method_name + "'"
     );
 
     int index = group_data.get_overload_index(valid_matches.front());

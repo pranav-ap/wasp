@@ -30,20 +30,18 @@ namespace Wasp
 
 void SemanticAnalyzer::visit(ClassDefinition& def)
 {
-    auto class_type = extract_class_type(def);
+    // only variable have types at this point
+    auto class_type = initialize_class_type(def);
 
     Doctor::get().fatal_if_nullptr(def.symbol, WaspStage::Semantics);
-    def.symbol->set_type(make_object(class_type));
 
-    class_type_stack.push_back(make_object(class_type));
-
-    hoist_class_methods(def);
+    hoist_class_methods(def, class_type);
     analyze_class_methods(def);
 
-    class_type_stack.pop_back();
+    def.symbol->set_type(make_object(class_type));
 }
 
-std::shared_ptr<ClassType> SemanticAnalyzer::extract_class_type(ClassDefinition& def)
+std::shared_ptr<ClassType> SemanticAnalyzer::initialize_class_type(ClassDefinition& def)
 {
     ObjectStringMap members;
     StringVector fields;
@@ -82,8 +80,6 @@ std::shared_ptr<ClassType> SemanticAnalyzer::extract_class_type(ClassDefinition&
         );
     }
 
-    // only holds variable types in members at this point
-
     return std::make_shared<ClassType>(
         def.name,
         std::move(members),
@@ -92,7 +88,7 @@ std::shared_ptr<ClassType> SemanticAnalyzer::extract_class_type(ClassDefinition&
     );
 }
 
-void SemanticAnalyzer::hoist_class_methods(ClassDefinition& def)
+void SemanticAnalyzer::hoist_class_methods(ClassDefinition& def, ClassType_ptr class_type)
 {
     for (auto& stmt : def.members)
     {
@@ -113,23 +109,16 @@ void SemanticAnalyzer::hoist_class_methods(ClassDefinition& def)
 
 void SemanticAnalyzer::hoist_method(
     AbstractFunctionDefinition& method_def,
-    const std::string& container_name
+    ClassType_ptr class_type
 )
 {
-    std::string original_name = method_def.name;
-    method_def.name = container_name + "::" + original_name;
-
     auto [return_type, parameter_types] = get_function_signature(method_def);
 
     Object_ptr signature = make_object(std::make_shared<MethodType>(parameter_types, return_type));
 
-    auto class_type_obj = class_type_stack.back();
-    auto class_type = class_type_obj->as<std::shared_ptr<ClassType>>();
-
     Symbol_ptr method_symbol = SymbolFactory::create_method(
         method_def.name,
         signature,
-        class_type_obj,
         false,
         current_scope->get_closure_depth(),
         current_scope->get_lexical_depth()
@@ -149,6 +138,7 @@ void SemanticAnalyzer::hoist_method(
     method_def.group_symbol = current_scope->lookup(method_def.name);
 
     class_type->members[original_name] = method_def.group_symbol->get_type();
+    class_type->method_symbols[original_name] = method_def.group_symbol;
 }
 
 void SemanticAnalyzer::analyze_class_methods(ClassDefinition& def)
@@ -197,7 +187,7 @@ void SemanticAnalyzer::analyze_abstract_function_body(
         // Top-level function (SymbolHoister left the type as nullptr)
         std::tie(return_type, param_types) = get_function_signature(fun_def);
 
-        auto signature = make_object(std::make_shared<LocalFunctionType>(param_types, return_type));
+        auto signature = make_object(std::make_shared<FunctionType>(param_types, return_type));
         fun_def.symbol->set_type(signature);
         fun_def.group_symbol = current_scope->lookup(fun_def.name);
     }

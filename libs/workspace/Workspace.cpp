@@ -87,11 +87,9 @@ bool Symbol::is_exported() const
     bool global = is_global();
     bool is_module = payload_is<ModuleData>();
     bool is_alias = payload_is<AliasData>();
-    bool is_overload_group = payload_is<OverloadGroupData>();
-
     bool is_standard_export = global && !is_module && !is_alias;
 
-    return is_standard_export || is_overload_group;
+    return is_standard_export;
 }
 
 bool Symbol::is_function() const
@@ -315,7 +313,6 @@ Symbol_ptr SymbolFactory::create_function(
 Symbol_ptr SymbolFactory::create_method(
     std::string name,
     Object_ptr type,
-    Object_ptr bound_class,
     bool is_native,
     int closure_depth,
     int lexical_depth
@@ -326,7 +323,7 @@ Symbol_ptr SymbolFactory::create_method(
         std::move(name),
         closure_depth,
         lexical_depth,
-        MethodData(std::move(bound_class), is_native)
+        MethodData(is_native)
     );
 
     symbol->set_type(std::move(type));
@@ -345,7 +342,7 @@ Symbol_ptr SymbolFactory::create_class(
         std::move(name),
         closure_depth,
         lexical_depth,
-        ClassData{{std::move(type)}}
+        ClassData{std::move(type)}
     );
 }
 

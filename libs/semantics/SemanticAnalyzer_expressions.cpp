@@ -54,9 +54,9 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
         expr.member_index = module_ref->get_member_index(member_name);
         return module_ref->get_member_type(member_name);
     }
-    else if (left_type->is<std::shared_ptr<ClassType>>())
+    else if (left_type->is<ClassType_ptr>())
     {
-        const auto class_ref = left_type->as<std::shared_ptr<ClassType>>();
+        const auto class_ref = left_type->as<ClassType_ptr>();
 
         expr.member_index = class_ref->get_member_index(member_name);
         return class_ref->get_member(member_name);
@@ -95,7 +95,7 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                     );
                 }
 
-                return evaluate_identifier_call(call, target, argument_types);
+                return evaluate_function_call(call, target, argument_types);
             },
 
             [&](MemberAccess& access) -> Object_ptr
@@ -113,7 +113,11 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                 }
                 else if (receiver_type->is<std::shared_ptr<ModuleType>>())
                 {
-                    return evaluate_module_method_call(call, access, argument_types);
+                    return evaluate_module_function_call_or_instance_creation(
+                        call,
+                        access,
+                        argument_types
+                    );
                 }
 
                 Doctor::get().fatal(
@@ -134,7 +138,7 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
     );
 }
 
-Object_ptr SemanticAnalyzer::evaluate_identifier_call(
+Object_ptr SemanticAnalyzer::evaluate_function_call(
     Call& call,
     Identifier& target,
     const ObjectVector& argument_types
@@ -247,7 +251,7 @@ Object_ptr SemanticAnalyzer::evaluate_instance_method_call(
     return get_function_return_type(resolved_method);
 }
 
-Object_ptr SemanticAnalyzer::evaluate_module_method_call(
+Object_ptr SemanticAnalyzer::evaluate_module_function_call_or_instance_creation(
     Call& call,
     MemberAccess& access,
     const ObjectVector& argument_types
@@ -256,7 +260,7 @@ Object_ptr SemanticAnalyzer::evaluate_module_method_call(
     Doctor::get().assert(
         access.left->is<Identifier>() && access.right->is<Identifier>(),
         WaspStage::Semantics,
-        "Supports calls of the form module.function()"
+        "Supports module.function() & module.ClassNane() only."
     );
 
     auto& module_identifier = access.left->as<Identifier>();
