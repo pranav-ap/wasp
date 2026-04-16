@@ -1,15 +1,6 @@
-class Book
-    id: int
-    text: str
+import my.utils as u
 
-    fun trim() => str
-        return my.text
-
-    fun read() => str
-        return my.text
-
-
-let b = Book(1, 'to be or not to be')
+let b = u.Book(1, 'to be or not to be')
 
 print(b.id + ': ' + b.text)
 

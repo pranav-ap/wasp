@@ -128,6 +128,7 @@ private:
         const std::vector<Symbol_ptr>& parameters,
         StatementVector body
     );
+    void compile_method_group(ClassDefinition& class_definition, const std::string& original_name);
 
     void visit(ClassDefinition& statement);
 
@@ -171,6 +172,9 @@ private:
     // -----------------------------------------------------------------------
     // UTILS
     // -----------------------------------------------------------------------
+
+    int get_or_add_local_index(const Symbol_ptr& symbol);
+    void emit_closure_upvalues(const std::vector<Upvalue>& upvalues);
 
     void set_current_block(BlockId block_id)
     {

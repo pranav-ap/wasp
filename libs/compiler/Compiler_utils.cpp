@@ -75,6 +75,19 @@ void Compiler::leave_scope_keep_tos(std::string comment)
 // Symbol & Closure Support
 // ------------------------------------------------------------------------
 
+int Compiler::get_or_add_local_index(const Symbol_ptr& symbol)
+{
+    int physical_index = resolve_local(symbol->id);
+
+    if (physical_index == -1)
+    {
+        physical_index = static_cast<int>(stack.size());
+        stack.push_back(symbol);
+    }
+
+    return physical_index;
+}
+
 int Compiler::resolve_local(int symbol_id)
 {
     // Search backward to find the most recent declaration (shadowing support)
