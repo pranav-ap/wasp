@@ -147,8 +147,37 @@ void Compiler::compile_constructor_call(Call& expr)
         visit(arg);
     }
 
-    visit(expr.callable);
-    emit(OpCode::INSTANTIATE, static_cast<int>(expr.arguments.size()));
+    for (const std::string& method_name : class_type->methods)
+    {
+        std::string mangled_name = class_type->name + "::" + method_name;
+        int method_physical_index = resolve_local(mangled_name);
+
+        if (method_physical_index != -1)
+        {
+            emit(OpCode::GET_LOCAL, method_physical_index, "method " + mangled_name);
+        }
+        else
+        {
+            auto& mac = expr.callable->as<MemberAccess>();
+
+            visit(mac.left);
+
+            auto module_symbol = mac.left->as<Identifier>().symbol->resolve();
+            auto module_type = module_symbol->get_type()->as<std::shared_ptr<ModuleType>>();
+
+            if (!module_type->contains_member(mangled_name))
+            {
+                Object_ptr method_type = class_type->get_member(method_name);
+                module_type->set_member(mangled_name, method_type);
+            }
+
+            int mod_index = module_type->get_member_index(mangled_name);
+            emit(OpCode::GET_MEMBER, mod_index, "imported method " + mangled_name);
+        }
+    }
+
+    int total_size = static_cast<int>(class_type->fields.size() + class_type->methods.size());
+    emit(OpCode::INSTANTIATE, total_size);
 }
 
 void Compiler::compile_function_call(Call& expr)
