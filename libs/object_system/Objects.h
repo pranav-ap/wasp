@@ -310,6 +310,13 @@ struct ModuleObject : public MemberedCompositeObject
     }
 };
 
+struct ClassBlueprintObject : public MemberedCompositeObject
+{
+    ClassBlueprintObject(ObjectVector members) : MemberedCompositeObject(std::move(members))
+    {
+    }
+};
+
 struct InstanceObject : public MemberedCompositeObject
 {
     InstanceObject(ObjectVector members) : MemberedCompositeObject(std::move(members))
@@ -558,6 +565,7 @@ struct Object
         std::shared_ptr<NativeFunctionObject>,
 
         std::shared_ptr<ModuleObject>,
+        std::shared_ptr<ClassBlueprintObject>,
         std::shared_ptr<InstanceObject>,
 
         std::shared_ptr<ObjectOverloadList>,

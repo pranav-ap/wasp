@@ -122,9 +122,16 @@ void Compiler::compile_constructor_call(Call& expr)
     {
         class_symbol = expr.callable->as<Identifier>().symbol;
     }
-    else
+    else if (expr.callable->is<MemberAccess>())
     {
         class_symbol = expr.callable->as<MemberAccess>().right->as<Identifier>().symbol;
+    }
+    else
+    {
+        Doctor::get().fatal(
+            WaspStage::Compiler,
+            "Callable must be an identifier or member access."
+        );
     }
 
     auto class_type = class_symbol->get_type()->as<std::shared_ptr<ClassType>>();

@@ -38,16 +38,18 @@ using ByteVector = std::vector<std::byte>;
     X(IMPORT_MODULE, 1)      /* [] -> [Module] | <Module Index> */                                 \
                                                                                                    \
     /* --- Functions, Overloads & Closures --- */                                                  \
-    X(MAKE_FUNCTION, 1)     /* [code] -> [func] | <number of upvalues */                           \
-    X(OVERLOAD_FUNCTION, 1) /* [func] -> [] | <Overload Group Symbol ID> */                        \
-    X(RESOLVE_FUNCTION, 1)  /* [overload obj] -> [func] | <Overload Index> */                      \
-    X(CALL, 1)              /* [func, args] -> [res] | <Count> (Number of args on stack) */        \
-    X(RETURN, 0)            /* Exit function with value on top of stack */                         \
-    X(GET_UPVALUE, 1)       /* [] -> [val] | <Upvalue Index> */                                    \
-    X(SET_UPVALUE, 1)       /* [val] -> [] | <Upvalue Index> */                                    \
+    X(MAKE_FUNCTION, 1)           /* [code] -> [func] | <number of upvalues */                     \
+    X(STORE_FUNCTION_OVERLOAD, 1) /* [func] -> [] | <Overload Group Symbol ID> */                  \
+    X(RESOLVE_FUNCTION, 1)        /* [overload obj] -> [func] | <Overload Index> */                \
+    X(CALL, 1)                    /* [func, args] -> [res] | <Count> (Number of args on stack) */  \
+    X(RETURN, 0)                  /* Exit function with value on top of stack */                   \
+    X(GET_UPVALUE, 1)             /* [] -> [val] | <Upvalue Index> */                              \
+    X(SET_UPVALUE, 1)             /* [val] -> [] | <Upvalue Index> */                              \
                                                                                                    \
     /* --- Classes --- */                                                                          \
-    X(INSTANTIATE, 1) /* [blueprint] -> [instance] | <number of args> */                           \
+    X(BUILD_OVERLOAD_GROUP, 1) /* [closures...] -> [overload group] | <number of overloads> */     \
+    X(BUILD_CLASS, 1) /* [overload groups...] -> [class blueprint] | <number of groups> */         \
+    X(INSTANTIATE, 1) /* [class blueprint, args...] -> [instance] | <number of args> */            \
                                                                                                    \
     /* --- Arithmetic --- */                                                                       \
     X(NEGATE, 0) /* [a] -> [-a] */                                                                 \

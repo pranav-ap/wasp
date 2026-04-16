@@ -62,19 +62,13 @@ void Compiler::compile_variable_definition(const Expression_ptr& assignment, boo
     auto symbol = lhs->as<Identifier>().symbol;
     Doctor::get().fatal_if_nullptr(symbol, WaspStage::Compiler);
 
-    int local_idx = resolve_local(symbol->id);
+    int physical_index = get_or_add_local_index(symbol);
 
-    if (local_idx == -1)
-    {
-        local_idx = static_cast<int>(stack.size());
-        stack.push_back(symbol);
-    }
-
-    emit(OpCode::SET_LOCAL, local_idx, symbol->name);
+    emit(OpCode::SET_LOCAL, physical_index, symbol->name);
 
     if (as_expression)
     {
-        emit(OpCode::GET_LOCAL, local_idx, symbol->name);
+        emit(OpCode::GET_LOCAL, physical_index, symbol->name);
     }
 }
 

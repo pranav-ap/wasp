@@ -244,12 +244,7 @@ void SemanticAnalyzer::analyze_abstract_function_body(
     // Mask class context for nested functions
     class_type_stack.push_back(nullptr);
 
-    hoist_statements(fun_def.body);
-
-    for (auto& stmt : fun_def.body)
-    {
-        visit(stmt);
-    }
+    visit(fun_def.body);
 
     class_type_stack.pop_back();
     return_type_stack.pop_back();

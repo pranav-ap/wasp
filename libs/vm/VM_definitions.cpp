@@ -22,6 +22,24 @@ namespace Wasp
 // CLASS
 // ======================================================================
 
+void VM::execute_build_overload_group(CallFrame* frame)
+{
+    // How many method overloads are in this group?
+    int count = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
+    ObjectVector overloads = pop_n_from_stack(count);
+
+    auto group = make_object(std::make_shared<ObjectOverloadList>(std::move(overloads)));
+    push_to_stack(group);
+}
+
+void VM::execute_build_class(CallFrame* frame)
+{
+    int method_count = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
+    ObjectVector methods = pop_n_from_stack(method_count);
+    auto class_blueprint = make_object(std::make_shared<ClassBlueprintObject>(std::move(methods)));
+    push_to_stack(class_blueprint);
+}
+
 void VM::execute_instantiate(CallFrame* frame)
 {
     int total_size = static_cast<int>(std::to_integer<int>(frame->consume_byte()));

@@ -28,7 +28,7 @@ fun add(a: int, b: int) => int
 
         B(Wasp::OpCode::LOAD_CONST),        B(func_id),
         B(Wasp::OpCode::MAKE_FUNCTION),     B(0),
-        B(Wasp::OpCode::OVERLOAD_FUNCTION), B(var_add),
+        B(Wasp::OpCode::STORE_FUNCTION_OVERLOAD), B(var_add),
 
         B(Wasp::OpCode::JUMP),              B(10), B(0),
 
@@ -85,7 +85,7 @@ fun max(a: int, b: int) => int
 
         B(Wasp::OpCode::LOAD_CONST),        B(max_func_pool_id),
         B(Wasp::OpCode::MAKE_FUNCTION),     B(0),
-        B(Wasp::OpCode::OVERLOAD_FUNCTION), B(max_func_var_id),
+        B(Wasp::OpCode::STORE_FUNCTION_OVERLOAD), B(max_func_var_id),
 
         B(Wasp::OpCode::JUMP),              B(10), B(0),
 
@@ -159,7 +159,7 @@ fun outer(a: int) => any
 
         B(Wasp::OpCode::LOAD_CONST),        B(outer_func_pool_id),
         B(Wasp::OpCode::MAKE_FUNCTION),     B(0),
-        B(Wasp::OpCode::OVERLOAD_FUNCTION), B(outer_func_var_id),
+        B(Wasp::OpCode::STORE_FUNCTION_OVERLOAD), B(outer_func_var_id),
 
         B(Wasp::OpCode::JUMP),              B(10), B(0),
 
@@ -190,7 +190,7 @@ fun outer(a: int) => any
         B(Wasp::OpCode::MAKE_FUNCTION), B(1),
         B(1), B(0), // is_local=1, idx=0 (It's `a` from the outer params!)
 
-        B(Wasp::OpCode::OVERLOAD_FUNCTION), B(1), // define inner (Slot 1)
+        B(Wasp::OpCode::STORE_FUNCTION_OVERLOAD), B(1), // define inner (Slot 1)
 
         B(Wasp::OpCode::GET_LOCAL),     B(1),     // return inner
         B(Wasp::OpCode::RETURN),

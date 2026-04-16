@@ -160,13 +160,6 @@ namespace Wasp
         return id;
     }
 
-    int ConstantPool::allocate_function_definition(CodeObject code)
-    {
-        auto func_obj = std::make_shared<FunctionBlueprintObject>(std::move(code));
-
-        return allocate_function_definition(func_obj);
-    }
-
     int ConstantPool::allocate_function_definition(CodeObject code, std::string name)
     {
         auto func_obj = std::make_shared<FunctionBlueprintObject>(std::move(code), std::move(name));
