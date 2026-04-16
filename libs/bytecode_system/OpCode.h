@@ -47,8 +47,9 @@ using ByteVector = std::vector<std::byte>;
     X(SET_UPVALUE, 1)             /* [val] -> [] | <Upvalue Index> */                              \
                                                                                                    \
     /* --- Classes --- */                                                                          \
-    X(BUILD_CLASS, 1) /* [class blueprint] -> [class rt object] | <number of methods> */           \
-    X(INSTANTIATE, 1) /* [blueprint] -> [instance] | <number of args> */                           \
+    X(BUILD_OVERLOAD_GROUP, 1) /* [closures...] -> [overload group] | <number of overloads> */     \
+    X(BUILD_CLASS, 1) /* [overload groups...] -> [class blueprint] | <number of groups> */         \
+    X(INSTANTIATE, 1) /* [class blueprint, args...] -> [instance] | <number of args> */            \
                                                                                                    \
     /* --- Arithmetic --- */                                                                       \
     X(NEGATE, 0) /* [a] -> [-a] */                                                                 \

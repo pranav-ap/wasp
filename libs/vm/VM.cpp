@@ -188,6 +188,11 @@ void VM::run(FunctionBlueprintObject_ptr function_object)
             break;
         }
 
+        case OpCode::BUILD_OVERLOAD_GROUP: {
+            execute_build_overload_group(frame);
+            break;
+        }
+
         case OpCode::BUILD_CLASS: {
             execute_build_class(frame);
             break;

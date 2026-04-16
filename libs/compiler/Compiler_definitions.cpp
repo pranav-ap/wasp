@@ -2,11 +2,13 @@
 #include "CFGraph.h"
 #include "Compiler.h"
 #include "Doctor.h"
+#include "Objects.h"
 #include "OpCode.h"
 #include "Statement.h"
 #include "Workspace.h"
 
 #include <cstddef>
+#include <memory>
 #include <string>
 #include <utility>
 #include <variant>
@@ -53,19 +55,34 @@ void Compiler::compile_function_closure(
 
 void Compiler::visit(ClassDefinition& class_definition)
 {
-    int method_count = 0;
+    auto class_type = class_definition.symbol->get_type()->as<std::shared_ptr<ClassType>>();
+    int unique_method_count = 0;
 
-    for (auto& stmt : class_definition.members)
+    for (const std::string& original_name : class_type->methods)
     {
-        if (std::holds_alternative<MethodDefinition>(stmt->data))
+        int overload_count = 0;
+
+        std::string mangled_name = class_definition.name + "::" + original_name;
+
+        for (auto& stmt : class_definition.members)
         {
-            auto& method = std::get<MethodDefinition>(stmt->data);
-            compile_function_closure(method.name, method.parameter_symbols, method.body);
-            method_count++;
+            if (std::holds_alternative<MethodDefinition>(stmt->data))
+            {
+                auto& method = std::get<MethodDefinition>(stmt->data);
+
+                if (method.name == mangled_name)
+                {
+                    compile_function_closure(method.name, method.parameter_symbols, method.body);
+                    overload_count++;
+                }
+            }
         }
+
+        emit(OpCode::BUILD_OVERLOAD_GROUP, overload_count, "overloads for " + original_name);
+        unique_method_count++;
     }
 
-    emit(OpCode::BUILD_CLASS, method_count, "build class " + class_definition.name);
+    emit(OpCode::BUILD_CLASS, unique_method_count, "build class " + class_definition.name);
 
     int physical_index = resolve_local(class_definition.symbol->id);
 

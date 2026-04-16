@@ -65,6 +65,7 @@ class VM
     void execute_call(CallFrame* frame);
     void execute_return(CallFrame* frame);
 
+    void execute_build_overload_group(CallFrame* frame);
     void execute_build_class(CallFrame* frame);
     void execute_instantiate(CallFrame* frame);
 

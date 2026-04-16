@@ -2,6 +2,9 @@ class Book
     id: int
     text: str
 
+    fun trim() => str
+        return my.text
+
     fun read() => str
         return my.text
 
@@ -10,17 +13,6 @@ let b = Book(1, 'to be or not to be')
 
 print(b.id + ': ' + b.text)
 
-let text = b.read()
+let text = b.trim()
 print(text)
-
-for let x in [1, 2, 3] do
-    print(x)
-
-
-if 5 > 2 then
-    print('if')
-elif 4 == 4 then
-    print('elif')
-else
-    print('else')
 
