@@ -258,6 +258,10 @@ struct OverloadList : public CompositeObject
 {
     ObjectVector overloads;
 
+    OverloadList() : overloads({})
+    {
+    }
+
     OverloadList(ObjectVector overloads) : overloads(std::move(overloads))
     {
     }
@@ -273,6 +277,8 @@ struct ObjectOverloadList : public OverloadList
     using OverloadList::OverloadList;
 };
 
+using ObjectOverloadList_ptr = std::shared_ptr<ObjectOverloadList>;
+
 struct TypeOverloadedSet : public OverloadList
 {
     std::string name;
@@ -282,6 +288,8 @@ struct TypeOverloadedSet : public OverloadList
     {
     }
 };
+
+using TypeOverloadedSet_ptr = std::shared_ptr<TypeOverloadedSet>;
 
 // ============================================================================
 // Membered Objects
@@ -461,26 +469,6 @@ struct MethodType : public AbstractFunctionType
     }
 };
 
-struct FunctionTypeOverload : public CompositeType
-{
-    std::vector<FunctionType> overloads;
-
-    void add_overload(FunctionType function_type)
-    {
-        overloads.push_back(std::move(function_type));
-    }
-};
-
-struct MethodTypeOverload : public CompositeType
-{
-    std::vector<MethodType> overloads;
-
-    void add_overload(MethodType method_type)
-    {
-        overloads.push_back(std::move(method_type));
-    }
-};
-
 // ============================================================================
 // Membered Types
 // ============================================================================
@@ -545,6 +533,9 @@ struct ClassType : public CompositeType
 
     int get_member_index(const std::string& member_name) const;
     Object_ptr get_member(int member_id) const;
+
+    void add_overload(const std::string& member_name, Object_ptr overload);
+    ObjectVector get_overloads(const std::string& member_name) const;
 
     ObjectVector get_fields() const;
     ObjectVector get_methods() const;
@@ -616,9 +607,7 @@ struct Object
         VariantType,
 
         std::shared_ptr<FunctionType>,
-        std::shared_ptr<FunctionTypeOverload>,
         std::shared_ptr<MethodType>,
-        std::shared_ptr<MethodTypeOverload>,
 
         std::shared_ptr<RecordType>,
         std::shared_ptr<ModuleType>,

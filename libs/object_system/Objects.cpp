@@ -220,6 +220,41 @@ void ClassType::set_member(const std::string& member_name, Object_ptr value)
     members[member_name] = std::move(value);
 }
 
+void ClassType::add_overload(const std::string& member_name, Object_ptr overload)
+{
+    if (!members.contains(member_name))
+    {
+        members[member_name] = MAKE_SHARED_OBJECT_VARIANT(ObjectOverloadList);
+    }
+
+    Doctor::get().assert(
+        members.at(member_name)->is<ObjectOverloadList_ptr>(),
+        WaspStage::Semantics,
+        "Expected an ObjectOverloadList for member '" + member_name + "' in class " + name
+    );
+
+    auto overload_list = members.at(member_name)->as<ObjectOverloadList_ptr>();
+    overload_list->add_overload(std::move(overload));
+}
+
+ObjectVector ClassType::get_overloads(const std::string& member_name) const
+{
+    Doctor::get().assert(
+        contains_member(member_name),
+        WaspStage::Semantics,
+        "Member '" + member_name + "' not found in class " + name
+    );
+
+    Doctor::get().assert(
+        members.at(member_name)->is<ObjectOverloadList_ptr>(),
+        WaspStage::Semantics,
+        "Expected an ObjectOverloadList for member '" + member_name + "' in class " + name
+    );
+
+    auto overload_list = members.at(member_name)->as<ObjectOverloadList_ptr>();
+    return overload_list->overloads;
+}
+
 // ============================================================================
 // StringObject
 // ============================================================================

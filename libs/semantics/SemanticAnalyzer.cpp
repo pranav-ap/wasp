@@ -120,6 +120,56 @@ void SemanticAnalyzer::visit(std::vector<Statement_ptr>& statements)
     }
 }
 
+void SemanticAnalyzer::hoist_statements(StatementVector& statements)
+{
+    for (auto& stmt_ptr : statements)
+    {
+        std::visit(
+            overloaded{
+                [&](FunctionDefinition& fun_def)
+                {
+                    auto [ret_type, param_types] = extract_function_signature(fun_def);
+                    auto signature = make_object(
+                        std::make_shared<FunctionType>(param_types, ret_type)
+                    );
+
+                    auto symbol = SymbolFactory::create_function(
+                        fun_def.name,
+                        signature,
+                        false,
+                        current_scope->get_closure_depth(),
+                        current_scope->get_lexical_depth()
+                    );
+
+                    if (current_scope->contains_in_current_scope(fun_def.name))
+                    {
+                        type_checker->validate_new_function(current_scope, fun_def.name, symbol);
+                    }
+
+                    current_scope->define(symbol);
+                    fun_def.symbol = symbol;
+                },
+                [&](ClassDefinition& class_def)
+                {
+                    auto symbol = SymbolFactory::create_class(
+                        class_def.name,
+                        nullptr,
+                        current_scope->get_closure_depth(),
+                        current_scope->get_lexical_depth()
+                    );
+
+                    current_scope->define(symbol);
+                    class_def.symbol = symbol;
+                },
+                [](auto&)
+                {
+                }
+            },
+            stmt_ptr->data
+        );
+    }
+}
+
 void SemanticAnalyzer::visit(const Statement_ptr statement)
 {
     Doctor::get().fatal_if_nullptr(statement, WaspStage::Semantics);

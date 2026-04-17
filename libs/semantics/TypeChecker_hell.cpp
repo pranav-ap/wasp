@@ -56,7 +56,7 @@ SymbolVector::iterator TypeChecker::find_matching_signature(
     );
 }
 
-void TypeChecker::validate_new_function_wrt_overload_group(
+void TypeChecker::validate_new_function_overload(
     SymbolScope_ptr scope,
     std::string& function_name,
     const Symbol_ptr new_function_symbol
@@ -121,6 +121,43 @@ void TypeChecker::validate_new_function_wrt_overload_group(
     if (parent_match != group_data.parents.end())
     {
         group_data.parents.erase(parent_match);
+    }
+}
+
+void TypeChecker::validate_new_method_overload(
+    SymbolScope_ptr scope,
+    ObjectVector existing_overloads,
+    const Symbol_ptr new_method_symbol
+)
+{
+    auto new_method_signature = get_function_signature(new_method_symbol->get_type());
+
+    Doctor::get().fatal_if_nullptr(
+        new_method_signature,
+        WaspStage::Semantics,
+        "New method symbol lacks a valid function type"
+    );
+
+    const auto& parameter_types = new_method_signature->parameter_types;
+
+    for (const auto& existing_overload : existing_overloads)
+    {
+        auto existing_signature = get_function_signature(existing_overload);
+
+        Doctor::get().assert(
+            existing_signature != nullptr,
+            WaspStage::Semantics,
+            "Overload group contains a non-function symbol"
+        );
+
+        if (equal(scope, existing_signature->parameter_types, parameter_types))
+        {
+            Doctor::get().fatal(
+                WaspStage::Semantics,
+                "Duplicate method signatures for '" + new_method_symbol->name +
+                    "' defined in same class"
+            );
+        }
     }
 }
 

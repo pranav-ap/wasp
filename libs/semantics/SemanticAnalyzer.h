@@ -38,18 +38,21 @@ class SemanticAnalyzer
 
     void hoist_statements(StatementVector& statements);
 
-    std::pair<Object_ptr, ObjectVector> get_function_signature(AbstractFunctionDefinition& func);
+    std::pair<Object_ptr, ObjectVector> extract_function_signature(
+        AbstractFunctionDefinition& func
+    );
     std::pair<Object_ptr, ObjectVector> get_function_signature(Object_ptr type_obj);
 
-    void analyze_abstract_function_body(AbstractFunctionDefinition& fun_def, bool is_method);
+    void analyze_abstract_function_body(
+        AbstractFunctionDefinition& fun_def,
+        bool is_method,
+        Object_ptr class_type
+    );
 
     void visit(FunctionDefinition& statement);
     void visit(MethodDefinition& statement);
 
     ClassType_ptr initialize_class_type(ClassDefinition& def);
-    void hoist_class_methods(ClassDefinition& def, ClassType_ptr class_type);
-    void hoist_method(AbstractFunctionDefinition& method_def, ClassType_ptr class_type);
-    void analyze_class_methods(ClassDefinition& def);
 
     void visit(ClassDefinition& statement);
     void visit(FieldDefinition& statement);

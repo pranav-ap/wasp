@@ -40,10 +40,16 @@ public:
 
     TypeChecker(ConstantPool_ptr pool) : pool(pool) {};
 
-    void validate_new_function_wrt_overload_group(
+    void validate_new_function_overload(
         SymbolScope_ptr scope,
         std::string& function_name,
         const Symbol_ptr new_func_symbol
+    );
+
+    void validate_new_method_overload(
+        SymbolScope_ptr scope,
+        ObjectVector existing_overloads,
+        const Symbol_ptr new_method_symbol
     );
 
     // group symbol, function symbol, overload index

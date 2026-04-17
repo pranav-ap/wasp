@@ -17,10 +17,6 @@
 namespace Wasp
 {
 
-// ----------------------------------------------------------------
-// Forward Declarations
-// ----------------------------------------------------------------
-
 struct Symbol;
 using Symbol_ptr = std::shared_ptr<Symbol>;
 using SymbolVector = std::vector<Symbol_ptr>;
@@ -33,93 +29,66 @@ using Module_ptr = std::shared_ptr<Module>;
 struct Workspace;
 using Workspace_ptr = std::shared_ptr<Workspace>;
 
-// --------------------------------------------------------------------
-// Symbol Payloads
-// --------------------------------------------------------------------
-
-struct VariableData
+struct TypedData
 {
     Object_ptr type;
-    bool is_mutable;
+    TypedData(Object_ptr type = nullptr) : type(std::move(type))
+    {
+    }
 };
 
-struct AbstractFunctionData
+struct PossibleNativeData : public TypedData
 {
     bool is_native;
-
-    AbstractFunctionData(bool is_native) : is_native(is_native)
+    PossibleNativeData(bool is_native) : TypedData(nullptr), is_native(is_native)
     {
     }
 };
 
-struct FunctionData : public AbstractFunctionData
+struct FunctionData : public PossibleNativeData
 {
-    FunctionType type;
-
-    FunctionData(bool is_native, FunctionType type)
-        : AbstractFunctionData(is_native), type(std::move(type))
+    FunctionData(bool is_native) : PossibleNativeData(is_native)
     {
     }
 };
 
-struct MethodData : public AbstractFunctionData
+struct MethodData : public PossibleNativeData
 {
-    MethodType type;
-
-    MethodData(bool is_native, MethodType type)
-        : AbstractFunctionData(is_native), type(std::move(type))
+    MethodData(bool is_native) : PossibleNativeData(is_native)
     {
     }
 };
 
-struct FunctionDataOverload : public AbstractFunctionData
+struct OverloadGroupData : public TypedData
 {
-    std::vector<FunctionData> overloads;
-
-    FunctionDataOverload(bool is_native) : AbstractFunctionData(is_native)
-    {
-    }
-};
-
-struct MethodDataOverload : public AbstractFunctionData
-{
-    std::vector<MethodData> overloads;
-
-    MethodDataOverload(bool is_native) : AbstractFunctionData(is_native)
-    {
-    }
-};
-
-struct OverloadGroupData
-{
-    std::string name;
-
     SymbolVector siblings;
     SymbolVector parents;
 
-    OverloadGroupData(std::string name) : name(std::move(name))
+    OverloadGroupData() : TypedData(nullptr)
     {
     }
 
     SymbolVector get_all_overloads() const;
     int get_overload_index(const Symbol_ptr& target) const;
-
     bool is_native() const;
 };
 
-struct ClassData
+struct VariableData : public TypedData
 {
-    Object_ptr type;
+    bool is_mutable;
+    VariableData(Object_ptr type, bool is_mutable)
+        : TypedData(std::move(type)), is_mutable(is_mutable)
+    {
+    }
 };
 
-struct TraitData
+struct ClassData : public TypedData
 {
-    Object_ptr type;
-};
-
-struct EnumData
-{
-    Object_ptr type;
+    SymbolStringMap method_symbols;
+    ClassData(Object_ptr type, SymbolStringMap method_symbols)
+        : TypedData(std::move(type)), method_symbols(std::move(method_symbols))
+    {
+    }
 };
 
 struct ModuleData
@@ -134,17 +103,12 @@ struct AliasData
 
 using SymbolPayload = std::variant<
     VariableData,
-    FunctionDataOverload,
-    MethodDataOverload,
+    OverloadGroupData,
+    FunctionData,
+    MethodData,
     ModuleData,
     ClassData,
-    TraitData,
-    EnumData,
     AliasData>;
-
-// --------------------------------------------------------------------
-// Symbol
-// --------------------------------------------------------------------
 
 struct Symbol : public std::enable_shared_from_this<Symbol>
 {
@@ -160,7 +124,7 @@ struct Symbol : public std::enable_shared_from_this<Symbol>
 
     bool is_global() const;
     bool is_exported() const;
-    bool is_function() const;
+    bool is_either_function_or_method() const;
     bool is_native() const;
 
     Object_ptr get_type();
@@ -185,10 +149,6 @@ struct Symbol : public std::enable_shared_from_this<Symbol>
         return std::get<T>(payload);
     }
 };
-
-// ----------------------------------------------------------------
-// Symbol Factory
-// ----------------------------------------------------------------
 
 class SymbolFactory
 {
@@ -227,21 +187,9 @@ public:
         int lexical_depth = 0
     );
 
+    static Symbol_ptr create_overload_group(std::string name);
+
     static Symbol_ptr create_class(
-        std::string name,
-        Object_ptr type = nullptr,
-        int closure_depth = 0,
-        int lexical_depth = 0
-    );
-
-    static Symbol_ptr create_trait(
-        std::string name,
-        Object_ptr type = nullptr,
-        int closure_depth = 0,
-        int lexical_depth = 0
-    );
-
-    static Symbol_ptr create_enum(
         std::string name,
         Object_ptr type = nullptr,
         int closure_depth = 0,
@@ -251,17 +199,7 @@ public:
     static Symbol_ptr create_module(std::string name, Module_ptr mod);
 
     static Symbol_ptr create_alias(std::string name, Symbol_ptr target);
-
-    static Symbol_ptr create_overload_set(
-        std::string name,
-        int closure_depth = 0,
-        int lexical_depth = 0
-    );
 };
-
-// ----------------------------------------------------------------
-// Module
-// ----------------------------------------------------------------
 
 struct Module
 {
@@ -282,10 +220,6 @@ struct Module
     int get_member_index(const std::string& member_name) const;
     Symbol_ptr get_member(const std::string& member_name) const;
 };
-
-// ----------------------------------------------------------------
-// Workspace
-// ----------------------------------------------------------------
 
 class Workspace
 {
