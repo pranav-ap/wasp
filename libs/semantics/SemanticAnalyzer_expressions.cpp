@@ -100,18 +100,13 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
 
             [&](MemberAccess& access) -> Object_ptr
             {
-                Object_ptr receiver_type = visit(access.left);
+                Object_ptr left_type = visit(access.left);
 
-                if (receiver_type->is<ClassType_ptr>())
+                if (left_type->is<ClassType_ptr>())
                 {
-                    return evaluate_instance_method_call(
-                        call,
-                        access,
-                        argument_types,
-                        receiver_type
-                    );
+                    return evaluate_instance_method_call(call, access, argument_types, left_type);
                 }
-                else if (receiver_type->is<std::shared_ptr<ModuleType>>())
+                else if (left_type->is<std::shared_ptr<ModuleType>>())
                 {
                     return evaluate_module_function_call_or_instance_creation(
                         call,
@@ -157,7 +152,7 @@ Object_ptr SemanticAnalyzer::evaluate_function_call(
         target.must_be_captured = true;
     }
 
-    if (is_native_function(resolved_function))
+    if (resolved_function->is_native_function_or_method())
     {
         call.overload_index = -1;
     }
@@ -231,17 +226,17 @@ Object_ptr SemanticAnalyzer::evaluate_instance_method_call(
         "Target of method call must be a class instance."
     );
 
-    auto receiver_class = receiver_type->as<std::shared_ptr<ClassType>>();
+    auto class_type = receiver_type->as<std::shared_ptr<ClassType>>();
 
     auto [overload_group, resolved_method, overload_index] = type_checker
                                                                  ->resolve_class_method_call(
                                                                      current_scope,
-                                                                     receiver_class,
+                                                                     class_type,
                                                                      method_identifier.name,
                                                                      argument_types
                                                                  );
 
-    access.member_index = receiver_class->get_member_index(method_identifier.name);
+    access.member_index = class_type->get_member_index(method_identifier.name);
 
     call.overload_index = overload_index;
     method_identifier.symbol = resolved_method;

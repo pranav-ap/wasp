@@ -24,7 +24,7 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-std::pair<Object_ptr, ObjectVector> SemanticAnalyzer::extract_function_signature(
+std::pair<Object_ptr, ObjectVector> SemanticAnalyzer::get_function_signature(
     AbstractFunctionDefinition& func
 )
 {
@@ -89,21 +89,6 @@ Object_ptr SemanticAnalyzer::get_function_return_type(Symbol_ptr symbol)
     }
 
     Doctor::get().fatal(WaspStage::Semantics, "Expected a valid function signature type.");
-}
-
-bool SemanticAnalyzer::is_native_function(Symbol_ptr symbol)
-{
-    if (symbol->payload_is<FunctionData>())
-    {
-        return symbol->get_payload_as<FunctionData>().is_native;
-    }
-
-    if (symbol->payload_is<MethodData>())
-    {
-        return symbol->get_payload_as<MethodData>().is_native;
-    }
-
-    return false;
 }
 
 // ============================================================================

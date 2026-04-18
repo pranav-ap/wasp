@@ -126,6 +126,7 @@ struct Symbol : public std::enable_shared_from_this<Symbol>
     bool is_exported() const;
     bool is_either_function_or_method() const;
     bool is_native() const;
+    bool is_native_function_or_method() const;
 
     Object_ptr get_type();
     void set_type(Object_ptr new_type);

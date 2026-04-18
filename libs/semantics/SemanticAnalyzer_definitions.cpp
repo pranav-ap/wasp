@@ -32,13 +32,6 @@ void SemanticAnalyzer::visit(ClassDefinition& def)
 {
     auto class_type = initialize_class_type(def);
 
-    auto class_symbol = SymbolFactory::create_class(
-        def.name,
-        make_object(class_type),
-        current_scope->get_closure_depth(),
-        current_scope->get_lexical_depth()
-    );
-
     // Hoist methods
 
     for (auto& stmt : def.members)
@@ -47,7 +40,7 @@ void SemanticAnalyzer::visit(ClassDefinition& def)
             overloaded{
                 [&](MethodDefinition& m)
                 {
-                    auto [return_type, parameter_types] = extract_function_signature(m);
+                    auto [return_type, parameter_types] = get_function_signature(m);
 
                     Object_ptr signature = make_object(
                         std::make_shared<MethodType>(parameter_types, return_type)
@@ -95,8 +88,7 @@ void SemanticAnalyzer::visit(ClassDefinition& def)
         );
     }
 
-    def.symbol->set_type(class_symbol->get_type());
-    current_scope->define(class_symbol);
+    def.symbol->set_type(make_object(class_type));
 }
 
 std::shared_ptr<ClassType> SemanticAnalyzer::initialize_class_type(ClassDefinition& def)
@@ -153,43 +145,49 @@ std::shared_ptr<ClassType> SemanticAnalyzer::initialize_class_type(ClassDefiniti
 
 void SemanticAnalyzer::visit(FunctionDefinition& def)
 {
+    enter_scope(ScopeType::FUNCTION);
+
     auto signature = def.symbol->get_type();
-    analyze_abstract_function_body(def, false, signature);
+    auto [return_type, param_types] = get_function_signature(signature);
+    return_type_stack.push_back(return_type);
+
+    Doctor::get().assert(
+        def.parameter_symbols.empty(),
+        WaspStage::Semantics,
+        "Expect parameter symbols to be empty at this stage"
+    );
+
+    for (size_t i = 0; i < def.parameters.size(); ++i)
+    {
+        auto sym = SymbolFactory::create_variable(
+            def.parameters[i].first,
+            param_types[i],
+            true,
+            current_scope->get_closure_depth(),
+            current_scope->get_lexical_depth()
+        );
+
+        current_scope->define(sym);
+        def.parameter_symbols.push_back(sym);
+    }
+
+    // Analyze Body
+
+    visit(def.body);
+    return_type_stack.pop_back();
+
+    leave_scope();
 }
 
 void SemanticAnalyzer::visit(MethodDefinition& def)
 {
-    auto signature = def.symbol->get_type();
-    analyze_abstract_function_body(def, true, signature);
-}
-
-void SemanticAnalyzer::analyze_abstract_function_body(
-    AbstractFunctionDefinition& fun_def,
-    bool is_method,
-    Object_ptr class_type
-)
-{
-    Object_ptr return_type;
-    ObjectVector param_types;
-
-    if (fun_def.symbol->get_type() == nullptr)
-    {
-        // Top-level function (SymbolHoister left the type as nullptr)
-        std::tie(return_type, param_types) = extract_function_signature(fun_def);
-        auto signature = make_object(std::make_shared<FunctionType>(param_types, return_type));
-        fun_def.symbol->set_type(signature);
-    }
-    else
-    {
-        // Impl method or local function (already evaluated, extract types cleanly)
-        std::tie(return_type, param_types) = get_function_signature(fun_def.symbol->get_type());
-    }
-
-    type_checker->validate_new_function_overload(current_scope, fun_def.name, fun_def.symbol);
-
     enter_scope(ScopeType::FUNCTION);
+
+    auto signature = def.symbol->get_type();
+    auto [return_type, param_types] = get_function_signature(signature);
     return_type_stack.push_back(return_type);
-    fun_def.parameter_symbols.clear();
+
+    def.parameter_symbols.clear();
 
     auto define_param = [&](const std::string& name, Object_ptr type, bool is_mutable)
     {
@@ -202,22 +200,19 @@ void SemanticAnalyzer::analyze_abstract_function_body(
         );
 
         current_scope->define(sym);
-        fun_def.parameter_symbols.push_back(sym);
+        def.parameter_symbols.push_back(sym);
     };
 
-    if (is_method)
-    {
-        define_param("my", class_type, false);
-    }
+    define_param("my", signature, false);
 
-    for (size_t i = 0; i < fun_def.parameters.size(); ++i)
+    for (size_t i = 0; i < def.parameters.size(); ++i)
     {
-        define_param(fun_def.parameters[i].first, param_types[i], true);
+        define_param(def.parameters[i].first, param_types[i], true);
     }
 
     // Analyze Body
 
-    visit(fun_def.body);
+    visit(def.body);
     return_type_stack.pop_back();
 
     leave_scope();

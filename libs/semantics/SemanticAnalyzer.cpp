@@ -128,7 +128,7 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
             overloaded{
                 [&](FunctionDefinition& fun_def)
                 {
-                    auto [ret_type, param_types] = extract_function_signature(fun_def);
+                    auto [ret_type, param_types] = get_function_signature(fun_def);
                     auto signature = make_object(
                         std::make_shared<FunctionType>(param_types, ret_type)
                     );
@@ -141,10 +141,8 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
                         current_scope->get_lexical_depth()
                     );
 
-                    if (current_scope->contains_in_current_scope(fun_def.name))
-                    {
-                        type_checker->validate_new_function(current_scope, fun_def.name, symbol);
-                    }
+                    type_checker
+                        ->validate_new_function_overload(current_scope, fun_def.name, symbol);
 
                     current_scope->define(symbol);
                     fun_def.symbol = symbol;

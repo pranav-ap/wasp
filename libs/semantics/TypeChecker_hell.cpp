@@ -250,7 +250,7 @@ std::tuple<Symbol_ptr, Symbol_ptr, int> TypeChecker::resolve_function_call(
 
 std::tuple<Symbol_ptr, Symbol_ptr, int> TypeChecker::resolve_class_method_call(
     SymbolScope_ptr scope,
-    std::shared_ptr<ClassType> class_type,
+    ClassType_ptr class_type,
     const std::string& method_name,
     const ObjectVector& argument_types
 ) const

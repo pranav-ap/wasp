@@ -104,6 +104,17 @@ bool Symbol::is_native() const
     return false;
 }
 
+bool Symbol::is_native_function_or_method() const
+{
+    if (payload_is<FunctionData>())
+        return get_payload_as<FunctionData>().is_native;
+
+    if (payload_is<MethodData>())
+        return get_payload_as<MethodData>().is_native;
+
+    return false;
+}
+
 bool Symbol::should_be_captured(int usage_depth) const
 {
     return declaration_depth < usage_depth;
