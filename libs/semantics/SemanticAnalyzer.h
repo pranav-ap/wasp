@@ -105,7 +105,8 @@ class SemanticAnalyzer
     Object_ptr evaluate_function_call(
         Call& call_expr,
         Identifier& callable_identifier,
-        const ObjectVector& arg_types
+        const ObjectVector& arg_types,
+        Symbol_ptr function_overload_symbol
     );
 
     Object_ptr evaluate_module_function_call_or_instance_creation(
@@ -125,7 +126,7 @@ class SemanticAnalyzer
         Call& call_expr,
         MemberAccess& mac,
         const ObjectVector& arg_types,
-        Object_ptr left_type
+        ClassType_ptr class_type
     );
 
     Object_ptr visit(Call& expr);

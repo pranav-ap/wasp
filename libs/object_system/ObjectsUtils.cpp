@@ -371,7 +371,7 @@ namespace Wasp
                 {
                     return "<overloaded objects>";
                 },
-                [](const std::shared_ptr<TypeOverloadedSet>& set) -> std::string
+                [](const std::shared_ptr<TypeOverloadedList>& set) -> std::string
                 {
                     return "<overloaded types: " + set->name + ">";
                 },

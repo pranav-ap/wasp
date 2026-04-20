@@ -251,18 +251,24 @@ struct NativeFunctionObject : public CompositeObject
 };
 
 // ============================================================================
-// Overloads Sets
+// Overloads
 // ============================================================================
 
-struct OverloadList : public CompositeObject
+struct ObjectOverloadList : public CompositeObject
 {
+    std::string name;
     ObjectVector overloads;
 
-    OverloadList() : overloads({})
+    ObjectOverloadList(std::string name) : name(std::move(name))
     {
     }
 
-    OverloadList(ObjectVector overloads) : overloads(std::move(overloads))
+    ObjectOverloadList(ObjectVector overloads) : overloads(std::move(overloads))
+    {
+    }
+
+    ObjectOverloadList(std::string name, ObjectVector overloads)
+        : name(std::move(name)), overloads(std::move(overloads))
     {
     }
 
@@ -272,24 +278,7 @@ struct OverloadList : public CompositeObject
     }
 };
 
-struct ObjectOverloadList : public OverloadList
-{
-    using OverloadList::OverloadList;
-};
-
 using ObjectOverloadList_ptr = std::shared_ptr<ObjectOverloadList>;
-
-struct TypeOverloadedSet : public OverloadList
-{
-    std::string name;
-
-    TypeOverloadedSet(std::string name, ObjectVector overloads)
-        : name(std::move(name)), OverloadList(std::move(overloads))
-    {
-    }
-};
-
-using TypeOverloadedSet_ptr = std::shared_ptr<TypeOverloadedSet>;
 
 // ============================================================================
 // Membered Objects
@@ -447,57 +436,36 @@ struct VariantType : public CompositeType
 // Function Types
 // ============================================================================
 
-struct AbstractFunctionType : public AnyType
+struct Signature : public AnyType
 {
     ObjectVector parameter_types;
     Object_ptr return_type;
 
-    AbstractFunctionType(ObjectVector input_types, Object_ptr return_type)
+    Signature(ObjectVector input_types, Object_ptr return_type)
         : parameter_types(std::move(input_types)), return_type(std::move(return_type)) {};
 };
 
-struct FunctionType : public AbstractFunctionType
+struct FunctionType : public Signature
 {
-    using AbstractFunctionType::AbstractFunctionType;
+    using Signature::Signature;
 };
 
-struct MethodType : public AbstractFunctionType
+struct MethodType : public Signature
 {
-    MethodType(ObjectVector input_types, Object_ptr return_type)
-        : AbstractFunctionType(std::move(input_types), std::move(return_type))
-    {
-    }
+    using Signature::Signature;
 };
 
 // ============================================================================
 // Membered Types
 // ============================================================================
 
-struct MemberedCompositeType : public CompositeType
-{
-    ObjectStringMap members;
-    StringVector ordered_keys;
-
-    MemberedCompositeType(StringVector ordered_keys, ObjectStringMap members)
-        : ordered_keys(std::move(ordered_keys)), members(std::move(members))
-    {
-    }
-
-    bool contains_member(const std::string& member_name) const;
-
-    Object_ptr get_member_type(const std::string& member_name) const;
-    void set_member(const std::string& member_name, Object_ptr value);
-
-    Object_ptr get_member(int member_id) const;
-    void set_member(int member_id, Object_ptr value);
-
-    int get_member_index(const std::string& member_name) const;
-};
-
-struct ModuleType : public MemberedCompositeType
+struct ModuleType : public CompositeType
 {
     std::string name;
     std::filesystem::path absolute_filepath;
+
+    ObjectStringMap members;
+    StringVector ordered_keys;
 
     ModuleType(
         std::string name,
@@ -506,10 +474,22 @@ struct ModuleType : public MemberedCompositeType
         ObjectStringMap members
     )
         : name(std::move(name)), absolute_filepath(std::move(absolute_filepath)),
-          MemberedCompositeType(std::move(ordered_keys), std::move(members))
+          ordered_keys(std::move(ordered_keys)), members(std::move(members))
     {
     }
+
+    bool contains_member(const std::string& member_name) const;
+
+    Object_ptr get_member(const std::string& member_name) const;
+    void set_member(const std::string& member_name, Object_ptr value);
+
+    Object_ptr get_member(int member_id) const;
+    void set_member(int member_id, Object_ptr value);
+
+    int get_member_index(const std::string& member_name) const;
 };
+
+using ModuleType_ptr = std::shared_ptr<ModuleType>;
 
 struct ClassType : public CompositeType
 {
@@ -580,7 +560,6 @@ struct Object
         std::shared_ptr<InstanceObject>,
 
         std::shared_ptr<ObjectOverloadList>,
-        std::shared_ptr<TypeOverloadedSet>,
 
         std::shared_ptr<BreakObject>,
         std::shared_ptr<ContinueObject>,

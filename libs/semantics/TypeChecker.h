@@ -13,32 +13,32 @@
 
 namespace Wasp
 {
-class TypeChecker
+
+struct TypeChecker
 {
+    ConstantPool_ptr pool;
+
+    TypeChecker(ConstantPool_ptr pool) : pool(pool) {};
+
     SymbolVector::iterator find_matching_signature(
         SymbolScope_ptr scope,
         SymbolVector& target_vector,
         const ObjectVector& parameter_types
     );
 
-    SymbolVector get_assignable_function_signatures(
+    std::tuple<Symbol_ptr, int> get_assignable_function_signatures(
         SymbolScope_ptr scope,
         const SymbolVector& candidates,
         const ObjectVector& argument_types
     ) const;
 
-    std::vector<std::shared_ptr<AbstractFunctionType>> get_assignable_function_signatures(
+    std::vector<std::shared_ptr<Signature>> get_assignable_function_signatures(
         SymbolScope_ptr scope,
-        const std::vector<std::shared_ptr<AbstractFunctionType>>& candidates,
+        const std::vector<std::shared_ptr<Signature>>& candidates,
         const ObjectVector& argument_types
     ) const;
 
-    std::shared_ptr<AbstractFunctionType> get_function_signature(Object_ptr type_obj) const;
-
-public:
-    ConstantPool_ptr pool;
-
-    TypeChecker(ConstantPool_ptr pool) : pool(pool) {};
+    std::shared_ptr<Signature> get_function_signature(Object_ptr type_obj) const;
 
     void validate_new_function_overload(
         SymbolScope_ptr scope,
@@ -51,13 +51,6 @@ public:
         ObjectVector existing_overloads,
         const Symbol_ptr new_method_symbol
     );
-
-    // group symbol, function symbol, overload index
-    std::tuple<Symbol_ptr, Symbol_ptr, int> resolve_function_call(
-        SymbolScope_ptr scope,
-        std::string& function_name,
-        const ObjectVector& argument_types
-    ) const;
 
     // group symbol, function symbol, overload index, module member index
     std::tuple<Symbol_ptr, Symbol_ptr, int, int> resolve_module_function_call(

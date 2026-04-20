@@ -59,18 +59,27 @@ struct MethodData : public PossibleNativeData
     }
 };
 
-struct OverloadGroupData : public TypedData
+struct FunctionOverloadsData
 {
     SymbolVector siblings;
     SymbolVector parents;
 
-    OverloadGroupData() : TypedData(nullptr)
+    FunctionOverloadsData()
     {
     }
 
-    SymbolVector get_all_overloads() const;
-    int get_overload_index(const Symbol_ptr& target) const;
-    bool is_native() const;
+    SymbolVector get_overloads() const;
+};
+
+struct MethodOverloadsData
+{
+    SymbolVector overloads;
+
+    MethodOverloadsData()
+    {
+    }
+
+    SymbolVector get_overloads() const;
 };
 
 struct VariableData : public TypedData
@@ -85,6 +94,7 @@ struct VariableData : public TypedData
 struct ClassData : public TypedData
 {
     SymbolStringMap method_symbols;
+
     ClassData(Object_ptr type, SymbolStringMap method_symbols)
         : TypedData(std::move(type)), method_symbols(std::move(method_symbols))
     {
@@ -103,7 +113,8 @@ struct AliasData
 
 using SymbolPayload = std::variant<
     VariableData,
-    OverloadGroupData,
+    FunctionOverloadsData,
+    MethodOverloadsData,
     FunctionData,
     MethodData,
     ModuleData,
@@ -188,7 +199,9 @@ public:
         int lexical_depth = 0
     );
 
-    static Symbol_ptr create_overload_group(std::string name);
+    static Symbol_ptr create_function_overloads(std::string name);
+
+    static Symbol_ptr create_method_overloads(std::string name);
 
     static Symbol_ptr create_class(
         std::string name,

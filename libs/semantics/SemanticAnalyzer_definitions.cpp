@@ -46,7 +46,7 @@ void SemanticAnalyzer::visit(ClassDefinition& def)
                         std::make_shared<MethodType>(parameter_types, return_type)
                     );
 
-                    Symbol_ptr method_symbol = SymbolFactory::create_method(
+                    Symbol_ptr symbol = SymbolFactory::create_method(
                         def.name,
                         signature,
                         false,
@@ -56,11 +56,10 @@ void SemanticAnalyzer::visit(ClassDefinition& def)
 
                     auto overloads = class_type->get_overloads(m.name);
 
-                    type_checker
-                        ->validate_new_method_overload(current_scope, overloads, method_symbol);
+                    type_checker->validate_new_method_overload(current_scope, overloads, symbol);
 
                     class_type->add_overload(m.name, signature);
-                    def.symbol = method_symbol;
+                    def.symbol = symbol;
                 },
                 [&](auto&)
                 {
@@ -159,7 +158,7 @@ void SemanticAnalyzer::visit(FunctionDefinition& def)
 
     for (size_t i = 0; i < def.parameters.size(); ++i)
     {
-        auto sym = SymbolFactory::create_variable(
+        auto symbol = SymbolFactory::create_variable(
             def.parameters[i].first,
             param_types[i],
             true,
@@ -167,8 +166,8 @@ void SemanticAnalyzer::visit(FunctionDefinition& def)
             current_scope->get_lexical_depth()
         );
 
-        current_scope->define(sym);
-        def.parameter_symbols.push_back(sym);
+        current_scope->define(symbol);
+        def.parameter_symbols.push_back(symbol);
     }
 
     // Analyze Body
@@ -187,7 +186,11 @@ void SemanticAnalyzer::visit(MethodDefinition& def)
     auto [return_type, param_types] = get_function_signature(signature);
     return_type_stack.push_back(return_type);
 
-    def.parameter_symbols.clear();
+    Doctor::get().assert(
+        def.parameter_symbols.empty(),
+        WaspStage::Semantics,
+        "Expect parameter symbols to be empty at this stage"
+    );
 
     auto define_param = [&](const std::string& name, Object_ptr type, bool is_mutable)
     {

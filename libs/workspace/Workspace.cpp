@@ -24,43 +24,19 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-SymbolVector OverloadGroupData::get_all_overloads() const
+SymbolVector FunctionOverloadsData::get_overloads() const
 {
-    SymbolVector all_overloads = siblings;
+    SymbolVector overloads = siblings;
     for (const auto& parent : parents)
     {
-        all_overloads.push_back(parent);
+        overloads.push_back(parent);
     }
-    return all_overloads;
+    return overloads;
 }
 
-bool OverloadGroupData::is_native() const
+SymbolVector MethodOverloadsData::get_overloads() const
 {
-    for (const auto& sibling : siblings)
-    {
-        if (sibling->is_native())
-            return true;
-    }
-    for (const auto& parent : parents)
-    {
-        if (parent->is_native())
-            return true;
-    }
-    return false;
-}
-
-int OverloadGroupData::get_overload_index(const Symbol_ptr& target) const
-{
-    SymbolVector all_overloads = get_all_overloads();
-    auto it = std::find(all_overloads.begin(), all_overloads.end(), target);
-
-    Doctor::get().assert(
-        it != all_overloads.end(),
-        WaspStage::Semantics,
-        "Target symbol not found in overload group"
-    );
-
-    return static_cast<int>(std::distance(all_overloads.begin(), it));
+    return overloads;
 }
 
 Symbol::Symbol(
@@ -99,8 +75,7 @@ bool Symbol::is_native() const
         return get_payload_as<FunctionData>().is_native;
     if (payload_is<MethodData>())
         return get_payload_as<MethodData>().is_native;
-    if (payload_is<OverloadGroupData>())
-        return get_payload_as<OverloadGroupData>().is_native();
+
     return false;
 }
 
@@ -148,22 +123,35 @@ Object_ptr Symbol::get_type()
             {
                 return d.target->get_type();
             },
-            [&](OverloadGroupData& d) -> Object_ptr
+            [&](FunctionOverloadsData& d) -> Object_ptr
             {
-                if (d.type)
-                    return d.type;
-
                 ObjectVector overload_types;
-                for (const auto& overload : d.get_all_overloads())
+
+                for (const auto& overload : d.get_overloads())
                 {
                     overload_types.push_back(overload->get_type());
                 }
 
-                d.type = make_object(
-                    std::make_shared<TypeOverloadedSet>(name, std::move(overload_types))
+                return make_object(
+                    std::make_shared<ObjectOverloadList>(name, std::move(overload_types))
                 );
+            },
+            [&](MethodOverloadsData& d) -> Object_ptr
+            {
+                ObjectVector overload_types;
 
-                return d.type;
+                for (const auto& overload : d.get_overloads())
+                {
+                    overload_types.push_back(overload->get_type());
+                }
+
+                return make_object(
+                    std::make_shared<ObjectOverloadList>(name, std::move(overload_types))
+                );
+            },
+            [](auto&) -> Object_ptr
+            {
+                Doctor::get().fatal(WaspStage::Semantics, "This symbol does not have a type");
             }
         },
         payload
@@ -286,14 +274,25 @@ Symbol_ptr SymbolFactory::create_method(
     return symbol;
 }
 
-Symbol_ptr SymbolFactory::create_overload_group(std::string name)
+Symbol_ptr SymbolFactory::create_function_overloads(std::string name)
 {
     return std::make_shared<Symbol>(
         symbol_id_counter++,
         std::move(name),
         0,
         0,
-        OverloadGroupData{}
+        FunctionOverloadsData{}
+    );
+}
+
+Symbol_ptr SymbolFactory::create_method_overloads(std::string name)
+{
+    return std::make_shared<Symbol>(
+        symbol_id_counter++,
+        std::move(name),
+        0,
+        0,
+        MethodOverloadsData{}
     );
 }
 

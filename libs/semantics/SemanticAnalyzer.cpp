@@ -126,26 +126,26 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
     {
         std::visit(
             overloaded{
-                [&](FunctionDefinition& fun_def)
+                [&](FunctionDefinition& def)
                 {
-                    auto [ret_type, param_types] = get_function_signature(fun_def);
+                    auto [return_type, param_types] = get_function_signature(def);
+
                     auto signature = make_object(
-                        std::make_shared<FunctionType>(param_types, ret_type)
+                        std::make_shared<FunctionType>(param_types, return_type)
                     );
 
                     auto symbol = SymbolFactory::create_function(
-                        fun_def.name,
+                        def.name,
                         signature,
                         false,
                         current_scope->get_closure_depth(),
                         current_scope->get_lexical_depth()
                     );
 
-                    type_checker
-                        ->validate_new_function_overload(current_scope, fun_def.name, symbol);
+                    type_checker->validate_new_function_overload(current_scope, def.name, symbol);
 
                     current_scope->define(symbol);
-                    fun_def.symbol = symbol;
+                    def.symbol = symbol;
                 },
                 [&](ClassDefinition& class_def)
                 {

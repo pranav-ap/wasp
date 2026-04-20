@@ -65,7 +65,7 @@ void TypeChecker::validate_new_function_overload(
     auto overload_group_symbol = scope->lookup(function_name);
 
     Doctor::get().assert(
-        overload_group_symbol->payload_is<OverloadGroupData>(),
+        overload_group_symbol->payload_is<FunctionOverloadsData>(),
         WaspStage::Semantics,
         "Symbol is not an overload group"
     );
@@ -79,7 +79,7 @@ void TypeChecker::validate_new_function_overload(
     );
 
     const auto& parameter_types = new_function_signature->parameter_types;
-    auto& group_data = overload_group_symbol->get_payload_as<OverloadGroupData>();
+    auto& group_data = overload_group_symbol->get_payload_as<FunctionOverloadsData>();
 
     // Sibling Duplicate Check
     for (const auto& sibling : group_data.siblings)
@@ -105,17 +105,14 @@ void TypeChecker::validate_new_function_overload(
             "Overload group contains a non-function symbol"
         );
 
-        if (equal(scope, existing_signature->parameter_types, parameter_types))
-        {
-            Doctor::get().fatal(
-                WaspStage::Semantics,
-                "Duplicate function signatures for '" + function_name + "' defined in same scope"
-            );
-        }
+        Doctor::get().assert(
+            !equal(scope, existing_signature->parameter_types, parameter_types),
+            WaspStage::Semantics,
+            "Duplicate function signatures for '" + function_name + "' defined in same scope"
+        );
     }
 
     // Shadow Parents
-    // Todo: Needs to be updated for methods ??
     auto parent_match = find_matching_signature(scope, group_data.parents, parameter_types);
 
     if (parent_match != group_data.parents.end())
@@ -165,37 +162,48 @@ void TypeChecker::validate_new_method_overload(
 // RESOLVE
 // ==========================================================================
 
-SymbolVector TypeChecker::get_assignable_function_signatures(
+std::tuple<Symbol_ptr, int> TypeChecker::get_assignable_function_signatures(
     SymbolScope_ptr scope,
     const SymbolVector& candidates,
     const ObjectVector& argument_types
 ) const
 {
     SymbolVector valid_matches;
+    std::vector<int> match_indices;
 
-    for (const auto& candidate : candidates)
+    for (size_t i = 0; i < candidates.size(); ++i)
     {
-        auto signature = get_function_signature(candidate->get_type());
+        auto signature = get_function_signature(candidates[i]->get_type());
 
         if (!signature)
             continue;
 
         if (assignable(scope, signature->parameter_types, argument_types))
         {
-            valid_matches.push_back(candidate);
+            valid_matches.push_back(candidates[i]);
+            match_indices.push_back(static_cast<int>(i));
         }
     }
 
-    return valid_matches;
+    Doctor::get().assert(
+        !valid_matches.empty(),
+        WaspStage::Semantics,
+        "No matching function signature found"
+    );
+
+    Doctor::get()
+        .assert(valid_matches.size() == 1, WaspStage::Semantics, "Ambiguous function call");
+
+    return {valid_matches.front(), match_indices.front()};
 }
 
-std::vector<std::shared_ptr<AbstractFunctionType>> TypeChecker::get_assignable_function_signatures(
+std::vector<std::shared_ptr<Signature>> TypeChecker::get_assignable_function_signatures(
     SymbolScope_ptr scope,
-    const std::vector<std::shared_ptr<AbstractFunctionType>>& candidates,
+    const std::vector<std::shared_ptr<Signature>>& candidates,
     const ObjectVector& argument_types
 ) const
 {
-    std::vector<std::shared_ptr<AbstractFunctionType>> valid_matches;
+    std::vector<std::shared_ptr<Signature>> valid_matches;
 
     for (const auto& candidate : candidates)
     {
@@ -208,47 +216,7 @@ std::vector<std::shared_ptr<AbstractFunctionType>> TypeChecker::get_assignable_f
     return valid_matches;
 }
 
-std::tuple<Symbol_ptr, Symbol_ptr, int> TypeChecker::resolve_function_call(
-    SymbolScope_ptr scope,
-    std::string& function_name,
-    const ObjectVector& argument_types
-) const
-{
-    auto overload_group_symbol = scope->lookup(function_name);
-
-    Doctor::get().assert(
-        overload_group_symbol->payload_is<OverloadGroupData>(),
-        WaspStage::Semantics,
-        "Symbol is not an overload group"
-    );
-
-    const auto& group_data = overload_group_symbol->get_payload_as<OverloadGroupData>();
-
-    SymbolVector valid_matches = get_assignable_function_signatures(
-        scope,
-        group_data.get_all_overloads(),
-        argument_types
-    );
-
-    Doctor::get().assert(
-        !valid_matches.empty(),
-        WaspStage::Semantics,
-        "No matching function signature found for " + overload_group_symbol->name
-    );
-
-    Doctor::get().assert(
-        valid_matches.size() == 1,
-        WaspStage::Semantics,
-        "Ambiguous function call to " + overload_group_symbol->name
-    );
-
-    int index = group_data.get_overload_index(valid_matches.front());
-
-    // Returns: {Group Symbol, Specific Function Symbol, Overload Index}
-    return {overload_group_symbol, valid_matches.front(), index};
-}
-
-std::tuple<Symbol_ptr, Symbol_ptr, int> TypeChecker::resolve_class_method_call(
+std::tuple<Symbol_ptr, int> TypeChecker::resolve_class_method_call(
     SymbolScope_ptr scope,
     ClassType_ptr class_type,
     const std::string& method_name,
@@ -261,43 +229,26 @@ std::tuple<Symbol_ptr, Symbol_ptr, int> TypeChecker::resolve_class_method_call(
         "Method '" + method_name + "()' does not exist on class '" + class_type->name + "'."
     );
 
-    Symbol_ptr overload_group_symbol = class_type->method_symbols[method_name];
-
-    Doctor::get().fatal_if_nullptr(
-        overload_group_symbol,
-        WaspStage::Semantics,
-        "Could not find method symbol '" + method_name + "' in class."
-    );
+    auto member = class_type->get_member(method_name);
 
     Doctor::get().assert(
-        overload_group_symbol->payload_is<OverloadGroupData>(),
+        member->is<ObjectOverloadList>(),
         WaspStage::Semantics,
-        "Symbol '" + class_type->name + "::" + method_name + "' is not an overload group."
+        "Member '" + method_name + "' of class '" + class_type->name +
+            "' is not a method overload group."
     );
 
-    const auto& group_data = overload_group_symbol->get_payload_as<OverloadGroupData>();
+    const auto& object_overloads = member->as<ObjectOverloadList>();
 
-    SymbolVector valid_matches = get_assignable_function_signatures(
-        scope,
-        group_data.get_all_overloads(),
-        argument_types
-    );
+    for (size_t i = 0; i < object_overloads.overloads.size(); ++i)
+    {
+        auto overload = object_overloads.overloads[i];
+        auto function_signature = overload->try_as<MethodType>();
 
-    Doctor::get().assert(
-        !valid_matches.empty(),
-        WaspStage::Semantics,
-        "No matching method signature found for '" + class_type->name + "::" + method_name + "'"
-    );
-
-    Doctor::get().assert(
-        valid_matches.size() == 1,
-        WaspStage::Semantics,
-        "Ambiguous method call to '" + class_type->name + "::" + method_name + "'"
-    );
-
-    int index = group_data.get_overload_index(valid_matches.front());
-
-    return {overload_group_symbol, valid_matches.front(), index};
+        if (assignable(scope, function_signature->parameter_types, argument_types))
+        {
+        }
+    }
 }
 
 std::tuple<Symbol_ptr, Symbol_ptr, int, int> TypeChecker::resolve_module_function_call(
@@ -333,16 +284,16 @@ std::tuple<Symbol_ptr, Symbol_ptr, int, int> TypeChecker::resolve_module_functio
     );
 
     Doctor::get().assert(
-        overload_group_symbol->payload_is<OverloadGroupData>(),
+        overload_group_symbol->payload_is<FunctionOverloadsData>(),
         WaspStage::Semantics,
         "Symbol '" + method_name + "' is not an overload group"
     );
 
-    const auto& group_data = overload_group_symbol->get_payload_as<OverloadGroupData>();
+    const auto& group_data = overload_group_symbol->get_payload_as<FunctionOverloadsData>();
 
     SymbolVector valid_matches = get_assignable_function_signatures(
         scope,
-        group_data.get_all_overloads(),
+        group_data.get_overloads(),
         argument_types
     );
 
