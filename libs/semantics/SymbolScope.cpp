@@ -74,10 +74,14 @@ Symbol_ptr SymbolScope::define_function(Symbol_ptr new_symbol)
         );
 
         overload_group->get_payload_as<FunctionOverloadsData>().siblings.push_back(new_symbol);
-        return new_symbol;
+        return overload_group;
     }
 
-    auto overload_group = SymbolFactory::create_function_overloads(new_symbol->name);
+    auto overload_group = SymbolFactory::create_function_overloads(
+        new_symbol->name,
+        new_symbol->closure_depth,
+        new_symbol->lexical_depth
+    );
 
     auto& overload_group_data = overload_group->get_payload_as<FunctionOverloadsData>();
     overload_group_data.siblings.push_back(new_symbol);
@@ -106,7 +110,7 @@ Symbol_ptr SymbolScope::define_function(Symbol_ptr new_symbol)
         }
     }
 
-    return new_symbol;
+    return overload_group;
 }
 
 Symbol_ptr SymbolScope::define_method(Symbol_ptr new_symbol)
@@ -131,7 +135,11 @@ Symbol_ptr SymbolScope::define_method(Symbol_ptr new_symbol)
         return new_symbol;
     }
 
-    auto overload_group = SymbolFactory::create_method_overloads(new_symbol->name);
+    auto overload_group = SymbolFactory::create_method_overloads(
+        new_symbol->name,
+        new_symbol->closure_depth,
+        new_symbol->lexical_depth
+    );
 
     auto& set_data = overload_group->get_payload_as<MethodOverloadsData>();
     set_data.overloads.push_back(new_symbol);

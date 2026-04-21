@@ -309,24 +309,32 @@ Symbol_ptr SymbolFactory::create_method(
     return symbol;
 }
 
-Symbol_ptr SymbolFactory::create_function_overloads(std::string name)
+Symbol_ptr SymbolFactory::create_function_overloads(
+    std::string name,
+    int closure_depth,
+    int lexical_depth
+)
 {
     return std::make_shared<Symbol>(
         symbol_id_counter++,
         std::move(name),
-        -1,
-        -1,
+        closure_depth,
+        lexical_depth,
         FunctionOverloadsData{}
     );
 }
 
-Symbol_ptr SymbolFactory::create_method_overloads(std::string name)
+Symbol_ptr SymbolFactory::create_method_overloads(
+    std::string name,
+    int closure_depth,
+    int lexical_depth
+)
 {
     return std::make_shared<Symbol>(
         symbol_id_counter++,
         std::move(name),
-        -1,
-        -1,
+        closure_depth,
+        lexical_depth,
         MethodOverloadsData{}
     );
 }

@@ -133,12 +133,12 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
 
 Object_ptr SemanticAnalyzer::evaluate_function_call(
     Call& call,
-    Identifier& target,
+    Identifier& identifier,
     const ObjectVector& argument_types,
     Symbol_ptr overload_symbol
 )
 {
-    target.symbol = overload_symbol;
+    identifier.symbol = overload_symbol;
 
     const auto& function_overloads_data = overload_symbol->get_payload_as<FunctionOverloadsData>();
     const auto overloads = function_overloads_data.get_overloads();
@@ -151,7 +151,7 @@ Object_ptr SemanticAnalyzer::evaluate_function_call(
 
     if (function->should_be_captured(current_scope->get_closure_depth()))
     {
-        target.must_be_captured = true;
+        identifier.must_be_captured = true;
     }
 
     if (function->is_native_function_or_method())

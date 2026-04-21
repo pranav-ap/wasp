@@ -144,8 +144,8 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
 
                     type_checker->validate_new_function_overload(current_scope, def.name, symbol);
 
-                    current_scope->define(symbol);
                     def.symbol = symbol;
+                    def.group_symbol = current_scope->define(symbol);
                 },
                 [&](ClassDefinition& class_def)
                 {

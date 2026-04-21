@@ -49,6 +49,8 @@ struct AbstractFunctionDefinition : public Definition
     TypeAnnotation_ptr return_type;
     StatementVector body;
 
+    std::shared_ptr<Symbol> group_symbol;
+
     AbstractFunctionDefinition() = default;
 
     AbstractFunctionDefinition(
