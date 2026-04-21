@@ -59,7 +59,7 @@ struct MethodData : public PossibleNativeData
     }
 };
 
-struct FunctionOverloadsData
+struct FunctionOverloadsData : public TypedData
 {
     SymbolVector siblings;
     SymbolVector parents;
@@ -71,7 +71,7 @@ struct FunctionOverloadsData
     SymbolVector get_overloads() const;
 };
 
-struct MethodOverloadsData
+struct MethodOverloadsData : public TypedData
 {
     SymbolVector overloads;
 

@@ -123,35 +123,39 @@ Object_ptr Symbol::get_type()
             {
                 return d.target->get_type();
             },
-            [&](FunctionOverloadsData& d) -> Object_ptr
-            {
-                ObjectVector overload_types;
 
+            [this](FunctionOverloadsData& d) -> Object_ptr
+            {
+                if (d.type)
+                    return d.type;
+
+                ObjectVector overload_types;
                 for (const auto& overload : d.get_overloads())
                 {
                     overload_types.push_back(overload->get_type());
                 }
 
-                return make_object(
-                    std::make_shared<ObjectOverloadList>(name, std::move(overload_types))
+                d.type = make_object(
+                    std::make_shared<ObjectOverloadList>(this->name, std::move(overload_types))
                 );
+                return d.type;
             },
-            [&](MethodOverloadsData& d) -> Object_ptr
-            {
-                ObjectVector overload_types;
 
+            [this](MethodOverloadsData& d) -> Object_ptr
+            {
+                if (d.type)
+                    return d.type;
+
+                ObjectVector overload_types;
                 for (const auto& overload : d.get_overloads())
                 {
                     overload_types.push_back(overload->get_type());
                 }
 
-                return make_object(
-                    std::make_shared<ObjectOverloadList>(name, std::move(overload_types))
+                d.type = make_object(
+                    std::make_shared<ObjectOverloadList>(this->name, std::move(overload_types))
                 );
-            },
-            [](auto&) -> Object_ptr
-            {
-                Doctor::get().fatal(WaspStage::Semantics, "This symbol does not have a type");
+                return d.type;
             }
         },
         payload
