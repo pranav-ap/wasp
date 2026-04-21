@@ -107,7 +107,7 @@ void Compiler::visit(FunctionDefinition& function_definition)
         function_definition.body
     );
 
-    int physical_index = get_or_add_local_index(function_definition.group_symbol);
+    int physical_index = get_or_add_local_index(function_definition.symbol);
     emit(OpCode::STORE_FUNCTION_OVERLOAD, physical_index, "fun " + function_definition.name);
 }
 

@@ -26,15 +26,9 @@ struct TypeChecker
         const ObjectVector& parameter_types
     );
 
-    std::tuple<Symbol_ptr, int> get_assignable_function_signatures(
+    std::tuple<Symbol_ptr, int> get_best_function_signature(
         SymbolScope_ptr scope,
         const SymbolVector& candidates,
-        const ObjectVector& argument_types
-    ) const;
-
-    std::vector<std::shared_ptr<Signature>> get_assignable_function_signatures(
-        SymbolScope_ptr scope,
-        const std::vector<std::shared_ptr<Signature>>& candidates,
         const ObjectVector& argument_types
     ) const;
 
@@ -51,22 +45,6 @@ struct TypeChecker
         ObjectVector existing_overloads,
         const Symbol_ptr new_method_symbol
     );
-
-    // group symbol, function symbol, overload index, module member index
-    std::tuple<Symbol_ptr, Symbol_ptr, int, int> resolve_module_function_call(
-        SymbolScope_ptr scope,
-        const std::string& module_name,
-        const std::string& method_name,
-        const ObjectVector& argument_types
-    ) const;
-
-    // group symbol, function symbol, overload index
-    std::tuple<Symbol_ptr, Symbol_ptr, int> resolve_class_method_call(
-        SymbolScope_ptr scope,
-        ClassType_ptr class_type,
-        const std::string& method_name,
-        const ObjectVector& argument_types
-    ) const;
 
     bool equal(SymbolScope_ptr scope, const Object_ptr type_1, const Object_ptr type_2) const;
 

@@ -21,10 +21,6 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-// ==========================================================================
-// VALIDATE OVERLOAD
-// ==========================================================================
-
 SymbolVector::iterator TypeChecker::find_matching_signature(
     SymbolScope_ptr scope,
     SymbolVector& target_vector,
@@ -158,11 +154,7 @@ void TypeChecker::validate_new_method_overload(
     }
 }
 
-// ==========================================================================
-// RESOLVE
-// ==========================================================================
-
-std::tuple<Symbol_ptr, int> TypeChecker::get_assignable_function_signatures(
+std::tuple<Symbol_ptr, int> TypeChecker::get_best_function_signature(
     SymbolScope_ptr scope,
     const SymbolVector& candidates,
     const ObjectVector& argument_types
@@ -195,124 +187,6 @@ std::tuple<Symbol_ptr, int> TypeChecker::get_assignable_function_signatures(
         .assert(valid_matches.size() == 1, WaspStage::Semantics, "Ambiguous function call");
 
     return {valid_matches.front(), match_indices.front()};
-}
-
-std::vector<std::shared_ptr<Signature>> TypeChecker::get_assignable_function_signatures(
-    SymbolScope_ptr scope,
-    const std::vector<std::shared_ptr<Signature>>& candidates,
-    const ObjectVector& argument_types
-) const
-{
-    std::vector<std::shared_ptr<Signature>> valid_matches;
-
-    for (const auto& candidate : candidates)
-    {
-        if (assignable(scope, candidate->parameter_types, argument_types))
-        {
-            valid_matches.push_back(candidate);
-        }
-    }
-
-    return valid_matches;
-}
-
-std::tuple<Symbol_ptr, int> TypeChecker::resolve_class_method_call(
-    SymbolScope_ptr scope,
-    ClassType_ptr class_type,
-    const std::string& method_name,
-    const ObjectVector& argument_types
-) const
-{
-    Doctor::get().assert(
-        class_type->contains_member(method_name),
-        WaspStage::Semantics,
-        "Method '" + method_name + "()' does not exist on class '" + class_type->name + "'."
-    );
-
-    auto member = class_type->get_member(method_name);
-
-    Doctor::get().assert(
-        member->is<ObjectOverloadList>(),
-        WaspStage::Semantics,
-        "Member '" + method_name + "' of class '" + class_type->name +
-            "' is not a method overload group."
-    );
-
-    const auto& object_overloads = member->as<ObjectOverloadList>();
-
-    for (size_t i = 0; i < object_overloads.overloads.size(); ++i)
-    {
-        auto overload = object_overloads.overloads[i];
-        auto function_signature = overload->try_as<MethodType>();
-
-        if (assignable(scope, function_signature->parameter_types, argument_types))
-        {
-        }
-    }
-}
-
-std::tuple<Symbol_ptr, Symbol_ptr, int, int> TypeChecker::resolve_module_function_call(
-    SymbolScope_ptr scope,
-    const std::string& module_name,
-    const std::string& method_name,
-    const ObjectVector& argument_types
-) const
-{
-    Symbol_ptr module_symbol = scope->lookup(module_name);
-
-    Doctor::get().fatal_if_nullptr(
-        module_symbol,
-        WaspStage::Semantics,
-        "Module '" + module_name + "' not found in current scope"
-    );
-
-    Doctor::get().assert(
-        module_symbol->payload_is<ModuleData>(),
-        WaspStage::Semantics,
-        "Symbol '" + module_name + "' is not a module"
-    );
-
-    auto& module_data = module_symbol->get_payload_as<ModuleData>();
-
-    Symbol_ptr overload_group_symbol = module_data.mod->get_member(method_name);
-    int module_member_index = module_data.mod->get_member_index(method_name);
-
-    Doctor::get().fatal_if_nullptr(
-        overload_group_symbol,
-        WaspStage::Semantics,
-        "Method '" + method_name + "' not found in module '" + module_name + "'"
-    );
-
-    Doctor::get().assert(
-        overload_group_symbol->payload_is<FunctionOverloadsData>(),
-        WaspStage::Semantics,
-        "Symbol '" + method_name + "' is not an overload group"
-    );
-
-    const auto& group_data = overload_group_symbol->get_payload_as<FunctionOverloadsData>();
-
-    SymbolVector valid_matches = get_assignable_function_signatures(
-        scope,
-        group_data.get_overloads(),
-        argument_types
-    );
-
-    Doctor::get().assert(
-        !valid_matches.empty(),
-        WaspStage::Semantics,
-        "No matching method signature found for '" + module_name + "." + method_name + "()'"
-    );
-
-    Doctor::get().assert(
-        valid_matches.size() == 1,
-        WaspStage::Semantics,
-        "Ambiguous method call to '" + module_name + "." + method_name + "()'"
-    );
-
-    int overload_index = group_data.get_overload_index(valid_matches.front());
-
-    // Returns: {Group Symbol, Specific Function Symbol, Overload Index, Module Member Index}
-    return {overload_group_symbol, valid_matches.front(), overload_index, module_member_index};
 }
 
 } // namespace Wasp

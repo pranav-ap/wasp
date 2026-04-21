@@ -10,6 +10,7 @@
 #include <memory>
 #include <string>
 #include <variant>
+#include <vector>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -142,7 +143,7 @@ Object_ptr SemanticAnalyzer::evaluate_function_call(
     const auto& function_overloads_data = overload_symbol->get_payload_as<FunctionOverloadsData>();
     const auto overloads = function_overloads_data.get_overloads();
 
-    auto [function, overload_index] = type_checker->get_assignable_function_signatures(
+    auto [function, overload_index] = type_checker->get_best_function_signature(
         current_scope,
         overloads,
         argument_types
@@ -213,30 +214,54 @@ Object_ptr SemanticAnalyzer::evaluate_instance_method_call(
     ClassType_ptr class_type
 )
 {
+    auto method_identifier = member_access.right->try_as<Identifier>();
+    auto method_name = method_identifier->name;
+
     Doctor::get().assert(
-        member_access.right->is<Identifier>(),
+        class_type->contains_member(method_name),
         WaspStage::Semantics,
-        "Method name must be an identifier"
+        "Method '" + method_name + "()' does not exist on class " + class_type->name
     );
 
-    auto& method_identifier = member_access.right->as<Identifier>();
+    auto member = class_type->get_member(method_name);
 
-    auto [overload_group, resolved_method, overload_index] = type_checker
-                                                                 ->resolve_class_method_call(
-                                                                     current_scope,
-                                                                     class_type,
-                                                                     method_identifier.name,
-                                                                     argument_types
-                                                                 );
+    Doctor::get().assert(
+        member->is<ObjectOverloadList_ptr>(),
+        WaspStage::Semantics,
+        "Member '" + method_name + "' must be an object overload group"
+    );
 
-    member_access.member_index = class_type->get_member_index(method_identifier.name);
+    const auto object_overloads = member->as<ObjectOverloadList_ptr>();
 
-    call.overload_index = overload_index;
-    method_identifier.symbol = resolved_method;
+    ObjectVector valid_matches;
+    std::vector<int> match_indices;
 
+    for (size_t i = 0; i < object_overloads->overloads.size(); ++i)
+    {
+        auto overload = object_overloads->overloads[i];
+        auto [return_type, parameter_types] = get_function_signature(overload);
+
+        if (type_checker->assignable(current_scope, parameter_types, argument_types))
+        {
+            valid_matches.push_back(overload);
+            match_indices.push_back(static_cast<int>(i));
+        }
+    }
+
+    Doctor::get().assert(
+        !valid_matches.empty(),
+        WaspStage::Semantics,
+        "No matching function signature found"
+    );
+
+    Doctor::get()
+        .assert(valid_matches.size() == 1, WaspStage::Semantics, "Ambiguous function call");
+
+    member_access.member_index = class_type->get_member_index(method_name);
+    call.overload_index = match_indices.front();
     call.is_method_call = true;
 
-    return get_function_return_type(resolved_method);
+    return get_function_signature(valid_matches.front()).first;
 }
 
 Object_ptr SemanticAnalyzer::evaluate_module_function_call_or_instance_creation(
@@ -254,7 +279,10 @@ Object_ptr SemanticAnalyzer::evaluate_module_function_call_or_instance_creation(
     auto& module_identifier = access.left->as<Identifier>();
     auto& method_identifier = access.right->as<Identifier>();
 
-    Symbol_ptr module_symbol = current_scope->lookup(module_identifier.name);
+    auto module_name = module_identifier.name;
+    auto export_name = method_identifier.name;
+
+    Symbol_ptr module_symbol = current_scope->lookup(module_name);
     Doctor::get().fatal_if_nullptr(module_symbol, WaspStage::Semantics);
 
     module_identifier.symbol = module_symbol;
@@ -265,34 +293,36 @@ Object_ptr SemanticAnalyzer::evaluate_module_function_call_or_instance_creation(
     }
 
     auto& module_data = module_symbol->get_payload_as<ModuleData>();
-    Symbol_ptr member_symbol = module_data.mod->get_member(method_identifier.name);
+    Symbol_ptr export_symbol = module_data.mod->get_member(export_name);
 
     Doctor::get().fatal_if_nullptr(
-        member_symbol,
+        export_symbol,
         WaspStage::Semantics,
-        "Member '" + method_identifier.name + "' not found in module."
+        "Member '" + export_name + "' not found in module."
     );
 
-    if (member_symbol->payload_is<ClassData>())
+    if (export_symbol->payload_is<ClassData>())
     {
-        access.member_index = module_data.mod->get_member_index(method_identifier.name);
+        access.member_index = module_data.mod->get_member_index(export_name);
 
-        return evaluate_instance_creation(call, method_identifier, member_symbol, argument_types);
+        return evaluate_instance_creation(call, method_identifier, export_symbol, argument_types);
     }
 
-    auto
-        [overload_group,
-         resolved_function,
-         overload_index,
-         module_member_index] = type_checker
-                                    ->resolve_module_function_call(
-                                        current_scope,
-                                        module_identifier.name,
-                                        method_identifier.name,
-                                        argument_types
-                                    );
+    Doctor::get().assert(
+        export_symbol->payload_is<FunctionOverloadsData>(),
+        WaspStage::Semantics,
+        "Symbol '" + export_name + "' is not an overload group"
+    );
 
-    access.member_index = module_member_index;
+    const auto& group_data = export_symbol->get_payload_as<FunctionOverloadsData>();
+
+    auto [resolved_function, overload_index] = type_checker->get_best_function_signature(
+        current_scope,
+        group_data.get_overloads(),
+        argument_types
+    );
+
+    access.member_index = module_data.mod->get_member_index(export_name);
     call.overload_index = overload_index;
     method_identifier.symbol = resolved_function;
 
