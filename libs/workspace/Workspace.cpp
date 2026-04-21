@@ -46,7 +46,7 @@ Symbol::Symbol(
     int lexical_depth,
     SymbolPayload payload
 )
-    : id(id), name(std::move(name)), declaration_depth(closure_depth), lexical_depth(lexical_depth),
+    : id(id), name(std::move(name)), closure_depth(closure_depth), lexical_depth(lexical_depth),
       payload(std::move(payload))
 {
 }
@@ -73,8 +73,39 @@ bool Symbol::is_native() const
 {
     if (payload_is<FunctionData>())
         return get_payload_as<FunctionData>().is_native;
+
     if (payload_is<MethodData>())
         return get_payload_as<MethodData>().is_native;
+
+    if (payload_is<FunctionOverloadsData>())
+    {
+        Doctor::get().assert(
+            get_payload_as<FunctionOverloadsData>().get_overloads().size() == 1,
+            WaspStage::Semantics,
+            "Native function overload lists must have exactly one overload"
+        );
+
+        for (const auto& overload : get_payload_as<FunctionOverloadsData>().get_overloads())
+        {
+            if (overload->is_native_function_or_method())
+                return true;
+        }
+    }
+
+    if (payload_is<MethodOverloadsData>())
+    {
+        Doctor::get().assert(
+            get_payload_as<MethodOverloadsData>().get_overloads().size() == 1,
+            WaspStage::Semantics,
+            "Native function overload lists must have exactly one overload"
+        );
+
+        for (const auto& overload : get_payload_as<MethodOverloadsData>().get_overloads())
+        {
+            if (overload->is_native_function_or_method())
+                return true;
+        }
+    }
 
     return false;
 }
@@ -92,7 +123,7 @@ bool Symbol::is_native_function_or_method() const
 
 bool Symbol::should_be_captured(int usage_depth) const
 {
-    return declaration_depth < usage_depth;
+    return closure_depth < usage_depth;
 }
 
 Object_ptr Symbol::get_type()
@@ -283,8 +314,8 @@ Symbol_ptr SymbolFactory::create_function_overloads(std::string name)
     return std::make_shared<Symbol>(
         symbol_id_counter++,
         std::move(name),
-        0,
-        0,
+        -1,
+        -1,
         FunctionOverloadsData{}
     );
 }
@@ -294,8 +325,8 @@ Symbol_ptr SymbolFactory::create_method_overloads(std::string name)
     return std::make_shared<Symbol>(
         symbol_id_counter++,
         std::move(name),
-        0,
-        0,
+        -1,
+        -1,
         MethodOverloadsData{}
     );
 }

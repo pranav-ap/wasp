@@ -22,7 +22,8 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 Compiler::Compiler(Workspace_ptr workspace)
-    : workspace(workspace), current_block_id(InvalidBlockId), parent(nullptr), compiler_depth(0)
+    : workspace(workspace), current_block_id(InvalidBlockId), parent(nullptr), compiler_depth(0),
+      current_lexical_scope_depth(0)
 {
     current_block_id = graph.create_block();
     graph.set_entry_block(current_block_id);

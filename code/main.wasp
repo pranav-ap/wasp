@@ -1,9 +1,4 @@
-import my.utils as u
-
-let b = u.Book(1, 'to be or not to be')
-
-print(b.id + ': ' + b.text)
-
-let text = b.trim()
-print(text)
-
+fun outer(a: int) => any
+    fun inner() => int
+        return a
+    return inner

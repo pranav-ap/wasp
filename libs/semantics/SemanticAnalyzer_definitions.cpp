@@ -31,6 +31,7 @@ namespace Wasp
 void SemanticAnalyzer::visit(ClassDefinition& def)
 {
     auto class_type = initialize_class_type(def);
+    auto class_type_obj = make_object(class_type);
 
     // Hoist methods
 
@@ -47,7 +48,7 @@ void SemanticAnalyzer::visit(ClassDefinition& def)
                     );
 
                     Symbol_ptr symbol = SymbolFactory::create_method(
-                        def.name,
+                        m.name,
                         signature,
                         false,
                         current_scope->get_closure_depth(),
@@ -59,7 +60,7 @@ void SemanticAnalyzer::visit(ClassDefinition& def)
                     type_checker->validate_new_method_overload(current_scope, overloads, symbol);
 
                     class_type->add_overload(m.name, signature);
-                    def.symbol = symbol;
+                    m.symbol = symbol;
                 },
                 [&](auto&)
                 {
@@ -77,7 +78,46 @@ void SemanticAnalyzer::visit(ClassDefinition& def)
             overloaded{
                 [&](MethodDefinition& m)
                 {
-                    visit(m);
+                    enter_scope(ScopeType::FUNCTION);
+
+                    auto signature = m.symbol->get_type();
+                    auto [return_type, param_types] = get_function_signature(signature);
+                    return_type_stack.push_back(return_type);
+
+                    Doctor::get().assert(
+                        m.parameter_symbols.empty(),
+                        WaspStage::Semantics,
+                        "Expect parameter symbols to be empty at this stage"
+                    );
+
+                    auto define_param =
+                        [&](const std::string& name, Object_ptr type, bool is_mutable)
+                    {
+                        auto sym = SymbolFactory::create_variable(
+                            name,
+                            type,
+                            is_mutable,
+                            current_scope->get_closure_depth(),
+                            current_scope->get_lexical_depth()
+                        );
+
+                        current_scope->define(sym);
+                        m.parameter_symbols.push_back(sym);
+                    };
+
+                    define_param("my", class_type_obj, false);
+
+                    for (size_t i = 0; i < m.parameters.size(); ++i)
+                    {
+                        define_param(m.parameters[i].first, param_types[i], true);
+                    }
+
+                    // Analyze Body
+
+                    visit(m.body);
+                    return_type_stack.pop_back();
+
+                    leave_scope();
                 },
                 [&](auto&)
                 {
@@ -87,7 +127,7 @@ void SemanticAnalyzer::visit(ClassDefinition& def)
         );
     }
 
-    def.symbol->set_type(make_object(class_type));
+    def.symbol->set_type(class_type_obj);
 }
 
 std::shared_ptr<ClassType> SemanticAnalyzer::initialize_class_type(ClassDefinition& def)
@@ -147,7 +187,7 @@ void SemanticAnalyzer::visit(FunctionDefinition& def)
     enter_scope(ScopeType::FUNCTION);
 
     auto signature = def.symbol->get_type();
-    auto [return_type, param_types] = get_function_signature(signature);
+    auto [return_type, parameter_types] = get_function_signature(signature);
     return_type_stack.push_back(return_type);
 
     Doctor::get().assert(
@@ -160,7 +200,7 @@ void SemanticAnalyzer::visit(FunctionDefinition& def)
     {
         auto symbol = SymbolFactory::create_variable(
             def.parameters[i].first,
-            param_types[i],
+            parameter_types[i],
             true,
             current_scope->get_closure_depth(),
             current_scope->get_lexical_depth()
@@ -169,51 +209,6 @@ void SemanticAnalyzer::visit(FunctionDefinition& def)
         current_scope->define(symbol);
         def.parameter_symbols.push_back(symbol);
     }
-
-    // Analyze Body
-
-    visit(def.body);
-    return_type_stack.pop_back();
-
-    leave_scope();
-}
-
-void SemanticAnalyzer::visit(MethodDefinition& def)
-{
-    enter_scope(ScopeType::FUNCTION);
-
-    auto signature = def.symbol->get_type();
-    auto [return_type, param_types] = get_function_signature(signature);
-    return_type_stack.push_back(return_type);
-
-    Doctor::get().assert(
-        def.parameter_symbols.empty(),
-        WaspStage::Semantics,
-        "Expect parameter symbols to be empty at this stage"
-    );
-
-    auto define_param = [&](const std::string& name, Object_ptr type, bool is_mutable)
-    {
-        auto sym = SymbolFactory::create_variable(
-            name,
-            type,
-            is_mutable,
-            current_scope->get_closure_depth(),
-            current_scope->get_lexical_depth()
-        );
-
-        current_scope->define(sym);
-        def.parameter_symbols.push_back(sym);
-    };
-
-    define_param("my", signature, false);
-
-    for (size_t i = 0; i < def.parameters.size(); ++i)
-    {
-        define_param(def.parameters[i].first, param_types[i], true);
-    }
-
-    // Analyze Body
 
     visit(def.body);
     return_type_stack.pop_back();

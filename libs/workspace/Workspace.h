@@ -126,7 +126,7 @@ struct Symbol : public std::enable_shared_from_this<Symbol>
     std::string name;
     int id = -1;
 
-    int declaration_depth = 0;
+    int closure_depth = 0;
     int lexical_depth = 0;
 
     SymbolPayload payload;

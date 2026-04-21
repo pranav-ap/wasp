@@ -42,7 +42,6 @@ class SemanticAnalyzer
     std::pair<Object_ptr, ObjectVector> get_function_signature(Object_ptr type_obj);
 
     void visit(FunctionDefinition& statement);
-    void visit(MethodDefinition& statement);
 
     ClassType_ptr initialize_class_type(ClassDefinition& def);
 

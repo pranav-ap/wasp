@@ -60,6 +60,11 @@ void TypeChecker::validate_new_function_overload(
 {
     auto overload_group_symbol = scope->lookup(function_name);
 
+    if (!overload_group_symbol)
+    {
+        return;
+    }
+
     Doctor::get().assert(
         overload_group_symbol->payload_is<FunctionOverloadsData>(),
         WaspStage::Semantics,
