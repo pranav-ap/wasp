@@ -79,31 +79,34 @@ bool Symbol::is_native() const
 
     if (payload_is<FunctionOverloadsData>())
     {
-        Doctor::get().assert(
-            get_payload_as<FunctionOverloadsData>().get_overloads().size() == 1,
-            WaspStage::Semantics,
-            "Native function overload lists must have exactly one overload"
-        );
-
         for (const auto& overload : get_payload_as<FunctionOverloadsData>().get_overloads())
         {
             if (overload->is_native_function_or_method())
+            {
+                Doctor::get().assert(
+                    get_payload_as<FunctionOverloadsData>().get_overloads().size() == 1,
+                    WaspStage::Semantics,
+                    "Native function overload lists must have exactly one overload"
+                );
+
                 return true;
+            }
         }
     }
 
     if (payload_is<MethodOverloadsData>())
     {
-        Doctor::get().assert(
-            get_payload_as<MethodOverloadsData>().get_overloads().size() == 1,
-            WaspStage::Semantics,
-            "Native function overload lists must have exactly one overload"
-        );
-
         for (const auto& overload : get_payload_as<MethodOverloadsData>().get_overloads())
         {
             if (overload->is_native_function_or_method())
+            {
+                Doctor::get().assert(
+                    get_payload_as<MethodOverloadsData>().get_overloads().size() == 1,
+                    WaspStage::Semantics,
+                    "Native function overload lists must have exactly one overload"
+                );
                 return true;
+            }
         }
     }
 
