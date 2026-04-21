@@ -1,3 +1,4 @@
 import my.utils as u
 
-u.print_header('hi', '*')
+let b = u.Book(1, 'to be or not to be')
+

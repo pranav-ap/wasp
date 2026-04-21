@@ -1,9 +1,14 @@
-import my.utils as u
 
-let b = u.Book(1, 'to be or not to be')
+class Book
+    id: int
+    text: str
+
+    fun trim() => str
+        return my.text
+
+let b = Book(1, 'to be or not to be')
 
 print(b.id + ': ' + b.text)
 
 let text = b.trim()
 print(text)
-

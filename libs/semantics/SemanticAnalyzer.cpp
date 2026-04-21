@@ -156,8 +156,7 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
                         current_scope->get_lexical_depth()
                     );
 
-                    current_scope->define(symbol);
-                    class_def.symbol = symbol;
+                    class_def.symbol = current_scope->define(symbol);
                 },
                 [](auto&)
                 {

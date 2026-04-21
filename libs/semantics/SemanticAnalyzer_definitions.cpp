@@ -158,7 +158,9 @@ std::shared_ptr<ClassType> SemanticAnalyzer::initialize_class_type(ClassDefiniti
                     if (std::find(methods.begin(), methods.end(), method.name) == methods.end())
                     {
                         methods.push_back(method.name);
-                        members[method.name] = make_object(std::shared_ptr<ObjectOverloadList>());
+                        members[method.name] = make_object(
+                            std::make_shared<ObjectOverloadList>(method.name)
+                        );
                     }
                 },
                 [&](auto&)
