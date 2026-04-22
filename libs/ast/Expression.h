@@ -159,6 +159,13 @@ struct MemberAccess
     }
 };
 
+/*
+foo()
+A()
+a.foo()
+a.foo()
+*/
+
 // process()
 // a.process()
 // a.b.process()

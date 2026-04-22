@@ -24,13 +24,12 @@ class SemanticAnalyzer
 
     SymbolScope_ptr current_scope;
     ObjectVector return_type_stack;
-    ObjectVector class_type_stack;
 
     // -------------------------------------------------------------------------
     // Statement Visitors
     // -------------------------------------------------------------------------
 
-    void setup_exports(Module_ptr mod);
+    void setup_exports(Module_ptr mod, StringVector ordered_export_names);
 
     void visit(const Statement_ptr statement);
     void visit(StatementVector& statements);
@@ -38,19 +37,14 @@ class SemanticAnalyzer
     void visit(ExpressionStatement& statement);
 
     void hoist_statements(StatementVector& statements);
+    StringVector setup_ordered_export_names(Module_ptr mod);
 
     std::pair<Object_ptr, ObjectVector> get_function_signature(AbstractFunctionDefinition& func);
     std::pair<Object_ptr, ObjectVector> get_function_signature(Object_ptr type_obj);
 
-    void analyze_abstract_function_body(AbstractFunctionDefinition& fun_def, bool is_method);
-
     void visit(FunctionDefinition& statement);
-    void visit(MethodDefinition& statement);
 
-    ClassType_ptr extract_class_type(ClassDefinition& def);
-    void hoist_class_methods(ClassDefinition& def);
-    void hoist_method(AbstractFunctionDefinition& method_def, const std::string& container_name);
-    void analyze_class_methods(ClassDefinition& def);
+    ClassType_ptr initialize_class_type(ClassDefinition& def);
 
     void visit(ClassDefinition& statement);
     void visit(FieldDefinition& statement);
@@ -108,23 +102,17 @@ class SemanticAnalyzer
     Object_ptr get_function_return_type(Symbol_ptr symbol);
     bool is_native_function(Symbol_ptr symbol);
 
-    Object_ptr evaluate_identifier_call(
+    Object_ptr evaluate_function_call(
         Call& call_expr,
         Identifier& callable_identifier,
-        const ObjectVector& arg_types
-    );
-
-    Object_ptr evaluate_module_method_call(
-        Call& call_expr,
-        MemberAccess& mac,
-        const ObjectVector& arg_types
-    );
-
-    Object_ptr evaluate_instance_method_call(
-        Call& call_expr,
-        MemberAccess& mac,
         const ObjectVector& arg_types,
-        Object_ptr left_type
+        Symbol_ptr function_overload_symbol
+    );
+
+    Object_ptr evaluate_module_function_call_or_instance_creation(
+        Call& call_expr,
+        MemberAccess& mac,
+        const ObjectVector& arg_types
     );
 
     Object_ptr evaluate_instance_creation(
@@ -132,6 +120,13 @@ class SemanticAnalyzer
         Identifier& callable_identifier,
         Symbol_ptr symbol,
         ObjectVector arg_types
+    );
+
+    Object_ptr evaluate_instance_method_call(
+        Call& call_expr,
+        MemberAccess& mac,
+        const ObjectVector& arg_types,
+        ClassType_ptr class_type
     );
 
     Object_ptr visit(Call& expr);

@@ -148,7 +148,7 @@ int Compiler::resolve_upvalue(Compiler* current_compiler, Symbol_ptr symbol)
     Doctor::get().fatal_if_nullptr(current_compiler->parent, WaspStage::Compiler);
 
     // Capturing an immediate parent's local variable
-    if (symbol->declaration_depth == current_compiler->parent->compiler_depth)
+    if (symbol->closure_depth == current_compiler->parent->compiler_depth)
     {
         Upvalue uv;
         uv.is_local_to_parent = true;
@@ -158,7 +158,7 @@ int Compiler::resolve_upvalue(Compiler* current_compiler, Symbol_ptr symbol)
         Doctor::get().assert(
             uv.index != -1,
             WaspStage::Compiler,
-            "Closure tried to capture an unknown local variable"
+            "Closure tried to capture an unknown local variable " + symbol->name
         );
 
         return current_compiler->add_upvalue(uv, symbol->name);

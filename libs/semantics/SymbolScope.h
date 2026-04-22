@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AST.h"
 #include "Workspace.h"
 
 #include <memory>

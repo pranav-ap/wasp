@@ -128,7 +128,6 @@ private:
         const std::vector<Symbol_ptr>& parameters,
         StatementVector body
     );
-    void compile_method_group(ClassDefinition& class_definition, const std::string& original_name);
 
     void visit(ClassDefinition& statement);
 

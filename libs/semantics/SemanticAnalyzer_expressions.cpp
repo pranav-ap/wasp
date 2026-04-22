@@ -10,6 +10,7 @@
 #include <memory>
 #include <string>
 #include <variant>
+#include <vector>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -49,17 +50,17 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
 
     if (left_type->is<std::shared_ptr<ModuleType>>())
     {
-        const auto module_ref = left_type->as<std::shared_ptr<ModuleType>>();
+        const auto type = left_type->as<std::shared_ptr<ModuleType>>();
 
-        expr.member_index = module_ref->get_member_index(member_name);
-        return module_ref->get_member_type(member_name);
+        expr.member_index = type->get_member_index(member_name);
+        return type->get_member(member_name);
     }
-    else if (left_type->is<std::shared_ptr<ClassType>>())
+    else if (left_type->is<ClassType_ptr>())
     {
-        const auto class_ref = left_type->as<std::shared_ptr<ClassType>>();
+        const auto type = left_type->as<ClassType_ptr>();
 
-        expr.member_index = class_ref->get_member_index(member_name);
-        return class_ref->get_member(member_name);
+        expr.member_index = type->get_member_index(member_name);
+        return type->get_member(member_name);
     }
 
     Doctor::get().fatal(
@@ -71,12 +72,7 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
 
 Object_ptr SemanticAnalyzer::visit(Call& call)
 {
-    ObjectVector argument_types;
-
-    for (auto& arg : call.arguments)
-    {
-        argument_types.push_back(visit(arg));
-    }
+    ObjectVector argument_types = visit(call.arguments);
 
     return std::visit(
         overloaded{
@@ -95,25 +91,26 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                     );
                 }
 
-                return evaluate_identifier_call(call, target, argument_types);
+                return evaluate_function_call(call, target, argument_types, resolved_symbol);
             },
 
             [&](MemberAccess& access) -> Object_ptr
             {
-                Object_ptr receiver_type = visit(access.left);
+                Object_ptr left_type = visit(access.left);
 
-                if (receiver_type->is<ClassType_ptr>())
+                if (left_type->is<ClassType_ptr>())
                 {
-                    return evaluate_instance_method_call(
+                    auto class_type = left_type->as<ClassType_ptr>();
+
+                    return evaluate_instance_method_call(call, access, argument_types, class_type);
+                }
+                else if (left_type->is<std::shared_ptr<ModuleType>>())
+                {
+                    return evaluate_module_function_call_or_instance_creation(
                         call,
                         access,
-                        argument_types,
-                        receiver_type
+                        argument_types
                     );
-                }
-                else if (receiver_type->is<std::shared_ptr<ModuleType>>())
-                {
-                    return evaluate_module_method_call(call, access, argument_types);
                 }
 
                 Doctor::get().fatal(
@@ -134,26 +131,30 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
     );
 }
 
-Object_ptr SemanticAnalyzer::evaluate_identifier_call(
+Object_ptr SemanticAnalyzer::evaluate_function_call(
     Call& call,
-    Identifier& target,
-    const ObjectVector& argument_types
+    Identifier& identifier,
+    const ObjectVector& argument_types,
+    Symbol_ptr overload_symbol
 )
 {
-    auto [overload_group, resolved_function, overload_index] = type_checker->resolve_function_call(
+    identifier.symbol = overload_symbol;
+
+    const auto& function_overloads_data = overload_symbol->get_payload_as<FunctionOverloadsData>();
+    const auto overloads = function_overloads_data.get_overloads();
+
+    auto [function, overload_index] = type_checker->get_best_function_signature(
         current_scope,
-        target.name,
+        overloads,
         argument_types
     );
 
-    target.symbol = overload_group;
-
-    if (resolved_function->should_be_captured(current_scope->get_closure_depth()))
+    if (function->should_be_captured(current_scope->get_closure_depth()))
     {
-        target.must_be_captured = true;
+        identifier.must_be_captured = true;
     }
 
-    if (is_native_function(resolved_function))
+    if (function->is_native_function_or_method())
     {
         call.overload_index = -1;
     }
@@ -162,7 +163,7 @@ Object_ptr SemanticAnalyzer::evaluate_identifier_call(
         call.overload_index = overload_index;
     }
 
-    return get_function_return_type(resolved_function);
+    return get_function_return_type(function);
 }
 
 Object_ptr SemanticAnalyzer::evaluate_instance_creation(
@@ -181,7 +182,7 @@ Object_ptr SemanticAnalyzer::evaluate_instance_creation(
     }
 
     auto class_type_obj = class_symbol->get_type();
-    auto class_type = class_type_obj->as<std::shared_ptr<ClassType>>();
+    auto class_type = class_type_obj->as<ClassType_ptr>();
 
     Doctor::get().assert(
         argument_types.size() == class_type->fields.size(),
@@ -208,46 +209,62 @@ Object_ptr SemanticAnalyzer::evaluate_instance_creation(
 
 Object_ptr SemanticAnalyzer::evaluate_instance_method_call(
     Call& call,
-    MemberAccess& access,
+    MemberAccess& member_access,
     const ObjectVector& argument_types,
-    Object_ptr receiver_type
+    ClassType_ptr class_type
 )
 {
-    Doctor::get().assert(
-        access.right->is<Identifier>(),
-        WaspStage::Semantics,
-        "Method name must be an identifier."
-    );
-
-    auto& method_identifier = access.right->as<Identifier>();
+    auto method_identifier = member_access.right->try_as<Identifier>();
+    auto method_name = method_identifier->name;
 
     Doctor::get().assert(
-        receiver_type->is<std::shared_ptr<ClassType>>(),
+        class_type->contains_member(method_name),
         WaspStage::Semantics,
-        "Target of method call must be a class instance."
+        "Method '" + method_name + "()' does not exist on class " + class_type->name
     );
 
-    auto receiver_class = receiver_type->as<std::shared_ptr<ClassType>>();
+    auto member = class_type->get_member(method_name);
 
-    auto [overload_group, resolved_method, overload_index] = type_checker
-                                                                 ->resolve_class_method_call(
-                                                                     current_scope,
-                                                                     receiver_class,
-                                                                     method_identifier.name,
-                                                                     argument_types
-                                                                 );
+    Doctor::get().assert(
+        member->is<ObjectOverloadList_ptr>(),
+        WaspStage::Semantics,
+        "Member '" + method_name + "' must be an object overload group"
+    );
 
-    access.member_index = receiver_class->get_member_index(method_identifier.name);
+    const auto object_overloads = member->as<ObjectOverloadList_ptr>();
 
-    call.overload_index = overload_index;
-    method_identifier.symbol = resolved_method;
+    ObjectVector valid_matches;
+    std::vector<int> match_indices;
 
+    for (size_t i = 0; i < object_overloads->overloads.size(); ++i)
+    {
+        auto overload = object_overloads->overloads[i];
+        auto [return_type, parameter_types] = get_function_signature(overload);
+
+        if (type_checker->assignable(current_scope, parameter_types, argument_types))
+        {
+            valid_matches.push_back(overload);
+            match_indices.push_back(static_cast<int>(i));
+        }
+    }
+
+    Doctor::get().assert(
+        !valid_matches.empty(),
+        WaspStage::Semantics,
+        "No matching function signature found"
+    );
+
+    Doctor::get()
+        .assert(valid_matches.size() == 1, WaspStage::Semantics, "Ambiguous function call");
+
+    member_access.member_index = class_type->get_member_index(method_name);
+    call.overload_index = match_indices.front();
     call.is_method_call = true;
 
-    return get_function_return_type(resolved_method);
+    return get_function_signature(valid_matches.front()).first;
 }
 
-Object_ptr SemanticAnalyzer::evaluate_module_method_call(
+Object_ptr SemanticAnalyzer::evaluate_module_function_call_or_instance_creation(
     Call& call,
     MemberAccess& access,
     const ObjectVector& argument_types
@@ -256,13 +273,16 @@ Object_ptr SemanticAnalyzer::evaluate_module_method_call(
     Doctor::get().assert(
         access.left->is<Identifier>() && access.right->is<Identifier>(),
         WaspStage::Semantics,
-        "Supports calls of the form module.function()"
+        "Supports module.function() & module.ClassNane() only."
     );
 
     auto& module_identifier = access.left->as<Identifier>();
     auto& method_identifier = access.right->as<Identifier>();
 
-    Symbol_ptr module_symbol = current_scope->lookup(module_identifier.name);
+    auto module_name = module_identifier.name;
+    auto export_name = method_identifier.name;
+
+    Symbol_ptr module_symbol = current_scope->lookup(module_name);
     Doctor::get().fatal_if_nullptr(module_symbol, WaspStage::Semantics);
 
     module_identifier.symbol = module_symbol;
@@ -273,34 +293,36 @@ Object_ptr SemanticAnalyzer::evaluate_module_method_call(
     }
 
     auto& module_data = module_symbol->get_payload_as<ModuleData>();
-    Symbol_ptr member_symbol = module_data.mod->get_member(method_identifier.name);
+    Symbol_ptr export_symbol = module_data.mod->get_member(export_name);
 
     Doctor::get().fatal_if_nullptr(
-        member_symbol,
+        export_symbol,
         WaspStage::Semantics,
-        "Member '" + method_identifier.name + "' not found in module."
+        "Member '" + export_name + "' not found in module."
     );
 
-    if (member_symbol->payload_is<ClassData>())
+    if (export_symbol->payload_is<ClassData>())
     {
-        access.member_index = module_data.mod->get_member_index(method_identifier.name);
+        access.member_index = module_data.mod->get_member_index(export_name);
 
-        return evaluate_instance_creation(call, method_identifier, member_symbol, argument_types);
+        return evaluate_instance_creation(call, method_identifier, export_symbol, argument_types);
     }
 
-    auto
-        [overload_group,
-         resolved_function,
-         overload_index,
-         module_member_index] = type_checker
-                                    ->resolve_module_function_call(
-                                        current_scope,
-                                        module_identifier.name,
-                                        method_identifier.name,
-                                        argument_types
-                                    );
+    Doctor::get().assert(
+        export_symbol->payload_is<FunctionOverloadsData>(),
+        WaspStage::Semantics,
+        "Symbol '" + export_name + "' is not an overload group"
+    );
 
-    access.member_index = module_member_index;
+    const auto& group_data = export_symbol->get_payload_as<FunctionOverloadsData>();
+
+    auto [resolved_function, overload_index] = type_checker->get_best_function_signature(
+        current_scope,
+        group_data.get_overloads(),
+        argument_types
+    );
+
+    access.member_index = module_data.mod->get_member_index(export_name);
     call.overload_index = overload_index;
     method_identifier.symbol = resolved_function;
 

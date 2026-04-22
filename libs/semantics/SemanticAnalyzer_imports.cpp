@@ -40,13 +40,13 @@ void SemanticAnalyzer::visit(SimpleImport& import_stmt)
 
     // setup aliases for all exported symbols
 
-    for (const auto& exported_symbol : mod->exports)
-    {
-        std::string alias_name = module_name + "::" + exported_symbol->name;
+    // for (const auto& exported_symbol : mod->exports)
+    // {
+    //     std::string alias_name = module_name + "::" + exported_symbol->name;
 
-        Symbol_ptr alias_symbol = SymbolFactory::create_alias(alias_name, exported_symbol);
-        current_scope->define(alias_symbol);
-    }
+    //     Symbol_ptr alias_symbol = SymbolFactory::create_alias(alias_name, exported_symbol);
+    //     current_scope->define(alias_symbol);
+    // }
 }
 
 void SemanticAnalyzer::visit(FromImport& import_stmt)

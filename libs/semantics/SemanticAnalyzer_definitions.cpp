@@ -30,20 +30,107 @@ namespace Wasp
 
 void SemanticAnalyzer::visit(ClassDefinition& def)
 {
-    auto class_type = extract_class_type(def);
+    auto class_type = initialize_class_type(def);
+    auto class_type_obj = make_object(class_type);
 
-    Doctor::get().fatal_if_nullptr(def.symbol, WaspStage::Semantics);
-    def.symbol->set_type(make_object(class_type));
+    // Hoist methods
 
-    class_type_stack.push_back(make_object(class_type));
+    for (auto& stmt : def.members)
+    {
+        std::visit(
+            overloaded{
+                [&](MethodDefinition& m)
+                {
+                    auto [return_type, parameter_types] = get_function_signature(m);
 
-    hoist_class_methods(def);
-    analyze_class_methods(def);
+                    Object_ptr signature = make_object(
+                        std::make_shared<MethodType>(parameter_types, return_type)
+                    );
 
-    class_type_stack.pop_back();
+                    Symbol_ptr symbol = SymbolFactory::create_method(
+                        m.name,
+                        signature,
+                        false,
+                        current_scope->get_closure_depth(),
+                        current_scope->get_lexical_depth()
+                    );
+
+                    auto overloads = class_type->get_overloads(m.name);
+
+                    type_checker->validate_new_method_overload(current_scope, overloads, symbol);
+
+                    class_type->add_overload(m.name, signature);
+                    m.symbol = symbol;
+                },
+                [&](auto&)
+                {
+                }
+            },
+            stmt->data
+        );
+    }
+
+    // Analyse method bodies
+
+    for (auto& stmt : def.members)
+    {
+        std::visit(
+            overloaded{
+                [&](MethodDefinition& m)
+                {
+                    enter_scope(ScopeType::FUNCTION);
+
+                    auto signature = m.symbol->get_type();
+                    auto [return_type, param_types] = get_function_signature(signature);
+                    return_type_stack.push_back(return_type);
+
+                    Doctor::get().assert(
+                        m.parameter_symbols.empty(),
+                        WaspStage::Semantics,
+                        "Expect parameter symbols to be empty at this stage"
+                    );
+
+                    auto define_param =
+                        [&](const std::string& name, Object_ptr type, bool is_mutable)
+                    {
+                        auto sym = SymbolFactory::create_variable(
+                            name,
+                            type,
+                            is_mutable,
+                            current_scope->get_closure_depth(),
+                            current_scope->get_lexical_depth()
+                        );
+
+                        current_scope->define(sym);
+                        m.parameter_symbols.push_back(sym);
+                    };
+
+                    define_param("my", class_type_obj, false);
+
+                    for (size_t i = 0; i < m.parameters.size(); ++i)
+                    {
+                        define_param(m.parameters[i].first, param_types[i], true);
+                    }
+
+                    // Analyze Body
+
+                    visit(m.body);
+                    return_type_stack.pop_back();
+
+                    leave_scope();
+                },
+                [&](auto&)
+                {
+                }
+            },
+            stmt->data
+        );
+    }
+
+    def.symbol->set_type(class_type_obj);
 }
 
-std::shared_ptr<ClassType> SemanticAnalyzer::extract_class_type(ClassDefinition& def)
+std::shared_ptr<ClassType> SemanticAnalyzer::initialize_class_type(ClassDefinition& def)
 {
     ObjectStringMap members;
     StringVector fields;
@@ -71,6 +158,9 @@ std::shared_ptr<ClassType> SemanticAnalyzer::extract_class_type(ClassDefinition&
                     if (std::find(methods.begin(), methods.end(), method.name) == methods.end())
                     {
                         methods.push_back(method.name);
+                        members[method.name] = make_object(
+                            std::make_shared<ObjectOverloadList>(method.name)
+                        );
                     }
                 },
                 [&](auto&)
@@ -82,8 +172,6 @@ std::shared_ptr<ClassType> SemanticAnalyzer::extract_class_type(ClassDefinition&
         );
     }
 
-    // only holds variable types in members at this point
-
     return std::make_shared<ClassType>(
         def.name,
         std::move(members),
@@ -92,161 +180,39 @@ std::shared_ptr<ClassType> SemanticAnalyzer::extract_class_type(ClassDefinition&
     );
 }
 
-void SemanticAnalyzer::hoist_class_methods(ClassDefinition& def)
-{
-    for (auto& stmt : def.members)
-    {
-        std::visit(
-            overloaded{
-                [&](MethodDefinition& m)
-                {
-                    hoist_method(m, def.name);
-                },
-                [&](auto&)
-                {
-                }
-            },
-            stmt->data
-        );
-    }
-}
-
-void SemanticAnalyzer::hoist_method(
-    AbstractFunctionDefinition& method_def,
-    const std::string& container_name
-)
-{
-    std::string original_name = method_def.name;
-    method_def.name = container_name + "::" + original_name;
-
-    auto [return_type, parameter_types] = get_function_signature(method_def);
-
-    Object_ptr signature = make_object(std::make_shared<MethodType>(parameter_types, return_type));
-
-    auto class_type_obj = class_type_stack.back();
-    auto class_type = class_type_obj->as<std::shared_ptr<ClassType>>();
-
-    Symbol_ptr method_symbol = SymbolFactory::create_method(
-        method_def.name,
-        signature,
-        class_type_obj,
-        false,
-        current_scope->get_closure_depth(),
-        current_scope->get_lexical_depth()
-    );
-
-    if (current_scope->contains_in_current_scope(method_def.name))
-    {
-        type_checker->validate_new_function_wrt_overload_group(
-            current_scope,
-            method_def.name,
-            method_symbol
-        );
-    }
-
-    current_scope->define(method_symbol);
-    method_def.symbol = method_symbol;
-    method_def.group_symbol = current_scope->lookup(method_def.name);
-
-    class_type->members[original_name] = method_def.group_symbol->get_type();
-}
-
-void SemanticAnalyzer::analyze_class_methods(ClassDefinition& def)
-{
-    for (auto& stmt : def.members)
-    {
-        std::visit(
-            overloaded{
-                [&](MethodDefinition& m)
-                {
-                    visit(m);
-                },
-                [&](auto&)
-                {
-                }
-            },
-            stmt->data
-        );
-    }
-}
-
 // ============================================================================
 // FUNCTIONS
 // ============================================================================
 
-void SemanticAnalyzer::visit(FunctionDefinition& fun_def)
+void SemanticAnalyzer::visit(FunctionDefinition& def)
 {
-    analyze_abstract_function_body(fun_def, false);
-}
-
-void SemanticAnalyzer::visit(MethodDefinition& method_def)
-{
-    analyze_abstract_function_body(method_def, true);
-}
-
-void SemanticAnalyzer::analyze_abstract_function_body(
-    AbstractFunctionDefinition& fun_def,
-    bool is_method
-)
-{
-    Object_ptr return_type;
-    ObjectVector param_types;
-
-    if (fun_def.symbol->get_type() == nullptr)
-    {
-        // Top-level function (SymbolHoister left the type as nullptr)
-        std::tie(return_type, param_types) = get_function_signature(fun_def);
-
-        auto signature = make_object(std::make_shared<LocalFunctionType>(param_types, return_type));
-        fun_def.symbol->set_type(signature);
-        fun_def.group_symbol = current_scope->lookup(fun_def.name);
-    }
-    else
-    {
-        // Impl method or local function (already evaluated, extract types cleanly)
-        std::tie(return_type, param_types) = get_function_signature(fun_def.symbol->get_type());
-    }
-
-    Doctor::get().fatal_if_nullptr(fun_def.group_symbol, WaspStage::Semantics);
-    type_checker
-        ->validate_new_function_wrt_overload_group(current_scope, fun_def.name, fun_def.symbol);
-
     enter_scope(ScopeType::FUNCTION);
-    return_type_stack.push_back(return_type);
-    fun_def.parameter_symbols.clear();
 
-    auto define_param = [&](const std::string& name, Object_ptr type, bool is_mutable)
+    auto signature = def.symbol->get_type();
+    auto [return_type, parameter_types] = get_function_signature(signature);
+    return_type_stack.push_back(return_type);
+
+    Doctor::get().assert(
+        def.parameter_symbols.empty(),
+        WaspStage::Semantics,
+        "Expect parameter symbols to be empty at this stage"
+    );
+
+    for (size_t i = 0; i < def.parameters.size(); ++i)
     {
-        auto sym = SymbolFactory::create_variable(
-            name,
-            type,
-            is_mutable,
+        auto symbol = SymbolFactory::create_variable(
+            def.parameters[i].first,
+            parameter_types[i],
+            true,
             current_scope->get_closure_depth(),
             current_scope->get_lexical_depth()
         );
 
-        current_scope->define(sym);
-        fun_def.parameter_symbols.push_back(sym);
-    };
-
-    if (is_method && !class_type_stack.empty())
-    {
-        define_param("my", class_type_stack.back(), false);
+        current_scope->define(symbol);
+        def.parameter_symbols.push_back(symbol);
     }
 
-    for (size_t i = 0; i < fun_def.parameters.size(); ++i)
-    {
-        define_param(fun_def.parameters[i].first, param_types[i], true);
-    }
-
-    // Analyze Body
-
-    // Mask class context for nested functions
-    class_type_stack.push_back(nullptr);
-
-    visit(fun_def.body);
-
-    class_type_stack.pop_back();
+    visit(def.body);
     return_type_stack.pop_back();
 
     leave_scope();

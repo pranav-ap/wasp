@@ -42,10 +42,25 @@ void VM::execute_build_class(CallFrame* frame)
 
 void VM::execute_instantiate(CallFrame* frame)
 {
-    int total_size = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
-    ObjectVector memory = pop_n_from_stack(total_size);
+    int num_fields = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
 
-    auto instance = make_object(std::make_shared<InstanceObject>(std::move(memory)));
+    Object_ptr blueprint_obj = pop_from_stack();
+    ObjectVector fields = pop_n_from_stack(num_fields);
+
+    Doctor::get().assert(
+        blueprint_obj->is<std::shared_ptr<ClassBlueprintObject>>(),
+        WaspStage::VM,
+        "OpCode::INSTANTIATE expects a ClassBlueprintObject on the stack!"
+    );
+
+    auto blueprint = blueprint_obj->as<std::shared_ptr<ClassBlueprintObject>>();
+
+    ObjectVector instance_memory = std::move(fields);
+    instance_memory
+        .insert(instance_memory.end(), blueprint->members.begin(), blueprint->members.end());
+
+    auto instance = make_object(std::make_shared<InstanceObject>(std::move(instance_memory)));
+
     push_to_stack(instance);
 }
 

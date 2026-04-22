@@ -2,7 +2,6 @@
 #include "Doctor.h"
 #include "Workspace.h"
 
-#include <algorithm>
 #include <map>
 #include <memory>
 #include <string>
@@ -47,7 +46,7 @@ Symbol_ptr SymbolScope::define(Symbol_ptr symbol)
     Doctor::get().assert(
         !contains_in_current_scope(symbol->name),
         WaspStage::Semantics,
-        "'" + symbol->name + "' already declared in this scope"
+        symbol->name + " is already declared in this scope"
     );
 
     symbols[symbol->name] = symbol;
@@ -63,56 +62,54 @@ Symbol_ptr SymbolScope::define_function(Symbol_ptr new_symbol)
         "Expected a function symbol"
     );
 
-    // Overload Group already exists locally
     if (contains_in_current_scope(new_symbol->name))
     {
-        Symbol_ptr existing_local = symbols[new_symbol->name];
+        Symbol_ptr overload_group = symbols[new_symbol->name];
 
         Doctor::get().assert(
-            existing_local->payload_is<OverloadGroupData>(),
+            overload_group->payload_is<FunctionOverloadsData>(),
             WaspStage::Semantics,
             new_symbol->name + " already declared in this scope and is not an overload set"
         );
 
-        existing_local->get_payload_as<OverloadGroupData>().siblings.push_back(new_symbol);
-        return new_symbol;
+        overload_group->get_payload_as<FunctionOverloadsData>().siblings.push_back(new_symbol);
+        return overload_group;
     }
 
-    // Create a new Overload Group
-    auto new_overload_set = SymbolFactory::create_overload_set(
+    auto overload_group = SymbolFactory::create_function_overloads(
         new_symbol->name,
-        closure_depth,
-        lexical_depth
+        new_symbol->closure_depth,
+        new_symbol->lexical_depth
     );
 
-    auto& set_data = new_overload_set->get_payload_as<OverloadGroupData>();
-    set_data.siblings.push_back(new_symbol);
+    auto& overload_group_data = overload_group->get_payload_as<FunctionOverloadsData>();
+    overload_group_data.siblings.push_back(new_symbol);
 
-    symbols[new_symbol->name] = new_overload_set;
+    symbols[new_symbol->name] = overload_group;
 
     if (enclosing_scope)
     {
         Symbol_ptr existing_parent = enclosing_scope->lookup(new_symbol->name);
 
-        if (existing_parent && existing_parent->payload_is<OverloadGroupData>())
+        if (existing_parent && existing_parent->payload_is<FunctionOverloadsData>())
         {
-            const auto& parent_data = existing_parent->get_payload_as<OverloadGroupData>();
+            const auto& parent_data = existing_parent->get_payload_as<FunctionOverloadsData>();
 
-            set_data.parents.insert(
-                set_data.parents.end(),
+            overload_group_data.parents.insert(
+                overload_group_data.parents.end(),
                 parent_data.siblings.begin(),
                 parent_data.siblings.end()
             );
 
-            set_data.parents.insert(
-                set_data.parents.end(),
+            overload_group_data.parents.insert(
+                overload_group_data.parents.end(),
                 parent_data.parents.begin(),
                 parent_data.parents.end()
             );
         }
     }
 
-    return new_symbol;
+    return overload_group;
 }
 
 Symbol_ptr SymbolScope::define_method(Symbol_ptr new_symbol)
@@ -128,25 +125,25 @@ Symbol_ptr SymbolScope::define_method(Symbol_ptr new_symbol)
         Symbol_ptr existing_local = symbols[new_symbol->name];
 
         Doctor::get().assert(
-            existing_local->payload_is<OverloadGroupData>(),
+            existing_local->payload_is<MethodOverloadsData>(),
             WaspStage::Semantics,
             new_symbol->name + " already declared in this scope and is not an overload set"
         );
 
-        existing_local->get_payload_as<OverloadGroupData>().siblings.push_back(new_symbol);
+        existing_local->get_payload_as<MethodOverloadsData>().overloads.push_back(new_symbol);
         return new_symbol;
     }
 
-    auto new_overload_set = SymbolFactory::create_overload_set(
+    auto overload_group = SymbolFactory::create_method_overloads(
         new_symbol->name,
-        closure_depth,
-        lexical_depth
+        new_symbol->closure_depth,
+        new_symbol->lexical_depth
     );
 
-    auto& set_data = new_overload_set->get_payload_as<OverloadGroupData>();
-    set_data.siblings.push_back(new_symbol);
+    auto& set_data = overload_group->get_payload_as<MethodOverloadsData>();
+    set_data.overloads.push_back(new_symbol);
 
-    symbols[new_symbol->name] = new_overload_set;
+    symbols[new_symbol->name] = overload_group;
 
     return new_symbol;
 }

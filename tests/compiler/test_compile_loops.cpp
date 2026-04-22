@@ -236,7 +236,7 @@ while x < 5 do
 
         B(Wasp::OpCode::POP_SCOPE),
         B(Wasp::OpCode::JUMP),          B(28), B(0),
-        B(Wasp::OpCode::JUMP),          B(75), B(0),
+        B(Wasp::OpCode::JUMP),          B(74), B(0),
 
         B(Wasp::OpCode::PUSH_SCOPE),
         B(Wasp::OpCode::GET_LOCAL),     B(0),
@@ -252,11 +252,10 @@ while x < 5 do
         B(Wasp::OpCode::CALL),          B(1),
         B(Wasp::OpCode::POP),
         B(Wasp::OpCode::POP_SCOPE),
-        B(Wasp::OpCode::JUMP),          B(62), B(0),
+        B(Wasp::OpCode::JUMP),          B(61), B(0),
 
         B(Wasp::OpCode::POP_SCOPE),
-        B(Wasp::OpCode::PUSH_SCOPE),
-        B(Wasp::OpCode::JUMP),          B(62), B(0),
+        B(Wasp::OpCode::JUMP),          B(61), B(0),
 
         B(Wasp::OpCode::GET_LOCAL),     B(0),
         B(Wasp::OpCode::LOAD_CONST),    B(val_1),
@@ -269,7 +268,7 @@ while x < 5 do
         B(Wasp::OpCode::JUMP),          B(8), B(0),
 
         B(Wasp::OpCode::GET_LOCAL),     B(0),
-        B(Wasp::OpCode::EXIT_MODULE),   B(1),
+        B(Wasp::OpCode::EXIT_MODULE),   B(1)
     };
     // clang-format on
 

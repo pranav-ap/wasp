@@ -2,7 +2,6 @@
 #include "Doctor.h"
 
 #include <cstddef>
-#include <iterator>
 #include <memory>
 #include <optional>
 #include <string>
@@ -56,15 +55,15 @@ int MemberedCompositeObject::get_member_count() const
 }
 
 // ============================================================================
-// Membered Composite Type
+// Module Type
 // ============================================================================
 
-bool MemberedCompositeType::contains_member(const std::string& member_name) const
+bool ModuleType::contains_member(const std::string& member_name) const
 {
     return members.contains(member_name);
 }
 
-Object_ptr MemberedCompositeType::get_member_type(const std::string& member_name) const
+Object_ptr ModuleType::get_member(const std::string& member_name) const
 {
     Doctor::get().assert(
         contains_member(member_name),
@@ -75,7 +74,7 @@ Object_ptr MemberedCompositeType::get_member_type(const std::string& member_name
     return members.at(member_name);
 }
 
-void MemberedCompositeType::set_member(const std::string& member_name, Object_ptr value)
+void ModuleType::set_member(const std::string& member_name, Object_ptr value)
 {
     if (!members.contains(member_name))
     {
@@ -84,7 +83,7 @@ void MemberedCompositeType::set_member(const std::string& member_name, Object_pt
     members[member_name] = std::move(value);
 }
 
-Object_ptr MemberedCompositeType::get_member(int member_id) const
+Object_ptr ModuleType::get_member(int member_id) const
 {
     Doctor::get().assert(
         member_id >= 0 && member_id < static_cast<int>(ordered_keys.size()),
@@ -95,7 +94,7 @@ Object_ptr MemberedCompositeType::get_member(int member_id) const
     return members.at(ordered_keys[member_id]);
 }
 
-void MemberedCompositeType::set_member(int member_id, Object_ptr value)
+void ModuleType::set_member(int member_id, Object_ptr value)
 {
     Doctor::get().assert(
         member_id >= 0 && member_id < static_cast<int>(ordered_keys.size()),
@@ -106,7 +105,7 @@ void MemberedCompositeType::set_member(int member_id, Object_ptr value)
     members[ordered_keys[member_id]] = std::move(value);
 }
 
-int MemberedCompositeType::get_member_index(const std::string& member_name) const
+int ModuleType::get_member_index(const std::string& member_name) const
 {
     Doctor::get().assert(
         contains_member(member_name),
@@ -218,6 +217,41 @@ Object_ptr ClassType::get_member(const std::string& member_name) const
 void ClassType::set_member(const std::string& member_name, Object_ptr value)
 {
     members[member_name] = std::move(value);
+}
+
+void ClassType::add_overload(const std::string& member_name, Object_ptr overload)
+{
+    if (!members.contains(member_name))
+    {
+        members[member_name] = make_object(std::make_shared<ObjectOverloadList>(member_name));
+    }
+
+    Doctor::get().assert(
+        members.at(member_name)->is<ObjectOverloadList_ptr>(),
+        WaspStage::Semantics,
+        "Expected an ObjectOverloadList for member '" + member_name + "' in class " + name
+    );
+
+    auto overload_list = members.at(member_name)->as<ObjectOverloadList_ptr>();
+    overload_list->add_overload(std::move(overload));
+}
+
+ObjectVector ClassType::get_overloads(const std::string& member_name) const
+{
+    Doctor::get().assert(
+        contains_member(member_name),
+        WaspStage::Semantics,
+        "Member '" + member_name + "' not found in class " + name
+    );
+
+    Doctor::get().assert(
+        members.at(member_name)->is<ObjectOverloadList_ptr>(),
+        WaspStage::Semantics,
+        "Expected an ObjectOverloadList for member '" + member_name + "' in class " + name
+    );
+
+    auto overload_list = members.at(member_name)->as<ObjectOverloadList_ptr>();
+    return overload_list->overloads;
 }
 
 // ============================================================================
