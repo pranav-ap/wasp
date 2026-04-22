@@ -524,6 +524,14 @@ struct ClassType : public CompositeType
 
 using ClassType_ptr = std::shared_ptr<ClassType>;
 
+struct StaticClassType
+{
+    Object_ptr class_type;
+    StaticClassType(Object_ptr class_type) : class_type(std::move(class_type)) {};
+};
+
+using StaticClassType_ptr = std::shared_ptr<StaticClassType>;
+
 struct RecordType
 {
 };
@@ -589,8 +597,9 @@ struct Object
         std::shared_ptr<MethodType>,
 
         std::shared_ptr<RecordType>,
-        std::shared_ptr<ModuleType>,
-        std::shared_ptr<ClassType>>;
+        ModuleType_ptr,
+        ClassType_ptr,
+        StaticClassType_ptr>;
 
     UnderlyingVariant value;
 

@@ -127,7 +127,7 @@ void SemanticAnalyzer::visit(ClassDefinition& def)
         );
     }
 
-    def.symbol->set_type(class_type_obj);
+    def.symbol->set_type(make_object(std::make_shared<StaticClassType>(class_type_obj)));
 }
 
 std::shared_ptr<ClassType> SemanticAnalyzer::initialize_class_type(ClassDefinition& def)

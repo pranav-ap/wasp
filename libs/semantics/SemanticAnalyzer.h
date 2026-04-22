@@ -135,6 +135,13 @@ class SemanticAnalyzer
         ClassType_ptr class_type
     );
 
+    Object_ptr evaluate_static_method_call(
+        Call& call_expr,
+        MemberAccess& mac,
+        const ObjectVector& arg_types,
+        StaticClassType_ptr static_class_type
+    );
+
     Object_ptr visit(Call& expr);
     Object_ptr visit(Constructor& expr);
 

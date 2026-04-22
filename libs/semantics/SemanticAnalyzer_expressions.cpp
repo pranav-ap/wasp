@@ -6,6 +6,7 @@
 #include "SymbolScope.h"
 #include "Workspace.h"
 
+#include <cctype>
 #include <ctime>
 #include <memory>
 #include <string>
@@ -132,6 +133,16 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                 {
                     auto class_type = left_type->as<ClassType_ptr>();
                     return evaluate_instance_method_call(call, access, argument_types, class_type);
+                }
+                else if (left_type->is<StaticClassType_ptr>())
+                {
+                    auto static_class_type = left_type->as<StaticClassType_ptr>();
+                    return evaluate_static_method_call(
+                        call,
+                        access,
+                        argument_types,
+                        static_class_type
+                    );
                 }
                 else if (left_type->is<ModuleType_ptr>())
                 {
@@ -337,6 +348,85 @@ Object_ptr SemanticAnalyzer::evaluate_instance_method_call(
     call.is_method_call = true;
 
     return get_function_signature(valid_matches.front()).first;
+}
+
+Object_ptr SemanticAnalyzer::evaluate_static_method_call(
+    Call& call,
+    MemberAccess& member_access,
+    const ObjectVector& argument_types,
+    StaticClassType_ptr static_class_type
+)
+{
+    Doctor::get().assert(
+        member_access.right->is<Identifier>(),
+        WaspStage::Semantics,
+        "RHS of static method access must be an identifier."
+    );
+
+    auto method_name = member_access.right->as<Identifier>().name;
+
+    Doctor::get().assert(
+        method_name == "new",
+        WaspStage::Semantics,
+        "Only 'new' is supported for static method calls for now."
+    );
+
+    Doctor::get().assert(
+        static_class_type->class_type->is<ClassType_ptr>(),
+        WaspStage::Semantics,
+        "Static method call target must be a class type."
+    );
+
+    auto class_type = static_class_type->class_type->as<ClassType_ptr>();
+
+    Doctor::get().assert(
+        class_type->contains_member(method_name),
+        WaspStage::Semantics,
+        "Static method '" + method_name + "()' does not exist on class " + class_type->name
+    );
+
+    auto member = class_type->get_member(method_name);
+
+    Doctor::get().assert(
+        member->is<ObjectOverloadList_ptr>(),
+        WaspStage::Semantics,
+        "Static method '" + method_name + "' must be an object overload group"
+    );
+
+    const auto object_overloads = member->as<ObjectOverloadList_ptr>();
+
+    ObjectVector valid_matches;
+    std::vector<int> match_indices;
+
+    for (size_t i = 0; i < object_overloads->overloads.size(); ++i)
+    {
+        auto overload = object_overloads->overloads[i];
+        auto [return_type, parameter_types] = get_function_signature(overload);
+
+        if (type_checker->assignable(current_scope, parameter_types, argument_types))
+        {
+            valid_matches.push_back(overload);
+            match_indices.push_back(static_cast<int>(i));
+        }
+    }
+
+    Doctor::get().assert(
+        !valid_matches.empty(),
+        WaspStage::Semantics,
+        "No matching static function signature found for '" + method_name + "()'"
+    );
+
+    Doctor::get().assert(
+        valid_matches.size() == 1,
+        WaspStage::Semantics,
+        "Ambiguous static function call for '" + method_name + "()'"
+    );
+
+    member_access.member_index = class_type->get_member_index(method_name);
+    call.overload_index = match_indices.front();
+    call.is_method_call = true;
+
+    return static_class_type->class_type;
 }
 
 Object_ptr SemanticAnalyzer::evaluate_module_function_call(

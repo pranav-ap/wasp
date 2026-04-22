@@ -2,10 +2,17 @@ class Book
     id: int
     text: str
 
+    fun new(id: int) => Book
+        return Book(id, 'jane doe')
+
+    fun new(id: int, text: str) => Book
+        return Book(id, text)
+
     fun trim() => str
         return my.text
 
+    fun trim(a: int) => str
+        return my.text
 
-let b = Book(1, 'to be or not to be')
 
-print(b.id + ': ' + b.text)
+let x = Book.new(1, 'to be or not to be')

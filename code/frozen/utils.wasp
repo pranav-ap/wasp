@@ -6,11 +6,11 @@ class Book
         my.id = -1
         my.text = ''
 
-    fun initialize(id: int)
+    fun new(id: int)
         my.id = id
         my.text = 'jane doe'
 
-    fun initialize(id: int, text: str)
+    fun new(id: int, text: str)
         my.id = id
         my.text = text
 
@@ -19,6 +19,7 @@ class Book
 
     fun trim(a: int) => str
         return my.text
+
 
 
 Book.new(1)
