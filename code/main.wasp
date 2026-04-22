@@ -1,3 +1,15 @@
+import my.utils as u
+
+u.print_header('header')
+u.print_header('sub header', '*')
+
+let b = u.Book(1, 'to be or not to be')
+
+print(b.id + ': ' + b.text)
+
+let text = b.trim(2)
+print(text)
+
 let a : int = 5
 
 if a == 0 then
