@@ -1,9 +1,16 @@
-import my.utils as u
+let a : int = 5
 
-let b = u.Book(1, 'to be or not to be')
+if a == 0 then
+    print('if')
+elif a > 0 then
+    print('elif')
+else
+    print('else')
 
-print(b.id + ': ' + b.text)
+for let a in [1, 2, 3] do
+    print(a)
 
-let text = b.trim()
-print(text)
+let ranks = [1, 2, 3]
 
+for let a in ranks do
+    print(a)

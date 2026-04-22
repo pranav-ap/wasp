@@ -57,7 +57,7 @@ void Compiler::visit(IfTernaryBranch& expr)
     emit(OpCode::JUMP, static_cast<int>(end_block));
 
     set_current_block(false_block);
-    leave_scope("test");
+    dumb_leave_scope("test");
     enter_scope("false branch");
 
     if (expr.alternative)
@@ -114,7 +114,6 @@ void Compiler::visit(IfBranch& statement)
 
     set_current_block(false_block);
     dumb_leave_scope("test and true branch");
-    enter_scope("false branch");
 
     if (statement.alternative.has_value())
     {

@@ -1,14 +1,28 @@
+import my.utils as u
 
-class Book
-    id: int
-    text: str
+u.print_header('header')
+u.print_header('sub header', '*')
 
-    fun trim() => str
-        return my.text
-
-let b = Book(1, 'to be or not to be')
+let b = u.Book(1, 'to be or not to be')
 
 print(b.id + ': ' + b.text)
 
 let text = b.trim()
 print(text)
+
+let a : int = 5
+
+if a == 0 then
+    print('if')
+elif a > 0 then
+    print('elif')
+else
+    print('else')
+
+for let a in [1, 2, 3] do
+    print(a)
+
+let ranks = [1, 2, 3]
+
+for let a in ranks do
+    print(a)

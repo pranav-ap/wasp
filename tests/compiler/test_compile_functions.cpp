@@ -110,14 +110,14 @@ fun max(a: int, b: int) => int
     std::vector<std::byte> expected_bytes = {
         B(Wasp::OpCode::ENTER_MODULE),
 
-        B(Wasp::OpCode::LOAD_CONST),        B(max_func_pool_id),
-        B(Wasp::OpCode::MAKE_FUNCTION),     B(0),
+        B(Wasp::OpCode::LOAD_CONST),              B(max_func_pool_id),
+        B(Wasp::OpCode::MAKE_FUNCTION),           B(0),
         B(Wasp::OpCode::STORE_FUNCTION_OVERLOAD), B(max_func_var_id),
 
-        B(Wasp::OpCode::JUMP),              B(10), B(0),
+        B(Wasp::OpCode::JUMP),                    B(10), B(0),
 
-        B(Wasp::OpCode::GET_LOCAL),         B(max_func_var_id),
-        B(Wasp::OpCode::EXIT_MODULE),       B(1)
+        B(Wasp::OpCode::GET_LOCAL),               B(max_func_var_id),
+        B(Wasp::OpCode::EXIT_MODULE),             B(1)
     };
     // clang-format on
 
@@ -137,6 +137,7 @@ fun max(a: int, b: int) => int
     std::vector<std::byte> expected_inner_bytes = {
         B(Wasp::OpCode::PUSH_SCOPE),
         B(Wasp::OpCode::JUMP),          B(4), B(0),
+
         B(Wasp::OpCode::PUSH_SCOPE),
         B(Wasp::OpCode::GET_LOCAL),     B(0),
         B(Wasp::OpCode::GET_LOCAL),     B(1),
@@ -148,15 +149,14 @@ fun max(a: int, b: int) => int
         B(Wasp::OpCode::GET_LOCAL),     B(0),
         B(Wasp::OpCode::RETURN),
         B(Wasp::OpCode::POP_SCOPE),
-        B(Wasp::OpCode::JUMP),          B(33), B(0),
+        B(Wasp::OpCode::JUMP),          B(32), B(0),
 
         B(Wasp::OpCode::POP_SCOPE),
-        B(Wasp::OpCode::PUSH_SCOPE),
         B(Wasp::OpCode::PUSH_SCOPE),
         B(Wasp::OpCode::GET_LOCAL),     B(1),
         B(Wasp::OpCode::RETURN),
         B(Wasp::OpCode::POP_SCOPE),
-        B(Wasp::OpCode::JUMP),          B(33), B(0),
+        B(Wasp::OpCode::JUMP),          B(32), B(0),
 
         B(Wasp::OpCode::POP_SCOPE),
         B(Wasp::OpCode::LOAD_NONE),

@@ -1,9 +1,10 @@
+
 fun print_header(title: str)
     print('=== ' + title + ' ===')
 
+
 fun print_header(title: str, border: str)
     print(border + border + border + ' ' + title + ' ' + border + border + border)
-
 
 class Book
     id: int
@@ -11,5 +12,4 @@ class Book
 
     fun trim() => str
         return my.text
-
 
