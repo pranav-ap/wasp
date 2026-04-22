@@ -64,7 +64,7 @@ FunctionBlueprintObject_ptr Compiler::run(
 
     for (const auto& sym : stack)
     {
-        if (sym->is_exported())
+        if (sym->is_exportable())
         {
             int physical_index = resolve_local(sym->id);
             emit(OpCode::GET_LOCAL, physical_index, sym->name);

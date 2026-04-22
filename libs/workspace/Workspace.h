@@ -134,7 +134,7 @@ struct Symbol : public std::enable_shared_from_this<Symbol>
     Symbol(int id, std::string name, int closure_depth, int lexical_depth, SymbolPayload payload);
 
     bool is_global() const;
-    bool is_exported() const;
+    bool is_exportable() const;
     bool is_either_function_or_method() const;
     bool is_native() const;
     bool is_native_function_or_method() const;

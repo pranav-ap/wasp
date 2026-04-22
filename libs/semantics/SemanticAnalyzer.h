@@ -29,7 +29,7 @@ class SemanticAnalyzer
     // Statement Visitors
     // -------------------------------------------------------------------------
 
-    void setup_exports(Module_ptr mod);
+    void setup_exports(Module_ptr mod, StringVector ordered_export_names);
 
     void visit(const Statement_ptr statement);
     void visit(StatementVector& statements);
@@ -37,6 +37,7 @@ class SemanticAnalyzer
     void visit(ExpressionStatement& statement);
 
     void hoist_statements(StatementVector& statements);
+    StringVector setup_ordered_export_names(Module_ptr mod);
 
     std::pair<Object_ptr, ObjectVector> get_function_signature(AbstractFunctionDefinition& func);
     std::pair<Object_ptr, ObjectVector> get_function_signature(Object_ptr type_obj);

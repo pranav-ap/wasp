@@ -56,7 +56,7 @@ bool Symbol::is_global() const
     return lexical_depth == 0;
 }
 
-bool Symbol::is_exported() const
+bool Symbol::is_exportable() const
 {
     bool global = is_global();
     bool is_module = payload_is<ModuleData>();

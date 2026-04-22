@@ -6,6 +6,7 @@
 #include "SymbolScope.h"
 #include "Workspace.h"
 
+#include <algorithm>
 #include <ctime>
 #include <memory>
 #include <string>
@@ -35,8 +36,17 @@ void SemanticAnalyzer::run(const std::vector<Module_ptr>& build_order)
     for (const auto mod : build_order)
     {
         enter_scope(ScopeType::MODULE);
-        visit(mod->stmts);
-        setup_exports(mod);
+
+        hoist_statements(mod->stmts);
+
+        for (const auto& stmt : mod->stmts)
+        {
+            visit(stmt);
+        }
+
+        StringVector ordered_export_names = setup_ordered_export_names(mod);
+        setup_exports(mod, ordered_export_names);
+
         leave_scope();
 
         extract_module_type(mod);
@@ -45,14 +55,68 @@ void SemanticAnalyzer::run(const std::vector<Module_ptr>& build_order)
     leave_scope();
 }
 
-void SemanticAnalyzer::setup_exports(Module_ptr mod)
+StringVector SemanticAnalyzer::setup_ordered_export_names(Module_ptr mod)
+{
+    StringVector ordered_export_names;
+
+    for (auto& stmt_ptr : mod->stmts)
+    {
+        std::visit(
+            overloaded{
+                [&](VariableDefinition& def)
+                {
+                    if (std::find(
+                            ordered_export_names.begin(),
+                            ordered_export_names.end(),
+                            def.name
+                        ) == ordered_export_names.end())
+                    {
+                        ordered_export_names.push_back(def.name);
+                    }
+                },
+                [&](FunctionDefinition& def)
+                {
+                    if (std::find(
+                            ordered_export_names.begin(),
+                            ordered_export_names.end(),
+                            def.name
+                        ) == ordered_export_names.end())
+                    {
+                        ordered_export_names.push_back(def.name);
+                    }
+                },
+                [&](ClassDefinition& def)
+                {
+                    if (std::find(
+                            ordered_export_names.begin(),
+                            ordered_export_names.end(),
+                            def.name
+                        ) == ordered_export_names.end())
+                    {
+                        ordered_export_names.push_back(def.name);
+                    }
+                },
+                [](auto&)
+                {
+                }
+            },
+            stmt_ptr->data
+        );
+    }
+
+    return ordered_export_names;
+}
+
+void SemanticAnalyzer::setup_exports(Module_ptr mod, StringVector ordered_export_names)
 {
     SymbolVector result;
-    result.reserve(current_scope->symbols.size());
+    result.reserve(ordered_export_names.size());
 
-    for (const auto& [name, symbol] : current_scope->symbols)
+    for (const auto& name : ordered_export_names)
     {
-        if (symbol->is_exported())
+        auto symbol = current_scope->lookup(name);
+
+        if (symbol && symbol->is_exportable())
         {
             Doctor::get().fatal_if_nullptr(
                 symbol->get_type(),
@@ -62,20 +126,6 @@ void SemanticAnalyzer::setup_exports(Module_ptr mod)
 
             mod->exports.push_back(symbol);
         }
-    }
-}
-
-void SemanticAnalyzer::register_natives()
-{
-    std::unordered_map<std::string, int> native_names = workspace->native_registry
-                                                            ->get_all_native_names();
-
-    for (const auto& [name, index] : native_names)
-    {
-        auto symbol_type = workspace->native_registry->get_native_object_type(index);
-
-        auto symbol = SymbolFactory::create_function(name, symbol_type, true);
-        current_scope->define(symbol);
     }
 }
 
@@ -104,6 +154,20 @@ void SemanticAnalyzer::extract_module_type(Module_ptr module)
     );
 
     module->type = make_object(module_type);
+}
+
+void SemanticAnalyzer::register_natives()
+{
+    std::unordered_map<std::string, int> native_names = workspace->native_registry
+                                                            ->get_all_native_names();
+
+    for (const auto& [name, index] : native_names)
+    {
+        auto symbol_type = workspace->native_registry->get_native_object_type(index);
+
+        auto symbol = SymbolFactory::create_function(name, symbol_type, true);
+        current_scope->define(symbol);
+    }
 }
 
 // ============================================================================
@@ -147,16 +211,16 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
                     def.symbol = symbol;
                     def.group_symbol = current_scope->define(symbol);
                 },
-                [&](ClassDefinition& class_def)
+                [&](ClassDefinition& def)
                 {
                     auto symbol = SymbolFactory::create_class(
-                        class_def.name,
+                        def.name,
                         nullptr,
                         current_scope->get_closure_depth(),
                         current_scope->get_lexical_depth()
                     );
 
-                    class_def.symbol = current_scope->define(symbol);
+                    def.symbol = current_scope->define(symbol);
                 },
                 [](auto&)
                 {

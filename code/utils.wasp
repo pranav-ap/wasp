@@ -11,3 +11,5 @@ class Book
 
     fun trim() => str
         return my.text
+
+
