@@ -176,15 +176,26 @@ struct Call
     Expression_ptr callable;
     ExpressionVector arguments;
 
-    bool is_constructor_call = false;
     bool is_method_call = false;
-
     int overload_index;
 
     Call() = default;
 
     Call(Expression_ptr callable, ExpressionVector arguments)
         : callable(callable), arguments(std::move(arguments)), overload_index(-1)
+    {
+    }
+};
+
+struct Constructor
+{
+    Expression_ptr construtable;
+    ExpressionVector values;
+
+    Constructor() = default;
+
+    Constructor(Expression_ptr construtable, ExpressionVector values)
+        : construtable(construtable), values(std::move(values))
     {
     }
 };
@@ -219,6 +230,7 @@ using ExpressionVariant = std::variant<
     MemberAccess,
 
     Call,
+    Constructor,
 
     Prefix,
     Infix,

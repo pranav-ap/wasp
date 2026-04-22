@@ -53,6 +53,10 @@ void Compiler::visit(const Expression_ptr expr)
             {
                 visit(val);
             },
+            [&](DotLiteral& d)
+            {
+                visit(d);
+            },
             [&](UntypedAssignment& a)
             {
                 visit(a);
@@ -69,6 +73,10 @@ void Compiler::visit(const Expression_ptr expr)
             {
                 visit(i);
             },
+            [&](Postfix& p)
+            {
+                visit(p);
+            },
             [&](Identifier& id)
             {
                 visit(id);
@@ -78,6 +86,10 @@ void Compiler::visit(const Expression_ptr expr)
                 visit(m);
             },
             [&](Call& c)
+            {
+                visit(c);
+            },
+            [&](Constructor& c)
             {
                 visit(c);
             },
@@ -105,6 +117,10 @@ void Compiler::visit(const Expression_ptr expr)
             {
                 visit(v);
             },
+            [&](TypePattern& t)
+            {
+                visit(t);
+            },
             [&](IfTernaryBranch& i)
             {
                 visit(i);
@@ -113,7 +129,10 @@ void Compiler::visit(const Expression_ptr expr)
             {
                 visit(e);
             },
-            [&](auto&) { /* Fallback */ }
+            [&](auto&)
+            {
+                Doctor::get().fatal(WaspStage::Compiler, "Unimplemented expression compilation");
+            }
         },
         expr->data
     );

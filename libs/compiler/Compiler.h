@@ -146,9 +146,8 @@ private:
     void visit(Identifier& expr);
     void visit(MemberAccess& expr);
 
-    void compile_constructor_call(Call& expr);
-    void compile_function_call(Call& expr);
     void visit(Call& expr);
+    void visit(Constructor& expr);
 
     void visit(Prefix& expr);
     void visit(Infix& expr);
