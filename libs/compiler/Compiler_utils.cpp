@@ -277,7 +277,7 @@ void Compiler::resolve_jumps_in_block(
             continue;
         }
 
-        if (get_opcode_arity(op) == 2)
+        if (op == OpCode::JUMP || op == OpCode::JUMP_IF_FALSE || op == OpCode::LOOP_ITER)
         {
             BlockId target = static_cast<BlockId>(
                 static_cast<uint8_t>(data[ip + 1]) | (static_cast<uint8_t>(data[ip + 2]) << 8)

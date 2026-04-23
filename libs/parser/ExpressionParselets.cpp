@@ -6,6 +6,7 @@
 #include "Precedence.h"
 #include "Token.h"
 
+#include <cctype>
 #include <cmath>
 #include <cstdlib>
 #include <map>
@@ -225,17 +226,43 @@ Expression_ptr PlaceholderDotParselet::parse(Parser& parser, const Token& token)
     return make_expression(DotLiteral{});
 }
 
-Expression_ptr CallParselet::parse(Parser& parser, const Expression_ptr left, const Token& token) {
+static bool is_target_capitalized(const Expression_ptr& expr)
+{
+    if (expr->is<Identifier>())
+    {
+        const auto& name = expr->as<Identifier>().name;
+        return !name.empty() && std::isupper(name.front());
+    }
+
+    if (expr->is<MemberAccess>())
+    {
+        return is_target_capitalized(expr->as<MemberAccess>().right);
+    }
+
+    return false;
+}
+
+Expression_ptr CallParselet::parse(Parser& parser, const Expression_ptr left, const Token& token)
+{
     Doctor::get().assert(
-        left->is<Identifier>() || left->is<MemberAccess>() || left->is<Call>(),
+        left->is<Identifier>() || left->is<MemberAccess>() || left->is<Call>() ||
+            left->is<Constructor>(),
         WaspStage::Parser,
-        "Callee requires an identifier or member access expression");
+        "Expected identifier, member access, call or constructor on the left side of a function "
+        "call"
+    );
 
     ExpressionVector arguments;
 
-    if (!parser.token_pipe.consume_optional_in_line(TokenType::CLOSE_PARENTHESIS)) {
+    if (!parser.token_pipe.consume_optional_in_line(TokenType::CLOSE_PARENTHESIS))
+    {
         arguments = parser.parse_expressions();
         parser.token_pipe.require(TokenType::CLOSE_PARENTHESIS);
+    }
+
+    if (is_target_capitalized(left))
+    {
+        return make_expression(Constructor(left, arguments));
     }
 
     return make_expression(Call(left, arguments));

@@ -99,59 +99,10 @@ void Compiler::compile_identifier_assignment(Identifier& id, const Expression_pt
 }
 
 // ===========================================================================
-// CALL
+// CALL & CONSTRUCTOR
 // ==========================================================================
 
 void Compiler::visit(Call& expr)
-{
-    if (expr.is_constructor_call)
-    {
-        compile_constructor_call(expr);
-    }
-    else
-    {
-        compile_function_call(expr);
-    }
-}
-
-void Compiler::compile_constructor_call(Call& expr)
-{
-    Symbol_ptr class_symbol;
-
-    if (expr.callable->is<Identifier>())
-    {
-        class_symbol = expr.callable->as<Identifier>().symbol;
-    }
-    else if (expr.callable->is<MemberAccess>())
-    {
-        class_symbol = expr.callable->as<MemberAccess>().right->as<Identifier>().symbol;
-    }
-    else
-    {
-        Doctor::get().fatal(
-            WaspStage::Compiler,
-            "Callable must be an identifier or member access."
-        );
-    }
-
-    auto class_type = class_symbol->get_type()->as<std::shared_ptr<ClassType>>();
-
-    Doctor::get().assert(
-        expr.arguments.size() == class_type->fields.size(),
-        WaspStage::Compiler,
-        "Compiler error: Argument count does not match instance field count."
-    );
-
-    for (const auto& arg : expr.arguments)
-    {
-        visit(arg);
-    }
-
-    visit(expr.callable);
-    emit(OpCode::INSTANTIATE, static_cast<int>(expr.arguments.size()));
-}
-
-void Compiler::compile_function_call(Call& expr)
 {
     visit(expr.callable);
 
@@ -162,7 +113,7 @@ void Compiler::compile_function_call(Call& expr)
 
     int total_arguments = static_cast<int>(expr.arguments.size());
 
-    if (expr.is_method_call)
+    if (expr.is_method_call && !expr.is_pure_method_call)
     {
         auto& mac = expr.callable->as<MemberAccess>();
         visit(mac.left);
@@ -175,6 +126,43 @@ void Compiler::compile_function_call(Call& expr)
     }
 
     emit(OpCode::CALL, total_arguments);
+}
+
+void Compiler::visit(Constructor& expr)
+{
+    Symbol_ptr class_symbol;
+
+    if (expr.construtable->is<Identifier>())
+    {
+        class_symbol = expr.construtable->as<Identifier>().symbol;
+    }
+    else if (expr.construtable->is<MemberAccess>())
+    {
+        class_symbol = expr.construtable->as<MemberAccess>().right->as<Identifier>().symbol;
+    }
+    else
+    {
+        Doctor::get().fatal(
+            WaspStage::Compiler,
+            "Construtable must be an identifier or member access."
+        );
+    }
+
+    auto class_type = class_symbol->get_type()->as<std::shared_ptr<ClassType>>();
+
+    Doctor::get().assert(
+        expr.values.size() == class_type->fields.size(),
+        WaspStage::Compiler,
+        "Compiler error: Argument count does not match instance field count."
+    );
+
+    for (const auto& arg : expr.values)
+    {
+        visit(arg);
+    }
+
+    visit(expr.construtable);
+    emit(OpCode::INSTANTIATE, static_cast<int>(expr.values.size()));
 }
 
 } // namespace Wasp

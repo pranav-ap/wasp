@@ -42,7 +42,10 @@ class SemanticAnalyzer
     std::pair<Object_ptr, ObjectVector> get_function_signature(AbstractFunctionDefinition& func);
     std::pair<Object_ptr, ObjectVector> get_function_signature(Object_ptr type_obj);
 
+    template <typename T> void analyze_function_base(T& def, ScopeType scope_type, bool is_mutable);
+
     void visit(FunctionDefinition& statement);
+    void visit(PureFunctionDefinition& statement);
 
     ClassType_ptr initialize_class_type(ClassDefinition& def);
 
@@ -76,6 +79,7 @@ class SemanticAnalyzer
     Object_ptr define_variable(Expression_ptr assignment_expr, bool is_mutable);
     Object_ptr mutate_variable(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
     Object_ptr mutate_member(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
+    void validate_purity_constraints(Symbol_ptr target_symbol) const;
     void visit(VariableDefinition& statement);
 
     Object_ptr visit(VariableDefinitionExpression& expr);
@@ -109,17 +113,23 @@ class SemanticAnalyzer
         Symbol_ptr function_overload_symbol
     );
 
-    Object_ptr evaluate_module_function_call_or_instance_creation(
+    Object_ptr evaluate_module_function_call(
         Call& call_expr,
         MemberAccess& mac,
         const ObjectVector& arg_types
     );
 
     Object_ptr evaluate_instance_creation(
-        Call& call_expr,
+        Constructor& constructor,
         Identifier& callable_identifier,
         Symbol_ptr symbol,
-        ObjectVector arg_types
+        const ObjectVector& arg_types
+    );
+
+    Object_ptr evaluate_module_instance_creation(
+        Constructor& constructor,
+        MemberAccess& access,
+        const ObjectVector& arg_types
     );
 
     Object_ptr evaluate_instance_method_call(
@@ -130,6 +140,7 @@ class SemanticAnalyzer
     );
 
     Object_ptr visit(Call& expr);
+    Object_ptr visit(Constructor& expr);
 
     Object_ptr visit(Prefix& expr);
     Object_ptr visit(Infix& expr);

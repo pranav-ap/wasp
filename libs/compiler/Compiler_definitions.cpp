@@ -19,10 +19,19 @@ namespace Wasp
 
 void Compiler::visit(ClassDefinition& class_definition)
 {
-    auto class_type = class_definition.symbol->get_type()->as<std::shared_ptr<ClassType>>();
-    int unique_method_count = 0;
+    int class_blueprint_physical_index = get_or_add_local_index(class_definition.symbol);
 
-    for (const std::string& method_name : class_type->methods)
+    emit(OpCode::PUSH_EMPTY_CLASS_BLUEPRINT, "push empty class " + class_definition.name);
+    emit(OpCode::SET_LOCAL, class_blueprint_physical_index, "init class in slot");
+
+    int unique_method_count = 0;
+    auto class_type = class_definition.symbol->get_type()->as<std::shared_ptr<ClassType>>();
+
+    StringVector methods_and_pures = class_type->methods;
+    methods_and_pures
+        .insert(methods_and_pures.end(), class_type->pures.begin(), class_type->pures.end());
+
+    for (const std::string& method_name : methods_and_pures)
     {
         int overload_count = 0;
 
@@ -31,7 +40,15 @@ void Compiler::visit(ClassDefinition& class_definition)
             if (std::holds_alternative<MethodDefinition>(stmt->data))
             {
                 auto& method = std::get<MethodDefinition>(stmt->data);
-
+                if (method.name == method_name)
+                {
+                    compile_function_closure(method.name, method.parameter_symbols, method.body);
+                    overload_count++;
+                }
+            }
+            else if (std::holds_alternative<PureMethodDefinition>(stmt->data))
+            {
+                auto& method = std::get<PureMethodDefinition>(stmt->data);
                 if (method.name == method_name)
                 {
                     compile_function_closure(method.name, method.parameter_symbols, method.body);
@@ -44,13 +61,37 @@ void Compiler::visit(ClassDefinition& class_definition)
         unique_method_count++;
     }
 
-    emit(OpCode::BUILD_CLASS, unique_method_count, "build class " + class_definition.name);
+    auto fields_offset = static_cast<int>(class_type->fields.size());
 
-    int physical_index = get_or_add_local_index(class_definition.symbol);
-    emit(OpCode::SET_LOCAL, physical_index, "class " + class_definition.name);
+    emit(
+        OpCode::GET_LOCAL,
+        class_blueprint_physical_index,
+        "load pre-allocated class for modification"
+    );
+
+    emit(
+        OpCode::BUILD_CLASS,
+        unique_method_count,
+        fields_offset,
+        "populate class " + class_definition.name
+    );
+
+    emit(OpCode::SET_LOCAL, class_blueprint_physical_index, "update local slot");
 }
 
 void Compiler::visit(FunctionDefinition& function_definition)
+{
+    compile_function_closure(
+        function_definition.name,
+        function_definition.parameter_symbols,
+        function_definition.body
+    );
+
+    int physical_index = get_or_add_local_index(function_definition.group_symbol);
+    emit(OpCode::STORE_FUNCTION_OVERLOAD, physical_index, "fun " + function_definition.name);
+}
+
+void Compiler::visit(PureFunctionDefinition& function_definition)
 {
     compile_function_closure(
         function_definition.name,
@@ -100,15 +141,6 @@ void Compiler::compile_function_closure(
     emit(OpCode::LOAD_CONST, const_id, "fun " + name);
 
     emit_closure_upvalues(func_compiler.upvalues);
-}
-
-void Compiler::visit(MethodDefinition& method_definition)
-{
-    Doctor::get().fatal(
-        WaspStage::Compiler,
-        "Method definitions should not be visited directly during compilation. They should be "
-        "compiled as part of their containing class."
-    );
 }
 
 void Compiler::visit(Return& statement)

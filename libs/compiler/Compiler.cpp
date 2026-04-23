@@ -104,6 +104,10 @@ void Compiler::visit(std::vector<Statement_ptr>& statements)
         {
             visit(stmt);
         }
+        else if (stmt->is<PureFunctionDefinition>())
+        {
+            visit(stmt);
+        }
     }
 
     // -------------------------------------------------------------------
@@ -114,6 +118,10 @@ void Compiler::visit(std::vector<Statement_ptr>& statements)
     for (auto& stmt : statements)
     {
         if (!stmt->is<FunctionDefinition>())
+        {
+            visit(stmt);
+        }
+        else if (stmt->is<PureFunctionDefinition>())
         {
             visit(stmt);
         }
@@ -166,7 +174,7 @@ void Compiler::visit(const Statement_ptr statement)
             {
                 visit(stat);
             },
-            [&](MethodDefinition& stat)
+            [&](PureFunctionDefinition& stat)
             {
                 visit(stat);
             },

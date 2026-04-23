@@ -10,9 +10,16 @@ class Book
     id: int
     text: str
 
+    pure new(id: int) => Book
+        return Book(id, 'jane doe')
+
+    pure new(id: int, text: str) => Book
+        return Book(id, text)
+
     fun trim() => str
         return my.text
 
     fun trim(a: int) => str
         return my.text
+
 

@@ -60,7 +60,10 @@ Object_ptr VM::perform_get_member(Object_ptr obj, int member_index)
             {
                 return instance->get_member(member_index);
             },
-
+            [&](std::shared_ptr<ClassBlueprintObject>& class_obj) -> Object_ptr
+            {
+                return class_obj->get_member(member_index - class_obj->fields_count);
+            },
             [&](auto&) -> Object_ptr
             {
                 Doctor::get().fatal(

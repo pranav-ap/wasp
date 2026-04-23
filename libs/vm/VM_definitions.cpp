@@ -34,10 +34,17 @@ void VM::execute_build_overload_group(CallFrame* frame)
 
 void VM::execute_build_class(CallFrame* frame)
 {
-    int method_count = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
-    ObjectVector methods = pop_n_from_stack(method_count);
-    auto class_blueprint = make_object(std::make_shared<ClassBlueprintObject>(std::move(methods)));
-    push_to_stack(class_blueprint);
+    int num_methods = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
+    int num_fields = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
+
+    Object_ptr preallocated_obj = pop_from_stack();
+    ObjectVector methods = pop_n_from_stack(num_methods);
+
+    auto blueprint = preallocated_obj->as<std::shared_ptr<ClassBlueprintObject>>();
+    blueprint->members = std::move(methods);
+    blueprint->fields_count = num_fields;
+
+    push_to_stack(preallocated_obj);
 }
 
 void VM::execute_instantiate(CallFrame* frame)
@@ -56,6 +63,7 @@ void VM::execute_instantiate(CallFrame* frame)
     auto blueprint = blueprint_obj->as<std::shared_ptr<ClassBlueprintObject>>();
 
     ObjectVector instance_memory = std::move(fields);
+
     instance_memory
         .insert(instance_memory.end(), blueprint->members.begin(), blueprint->members.end());
 
@@ -247,20 +255,15 @@ void VM::execute_return(CallFrame* frame)
 
     frames.pop_back();
 
-    // 'bp' points to arg1. 'bp - 1' is the FunctionRuntimeObject (the
-    // callable). Remove the callable, all arguments, and all local
-    // variables.
     if (bp > 0)
     {
         stack.erase(stack.begin() + (bp - 1), stack.end());
     }
     else
     {
-        // Fallback for top-level module returns
         stack.clear();
     }
 
-    // Push the return value back onto the caller's stack
     push_to_stack(result);
 }
 } // namespace Wasp

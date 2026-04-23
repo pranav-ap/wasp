@@ -85,6 +85,17 @@ StringVector SemanticAnalyzer::setup_ordered_export_names(Module_ptr mod)
                         ordered_export_names.push_back(def.name);
                     }
                 },
+                [&](PureFunctionDefinition& def)
+                {
+                    if (std::find(
+                            ordered_export_names.begin(),
+                            ordered_export_names.end(),
+                            def.name
+                        ) == ordered_export_names.end())
+                    {
+                        ordered_export_names.push_back(def.name);
+                    }
+                },
                 [&](ClassDefinition& def)
                 {
                     if (std::find(
@@ -211,6 +222,27 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
                     def.symbol = symbol;
                     def.group_symbol = current_scope->define(symbol);
                 },
+                [&](PureFunctionDefinition& def)
+                {
+                    auto [return_type, param_types] = get_function_signature(def);
+
+                    auto signature = make_object(
+                        std::make_shared<FunctionType>(param_types, return_type)
+                    );
+
+                    auto symbol = SymbolFactory::create_function(
+                        def.name,
+                        signature,
+                        false,
+                        current_scope->get_closure_depth(),
+                        current_scope->get_lexical_depth()
+                    );
+
+                    type_checker->validate_new_function_overload(current_scope, def.name, symbol);
+
+                    def.symbol = symbol;
+                    def.group_symbol = current_scope->define(symbol);
+                },
                 [&](ClassDefinition& def)
                 {
                     auto symbol = SymbolFactory::create_class(
@@ -254,6 +286,10 @@ void SemanticAnalyzer::visit(const Statement_ptr statement)
                 visit(stat);
             },
             [&](FunctionDefinition& stat)
+            {
+                visit(stat);
+            },
+            [&](PureFunctionDefinition& stat)
             {
                 visit(stat);
             },

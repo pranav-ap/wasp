@@ -45,40 +45,110 @@ Object_ptr SemanticAnalyzer::visit(const Expression_ptr expr)
     return std::visit(
         overloaded{
             // Primitives
-            [&](int& node) -> Object_ptr { return visit(node); },
-            [&](double& node) -> Object_ptr { return visit(node); },
-            [&](std::string& node) -> Object_ptr { return visit(node); },
-            [&](bool& node) -> Object_ptr { return visit(node); },
+            [&](int& node) -> Object_ptr
+            {
+                return visit(node);
+            },
+            [&](double& node) -> Object_ptr
+            {
+                return visit(node);
+            },
+            [&](std::string& node) -> Object_ptr
+            {
+                return visit(node);
+            },
+            [&](bool& node) -> Object_ptr
+            {
+                return visit(node);
+            },
 
-            [&](DotLiteral& node) -> Object_ptr { return visit(node); },
+            [&](DotLiteral& node) -> Object_ptr
+            {
+                return visit(node);
+            },
 
             // Identifiers & Access
-            [&](Identifier& node) -> Object_ptr { return visit(node); },
-            [&](MemberAccess& node) -> Object_ptr { return visit(node); },
+            [&](Identifier& node) -> Object_ptr
+            {
+                return visit(node);
+            },
+            [&](MemberAccess& node) -> Object_ptr
+            {
+                return visit(node);
+            },
 
-            [&](Call& node) -> Object_ptr { return visit(node); },
+            [&](Call& node) -> Object_ptr
+            {
+                return visit(node);
+            },
+            [&](Constructor& node) -> Object_ptr
+            {
+                return visit(node);
+            },
 
             // Operators
-            [&](Prefix& node) -> Object_ptr { return visit(node); },
-            [&](Infix& node) -> Object_ptr { return visit(node); },
-            [&](Postfix& node) -> Object_ptr { return visit(node); },
+            [&](Prefix& node) -> Object_ptr
+            {
+                return visit(node);
+            },
+            [&](Infix& node) -> Object_ptr
+            {
+                return visit(node);
+            },
+            [&](Postfix& node) -> Object_ptr
+            {
+                return visit(node);
+            },
 
             // Collections
-            [&](ListLiteral& node) -> Object_ptr { return visit(node); },
-            [&](TupleLiteral& node) -> Object_ptr { return visit(node); },
-            [&](MapLiteral& node) -> Object_ptr { return visit(node); },
-            [&](SetLiteral& node) -> Object_ptr { return visit(node); },
-            [&](RangeLiteral& node) -> Object_ptr { return visit(node); },
+            [&](ListLiteral& node) -> Object_ptr
+            {
+                return visit(node);
+            },
+            [&](TupleLiteral& node) -> Object_ptr
+            {
+                return visit(node);
+            },
+            [&](MapLiteral& node) -> Object_ptr
+            {
+                return visit(node);
+            },
+            [&](SetLiteral& node) -> Object_ptr
+            {
+                return visit(node);
+            },
+            [&](RangeLiteral& node) -> Object_ptr
+            {
+                return visit(node);
+            },
 
             // Variables & Assignments
-            [&](VariableDefinitionExpression& node) -> Object_ptr { return visit(node); },
-            [&](UntypedAssignment& node) -> Object_ptr { return visit(node); },
-            [&](TypedAssignment& node) -> Object_ptr { return visit(node); },
-            [&](TypePattern& node) -> Object_ptr { return visit(node); },
+            [&](VariableDefinitionExpression& node) -> Object_ptr
+            {
+                return visit(node);
+            },
+            [&](UntypedAssignment& node) -> Object_ptr
+            {
+                return visit(node);
+            },
+            [&](TypedAssignment& node) -> Object_ptr
+            {
+                return visit(node);
+            },
+            [&](TypePattern& node) -> Object_ptr
+            {
+                return visit(node);
+            },
 
             // Control Flow
-            [&](IfTernaryBranch& node) -> Object_ptr { return visit(node); },
-            [&](ElseTernaryBranch& node) -> Object_ptr { return visit(node); },
+            [&](IfTernaryBranch& node) -> Object_ptr
+            {
+                return visit(node);
+            },
+            [&](ElseTernaryBranch& node) -> Object_ptr
+            {
+                return visit(node);
+            },
 
             // Fallback
             [](auto&) -> Object_ptr
@@ -86,8 +156,10 @@ Object_ptr SemanticAnalyzer::visit(const Expression_ptr expr)
                 Doctor::get().Doctor::get().fatal(
                     WaspStage::Semantics,
                     "Unhandled Expression in Semantic Analyzer!");
-            }},
-        expr->data);
+            }
+        },
+        expr->data
+    );
 }
 
 // -----------------------------------------------

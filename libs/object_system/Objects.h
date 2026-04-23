@@ -288,6 +288,10 @@ struct MemberedCompositeObject : public CompositeObject
 {
     ObjectVector members;
 
+    MemberedCompositeObject() : members({})
+    {
+    }
+
     MemberedCompositeObject(ObjectVector members) : members(std::move(members))
     {
     }
@@ -309,7 +313,14 @@ struct ModuleObject : public MemberedCompositeObject
 
 struct ClassBlueprintObject : public MemberedCompositeObject
 {
-    ClassBlueprintObject(ObjectVector members) : MemberedCompositeObject(std::move(members))
+    int fields_count;
+
+    ClassBlueprintObject() : MemberedCompositeObject(), fields_count(0)
+    {
+    }
+
+    ClassBlueprintObject(ObjectVector members, int fields_count)
+        : MemberedCompositeObject(std::move(members)), fields_count(fields_count)
     {
     }
 };
@@ -497,12 +508,19 @@ struct ClassType : public CompositeType
 
     StringVector fields;
     StringVector methods;
+    StringVector pures;
 
     ObjectStringMap members;
 
-    ClassType(std::string name, ObjectStringMap members, StringVector fields, StringVector methods)
+    ClassType(
+        std::string name,
+        ObjectStringMap members,
+        StringVector fields,
+        StringVector methods,
+        StringVector pures
+    )
         : name(std::move(name)), fields(std::move(fields)), methods(std::move(methods)),
-          members(std::move(members))
+          pures(std::move(pures)), members(std::move(members))
     {
     }
 
@@ -519,7 +537,10 @@ struct ClassType : public CompositeType
 
     ObjectVector get_fields() const;
     ObjectVector get_methods() const;
+    ObjectVector get_pures() const;
     ObjectVector get_members() const;
+
+    bool is_pure(std::string member_name) const;
 };
 
 using ClassType_ptr = std::shared_ptr<ClassType>;
@@ -589,8 +610,8 @@ struct Object
         std::shared_ptr<MethodType>,
 
         std::shared_ptr<RecordType>,
-        std::shared_ptr<ModuleType>,
-        std::shared_ptr<ClassType>>;
+        ModuleType_ptr,
+        ClassType_ptr>;
 
     UnderlyingVariant value;
 

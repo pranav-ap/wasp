@@ -1,6 +1,7 @@
 #include "Objects.h"
 #include "Doctor.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <memory>
 #include <optional>
@@ -148,12 +149,38 @@ ObjectVector ClassType::get_methods() const
     return method_types;
 }
 
+ObjectVector ClassType::get_pures() const
+{
+    ObjectVector pure_types;
+    for (const auto& pure_name : pures)
+    {
+        pure_types.push_back(members.at(pure_name));
+    }
+    return pure_types;
+}
+
 ObjectVector ClassType::get_members() const
 {
     ObjectVector members = get_fields();
+
     ObjectVector methods = get_methods();
     members.insert(members.end(), methods.begin(), methods.end());
+
+    ObjectVector pures = get_pures();
+    members.insert(members.end(), pures.begin(), pures.end());
+
     return members;
+}
+
+bool ClassType::is_pure(std::string member_name) const
+{
+    Doctor::get().assert(
+        contains_member(member_name),
+        WaspStage::Semantics,
+        "Member '" + member_name + "' not found in class " + name
+    );
+
+    return std::find(pures.begin(), pures.end(), member_name) != pures.end();
 }
 
 bool ClassType::contains_member(const std::string& member_name) const
@@ -181,6 +208,12 @@ int ClassType::get_member_index(const std::string& member_name) const
             return static_cast<int>(fields.size() + i);
     }
 
+    for (size_t i = 0; i < pures.size(); ++i)
+    {
+        if (pures[i] == member_name)
+            return static_cast<int>(fields.size() + methods.size() + i);
+    }
+
     return -1;
 }
 
@@ -198,6 +231,13 @@ Object_ptr ClassType::get_member(int member_id) const
     if (method_index < static_cast<int>(methods.size()))
     {
         return members.at(methods[method_index]);
+    }
+
+    int pure_index = method_index - static_cast<int>(methods.size());
+
+    if (pure_index < static_cast<int>(pures.size()))
+    {
+        return members.at(pures[pure_index]);
     }
 
     Doctor::get().fatal(WaspStage::Semantics, "ClassType member index out of bounds!");
