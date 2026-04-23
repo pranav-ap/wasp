@@ -20,15 +20,16 @@ namespace Wasp
 void Compiler::visit(ClassDefinition& class_definition)
 {
     int class_blueprint_physical_index = get_or_add_local_index(class_definition.symbol);
-    emit(OpCode::PREDECLARE_CLASS, "pre-allocate empty class for " + class_definition.name);
+
+    emit(OpCode::PUSH_EMPTY_CLASS_BLUEPRINT, "push empty class " + class_definition.name);
+    emit(OpCode::SET_LOCAL, class_blueprint_physical_index, "init class in slot");
 
     int unique_method_count = 0;
     auto class_type = class_definition.symbol->get_type()->as<std::shared_ptr<ClassType>>();
 
     StringVector methods_and_pures = class_type->methods;
-    StringVector pures = class_type->pures;
-
-    methods_and_pures.insert(methods_and_pures.end(), pures.begin(), pures.end());
+    methods_and_pures
+        .insert(methods_and_pures.end(), class_type->pures.begin(), class_type->pures.end());
 
     for (const std::string& method_name : methods_and_pures)
     {
