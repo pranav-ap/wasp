@@ -20,6 +20,12 @@ namespace Wasp
 void Compiler::visit(ClassDefinition& class_definition)
 {
     auto class_type = class_definition.symbol->get_type()->as<std::shared_ptr<ClassType>>();
+
+    // Pre-allocate the local index for the class BEFORE compiling methods
+    // Allows methods to return class itself
+    int physical_index = get_or_add_local_index(class_definition.symbol);
+    emit(OpCode::LOAD_NONE, "pre-allocate class slot for " + class_definition.name);
+
     int unique_method_count = 0;
 
     for (const std::string& method_name : class_type->methods)
@@ -44,9 +50,15 @@ void Compiler::visit(ClassDefinition& class_definition)
         unique_method_count++;
     }
 
-    emit(OpCode::BUILD_CLASS, unique_method_count, "build class " + class_definition.name);
+    auto fields_offset = static_cast<int>(class_type->fields.size());
 
-    int physical_index = get_or_add_local_index(class_definition.symbol);
+    emit(
+        OpCode::BUILD_CLASS,
+        unique_method_count,
+        fields_offset,
+        "build class " + class_definition.name
+    );
+
     emit(OpCode::SET_LOCAL, physical_index, "class " + class_definition.name);
 }
 

@@ -309,7 +309,10 @@ struct ModuleObject : public MemberedCompositeObject
 
 struct ClassBlueprintObject : public MemberedCompositeObject
 {
-    ClassBlueprintObject(ObjectVector members) : MemberedCompositeObject(std::move(members))
+    int fields_count;
+
+    ClassBlueprintObject(ObjectVector members, int fields_count)
+        : MemberedCompositeObject(std::move(members)), fields_count(fields_count)
     {
     }
 };
@@ -524,14 +527,6 @@ struct ClassType : public CompositeType
 
 using ClassType_ptr = std::shared_ptr<ClassType>;
 
-struct StaticClassType
-{
-    Object_ptr class_type;
-    StaticClassType(Object_ptr class_type) : class_type(std::move(class_type)) {};
-};
-
-using StaticClassType_ptr = std::shared_ptr<StaticClassType>;
-
 struct RecordType
 {
 };
@@ -598,8 +593,7 @@ struct Object
 
         std::shared_ptr<RecordType>,
         ModuleType_ptr,
-        ClassType_ptr,
-        StaticClassType_ptr>;
+        ClassType_ptr>;
 
     UnderlyingVariant value;
 

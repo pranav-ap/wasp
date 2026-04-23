@@ -35,8 +35,14 @@ void VM::execute_build_overload_group(CallFrame* frame)
 void VM::execute_build_class(CallFrame* frame)
 {
     int method_count = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
+    int fields_count = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
+
     ObjectVector methods = pop_n_from_stack(method_count);
-    auto class_blueprint = make_object(std::make_shared<ClassBlueprintObject>(std::move(methods)));
+
+    auto class_blueprint = make_object(
+        std::make_shared<ClassBlueprintObject>(std::move(methods), fields_count)
+    );
+
     push_to_stack(class_blueprint);
 }
 

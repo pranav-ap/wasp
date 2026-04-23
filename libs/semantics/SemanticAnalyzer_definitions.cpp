@@ -31,7 +31,9 @@ namespace Wasp
 void SemanticAnalyzer::visit(ClassDefinition& def)
 {
     auto class_type = initialize_class_type(def);
+
     auto class_type_obj = make_object(class_type);
+    def.symbol->set_type(class_type_obj);
 
     // Hoist methods
 
@@ -126,8 +128,6 @@ void SemanticAnalyzer::visit(ClassDefinition& def)
             stmt->data
         );
     }
-
-    def.symbol->set_type(make_object(std::make_shared<StaticClassType>(class_type_obj)));
 }
 
 std::shared_ptr<ClassType> SemanticAnalyzer::initialize_class_type(ClassDefinition& def)
