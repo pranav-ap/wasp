@@ -34,16 +34,22 @@ void VM::execute_build_overload_group(CallFrame* frame)
 
 void VM::execute_build_class(CallFrame* frame)
 {
-    int method_count = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
-    int fields_count = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
+    int num_methods = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
+    int num_fields = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
 
-    ObjectVector methods = pop_n_from_stack(method_count);
+    // 1. Pop the pre-allocated ClassBlueprintObject
+    Object_ptr preallocated_obj = pop_from_stack();
 
-    auto class_blueprint = make_object(
-        std::make_shared<ClassBlueprintObject>(std::move(methods), fields_count)
-    );
+    // 2. Pop the compiled methods
+    ObjectVector methods = pop_n_from_stack(num_methods);
 
-    push_to_stack(class_blueprint);
+    // 3. Mutate the existing object in memory!
+    auto blueprint = preallocated_obj->as<std::shared_ptr<ClassBlueprintObject>>();
+    blueprint->members = std::move(methods);
+    blueprint->fields_count = num_fields;
+
+    // 4. Push the populated object back
+    push_to_stack(preallocated_obj);
 }
 
 void VM::execute_instantiate(CallFrame* frame)

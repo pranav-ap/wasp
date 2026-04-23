@@ -288,6 +288,10 @@ struct MemberedCompositeObject : public CompositeObject
 {
     ObjectVector members;
 
+    MemberedCompositeObject() : members({})
+    {
+    }
+
     MemberedCompositeObject(ObjectVector members) : members(std::move(members))
     {
     }
@@ -310,6 +314,10 @@ struct ModuleObject : public MemberedCompositeObject
 struct ClassBlueprintObject : public MemberedCompositeObject
 {
     int fields_count;
+
+    ClassBlueprintObject() : MemberedCompositeObject(), fields_count(0)
+    {
+    }
 
     ClassBlueprintObject(ObjectVector members, int fields_count)
         : MemberedCompositeObject(std::move(members)), fields_count(fields_count)

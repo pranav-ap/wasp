@@ -19,14 +19,11 @@ namespace Wasp
 
 void Compiler::visit(ClassDefinition& class_definition)
 {
-    auto class_type = class_definition.symbol->get_type()->as<std::shared_ptr<ClassType>>();
-
-    // Pre-allocate the local index for the class BEFORE compiling methods
-    // Allows methods to return class itself
     int physical_index = get_or_add_local_index(class_definition.symbol);
-    emit(OpCode::LOAD_NONE, "pre-allocate class slot for " + class_definition.name);
+    emit(OpCode::PREDECLARE_CLASS, "pre-allocate empty class for " + class_definition.name);
 
     int unique_method_count = 0;
+    auto class_type = class_definition.symbol->get_type()->as<std::shared_ptr<ClassType>>();
 
     for (const std::string& method_name : class_type->methods)
     {
@@ -37,7 +34,6 @@ void Compiler::visit(ClassDefinition& class_definition)
             if (std::holds_alternative<MethodDefinition>(stmt->data))
             {
                 auto& method = std::get<MethodDefinition>(stmt->data);
-
                 if (method.name == method_name)
                 {
                     compile_function_closure(method.name, method.parameter_symbols, method.body);
@@ -45,21 +41,22 @@ void Compiler::visit(ClassDefinition& class_definition)
                 }
             }
         }
-
         emit(OpCode::BUILD_OVERLOAD_GROUP, overload_count, "overloads for " + method_name);
         unique_method_count++;
     }
 
     auto fields_offset = static_cast<int>(class_type->fields.size());
 
+    emit(OpCode::GET_LOCAL, physical_index, "load pre-allocated class for modification");
+
     emit(
         OpCode::BUILD_CLASS,
         unique_method_count,
         fields_offset,
-        "build class " + class_definition.name
+        "populate class " + class_definition.name
     );
 
-    emit(OpCode::SET_LOCAL, physical_index, "class " + class_definition.name);
+    emit(OpCode::SET_LOCAL, physical_index, "update local slot");
 }
 
 void Compiler::visit(FunctionDefinition& function_definition)

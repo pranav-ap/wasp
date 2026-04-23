@@ -108,8 +108,8 @@ void CodeObject::emit(OpCode opcode, int operand_1, int operand_2, std::string c
     instructions.push_back(static_cast<std::byte>(operand_1));
     comments.push_back("");
 
-    // Operand 2 gets padding
     instructions.push_back(static_cast<std::byte>(operand_2));
+    comments.push_back("");
 }
 
 ByteVector CodeObject::instruction_at(std::size_t index) const

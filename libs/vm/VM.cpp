@@ -193,6 +193,11 @@ void VM::run(FunctionBlueprintObject_ptr function_object)
             break;
         }
 
+        case OpCode::PREDECLARE_CLASS: {
+            push_to_stack(make_object(std::make_shared<ClassBlueprintObject>()));
+            break;
+        }
+
         case OpCode::BUILD_CLASS: {
             execute_build_class(frame);
             break;

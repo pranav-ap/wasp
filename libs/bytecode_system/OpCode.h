@@ -49,7 +49,8 @@ using ByteVector = std::vector<std::byte>;
     /* --- Classes --- */                                                                          \
     X(BUILD_OVERLOAD_GROUP, 1) /* [closures...] -> [overload group] | <number of overloads> */     \
     X(BUILD_CLASS,                                                                                 \
-      2) /* [overload groups...] -> [class blueprint] | <number of groups>, <fields count> */      \
+      2) /* [overload groups...] -> [class blueprint] | <methods count>, <fields count> */         \
+    X(PREDECLARE_CLASS, 0)                                                                         \
     X(INSTANTIATE, 1) /* [class blueprint, args...] -> [instance] | <number of args> */            \
                                                                                                    \
     /* --- Arithmetic --- */                                                                       \
