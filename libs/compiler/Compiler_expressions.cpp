@@ -113,7 +113,7 @@ void Compiler::visit(Call& expr)
 
     int total_arguments = static_cast<int>(expr.arguments.size());
 
-    if (expr.is_method_call)
+    if (expr.is_method_call && !expr.is_pure_method_call)
     {
         auto& mac = expr.callable->as<MemberAccess>();
         visit(mac.left);

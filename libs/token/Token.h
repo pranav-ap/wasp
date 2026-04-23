@@ -65,6 +65,7 @@
     X(ELSE, "else", true)                                                                          \
     X(THEN, "then", true)                                                                          \
     X(PASS, "pass", true)                                                                          \
+    X(NATIVE, "native", true)                                                                      \
     X(NO, "no", true)                                                                              \
     X(NONE, "none", true)                                                                          \
     X(SOME, "some", true)                                                                          \
@@ -99,10 +100,7 @@
     X(YIELD_KEYWORD, "yield", true)                                                                \
     X(CLASS, "class", true)                                                                        \
     X(TRAIT, "trait", true)                                                                        \
-    X(IMPL, "impl", true)                                                                          \
-    X(SHARED, "shared", true)                                                                      \
-    X(OVERRIDE_KEYWORD, "override", true)                                                          \
-    X(PRIVATE_KEYWORD, "private", true)                                                            \
+    X(PURE, "pure", true)                                                                          \
     X(RECORD, "record", true)                                                                      \
     X(MY, "my", true)                                                                              \
     X(OUR, "our", true)                                                                            \

@@ -119,7 +119,7 @@ private:
     void visit(FromImport& statement);
 
     void visit(FunctionDefinition& statement);
-    void visit(MethodDefinition& statement);
+    void visit(PureFunctionDefinition& statement);
 
     void visit(Return& statement);
 

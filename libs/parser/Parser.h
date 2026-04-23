@@ -48,7 +48,11 @@ private:
     Statement_ptr parse_alias_definition();
     Statement_ptr parse_annotation_definition();
 
-    Statement_ptr parse_function_definition(int indent_level, bool in_impl_block = false);
+    Statement_ptr parse_function_definition(
+        int indent_level,
+        bool in_class_block = false,
+        bool is_pure = false
+    );
 
     Statement_ptr parse_enum_definition(int indent_level = 0);
     StringVector parse_enum_members(std::string stem, int indent_level);

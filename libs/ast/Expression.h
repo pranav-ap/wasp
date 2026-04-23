@@ -177,6 +177,8 @@ struct Call
     ExpressionVector arguments;
 
     bool is_method_call = false;
+    bool is_pure_method_call = false;
+
     int overload_index;
 
     Call() = default;

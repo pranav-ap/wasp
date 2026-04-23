@@ -1,6 +1,5 @@
 #pragma once
 
-#include "AST.h"
 #include "Workspace.h"
 
 #include <memory>
@@ -17,7 +16,10 @@ enum class ScopeType
     EXPRESSION,
     LOOP,
     BRANCH,
-    FUNCTION
+    FUNCTION,
+    PURE_FUNCTION,
+    METHOD,
+    PURE_METHOD
 };
 
 class SymbolScope;

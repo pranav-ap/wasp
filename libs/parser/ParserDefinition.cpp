@@ -123,7 +123,7 @@ Statement_ptr Parser::parse_annotation_definition()
 }
 
 // Function
-Statement_ptr Parser::parse_function_definition(int indent_level, bool in_impl_block)
+Statement_ptr Parser::parse_function_definition(int indent_level, bool in_class_block, bool is_pure)
 {
     // Consume 'fun' keyword
     token_pipe.advance_pointer();
@@ -167,12 +167,22 @@ Statement_ptr Parser::parse_function_definition(int indent_level, bool in_impl_b
 
     StatementVector body = parse_statements_block(indent_level + 1);
 
-    if (in_impl_block)
+    if (in_class_block)
     {
+        if (is_pure)
+        {
+            return make_statement(PureMethodDefinition(name, parameters, return_type, body));
+        }
+
         return make_statement(MethodDefinition(name, parameters, return_type, body));
     }
     else
     {
+        if (is_pure)
+        {
+            return make_statement(PureFunctionDefinition(name, parameters, return_type, body));
+        }
+
         return make_statement(FunctionDefinition(name, parameters, return_type, body));
     }
 }
@@ -217,7 +227,11 @@ std::tuple<std::string, std::vector<std::string>, StatementVector> Parser::
 
         if (token_pipe.consume_optional(TokenType::FUN))
         {
-            members.push_back(parse_function_definition(body_indent, true));
+            members.push_back(parse_function_definition(body_indent, true, false));
+        }
+        else if (token_pipe.consume_optional(TokenType::PURE))
+        {
+            members.push_back(parse_function_definition(body_indent, true, true));
         }
         else
         {

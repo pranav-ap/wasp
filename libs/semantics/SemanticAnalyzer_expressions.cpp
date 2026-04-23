@@ -6,6 +6,7 @@
 #include "SymbolScope.h"
 #include "Workspace.h"
 
+#include <algorithm>
 #include <cctype>
 #include <ctime>
 #include <memory>
@@ -143,7 +144,6 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                     WaspStage::Semantics,
                     "Cannot invoke method. Receiver is neither a class nor a module."
                 );
-                return nullptr;
             },
             [&](auto&) -> Object_ptr
             {
@@ -343,6 +343,7 @@ Object_ptr SemanticAnalyzer::evaluate_instance_method_call(
 
     call.overload_index = match_indices.front();
     call.is_method_call = true;
+    call.is_pure_method_call = class_type->is_pure(method_name);
 
     return get_function_signature(valid_matches.front()).first;
 }

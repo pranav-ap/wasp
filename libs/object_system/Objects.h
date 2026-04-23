@@ -508,12 +508,19 @@ struct ClassType : public CompositeType
 
     StringVector fields;
     StringVector methods;
+    StringVector pures;
 
     ObjectStringMap members;
 
-    ClassType(std::string name, ObjectStringMap members, StringVector fields, StringVector methods)
+    ClassType(
+        std::string name,
+        ObjectStringMap members,
+        StringVector fields,
+        StringVector methods,
+        StringVector pures
+    )
         : name(std::move(name)), fields(std::move(fields)), methods(std::move(methods)),
-          members(std::move(members))
+          pures(std::move(pures)), members(std::move(members))
     {
     }
 
@@ -530,7 +537,10 @@ struct ClassType : public CompositeType
 
     ObjectVector get_fields() const;
     ObjectVector get_methods() const;
+    ObjectVector get_pures() const;
     ObjectVector get_members() const;
+
+    bool is_pure(std::string member_name) const;
 };
 
 using ClassType_ptr = std::shared_ptr<ClassType>;

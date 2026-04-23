@@ -104,9 +104,9 @@ void NativeRegistry::load_stdlib()
                         {
                             std::cout << "none";
                         },
-                        [](const ErrorObject& e)
+                        [](const std::shared_ptr<ErrorObject> e)
                         {
-                            std::cout << "<error: " << e.message << ">";
+                            std::cout << "Error : " << e->message;
                         },
                         [](const auto&)
                         {

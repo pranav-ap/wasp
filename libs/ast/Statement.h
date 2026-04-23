@@ -70,7 +70,17 @@ struct FunctionDefinition : public AbstractFunctionDefinition
     using AbstractFunctionDefinition::AbstractFunctionDefinition;
 };
 
+struct PureFunctionDefinition : public AbstractFunctionDefinition
+{
+    using AbstractFunctionDefinition::AbstractFunctionDefinition;
+};
+
 struct MethodDefinition : public AbstractFunctionDefinition
+{
+    using AbstractFunctionDefinition::AbstractFunctionDefinition;
+};
+
+struct PureMethodDefinition : public AbstractFunctionDefinition
 {
     using AbstractFunctionDefinition::AbstractFunctionDefinition;
 };
@@ -325,7 +335,9 @@ using StatementVariant = std::variant<
     EnumDefinition,
 
     FunctionDefinition,
+    PureFunctionDefinition,
     MethodDefinition,
+    PureMethodDefinition,
 
     FieldDefinition,
 

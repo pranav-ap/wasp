@@ -19,7 +19,8 @@ SymbolScope::SymbolScope(ScopeType type, SymbolScope_ptr enclosing)
         closure_depth = enclosing_scope->closure_depth;
         lexical_depth = enclosing_scope->lexical_depth;
 
-        if (type == ScopeType::FUNCTION)
+        if (type == ScopeType::FUNCTION || type == ScopeType::PURE_FUNCTION ||
+            type == ScopeType::METHOD || type == ScopeType::PURE_METHOD)
         {
             closure_depth++;
         }
