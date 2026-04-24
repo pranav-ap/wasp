@@ -25,10 +25,8 @@ public:
 
     Parser();
 
-    // Main Entry Point
     StatementVector run(const std::vector<Token>& tokens);
 
-    // Expression & Type Parsers (Public API)
     Expression_ptr parse_expression();
     Expression_ptr parse_expression(int precedence);
     ExpressionVector parse_expressions();
@@ -38,12 +36,10 @@ public:
     TypeAnnotationVector parse_types();
 
 private:
-    // Core Statement Routing
     Statement_ptr parse_statement(int expected_indent_level = 0);
     StatementVector parse_statements_block(int expected_indent_level);
     Statement_ptr parse_expression_statement();
 
-    // Definitions (Variables, Functions, Classes, Enums)
     Statement_ptr parse_variable_definition(bool is_mutable);
     Statement_ptr parse_alias_definition();
     Statement_ptr parse_annotation_definition();
@@ -51,6 +47,7 @@ private:
     Statement_ptr parse_function_definition(
         int indent_level,
         bool in_class_block = false,
+        bool is_our = false,
         bool is_pure = false
     );
 

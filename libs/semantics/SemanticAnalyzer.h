@@ -43,6 +43,9 @@ class SemanticAnalyzer
     std::pair<Object_ptr, ObjectVector> get_function_signature(Object_ptr type_obj);
 
     template <typename T> void analyze_function_base(T& def, ScopeType scope_type, bool is_mutable);
+    template <typename T> void analyze_instance_method(Object_ptr class_type_obj, T& m);
+    template <typename T> void analyze_pure_method(T& m);
+    template <typename T> void hoist_method(std::shared_ptr<ClassType>& class_type, T& m);
 
     void visit(FunctionDefinition& statement);
     void visit(PureFunctionDefinition& statement);

@@ -183,6 +183,17 @@ bool ClassType::is_pure(std::string member_name) const
     return std::find(pures.begin(), pures.end(), member_name) != pures.end();
 }
 
+bool ClassType::is_static(std::string member_name) const
+{
+    Doctor::get().assert(
+        contains_member(member_name),
+        WaspStage::Semantics,
+        "Member '" + member_name + "' not found in class " + name
+    );
+
+    return std::find(statics.begin(), statics.end(), member_name) != statics.end();
+}
+
 bool ClassType::contains_member(const std::string& member_name) const
 {
     return members.contains(member_name);

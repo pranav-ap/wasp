@@ -122,11 +122,31 @@ Statement_ptr Parser::parse_annotation_definition()
     return make_statement(AnnotationDefinition(name, {}));
 }
 
-// Function
-Statement_ptr Parser::parse_function_definition(int indent_level, bool in_class_block, bool is_pure)
+Statement_ptr Parser::parse_function_definition(
+    int indent_level,
+    bool in_class_block,
+    bool is_our,
+    bool is_pure
+)
 {
-    // Consume 'fun' keyword
-    token_pipe.advance_pointer();
+    if (is_our)
+    {
+        // Consume 'our' keyword
+        token_pipe.advance_pointer();
+        is_pure = token_pipe.consume_optional(TokenType::PURE).has_value();
+        token_pipe.require(TokenType::FUN);
+    }
+    else if (is_pure)
+    {
+        // Consume 'pure' keyword
+        token_pipe.advance_pointer();
+        token_pipe.require(TokenType::FUN);
+    }
+    else
+    {
+        // Consume 'fun' keyword
+        token_pipe.advance_pointer();
+    }
 
     auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
     auto name = name_token.value;
@@ -169,9 +189,17 @@ Statement_ptr Parser::parse_function_definition(int indent_level, bool in_class_
 
     if (in_class_block)
     {
-        if (is_pure)
+        if (!is_our && is_pure)
         {
             return make_statement(PureMethodDefinition(name, parameters, return_type, body));
+        }
+        else if (is_our && !is_pure)
+        {
+            return make_statement(OurMethodDefinition(name, parameters, return_type, body));
+        }
+        else if (is_our && is_pure)
+        {
+            return make_statement(OurPureMethodDefinition(name, parameters, return_type, body));
         }
 
         return make_statement(MethodDefinition(name, parameters, return_type, body));

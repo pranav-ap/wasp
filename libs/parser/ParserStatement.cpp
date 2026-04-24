@@ -58,9 +58,12 @@ Statement_ptr Parser::parse_statement(int expected_indent_level) {
         return parse_loop_control_statement(TokenType::REDO);
 
     case TokenType::FUN:
-        return parse_function_definition(expected_indent_level, false);
+        return parse_function_definition(expected_indent_level, false, false, false);
     case TokenType::PURE:
+        return parse_function_definition(expected_indent_level, false, false, true);
+    case TokenType::OUR:
         return parse_function_definition(expected_indent_level, false, true);
+
     case TokenType::RETURN_KEYWORD:
         return parse_return_statement();
 

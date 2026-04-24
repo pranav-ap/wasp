@@ -89,8 +89,6 @@
     X(WHEN, "when", true)                                                                          \
     X(WHERE, "where", true)                                                                        \
     X(ASSERT, "assert", true)                                                                      \
-    X(DELETE_KEYWORD, "delete", true)                                                              \
-    X(TYPE_OF, "typeof", true)                                                                     \
     X(IS, "is", true)                                                                              \
     X(AS, "as", true)                                                                              \
     X(FUN, "fun", true)                                                                            \
@@ -120,7 +118,6 @@
     X(FALSE_KEYWORD, "false", true)                                                                \
     X(TRY, "try", true)                                                                            \
     X(CATCH, "catch", true)                                                                        \
-    X(ENSURE, "ensure", true)                                                                      \
     X(SPACE, "SPACE", false)                                                                       \
     X(TAB, "TAB", false)                                                                           \
     X(EOL, "EOL", false)                                                                           \

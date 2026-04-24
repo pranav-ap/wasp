@@ -1,7 +1,6 @@
 #include "AST.h"
 #include "CFGraph.h"
 #include "Compiler.h"
-#include "Doctor.h"
 #include "Objects.h"
 #include "OpCode.h"
 #include "Statement.h"
@@ -14,8 +13,28 @@
 #include <variant>
 #include <vector>
 
+template <class... Ts> struct overloaded : Ts...
+{
+    using Ts::operator()...;
+};
+template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+
 namespace Wasp
 {
+
+void Compiler::visit(Return& statement)
+{
+    if (statement.expression.has_value())
+    {
+        visit(statement.expression.value());
+    }
+    else
+    {
+        emit(OpCode::LOAD_NONE);
+    }
+
+    emit(OpCode::RETURN);
+}
 
 void Compiler::visit(ClassDefinition& class_definition)
 {
@@ -27,34 +46,49 @@ void Compiler::visit(ClassDefinition& class_definition)
     int unique_method_count = 0;
     auto class_type = class_definition.symbol->get_type()->as<std::shared_ptr<ClassType>>();
 
-    StringVector methods_and_pures = class_type->methods;
-    methods_and_pures
-        .insert(methods_and_pures.end(), class_type->pures.begin(), class_type->pures.end());
+    StringVector all_methods = class_type->methods;
+    all_methods.insert(all_methods.end(), class_type->pures.begin(), class_type->pures.end());
+    all_methods.insert(all_methods.end(), class_type->statics.begin(), class_type->statics.end());
 
-    for (const std::string& method_name : methods_and_pures)
+    auto compile_if_match = [&](auto& method, const std::string& target_name, int& count)
+    {
+        if (method.name == target_name)
+        {
+            compile_function_closure(method.name, method.parameter_symbols, method.body);
+            count++;
+        }
+    };
+
+    for (const std::string& method_name : all_methods)
     {
         int overload_count = 0;
 
         for (auto& stmt : class_definition.members)
         {
-            if (std::holds_alternative<MethodDefinition>(stmt->data))
-            {
-                auto& method = std::get<MethodDefinition>(stmt->data);
-                if (method.name == method_name)
-                {
-                    compile_function_closure(method.name, method.parameter_symbols, method.body);
-                    overload_count++;
-                }
-            }
-            else if (std::holds_alternative<PureMethodDefinition>(stmt->data))
-            {
-                auto& method = std::get<PureMethodDefinition>(stmt->data);
-                if (method.name == method_name)
-                {
-                    compile_function_closure(method.name, method.parameter_symbols, method.body);
-                    overload_count++;
-                }
-            }
+            std::visit(
+                overloaded{
+                    [&](MethodDefinition& m)
+                    {
+                        compile_if_match(m, method_name, overload_count);
+                    },
+                    [&](PureMethodDefinition& m)
+                    {
+                        compile_if_match(m, method_name, overload_count);
+                    },
+                    [&](OurMethodDefinition& m)
+                    {
+                        compile_if_match(m, method_name, overload_count);
+                    },
+                    [&](OurPureMethodDefinition& m)
+                    {
+                        compile_if_match(m, method_name, overload_count);
+                    },
+                    [&](auto&)
+                    {
+                    }
+                },
+                stmt->data
+            );
         }
 
         emit(OpCode::BUILD_OVERLOAD_GROUP, overload_count, "overloads for " + method_name);
@@ -68,14 +102,12 @@ void Compiler::visit(ClassDefinition& class_definition)
         class_blueprint_physical_index,
         "load pre-allocated class for modification"
     );
-
     emit(
         OpCode::BUILD_CLASS,
         unique_method_count,
         fields_offset,
         "populate class " + class_definition.name
     );
-
     emit(OpCode::SET_LOCAL, class_blueprint_physical_index, "update local slot");
 }
 
@@ -141,20 +173,6 @@ void Compiler::compile_function_closure(
     emit(OpCode::LOAD_CONST, const_id, "fun " + name);
 
     emit_closure_upvalues(func_compiler.upvalues);
-}
-
-void Compiler::visit(Return& statement)
-{
-    if (statement.expression.has_value())
-    {
-        visit(statement.expression.value());
-    }
-    else
-    {
-        emit(OpCode::LOAD_NONE);
-    }
-
-    emit(OpCode::RETURN);
 }
 
 } // namespace Wasp
