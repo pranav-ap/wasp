@@ -12,7 +12,9 @@
 #include <vector>
 
 namespace Wasp {
-Statement_ptr Parser::parse_statement(int expected_indent_level) {
+
+Statement_ptr Parser::parse_statement(int expected_indent_level)
+{
     token_pipe.ignore_empty_lines();
     token_pipe.expect_n_indents(expected_indent_level);
 
@@ -20,12 +22,14 @@ Statement_ptr Parser::parse_statement(int expected_indent_level) {
     if (!token)
         return nullptr;
 
-    if (token->type == TokenType::END_OF_FILE) {
+    if (token->type == TokenType::END_OF_FILE)
+    {
         token_pipe.advance_pointer();
         return nullptr;
     }
 
-    switch (token->type) {
+    switch (token->type)
+    {
     case TokenType::LET:
         return parse_variable_definition(true);
     case TokenType::CONST_KEYWORD:
@@ -39,11 +43,9 @@ Statement_ptr Parser::parse_statement(int expected_indent_level) {
         return parse_branching(token->type, expected_indent_level);
 
     case TokenType::WHILE:
-        return parse_simple_loop(TokenType::WHILE, expected_indent_level);
     case TokenType::UNLESS:
-        return parse_simple_loop(TokenType::UNLESS, expected_indent_level);
     case TokenType::UNTIL:
-        return parse_simple_loop(TokenType::UNTIL, expected_indent_level);
+        return parse_simple_loop(token->type, expected_indent_level);
     case TokenType::FOR:
         return parse_for_in_loop(expected_indent_level);
 
@@ -51,19 +53,19 @@ Statement_ptr Parser::parse_statement(int expected_indent_level) {
         return parse_pass_statement();
 
     case TokenType::BREAK:
-        return parse_loop_control_statement(TokenType::BREAK);
     case TokenType::CONTINUE:
-        return parse_loop_control_statement(TokenType::CONTINUE);
     case TokenType::REDO:
-        return parse_loop_control_statement(TokenType::REDO);
+        return parse_loop_control_statement(token->type);
 
-    case TokenType::FUN:
+    case TokenType::FUN: {
+        token_pipe.advance_pointer();
         return parse_function_definition(expected_indent_level, false, false, false);
-    case TokenType::PURE:
+    }
+    case TokenType::PURE: {
+        token_pipe.advance_pointer();
+        token_pipe.require_in_line(TokenType::FUN);
         return parse_function_definition(expected_indent_level, false, false, true);
-    case TokenType::OUR:
-        return parse_function_definition(expected_indent_level, false, true);
-
+    }
     case TokenType::RETURN_KEYWORD:
         return parse_return_statement();
 

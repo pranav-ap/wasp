@@ -29,7 +29,7 @@ for let a in ranks do
     print(a)
 
 
-pure greet(name: str)
+pure fun greet(name: str)
     print('Hi ' + name)
 
 greet('sam')
