@@ -302,4 +302,41 @@ StatementVector Parser::parse_name_type_block(int expected_indent)
     return members;
 }
 
+// Templates
+
+Statement_ptr Parser::parse_template_definition(int indent_level)
+{
+    // Consume the 'template' keyword
+    token_pipe.advance_pointer();
+    token_pipe.require_in_line(TokenType::EOL);
+
+    std::vector<FieldDefinition> members;
+    const int body_indent = indent_level + 1;
+
+    while (true)
+    {
+        token_pipe.ignore_empty_lines();
+
+        if (token_pipe.lookahead_indents() != body_indent)
+        {
+            break;
+        }
+
+        token_pipe.expect_n_indents(body_indent);
+
+        auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
+        token_pipe.require_in_line(TokenType::COLON);
+
+        auto param_type = parse_type();
+
+        token_pipe.require_in_line(TokenType::EOL);
+
+        members.emplace_back(name_token.value, param_type);
+    }
+
+    Statement_ptr target = parse_statement(indent_level);
+
+    return make_statement(TemplateDefinition{std::move(members), std::move(target)});
+}
+
 } // namespace Wasp

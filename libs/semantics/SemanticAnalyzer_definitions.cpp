@@ -345,6 +345,62 @@ void SemanticAnalyzer::visit(PureFunctionDefinition& def)
     analyze_function_base(def, ScopeType::PURE_FUNCTION, false);
 }
 
+// --------------------------------------------------------------------
+// Templates
+// -------------------------------------------------------------------
+
+void SemanticAnalyzer::visit(TemplateDefinition& statement)
+{
+    for (auto& field : statement.members)
+    {
+        auto constraint_type = visit(field.type);
+
+        auto generic_type_obj = make_object(
+            std::make_shared<GenericType>(field.name, constraint_type)
+        );
+
+        auto symbol = SymbolFactory::create_generic(field.name, generic_type_obj);
+        field.symbol = current_scope->define(symbol);
+    }
+
+    std::string target_name;
+
+    std::visit(
+        overloaded{
+            [&](FunctionDefinition& f)
+            {
+                visit(f);
+                target_name = f.name;
+            },
+            [&](PureFunctionDefinition& f)
+            {
+                visit(f);
+                target_name = f.name;
+            },
+            [&](ClassDefinition& c)
+            {
+                visit(c);
+                target_name = c.name;
+            },
+            [&](auto&)
+            {
+                Doctor::get().fatal(WaspStage::Semantics, "Invalid template target");
+            }
+
+        },
+        statement.target->data
+    );
+
+    current_scope->define(
+        SymbolFactory::create_template(
+            target_name + " template",
+            nullptr,
+            current_scope->get_closure_depth(),
+            current_scope->get_lexical_depth()
+        )
+    );
+}
+
 // -------------------------------------------------------------------
 // Other Visitors
 // -------------------------------------------------------------------

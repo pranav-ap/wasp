@@ -1,6 +1,7 @@
 #include "AST.h"
 #include "CFGraph.h"
 #include "Compiler.h"
+#include "Doctor.h"
 #include "Objects.h"
 #include "OpCode.h"
 #include "Statement.h"
@@ -173,6 +174,54 @@ void Compiler::compile_function_closure(
     emit(OpCode::LOAD_CONST, const_id, "fun " + name);
 
     emit_closure_upvalues(func_compiler.upvalues);
+}
+
+// TEMPLATES
+
+void Compiler::visit(TemplateDefinition& statement)
+{
+    return;
+
+    Doctor::get()
+        .fatal_if_nullptr(statement.target, WaspStage::Compiler, "Template target cannot be null");
+
+    int target_physical_index = -1;
+
+    std::visit(
+        overloaded{
+            [&](FunctionDefinition& f)
+            {
+                visit(f);
+                target_physical_index = get_or_add_local_index(f.group_symbol);
+            },
+            [&](PureFunctionDefinition& f)
+            {
+                visit(f);
+                target_physical_index = get_or_add_local_index(f.group_symbol);
+            },
+            [&](ClassDefinition& c)
+            {
+                visit(c);
+                target_physical_index = get_or_add_local_index(c.symbol);
+            },
+            [&](auto&)
+            {
+                Doctor::get().fatal(WaspStage::Compiler, "Invalid template target");
+            }
+        },
+        statement.target->data
+    );
+
+    emit(OpCode::GET_LOCAL, target_physical_index, "load template target");
+
+    // for (const auto& param : statement.members)
+    // {
+    //     int name_idx = get_or_add_string_constant(param.name);
+    //     emit(OpCode::LOAD_CONST, name_idx, "load generic param " + param.name);
+    // }
+
+    emit(OpCode::BUILD_TEMPLATE, static_cast<int>(statement.members.size()), "build template");
+    emit(OpCode::SET_LOCAL, target_physical_index, "store wrapped template");
 }
 
 } // namespace Wasp

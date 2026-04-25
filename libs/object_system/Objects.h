@@ -332,6 +332,16 @@ struct InstanceObject : public MemberedCompositeObject
     }
 };
 
+struct TemplateObject : public MemberedCompositeObject
+{
+    Object_ptr target;
+
+    TemplateObject(ObjectVector members, Object_ptr target)
+        : MemberedCompositeObject(std::move(members)), target(std::move(target))
+    {
+    }
+};
+
 // ============================================================================
 // Type Interfaces
 // ============================================================================
@@ -553,6 +563,18 @@ struct RecordType
 {
 };
 
+struct GenericType
+{
+    std::string name;
+    Object_ptr constraint_type;
+};
+
+struct TemplateType
+{
+    ObjectStringMap members;
+    Object_ptr target;
+};
+
 // ============================================================================
 // The Core Object Variant
 // ============================================================================
@@ -591,6 +613,8 @@ struct Object
         std::shared_ptr<RedoObject>,
         std::shared_ptr<ReturnObject>,
         std::shared_ptr<ErrorObject>,
+
+        std::shared_ptr<GenericType>,
 
         AnyType,
         NoneType,

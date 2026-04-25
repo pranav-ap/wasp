@@ -297,6 +297,10 @@ void SemanticAnalyzer::visit(const Statement_ptr statement)
             {
                 visit(stat);
             },
+            [&](TemplateDefinition& stat)
+            {
+                visit(stat);
+            },
             [&](AnnotationDefinition& stat)
             {
                 visit(stat);

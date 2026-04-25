@@ -120,6 +120,14 @@ struct ClassDefinition : public Definition
     }
 };
 
+struct TemplateDefinition
+{
+    std::vector<FieldDefinition> members;
+
+    // function or class
+    Statement_ptr target;
+};
+
 struct VariableDefinition : public Definition
 {
     Expression_ptr expression;
@@ -352,8 +360,9 @@ using StatementVariant = std::variant<
     OurPureMethodDefinition,
 
     FieldDefinition,
-
     ClassDefinition,
+
+    TemplateDefinition,
 
     AnnotationDefinition,
 

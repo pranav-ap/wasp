@@ -59,6 +59,8 @@ class SemanticAnalyzer
     void visit(EnumDefinition& statement);
     void visit(AnnotationDefinition& statement);
 
+    void visit(TemplateDefinition& statement);
+
     void visit(IfBranch& statement);
     void visit(ElseBranch& statement);
     void visit(SimpleLoop& statement);

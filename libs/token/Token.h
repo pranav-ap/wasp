@@ -98,6 +98,7 @@
     X(YIELD_KEYWORD, "yield", true)                                                                \
     X(CLASS, "class", true)                                                                        \
     X(TRAIT, "trait", true)                                                                        \
+    X(TEMPLATE, "template", true)                                                                  \
     X(PURE, "pure", true)                                                                          \
     X(RECORD, "record", true)                                                                      \
     X(MY, "my", true)                                                                              \

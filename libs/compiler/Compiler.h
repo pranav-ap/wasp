@@ -121,6 +121,8 @@ private:
     void visit(FunctionDefinition& statement);
     void visit(PureFunctionDefinition& statement);
 
+    void visit(TemplateDefinition& statement);
+
     void visit(Return& statement);
 
     void compile_function_closure(
