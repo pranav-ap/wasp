@@ -241,7 +241,7 @@ std::tuple<std::string, std::vector<std::string>, StatementVector> Parser::
         }
         else if (token_pipe.consume_optional(TokenType::OUR))
         {
-            bool is_pure = token_pipe.consume_optional(TokenType::PURE).has_value();
+            bool is_pure = token_pipe.consume_optional_in_line(TokenType::PURE).has_value();
             token_pipe.require_in_line(TokenType::FUN);
             members.push_back(parse_function_definition(body_indent, true, true, is_pure));
         }

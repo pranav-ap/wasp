@@ -2,6 +2,13 @@ fun print_header(title: str, border: str)
     print(border + border + border + ' ' + title + ' ' + border + border + border)
 
 
+pure fun greet(name: str)
+    print('Hi ' + name)
+
+greet('sam')
+
+
+
 class Book
     id: int
     text: str
@@ -11,12 +18,3 @@ class Book
 
     fun trim() => str
         return my.text
-
-
-
-pure fun greet(name: str)
-    print('Hi ' + name)
-
-greet('sam')
-
-
