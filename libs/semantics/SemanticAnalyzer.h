@@ -135,7 +135,7 @@ class SemanticAnalyzer
         const ObjectVector& arg_types
     );
 
-    Object_ptr evaluate_instance_method_call(
+    Object_ptr evaluate_method_call(
         Call& call_expr,
         MemberAccess& mac,
         const ObjectVector& arg_types,
