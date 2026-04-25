@@ -6,7 +6,6 @@
 #include "SymbolScope.h"
 #include "Workspace.h"
 
-#include <algorithm>
 #include <cctype>
 #include <ctime>
 #include <memory>
@@ -133,7 +132,7 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                 if (left_type->is<ClassType_ptr>())
                 {
                     auto class_type = left_type->as<ClassType_ptr>();
-                    return evaluate_instance_method_call(call, access, argument_types, class_type);
+                    return evaluate_method_call(call, access, argument_types, class_type);
                 }
                 else if (left_type->is<ModuleType_ptr>())
                 {
@@ -289,7 +288,7 @@ Object_ptr SemanticAnalyzer::evaluate_function_call(
     return get_function_return_type(function);
 }
 
-Object_ptr SemanticAnalyzer::evaluate_instance_method_call(
+Object_ptr SemanticAnalyzer::evaluate_method_call(
     Call& call,
     MemberAccess& member_access,
     const ObjectVector& argument_types,

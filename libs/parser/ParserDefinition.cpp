@@ -122,12 +122,13 @@ Statement_ptr Parser::parse_annotation_definition()
     return make_statement(AnnotationDefinition(name, {}));
 }
 
-// Function
-Statement_ptr Parser::parse_function_definition(int indent_level, bool in_class_block, bool is_pure)
+Statement_ptr Parser::parse_function_definition(
+    int indent_level,
+    bool in_class_block,
+    bool is_our,
+    bool is_pure
+)
 {
-    // Consume 'fun' keyword
-    token_pipe.advance_pointer();
-
     auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
     auto name = name_token.value;
 
@@ -169,25 +170,29 @@ Statement_ptr Parser::parse_function_definition(int indent_level, bool in_class_
 
     if (in_class_block)
     {
-        if (is_pure)
+        if (!is_our && is_pure)
         {
             return make_statement(PureMethodDefinition(name, parameters, return_type, body));
+        }
+        if (is_our && !is_pure)
+        {
+            return make_statement(OurMethodDefinition(name, parameters, return_type, body));
+        }
+        if (is_our && is_pure)
+        {
+            return make_statement(OurPureMethodDefinition(name, parameters, return_type, body));
         }
 
         return make_statement(MethodDefinition(name, parameters, return_type, body));
     }
-    else
+
+    if (is_pure)
     {
-        if (is_pure)
-        {
-            return make_statement(PureFunctionDefinition(name, parameters, return_type, body));
-        }
-
-        return make_statement(FunctionDefinition(name, parameters, return_type, body));
+        return make_statement(PureFunctionDefinition(name, parameters, return_type, body));
     }
-}
 
-// Class
+    return make_statement(FunctionDefinition(name, parameters, return_type, body));
+}
 
 std::tuple<std::string, std::vector<std::string>, StatementVector> Parser::
     parse_membered_definition_base(int indent_level)
@@ -227,11 +232,18 @@ std::tuple<std::string, std::vector<std::string>, StatementVector> Parser::
 
         if (token_pipe.consume_optional(TokenType::FUN))
         {
-            members.push_back(parse_function_definition(body_indent, true, false));
+            members.push_back(parse_function_definition(body_indent, true, false, false));
         }
         else if (token_pipe.consume_optional(TokenType::PURE))
         {
-            members.push_back(parse_function_definition(body_indent, true, true));
+            token_pipe.require_in_line(TokenType::FUN);
+            members.push_back(parse_function_definition(body_indent, true, false, true));
+        }
+        else if (token_pipe.consume_optional(TokenType::OUR))
+        {
+            bool is_pure = token_pipe.consume_optional_in_line(TokenType::PURE).has_value();
+            token_pipe.require_in_line(TokenType::FUN);
+            members.push_back(parse_function_definition(body_indent, true, true, is_pure));
         }
         else
         {

@@ -85,6 +85,16 @@ struct PureMethodDefinition : public AbstractFunctionDefinition
     using AbstractFunctionDefinition::AbstractFunctionDefinition;
 };
 
+struct OurMethodDefinition : public AbstractFunctionDefinition
+{
+    using AbstractFunctionDefinition::AbstractFunctionDefinition;
+};
+
+struct OurPureMethodDefinition : public AbstractFunctionDefinition
+{
+    using AbstractFunctionDefinition::AbstractFunctionDefinition;
+};
+
 struct FieldDefinition : public Definition
 {
     TypeAnnotation_ptr type;
@@ -338,6 +348,8 @@ using StatementVariant = std::variant<
     PureFunctionDefinition,
     MethodDefinition,
     PureMethodDefinition,
+    OurMethodDefinition,
+    OurPureMethodDefinition,
 
     FieldDefinition,
 

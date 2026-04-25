@@ -10,10 +10,10 @@ class Book
     id: int
     text: str
 
-    pure new(id: int) => Book
+    our pure fun new(id: int) => Book
         return Book(id, 'jane doe')
 
-    pure new(id: int, text: str) => Book
+    our pure fun new(id: int, text: str) => Book
         return Book(id, text)
 
     fun trim() => str
@@ -21,5 +21,4 @@ class Book
 
     fun trim(a: int) => str
         return my.text
-
 

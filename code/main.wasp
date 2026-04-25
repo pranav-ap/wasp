@@ -1,4 +1,3 @@
-
 import my.utils as u
 
 u.print_header('Library')
@@ -29,9 +28,8 @@ for let a in ranks do
     print(a)
 
 
-pure greet(name: str)
+pure fun greet(name: str)
     print('Hi ' + name)
 
 greet('sam')
-
 
