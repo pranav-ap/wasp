@@ -47,9 +47,9 @@ void SemanticAnalyzer::visit(Return& statement)
 // CLASS
 // ============================================================================
 
-void SemanticAnalyzer::visit(ClassDefinition& def)
+void SemanticAnalyzer::analyze_class_target(ClassDefinition& def, TemplateType_ptr template_type)
 {
-    auto class_type = initialize_class_type(def);
+    auto class_type = initialize_class_type(def, template_type);
 
     auto class_type_obj = make_object(class_type);
     def.symbol->set_type(class_type_obj);
@@ -111,7 +111,15 @@ void SemanticAnalyzer::visit(ClassDefinition& def)
     }
 }
 
-std::shared_ptr<ClassType> SemanticAnalyzer::initialize_class_type(ClassDefinition& def)
+void SemanticAnalyzer::visit(ClassDefinition& def)
+{
+    analyze_class_target(def, nullptr);
+}
+
+std::shared_ptr<ClassType> SemanticAnalyzer::initialize_class_type(
+    ClassDefinition& def,
+    TemplateType_ptr template_type
+)
 {
     ObjectStringMap members;
     StringVector fields;
@@ -191,7 +199,8 @@ std::shared_ptr<ClassType> SemanticAnalyzer::initialize_class_type(ClassDefiniti
         std::move(fields),
         std::move(methods),
         std::move(pures),
-        std::move(statics)
+        std::move(statics),
+        template_type
     );
 }
 
@@ -200,7 +209,9 @@ void SemanticAnalyzer::hoist_method(std::shared_ptr<ClassType>& class_type, T& m
 {
     auto [return_type, parameter_types] = get_function_signature(m);
 
-    Object_ptr signature = make_object(std::make_shared<MethodType>(parameter_types, return_type));
+    Object_ptr signature = make_object(
+        std::make_shared<MethodType>(parameter_types, return_type, nullptr)
+    );
 
     Symbol_ptr symbol = SymbolFactory::create_method(
         m.name,
@@ -301,6 +312,31 @@ template <typename T> void SemanticAnalyzer::analyze_pure_method(T& m)
 // ============================================================================
 
 template <typename T>
+void SemanticAnalyzer::analyze_function_target(
+    T& def,
+    ScopeType scope_type,
+    bool is_mutable,
+    TemplateType_ptr template_type
+)
+{
+    if (template_type != nullptr && def.symbol)
+    {
+        Object_ptr type_obj = def.symbol->get_type();
+
+        if (auto p = type_obj->try_as<std::shared_ptr<FunctionType>>())
+        {
+            (*p)->template_type = template_type;
+        }
+        else if (auto p = type_obj->try_as<std::shared_ptr<MethodType>>())
+        {
+            (*p)->template_type = template_type;
+        }
+    }
+
+    analyze_function_base(def, scope_type, is_mutable);
+}
+
+template <typename T>
 void SemanticAnalyzer::analyze_function_base(T& def, ScopeType scope_type, bool is_mutable)
 {
     enter_scope(scope_type);
@@ -337,12 +373,12 @@ void SemanticAnalyzer::analyze_function_base(T& def, ScopeType scope_type, bool 
 
 void SemanticAnalyzer::visit(FunctionDefinition& def)
 {
-    analyze_function_base(def, ScopeType::FUNCTION, true);
+    analyze_function_target(def, ScopeType::FUNCTION, true, nullptr);
 }
 
 void SemanticAnalyzer::visit(PureFunctionDefinition& def)
 {
-    analyze_function_base(def, ScopeType::PURE_FUNCTION, false);
+    analyze_function_target(def, ScopeType::PURE_FUNCTION, false, nullptr);
 }
 
 // --------------------------------------------------------------------
@@ -351,6 +387,10 @@ void SemanticAnalyzer::visit(PureFunctionDefinition& def)
 
 void SemanticAnalyzer::visit(TemplateDefinition& statement)
 {
+    enter_scope(ScopeType::TEMPLATE);
+
+    ObjectStringMap generics;
+
     for (auto& field : statement.members)
     {
         auto constraint_type = visit(field.type);
@@ -361,26 +401,25 @@ void SemanticAnalyzer::visit(TemplateDefinition& statement)
 
         auto symbol = SymbolFactory::create_generic(field.name, generic_type_obj);
         field.symbol = current_scope->define(symbol);
+
+        generics[field.name] = generic_type_obj;
     }
 
-    std::string target_name;
+    auto template_type = std::make_shared<TemplateType>(generics);
 
     std::visit(
         overloaded{
             [&](FunctionDefinition& f)
             {
-                visit(f);
-                target_name = f.name;
+                analyze_function_target(f, ScopeType::FUNCTION, true, template_type);
             },
             [&](PureFunctionDefinition& f)
             {
-                visit(f);
-                target_name = f.name;
+                analyze_function_target(f, ScopeType::PURE_FUNCTION, false, template_type);
             },
             [&](ClassDefinition& c)
             {
-                visit(c);
-                target_name = c.name;
+                analyze_class_target(c, template_type);
             },
             [&](auto&)
             {
@@ -391,14 +430,7 @@ void SemanticAnalyzer::visit(TemplateDefinition& statement)
         statement.target->data
     );
 
-    current_scope->define(
-        SymbolFactory::create_template(
-            target_name + " template",
-            nullptr,
-            current_scope->get_closure_depth(),
-            current_scope->get_lexical_depth()
-        )
-    );
+    leave_scope();
 }
 
 // -------------------------------------------------------------------

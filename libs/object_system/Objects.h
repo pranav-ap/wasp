@@ -454,6 +454,27 @@ struct VariantType : public CompositeType
 };
 
 // ============================================================================
+// Template Types
+// ============================================================================
+
+struct GenericType
+{
+    std::string name;
+    Object_ptr constraint_type;
+};
+
+using GenericType_ptr = std::shared_ptr<GenericType>;
+
+struct TemplateType
+{
+    ObjectStringMap generics;
+
+    TemplateType(ObjectStringMap generics) : generics(std::move(generics)) {};
+};
+
+using TemplateType_ptr = std::shared_ptr<TemplateType>;
+
+// ============================================================================
 // Function Types
 // ============================================================================
 
@@ -468,12 +489,32 @@ struct Signature : public AnyType
 
 struct FunctionType : public Signature
 {
-    using Signature::Signature;
+    TemplateType_ptr template_type;
+
+    FunctionType(
+        ObjectVector parameter_types,
+        Object_ptr return_type,
+        TemplateType_ptr template_type = nullptr
+    )
+        : Signature(std::move(parameter_types), std::move(return_type)),
+          template_type(std::move(template_type))
+    {
+    }
 };
 
 struct MethodType : public Signature
 {
-    using Signature::Signature;
+    TemplateType_ptr template_type;
+
+    MethodType(
+        ObjectVector parameter_types,
+        Object_ptr return_type,
+        TemplateType_ptr template_type = nullptr
+    )
+        : Signature(std::move(parameter_types), std::move(return_type)),
+          template_type(std::move(template_type))
+    {
+    }
 };
 
 // ============================================================================
@@ -523,16 +564,20 @@ struct ClassType : public CompositeType
 
     ObjectStringMap members;
 
+    TemplateType_ptr template_type;
+
     ClassType(
         std::string name,
         ObjectStringMap members,
         StringVector fields,
         StringVector methods,
         StringVector pures,
-        StringVector statics
+        StringVector statics,
+        TemplateType_ptr template_type = nullptr
     )
         : name(std::move(name)), fields(std::move(fields)), methods(std::move(methods)),
-          pures(std::move(pures)), statics(std::move(statics)), members(std::move(members))
+          pures(std::move(pures)), statics(std::move(statics)), members(std::move(members)),
+          template_type(std::move(template_type))
     {
     }
 
@@ -561,18 +606,6 @@ using ClassType_ptr = std::shared_ptr<ClassType>;
 
 struct RecordType
 {
-};
-
-struct GenericType
-{
-    std::string name;
-    Object_ptr constraint_type;
-};
-
-struct TemplateType
-{
-    ObjectStringMap members;
-    Object_ptr target;
 };
 
 // ============================================================================
@@ -615,6 +648,7 @@ struct Object
         std::shared_ptr<ErrorObject>,
 
         std::shared_ptr<GenericType>,
+        std::shared_ptr<TemplateType>,
 
         AnyType,
         NoneType,
