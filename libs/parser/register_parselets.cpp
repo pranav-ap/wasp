@@ -28,7 +28,8 @@ namespace Wasp
         register_infix_left(TokenType::EQUAL_EQUAL, Precedence::EQUALITY);
         register_infix_left(TokenType::BANG_EQUAL, Precedence::EQUALITY);
 
-        register_infix_left(TokenType::LESSER_THAN, Precedence::COMPARISON);
+        register_parselet(TokenType::LESSER_THAN, make_shared<LesserThanParselet>());
+
         register_infix_left(TokenType::LESSER_THAN_EQUAL, Precedence::COMPARISON);
         register_infix_left(TokenType::GREATER_THAN, Precedence::COMPARISON);
         register_infix_left(TokenType::GREATER_THAN_EQUAL, Precedence::COMPARISON);

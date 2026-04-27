@@ -93,22 +93,27 @@ struct VariableData : public TypedData
 
 struct ClassData : public TypedData
 {
-    SymbolStringMap method_symbols;
-
-    ClassData(Object_ptr type, SymbolStringMap method_symbols)
-        : TypedData(std::move(type)), method_symbols(std::move(method_symbols))
-    {
-    }
+    using TypedData::TypedData;
 };
 
-struct ModuleData
+struct GenericData : public TypedData
 {
-    Module_ptr mod;
+    using TypedData::TypedData;
+};
+
+struct TemplateData : public TypedData
+{
+    using TypedData::TypedData;
 };
 
 struct AliasData
 {
     Symbol_ptr target;
+};
+
+struct ModuleData
+{
+    Module_ptr mod;
 };
 
 using SymbolPayload = std::variant<
@@ -119,6 +124,8 @@ using SymbolPayload = std::variant<
     MethodData,
     ModuleData,
     ClassData,
+    GenericData,
+    TemplateData,
     AliasData>;
 
 struct Symbol : public std::enable_shared_from_this<Symbol>
@@ -138,6 +145,8 @@ struct Symbol : public std::enable_shared_from_this<Symbol>
     bool is_either_function_or_method() const;
     bool is_native() const;
     bool is_native_function_or_method() const;
+    bool is_generic() const;
+    bool is_template() const;
 
     Object_ptr get_type();
     void set_type(Object_ptr new_type);
@@ -212,6 +221,20 @@ public:
     );
 
     static Symbol_ptr create_class(
+        std::string name,
+        Object_ptr type = nullptr,
+        int closure_depth = 0,
+        int lexical_depth = 0
+    );
+
+    static Symbol_ptr create_generic(
+        std::string name,
+        Object_ptr type = nullptr,
+        int closure_depth = 0,
+        int lexical_depth = 0
+    );
+
+    static Symbol_ptr create_template(
         std::string name,
         Object_ptr type = nullptr,
         int closure_depth = 0,

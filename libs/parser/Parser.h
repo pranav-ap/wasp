@@ -60,6 +60,8 @@ private:
     StatementVector parse_name_type_block(int expected_indent);
     std::pair<std::string, TypeAnnotation_ptr> parse_name_type_pair(int member_indent);
 
+    Statement_ptr parse_template_definition(int indent_level = 0);
+
     // Control Flow & Branching
     Statement_ptr parse_branching(TokenType token_type, int if_indent_level);
     Statement_ptr parse_else_block(int if_indent_level);

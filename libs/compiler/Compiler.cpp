@@ -146,6 +146,10 @@ void Compiler::visit(const Statement_ptr statement)
             {
                 visit(stat);
             },
+            [&](TemplateDefinition& stat)
+            {
+                visit(stat);
+            },
             [&](IfBranch& stat)
             {
                 visit(stat);

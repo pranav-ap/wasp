@@ -67,12 +67,42 @@ struct AbstractFunctionDefinition : public Definition
 
 struct FunctionDefinition : public AbstractFunctionDefinition
 {
-    using AbstractFunctionDefinition::AbstractFunctionDefinition;
+
+    FunctionDefinition() = default;
+
+    FunctionDefinition(
+        std::string name,
+        std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters,
+        TypeAnnotation_ptr return_type,
+        StatementVector body
+    )
+        : AbstractFunctionDefinition(
+              std::move(name),
+              std::move(parameters),
+              std::move(return_type),
+              std::move(body)
+          )
+    {
+    }
 };
 
 struct PureFunctionDefinition : public AbstractFunctionDefinition
 {
-    using AbstractFunctionDefinition::AbstractFunctionDefinition;
+
+    PureFunctionDefinition() = default;
+
+    PureFunctionDefinition(
+        std::string name,
+        std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters,
+        TypeAnnotation_ptr return_type,
+        StatementVector body
+    )
+        : AbstractFunctionDefinition(
+              std::move(name),
+              std::move(parameters),
+              std::move(return_type),
+              std::move(body)
+          ) {};
 };
 
 struct MethodDefinition : public AbstractFunctionDefinition
@@ -118,6 +148,14 @@ struct ClassDefinition : public Definition
         : Definition(std::move(name)), traits(std::move(traits)), members(std::move(members))
     {
     }
+};
+
+struct TemplateDefinition
+{
+    std::vector<FieldDefinition> members;
+
+    // function or class or trait
+    Statement_ptr target;
 };
 
 struct VariableDefinition : public Definition
@@ -352,8 +390,9 @@ using StatementVariant = std::variant<
     OurPureMethodDefinition,
 
     FieldDefinition,
-
     ClassDefinition,
+
+    TemplateDefinition,
 
     AnnotationDefinition,
 

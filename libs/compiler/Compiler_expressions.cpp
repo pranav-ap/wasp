@@ -140,11 +140,15 @@ void Compiler::visit(Constructor& expr)
     {
         class_symbol = expr.construtable->as<MemberAccess>().right->as<Identifier>().symbol;
     }
+    else if (expr.construtable->is<TemplateInstantiation>())
+    {
+        class_symbol = expr.construtable->as<TemplateInstantiation>().symbol;
+    }
     else
     {
         Doctor::get().fatal(
             WaspStage::Compiler,
-            "Construtable must be an identifier or member access."
+            "Construtable must be an identifier, member access, or template instantiation."
         );
     }
 
@@ -163,6 +167,11 @@ void Compiler::visit(Constructor& expr)
 
     visit(expr.construtable);
     emit(OpCode::INSTANTIATE, static_cast<int>(expr.values.size()));
+}
+
+void Compiler::visit(TemplateInstantiation& expr)
+{
+    visit(expr.target);
 }
 
 } // namespace Wasp

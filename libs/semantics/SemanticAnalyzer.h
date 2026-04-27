@@ -42,15 +42,55 @@ class SemanticAnalyzer
     std::pair<Object_ptr, ObjectVector> get_function_signature(AbstractFunctionDefinition& func);
     std::pair<Object_ptr, ObjectVector> get_function_signature(Object_ptr type_obj);
 
-    template <typename T> void analyze_function_base(T& def, ScopeType scope_type, bool is_mutable);
+    template <typename T> void analyze_function(T& def, ScopeType scope_type, bool is_mutable);
+
+    template <typename T>
+    void analyze_template_function(
+        T& def,
+        ScopeType scope_type,
+        bool is_mutable,
+        ObjectStringMap generics
+    );
+
+    template <typename T>
+    void analyze_method_base(
+        Object_ptr class_type_obj,
+        T& m,
+        ScopeType scope_type,
+        const std::string& receiver_name
+    );
+
     template <typename T> void analyze_instance_method(Object_ptr class_type_obj, T& m);
+    template <typename T> void analyze_our_method(Object_ptr class_type_obj, T& m);
     template <typename T> void analyze_pure_method(T& m);
-    template <typename T> void hoist_method(std::shared_ptr<ClassType>& class_type, T& m);
+    template <typename T> void analyze_our_pure_method(T& m);
+
+    template <typename T> void hoist_method(ClassType_ptr class_type, T& m);
+    template <typename T> void hoist_function(T& def, std::shared_ptr<SymbolScope> target_scope);
+
+    template <typename T>
+    void hoist_template_function(
+        T& def,
+        std::shared_ptr<SymbolScope> target_scope,
+        ObjectStringMap generics
+    );
+
+    void hoist_class(ClassDefinition& def, std::shared_ptr<SymbolScope> target_scope);
+
+    void hoist_template_class(
+        ClassDefinition& def,
+        std::shared_ptr<SymbolScope> target_scope,
+        ObjectStringMap generics
+    );
+
+    void hoist_template(TemplateDefinition& def, std::shared_ptr<SymbolScope> target_scope);
 
     void visit(FunctionDefinition& statement);
     void visit(PureFunctionDefinition& statement);
 
     ClassType_ptr initialize_class_type(ClassDefinition& def);
+    void analyze_class(ClassDefinition& def);
+    void analyze_template_class(ClassDefinition& c, const ObjectStringMap& generics);
 
     void visit(ClassDefinition& statement);
     void visit(FieldDefinition& statement);
@@ -58,6 +98,8 @@ class SemanticAnalyzer
     void visit(AliasDefinition& statement);
     void visit(EnumDefinition& statement);
     void visit(AnnotationDefinition& statement);
+
+    void visit(TemplateDefinition& statement);
 
     void visit(IfBranch& statement);
     void visit(ElseBranch& statement);
@@ -135,11 +177,49 @@ class SemanticAnalyzer
         const ObjectVector& arg_types
     );
 
+    Object_ptr evaluate_class_template_instantiation(
+        Constructor& constructor,
+        TemplateInstantiation& template_instantiation,
+        Identifier& target,
+        const ObjectVector& argument_types,
+        const ObjectVector& generic_args,
+        Symbol_ptr template_symbol
+    );
+
     Object_ptr evaluate_method_call(
         Call& call_expr,
         MemberAccess& mac,
         const ObjectVector& arg_types,
         ClassType_ptr class_type
+    );
+
+    Object_ptr evaluate_template_method_call(
+        Call& call,
+        TemplateInstantiation& template_instantiation,
+        MemberAccess& member_access,
+        const ObjectVector& argument_types,
+        ClassType_ptr class_type
+    );
+
+    Object_ptr evaluate_template_call(
+        Call& call_expr,
+        TemplateInstantiation& template_instantiation,
+        const ObjectVector& argument_types
+    );
+
+    Object_ptr evaluate_template_function_call(
+        Call& call,
+        TemplateInstantiation& template_instantiation,
+        Identifier& target,
+        const ObjectVector& argument_types,
+        Symbol_ptr function_overload_symbol
+    );
+
+    Object_ptr evaluate_template_module_function_call(
+        Call& call,
+        TemplateInstantiation& template_instantiation,
+        MemberAccess& access,
+        const ObjectVector& argument_types
     );
 
     Object_ptr visit(Call& expr);

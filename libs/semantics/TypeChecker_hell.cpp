@@ -194,4 +194,95 @@ std::tuple<Symbol_ptr, int> TypeChecker::get_best_function_signature(
     return {valid_matches.front(), match_indices.front()};
 }
 
+Object_ptr TypeChecker::substitute_generics(
+    Object_ptr type,
+    TemplateType_ptr templ,
+    const ObjectVector& generic_args
+) const
+{
+    if (!type)
+        return nullptr;
+
+    if (type->is<GenericType_ptr>())
+    {
+        size_t i = 0;
+        for (const auto& [name, obj] : templ->generics)
+        {
+            if (type->as<GenericType_ptr>() == obj->as<GenericType_ptr>())
+            {
+                return generic_args[i];
+            }
+            i++;
+        }
+        return type;
+    }
+
+    if (type->is<ListType>())
+    {
+        return make_object(
+            ListType{substitute_generics(type->as<ListType>().element_type, templ, generic_args)}
+        );
+    }
+
+    if (type->is<SetType>())
+    {
+        return make_object(
+            SetType{substitute_generics(type->as<SetType>().element_type, templ, generic_args)}
+        );
+    }
+
+    if (type->is<MapType>())
+    {
+        auto& m = type->as<MapType>();
+        return make_object(
+            MapType{
+                substitute_generics(m.key_type, templ, generic_args),
+                substitute_generics(m.value_type, templ, generic_args)
+            }
+        );
+    }
+
+    if (type->is<TupleType>())
+    {
+        ObjectVector new_types;
+        for (auto& t : type->as<TupleType>().element_types)
+        {
+            new_types.push_back(substitute_generics(t, templ, generic_args));
+        }
+        return make_object(TupleType{new_types});
+    }
+
+    if (type->is<VariantType>())
+    {
+        ObjectVector new_types;
+        for (auto& t : type->as<VariantType>().types)
+        {
+            new_types.push_back(substitute_generics(t, templ, generic_args));
+        }
+        return make_object(VariantType{new_types});
+    }
+
+    return type;
+}
+
+Object_ptr TypeChecker::substitute_generics(
+    FunctionTemplateType_ptr templ,
+    const ObjectVector& generic_args
+) const
+{
+    ObjectVector concrete_param_types;
+    for (const auto& param_type : templ->signature->parameter_types)
+    {
+        concrete_param_types.push_back(substitute_generics(param_type, templ, generic_args));
+    }
+
+    Object_ptr concrete_return_type = substitute_generics(
+        templ->signature->return_type,
+        templ,
+        generic_args
+    );
+
+    return make_object(std::make_shared<FunctionType>(concrete_param_types, concrete_return_type));
+}
+
 } // namespace Wasp

@@ -151,4 +151,14 @@ namespace Wasp
         Expression_ptr parse(Parser& parser, Expression_ptr left, const Token& token) override;
         int get_precedence() const override;
     };
+
+    class LesserThanParselet : public IInfixParselet
+    {
+    public:
+        Expression_ptr parse(Parser& parser, Expression_ptr left, const Token& token) override;
+        int get_precedence() const override;
+
+    private:
+        bool looks_like_generic_args(Parser& parser) const;
+    };
 }

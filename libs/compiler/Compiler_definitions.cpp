@@ -1,6 +1,7 @@
 #include "AST.h"
 #include "CFGraph.h"
 #include "Compiler.h"
+#include "Doctor.h"
 #include "Objects.h"
 #include "OpCode.h"
 #include "Statement.h"
@@ -44,7 +45,18 @@ void Compiler::visit(ClassDefinition& class_definition)
     emit(OpCode::SET_LOCAL, class_blueprint_physical_index, "init class in slot");
 
     int unique_method_count = 0;
-    auto class_type = class_definition.symbol->get_type()->as<std::shared_ptr<ClassType>>();
+
+    std::shared_ptr<ClassType> class_type;
+    auto type_obj = class_definition.symbol->get_type();
+
+    if (auto template_type = type_obj->try_as<ClassTemplateType_ptr>())
+    {
+        class_type = (*template_type)->class_type;
+    }
+    else
+    {
+        class_type = type_obj->as<ClassType_ptr>();
+    }
 
     StringVector all_methods = class_type->methods;
     all_methods.insert(all_methods.end(), class_type->pures.begin(), class_type->pures.end());
@@ -173,6 +185,36 @@ void Compiler::compile_function_closure(
     emit(OpCode::LOAD_CONST, const_id, "fun " + name);
 
     emit_closure_upvalues(func_compiler.upvalues);
+}
+
+// TEMPLATES
+
+void Compiler::visit(TemplateDefinition& statement)
+{
+    Doctor::get()
+        .fatal_if_nullptr(statement.target, WaspStage::Compiler, "Template target cannot be null");
+
+    std::visit(
+        overloaded{
+            [&](FunctionDefinition& f)
+            {
+                visit(f);
+            },
+            [&](PureFunctionDefinition& f)
+            {
+                visit(f);
+            },
+            [&](ClassDefinition& c)
+            {
+                visit(c);
+            },
+            [&](auto&)
+            {
+                Doctor::get().fatal(WaspStage::Compiler, "Invalid template target");
+            }
+        },
+        statement.target->data
+    );
 }
 
 } // namespace Wasp

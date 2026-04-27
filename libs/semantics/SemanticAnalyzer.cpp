@@ -14,8 +14,6 @@
 #include <variant>
 #include <vector>
 
-#define MAKE_OBJECT_VARIANT(x) std::make_shared<Object>(x)
-
 template <class... Ts> struct overloaded : Ts...
 {
     using Ts::operator()...;
@@ -24,6 +22,7 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
+
 // ============================================================================
 // ENTRY POINT
 // ============================================================================
@@ -59,53 +58,57 @@ StringVector SemanticAnalyzer::setup_ordered_export_names(Module_ptr mod)
 {
     StringVector ordered_export_names;
 
+    auto try_add_export = [&](const std::string& name)
+    {
+        if (std::find(ordered_export_names.begin(), ordered_export_names.end(), name) ==
+            ordered_export_names.end())
+        {
+            ordered_export_names.push_back(name);
+        }
+    };
+
     for (auto& stmt_ptr : mod->stmts)
     {
         std::visit(
             overloaded{
                 [&](VariableDefinition& def)
                 {
-                    if (std::find(
-                            ordered_export_names.begin(),
-                            ordered_export_names.end(),
-                            def.name
-                        ) == ordered_export_names.end())
-                    {
-                        ordered_export_names.push_back(def.name);
-                    }
+                    try_add_export(def.name);
                 },
                 [&](FunctionDefinition& def)
                 {
-                    if (std::find(
-                            ordered_export_names.begin(),
-                            ordered_export_names.end(),
-                            def.name
-                        ) == ordered_export_names.end())
-                    {
-                        ordered_export_names.push_back(def.name);
-                    }
+                    try_add_export(def.name);
                 },
                 [&](PureFunctionDefinition& def)
                 {
-                    if (std::find(
-                            ordered_export_names.begin(),
-                            ordered_export_names.end(),
-                            def.name
-                        ) == ordered_export_names.end())
-                    {
-                        ordered_export_names.push_back(def.name);
-                    }
+                    try_add_export(def.name);
                 },
                 [&](ClassDefinition& def)
                 {
-                    if (std::find(
-                            ordered_export_names.begin(),
-                            ordered_export_names.end(),
-                            def.name
-                        ) == ordered_export_names.end())
-                    {
-                        ordered_export_names.push_back(def.name);
-                    }
+                    try_add_export(def.name);
+                },
+                [&](TemplateDefinition& def)
+                {
+                    std::visit(
+                        overloaded{
+                            [&](FunctionDefinition& f)
+                            {
+                                try_add_export(f.name);
+                            },
+                            [&](PureFunctionDefinition& f)
+                            {
+                                try_add_export(f.name);
+                            },
+                            [&](ClassDefinition& c)
+                            {
+                                try_add_export(c.name);
+                            },
+                            [](auto&)
+                            {
+                            }
+                        },
+                        def.target->data
+                    );
                 },
                 [](auto&)
                 {
@@ -185,14 +188,123 @@ void SemanticAnalyzer::register_natives()
 // High Level Visitors
 // ============================================================================
 
-void SemanticAnalyzer::visit(std::vector<Statement_ptr>& statements)
+template <typename T>
+void SemanticAnalyzer::hoist_function(T& def, std::shared_ptr<SymbolScope> target_scope)
 {
-    hoist_statements(statements);
+    auto [return_type, param_types] = get_function_signature(def);
 
-    for (const auto& stmt : statements)
+    auto type = make_object(std::make_shared<FunctionType>(param_types, return_type));
+
+    auto symbol = SymbolFactory::create_function(
+        def.name,
+        type,
+        false,
+        target_scope->get_closure_depth(),
+        target_scope->get_lexical_depth()
+    );
+
+    type_checker->validate_new_function_overload(target_scope, def.name, symbol);
+
+    def.symbol = symbol;
+    def.group_symbol = target_scope->define(symbol);
+}
+
+template <typename T>
+void SemanticAnalyzer::hoist_template_function(
+    T& def,
+    std::shared_ptr<SymbolScope> target_scope,
+    ObjectStringMap generics
+)
+{
+    auto [return_type, param_types] = get_function_signature(def);
+
+    auto function_type = std::make_shared<FunctionType>(param_types, return_type);
+    auto type = make_object(std::make_shared<FunctionTemplateType>(generics, function_type));
+
+    auto symbol = SymbolFactory::create_template(
+        def.name,
+        type,
+        target_scope->get_closure_depth(),
+        target_scope->get_lexical_depth()
+    );
+
+    type_checker->validate_new_function_overload(target_scope, def.name, symbol);
+
+    def.symbol = symbol;
+    def.group_symbol = target_scope->define(symbol);
+}
+
+void SemanticAnalyzer::hoist_class(ClassDefinition& def, std::shared_ptr<SymbolScope> target_scope)
+{
+    auto symbol = SymbolFactory::create_class(
+        def.name,
+        nullptr,
+        target_scope->get_closure_depth(),
+        target_scope->get_lexical_depth()
+    );
+
+    def.symbol = target_scope->define(symbol);
+}
+
+void SemanticAnalyzer::hoist_template_class(
+    ClassDefinition& def,
+    std::shared_ptr<SymbolScope> target_scope,
+    ObjectStringMap generics
+)
+{
+    auto type = make_object(std::make_shared<ClassTemplateType>(generics));
+
+    auto symbol = SymbolFactory::create_template(
+        def.name,
+        type,
+        target_scope->get_closure_depth(),
+        target_scope->get_lexical_depth()
+    );
+
+    def.symbol = target_scope->define(symbol);
+}
+
+void SemanticAnalyzer::hoist_template(
+    TemplateDefinition& def,
+    std::shared_ptr<SymbolScope> target_scope
+)
+{
+    enter_scope(ScopeType::TEMPLATE);
+
+    ObjectStringMap generics;
+
+    for (auto& field : def.members)
     {
-        visit(stmt);
+        auto constraint_type = field.type ? visit(field.type) : workspace->pool->get_any_type();
+        auto generic_type_obj = make_object(std::make_shared<GenericType>(constraint_type));
+
+        auto symbol = SymbolFactory::create_generic(field.name, generic_type_obj);
+        current_scope->define(symbol);
+        generics[field.name] = generic_type_obj;
     }
+
+    std::visit(
+        overloaded{
+            [&](FunctionDefinition& f)
+            {
+                hoist_template_function(f, target_scope, generics);
+            },
+            [&](PureFunctionDefinition& f)
+            {
+                hoist_template_function(f, target_scope, generics);
+            },
+            [&](ClassDefinition& c)
+            {
+                hoist_template_class(c, target_scope, generics);
+            },
+            [](auto&)
+            {
+            }
+        },
+        def.target->data
+    );
+
+    leave_scope();
 }
 
 void SemanticAnalyzer::hoist_statements(StatementVector& statements)
@@ -203,56 +315,19 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
             overloaded{
                 [&](FunctionDefinition& def)
                 {
-                    auto [return_type, param_types] = get_function_signature(def);
-
-                    auto signature = make_object(
-                        std::make_shared<FunctionType>(param_types, return_type)
-                    );
-
-                    auto symbol = SymbolFactory::create_function(
-                        def.name,
-                        signature,
-                        false,
-                        current_scope->get_closure_depth(),
-                        current_scope->get_lexical_depth()
-                    );
-
-                    type_checker->validate_new_function_overload(current_scope, def.name, symbol);
-
-                    def.symbol = symbol;
-                    def.group_symbol = current_scope->define(symbol);
+                    hoist_function(def, current_scope);
                 },
                 [&](PureFunctionDefinition& def)
                 {
-                    auto [return_type, param_types] = get_function_signature(def);
-
-                    auto signature = make_object(
-                        std::make_shared<FunctionType>(param_types, return_type)
-                    );
-
-                    auto symbol = SymbolFactory::create_function(
-                        def.name,
-                        signature,
-                        false,
-                        current_scope->get_closure_depth(),
-                        current_scope->get_lexical_depth()
-                    );
-
-                    type_checker->validate_new_function_overload(current_scope, def.name, symbol);
-
-                    def.symbol = symbol;
-                    def.group_symbol = current_scope->define(symbol);
+                    hoist_function(def, current_scope);
                 },
                 [&](ClassDefinition& def)
                 {
-                    auto symbol = SymbolFactory::create_class(
-                        def.name,
-                        nullptr,
-                        current_scope->get_closure_depth(),
-                        current_scope->get_lexical_depth()
-                    );
-
-                    def.symbol = current_scope->define(symbol);
+                    hoist_class(def, current_scope);
+                },
+                [&](TemplateDefinition& def)
+                {
+                    hoist_template(def, current_scope);
                 },
                 [](auto&)
                 {
@@ -260,6 +335,16 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
             },
             stmt_ptr->data
         );
+    }
+}
+
+void SemanticAnalyzer::visit(std::vector<Statement_ptr>& statements)
+{
+    hoist_statements(statements);
+
+    for (const auto& stmt : statements)
+    {
+        visit(stmt);
     }
 }
 
@@ -294,6 +379,10 @@ void SemanticAnalyzer::visit(const Statement_ptr statement)
                 visit(stat);
             },
             [&](ClassDefinition& stat)
+            {
+                visit(stat);
+            },
+            [&](TemplateDefinition& stat)
             {
                 visit(stat);
             },
@@ -339,7 +428,7 @@ void SemanticAnalyzer::visit(const Statement_ptr statement)
             },
             [](auto)
             {
-                Doctor::get().Doctor::get().fatal(
+                Doctor::get().fatal(
                     WaspStage::Semantics,
                     "Unhandled Statement in Semantic Analyzer!"
                 );

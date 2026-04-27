@@ -19,7 +19,8 @@ enum class ScopeType
     FUNCTION,
     PURE_FUNCTION,
     METHOD,
-    PURE_METHOD
+    PURE_METHOD,
+    TEMPLATE
 };
 
 class SymbolScope;

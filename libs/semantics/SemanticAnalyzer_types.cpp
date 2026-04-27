@@ -227,7 +227,6 @@ Object_ptr SemanticAnalyzer::visit(RecordTypeNode& node)
             overloaded{
                 [&](FieldDefinition& field)
                 {
-                    // record does not support 'our'
                     record_members[field.name] = visit(field.type);
                 },
                 [](auto&)

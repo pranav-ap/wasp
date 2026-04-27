@@ -53,6 +53,7 @@ using ByteVector = std::vector<std::byte>;
     X(PUSH_EMPTY_CLASS_BLUEPRINT, 0)                                                               \
     X(INSTANTIATE, 1) /* [class blueprint, args...] -> [instance] | <number of args> */            \
                                                                                                    \
+    X(BUILD_TEMPLATE, 1)                                                                           \
     /* --- Arithmetic --- */                                                                       \
     X(NEGATE, 0) /* [a] -> [-a] */                                                                 \
     X(ADD, 0)    /* [a, b] -> [a+b] */                                                             \

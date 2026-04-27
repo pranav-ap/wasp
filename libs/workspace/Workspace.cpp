@@ -5,7 +5,6 @@
 #include "NativeRegistry.h"
 #include "Objects.h"
 
-#include <algorithm>
 #include <cstddef>
 #include <filesystem>
 #include <iterator>
@@ -124,6 +123,16 @@ bool Symbol::is_native_function_or_method() const
     return false;
 }
 
+bool Symbol::is_generic() const
+{
+    return payload_is<GenericData>();
+}
+
+bool Symbol::is_template() const
+{
+    return payload_is<TemplateData>();
+}
+
 bool Symbol::should_be_captured(int usage_depth) const
 {
     return closure_depth < usage_depth;
@@ -152,6 +161,14 @@ Object_ptr Symbol::get_type()
             [](const ModuleData& d) -> Object_ptr
             {
                 return d.mod->type;
+            },
+            [](const TemplateData& d) -> Object_ptr
+            {
+                return d.type;
+            },
+            [](const GenericData& d) -> Object_ptr
+            {
+                return d.type;
             },
             [](const AliasData& d)
             {
@@ -189,6 +206,7 @@ Object_ptr Symbol::get_type()
                 d.type = make_object(
                     std::make_shared<ObjectOverloadList>(this->name, std::move(overload_types))
                 );
+
                 return d.type;
             }
         },
@@ -216,16 +234,29 @@ void Symbol::set_type(Object_ptr new_type)
             {
                 d.type = new_type;
             },
+            [&](TemplateData& d)
+            {
+                d.type = new_type;
+            },
+            [&](GenericData& d)
+            {
+                d.type = new_type;
+            },
+            [&](FunctionOverloadsData& d)
+            {
+                d.type = new_type;
+            },
+            [&](MethodOverloadsData& d)
+            {
+                d.type = new_type;
+            },
+            [&](ModuleData& d)
+            {
+                d.mod->type = new_type;
+            },
             [&](AliasData& d)
             {
                 d.target->set_type(new_type);
-            },
-            [](auto&) -> void
-            {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "You are not allowed to set type for this object"
-                );
             }
         },
         payload
@@ -354,7 +385,43 @@ Symbol_ptr SymbolFactory::create_class(
         std::move(name),
         closure_depth,
         lexical_depth,
-        ClassData{std::move(type), {}}
+        ClassData{std::move(type)}
+    );
+}
+
+Symbol_ptr SymbolFactory::create_generic(
+    std::string name,
+    Object_ptr type,
+    int closure_depth,
+    int lexical_depth
+)
+{
+    return std::make_shared<Symbol>(
+        symbol_id_counter++,
+        std::move(name),
+        closure_depth,
+        lexical_depth,
+        GenericData{
+            std::move(type),
+        }
+    );
+}
+
+Symbol_ptr SymbolFactory::create_template(
+    std::string name,
+    Object_ptr type,
+    int closure_depth,
+    int lexical_depth
+)
+{
+    return std::make_shared<Symbol>(
+        symbol_id_counter++,
+        std::move(name),
+        closure_depth,
+        lexical_depth,
+        TemplateData{
+            std::move(type),
+        }
     );
 }
 
