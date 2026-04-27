@@ -58,20 +58,15 @@ void TypeChecker::validate_new_function_overload(
     const Symbol_ptr new_function_symbol
 )
 {
-    auto overload_group_symbol = scope->lookup(function_name);
+    auto existing_symbol = scope->lookup(function_name);
 
-    if (!overload_group_symbol)
+    if (!existing_symbol)
     {
         return;
     }
 
-    Doctor::get().assert(
-        overload_group_symbol->payload_is<FunctionOverloadsData>(),
-        WaspStage::Semantics,
-        "Symbol is not an overload group"
-    );
-
-    auto new_function_signature = get_function_signature(new_function_symbol->get_type());
+    auto new_type = new_function_symbol->get_type();
+    auto new_function_signature = get_function_signature(new_type);
 
     Doctor::get().fatal_if_nullptr(
         new_function_signature,
@@ -80,45 +75,111 @@ void TypeChecker::validate_new_function_overload(
     );
 
     const auto& parameter_types = new_function_signature->parameter_types;
-    auto& group_data = overload_group_symbol->get_payload_as<FunctionOverloadsData>();
 
-    // Sibling Duplicate Check
-    for (const auto& sibling : group_data.siblings)
+    bool new_is_template = false;
+    size_t new_generic_count = 0;
+
+    if (auto t = new_type->try_as<std::shared_ptr<FunctionTemplateType>>())
+    {
+        new_is_template = true;
+        new_generic_count = (*t)->generics.size();
+    }
+
+    // Helper to check against a single existing symbol
+    auto check_duplicate = [&](const Symbol_ptr& sibling)
     {
         if (sibling == new_function_symbol)
-        {
-            continue;
-        }
+            return;
 
         auto type_obj = sibling->get_type();
-
-        // If the sibling hasn't been type-checked yet (only hoisted so far), skip it.
         if (!type_obj)
-        {
-            continue;
-        }
+            return;
 
         auto existing_signature = get_function_signature(type_obj);
 
         Doctor::get().assert(
             existing_signature != nullptr,
             WaspStage::Semantics,
-            "Overload group contains a non-function symbol"
+            "Existing symbol does not contain a valid function signature"
         );
 
+        bool existing_is_template = false;
+        size_t existing_generic_count = 0;
+
+        if (auto t = type_obj->try_as<std::shared_ptr<FunctionTemplateType>>())
+        {
+            existing_is_template = true;
+            existing_generic_count = (*t)->generics.size();
+        }
+
+        bool signatures_match = equal(scope, existing_signature->parameter_types, parameter_types);
+        bool templates_match = (new_is_template == existing_is_template) &&
+                               (new_generic_count == existing_generic_count);
+
         Doctor::get().assert(
-            !equal(scope, existing_signature->parameter_types, parameter_types),
+            !(signatures_match && templates_match),
             WaspStage::Semantics,
             "Duplicate function signatures for '" + function_name + "' defined in same scope"
         );
-    }
+    };
 
-    // Shadow Parents
-    auto parent_match = find_matching_signature(scope, group_data.parents, parameter_types);
-
-    if (parent_match != group_data.parents.end())
+    if (existing_symbol->payload_is<FunctionOverloadsData>())
     {
-        group_data.parents.erase(parent_match);
+        auto& group_data = existing_symbol->get_payload_as<FunctionOverloadsData>();
+
+        // Sibling Duplicate Check
+        for (const auto& sibling : group_data.siblings)
+        {
+            check_duplicate(sibling);
+        }
+
+        // Shadow Parents
+        auto parent_match = std::find_if(
+            group_data.parents.begin(),
+            group_data.parents.end(),
+            [&](const Symbol_ptr& parent)
+            {
+                auto parent_type = parent->get_type();
+                if (!parent_type)
+                    return false;
+
+                auto parent_signature = get_function_signature(parent_type);
+                if (!parent_signature)
+                    return false;
+
+                bool parent_is_template = false;
+                size_t parent_generic_count = 0;
+
+                if (auto t = parent_type->try_as<std::shared_ptr<FunctionTemplateType>>())
+                {
+                    parent_is_template = true;
+                    parent_generic_count = (*t)->generics.size();
+                }
+
+                return (parent_is_template == new_is_template) &&
+                       (parent_generic_count == new_generic_count) &&
+                       equal(scope, parent_signature->parameter_types, parameter_types);
+            }
+        );
+
+        if (parent_match != group_data.parents.end())
+        {
+            group_data.parents.erase(parent_match);
+        }
+    }
+    else if (
+        existing_symbol->payload_is<TemplateData>() || existing_symbol->payload_is<FunctionData>()
+    )
+    {
+        // If it's a raw symbol that hasn't been grouped yet, just check against it directly
+        check_duplicate(existing_symbol);
+    }
+    else
+    {
+        Doctor::get().fatal(
+            WaspStage::Semantics,
+            "Symbol '" + function_name + "' is not a function or template and cannot be overloaded."
+        );
     }
 }
 

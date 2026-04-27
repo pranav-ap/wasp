@@ -34,6 +34,11 @@ std::shared_ptr<Signature> TypeChecker::get_function_signature(Object_ptr type_o
         return *p;
     }
 
+    if (auto p = type_obj->try_as<std::shared_ptr<FunctionTemplateType>>())
+    {
+        return (*p)->signature;
+    }
+
     return nullptr;
 }
 

@@ -316,7 +316,7 @@ Object_ptr SemanticAnalyzer::evaluate_template_function_call(
     TemplateInstantiation& template_instantiation,
     Identifier& target,
     const ObjectVector& argument_types,
-    Symbol_ptr overload_symbol
+    Symbol_ptr overload_group_symbol
 )
 {
     ObjectVector generic_args;
@@ -326,78 +326,119 @@ Object_ptr SemanticAnalyzer::evaluate_template_function_call(
         generic_args.push_back(visit(arg));
     }
 
-    auto function_template_type = overload_symbol->get_type()->as<FunctionTemplateType_ptr>();
-
     Doctor::get().assert(
-        function_template_type->generics.size() == generic_args.size(),
+        overload_group_symbol->payload_is<FunctionOverloadsData>(),
         WaspStage::Semantics,
-        "Generic arguments count mismatch. Expected " +
-            std::to_string(function_template_type->generics.size()) + ", got " +
-            std::to_string(generic_args.size())
+        "Expected an overload group for template function call."
     );
 
-    size_t arg_idx = 0;
+    const auto& group_data = overload_group_symbol->get_payload_as<FunctionOverloadsData>();
+    const auto& overloads = group_data.get_overloads();
 
-    for (const auto& [name, generic_obj] : function_template_type->generics)
+    ObjectVector valid_matches;
+    std::vector<int> match_indices;
+    Object_ptr final_return_type = nullptr;
+    Symbol_ptr matched_template_symbol = nullptr;
+    ObjectVector final_concrete_param_types;
+
+    for (size_t i = 0; i < overloads.size(); ++i)
     {
-        auto generic_type = generic_obj->as<GenericType_ptr>();
+        auto overload = overloads[i];
+        auto type_obj = overload->get_type();
 
-        Doctor::get().assert(
-            type_checker
-                ->assignable(current_scope, generic_type->constraint_type, generic_args[arg_idx]),
-            WaspStage::Semantics,
-            "Type bound violated for generic parameter " + name
-        );
+        auto t = type_obj->try_as<FunctionTemplateType_ptr>();
+        if (!t)
+            continue;
 
-        arg_idx++;
+        auto function_template_type = *t;
+
+        if (function_template_type->generics.size() != generic_args.size())
+            continue;
+
+        bool bounds_met = true;
+        size_t arg_idx = 0;
+
+        for (const auto& [name, generic_obj] : function_template_type->generics)
+        {
+            auto generic_type = generic_obj->as<GenericType_ptr>();
+            if (!type_checker->assignable(
+                    current_scope,
+                    generic_type->constraint_type,
+                    generic_args[arg_idx]
+                ))
+            {
+                bounds_met = false;
+                break;
+            }
+            arg_idx++;
+        }
+
+        if (!bounds_met)
+            continue;
+
+        ObjectVector concrete_param_types;
+        for (const auto& param_type : function_template_type->signature->parameter_types)
+        {
+            concrete_param_types.push_back(
+                type_checker->substitute_generics(param_type, function_template_type, generic_args)
+            );
+        }
+
+        if (type_checker->assignable(current_scope, concrete_param_types, argument_types))
+        {
+            valid_matches.push_back(type_obj);
+            match_indices.push_back(static_cast<int>(i));
+            matched_template_symbol = overload;
+            final_concrete_param_types = concrete_param_types;
+
+            final_return_type = type_checker->substitute_generics(
+                function_template_type->signature->return_type,
+                function_template_type,
+                generic_args
+            );
+        }
     }
 
-    ObjectVector concrete_param_types;
-    for (const auto& param_type : function_template_type->signature->parameter_types)
-    {
-        concrete_param_types.push_back(
-            type_checker->substitute_generics(param_type, function_template_type, generic_args)
-        );
-    }
-
-    Object_ptr concrete_return_type = type_checker->substitute_generics(
-        function_template_type->signature->return_type,
-        function_template_type,
-        generic_args
+    Doctor::get().assert(
+        !valid_matches.empty(),
+        WaspStage::Semantics,
+        "No matching template function signature found for '" + overload_group_symbol->name + "'"
     );
 
     Doctor::get().assert(
-        type_checker->assignable(current_scope, concrete_param_types, argument_types),
+        valid_matches.size() == 1,
         WaspStage::Semantics,
-        "Arguments do not match the instantiated generic function parameters."
+        "Ambiguous template function call for '" + overload_group_symbol->name + "'"
     );
 
     auto concrete_function_type = make_object(
-        std::make_shared<FunctionType>(concrete_param_types, concrete_return_type)
+        std::make_shared<FunctionType>(final_concrete_param_types, final_return_type)
     );
 
     auto concrete_symbol = SymbolFactory::create_function(
-        overload_symbol->name,
+        overload_group_symbol->name,
         concrete_function_type,
-        false,
-        overload_symbol->closure_depth,
-        overload_symbol->lexical_depth
+        matched_template_symbol->is_native(),
+        overload_group_symbol->closure_depth,
+        overload_group_symbol->lexical_depth
     );
 
-    concrete_symbol->id = overload_symbol->id;
+    concrete_symbol->id = overload_group_symbol->id;
 
     template_instantiation.symbol = concrete_symbol;
-    template_instantiation.group_symbol = overload_symbol;
+    template_instantiation.group_symbol = overload_group_symbol;
     target.symbol = concrete_symbol;
 
-    if (overload_symbol->should_be_captured(current_scope->get_closure_depth()))
+    if (overload_group_symbol->should_be_captured(current_scope->get_closure_depth()))
     {
         target.must_be_captured = true;
     }
 
-    call.overload_index = concrete_symbol->is_native_function_or_method() ? -1 : 0;
+    call.overload_index = matched_template_symbol->is_native_function_or_method()
+                              ? -1
+                              : match_indices.front();
 
-    return concrete_return_type;
+    return final_return_type;
 }
 
 Object_ptr SemanticAnalyzer::evaluate_method_call(

@@ -1,5 +1,6 @@
 #include "SymbolScope.h"
 #include "Doctor.h"
+#include "Objects.h"
 #include "Workspace.h"
 
 #include <map>
@@ -31,11 +32,16 @@ SymbolScope::SymbolScope(ScopeType type, SymbolScope_ptr enclosing)
         }
     }
 }
+
 Symbol_ptr SymbolScope::define(Symbol_ptr symbol)
 {
     Doctor::get().fatal_if_nullptr(symbol, WaspStage::Semantics, "Cannot define a null symbol");
 
-    if (symbol->payload_is<FunctionData>())
+    bool is_func = symbol->payload_is<FunctionData>();
+    bool is_func_template = symbol->payload_is<TemplateData>() &&
+                            symbol->get_type()->is<FunctionTemplateType_ptr>();
+
+    if (is_func || is_func_template)
     {
         return define_function(symbol);
     }
@@ -58,9 +64,9 @@ Symbol_ptr SymbolScope::define(Symbol_ptr symbol)
 Symbol_ptr SymbolScope::define_function(Symbol_ptr new_symbol)
 {
     Doctor::get().assert(
-        new_symbol->payload_is<FunctionData>(),
+        new_symbol->payload_is<FunctionData>() || new_symbol->payload_is<TemplateData>(),
         WaspStage::Semantics,
-        "Expected a function symbol"
+        "Expected a function or function template symbol"
     );
 
     if (contains_in_current_scope(new_symbol->name))

@@ -4,29 +4,17 @@ template
 fun greet(name: T) => T
     return 'Hi ' + name
 
+template
+    T: int | str
+    U: str
+
+fun greet(name: T) => U
+    let x: U = 'bye'
+    return 'Hi ' + name + ' ' + x
+
 
 let name = 'sam'
 let result = greet<str>(name)
 print(result)
 
-
-template
-    T: int | str | float
-
-class Box
-    value: T
-
-    fun get_value() => T
-        return my.value
-
-    fun set_value(new_val: T)
-        my.value = new_val
-
-let int_box = Box<int>(42)
-print(int_box.get_value())
-
-int_box.set_value(100)
-print(int_box.get_value())
-
-let str_box = Box<str>('Hello Generics!')
-print(str_box.get_value())
+print(greet<str, str>('jim'))
