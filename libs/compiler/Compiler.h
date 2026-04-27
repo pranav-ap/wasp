@@ -169,6 +169,8 @@ private:
     void visit(IfTernaryBranch& expr);
     void visit(ElseTernaryBranch& expr);
 
+    void visit(TemplateInstantiation& expr);
+
     // -----------------------------------------------------------------------
     // UTILS
     // -----------------------------------------------------------------------

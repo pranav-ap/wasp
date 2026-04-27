@@ -189,6 +189,14 @@ class SemanticAnalyzer
         const ObjectVector& argument_types
     );
 
+    Object_ptr evaluate_function_template_instantiation(
+        Call& call,
+        TemplateInstantiation& template_instantiation,
+        Identifier& target,
+        const ObjectVector& argument_types,
+        Symbol_ptr function_overload_symbol
+    );
+
     Object_ptr visit(Call& expr);
     Object_ptr visit(Constructor& expr);
 

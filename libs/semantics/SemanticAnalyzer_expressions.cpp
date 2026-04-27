@@ -219,9 +219,12 @@ Object_ptr SemanticAnalyzer::evaluate_template_instantiation(
                 auto overload_symbol = current_scope->lookup(target.name);
                 Doctor::get().fatal_if_nullptr(overload_symbol, WaspStage::Semantics);
 
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "Template instantiation is not supported in this context yet."
+                return evaluate_function_template_instantiation(
+                    call,
+                    template_instantiation,
+                    target,
+                    argument_types,
+                    overload_symbol
                 );
             },
             [&](auto&) -> Object_ptr
@@ -234,6 +237,95 @@ Object_ptr SemanticAnalyzer::evaluate_template_instantiation(
         },
         template_instantiation.target->data
     );
+}
+
+Object_ptr SemanticAnalyzer::evaluate_function_template_instantiation(
+    Call& call,
+    TemplateInstantiation& template_instantiation,
+    Identifier& target,
+    const ObjectVector& argument_types,
+    Symbol_ptr overload_symbol
+)
+{
+    ObjectVector generic_args;
+
+    for (const auto& arg : template_instantiation.arguments)
+    {
+        generic_args.push_back(visit(arg));
+    }
+
+    auto function_template_type = overload_symbol->get_type()->as<FunctionTemplateType_ptr>();
+
+    Doctor::get().assert(
+        function_template_type->generics.size() == generic_args.size(),
+        WaspStage::Semantics,
+        "Generic arguments count mismatch. Expected " +
+            std::to_string(function_template_type->generics.size()) + ", got " +
+            std::to_string(generic_args.size())
+    );
+
+    size_t arg_idx = 0;
+
+    for (const auto& [name, generic_obj] : function_template_type->generics)
+    {
+        auto generic_type = generic_obj->as<GenericType_ptr>();
+
+        Doctor::get().assert(
+            type_checker
+                ->assignable(current_scope, generic_type->constraint_type, generic_args[arg_idx]),
+            WaspStage::Semantics,
+            "Type bound violated for generic parameter " + name
+        );
+
+        arg_idx++;
+    }
+
+    ObjectVector concrete_param_types;
+    for (const auto& param_type : function_template_type->signature->parameter_types)
+    {
+        concrete_param_types.push_back(
+            type_checker->substitute_generics(param_type, function_template_type, generic_args)
+        );
+    }
+
+    Object_ptr concrete_return_type = type_checker->substitute_generics(
+        function_template_type->signature->return_type,
+        function_template_type,
+        generic_args
+    );
+
+    Doctor::get().assert(
+        type_checker->assignable(current_scope, concrete_param_types, argument_types),
+        WaspStage::Semantics,
+        "Arguments do not match the instantiated generic function parameters."
+    );
+
+    auto concrete_function_type = make_object(
+        std::make_shared<FunctionType>(concrete_param_types, concrete_return_type)
+    );
+
+    auto concrete_symbol = SymbolFactory::create_function(
+        overload_symbol->name,
+        concrete_function_type,
+        false,
+        overload_symbol->closure_depth,
+        overload_symbol->lexical_depth
+    );
+
+    concrete_symbol->id = overload_symbol->id;
+
+    template_instantiation.symbol = concrete_symbol;
+    template_instantiation.group_symbol = overload_symbol;
+    target.symbol = concrete_symbol;
+
+    if (overload_symbol->should_be_captured(current_scope->get_closure_depth()))
+    {
+        target.must_be_captured = true;
+    }
+
+    call.overload_index = concrete_symbol->is_native_function_or_method() ? -1 : 0;
+
+    return concrete_return_type;
 }
 
 Object_ptr SemanticAnalyzer::evaluate_method_call(

@@ -129,6 +129,10 @@ void Compiler::visit(const Expression_ptr expr)
             {
                 visit(e);
             },
+            [&](TemplateInstantiation& t)
+            {
+                visit(t);
+            },
             [&](auto&)
             {
                 Doctor::get().fatal(WaspStage::Compiler, "Unimplemented expression compilation");

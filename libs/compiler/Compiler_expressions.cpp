@@ -165,4 +165,9 @@ void Compiler::visit(Constructor& expr)
     emit(OpCode::INSTANTIATE, static_cast<int>(expr.values.size()));
 }
 
+void Compiler::visit(TemplateInstantiation& expr)
+{
+    visit(expr.target);
+}
+
 } // namespace Wasp

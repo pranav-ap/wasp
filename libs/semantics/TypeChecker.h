@@ -84,6 +84,17 @@ struct TypeChecker
     Object_ptr spread_type(Object_ptr type);
     Object_ptr extract_iterable_element_type(SymbolScope_ptr scope, const Object_ptr type) const;
 
+    Object_ptr substitute_generics(
+        Object_ptr type,
+        TemplateType_ptr templ,
+        const ObjectVector& generic_args
+    ) const;
+
+    Object_ptr substitute_generics(
+        FunctionTemplateType_ptr templ,
+        const ObjectVector& generic_args
+    ) const;
+
     // Type Checks
 
     bool is_boolean_type(const Object_ptr type) const;

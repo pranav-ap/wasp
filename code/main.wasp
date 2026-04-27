@@ -5,6 +5,6 @@ fun greet(name: T) => T
     return 'Hi ' + name
 
 
-let name: str = 'jon'
-let result = greet<str>(name)
+let name = 23
+let result = greet<int>(name)
 print(result)
