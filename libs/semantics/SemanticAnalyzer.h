@@ -90,6 +90,7 @@ class SemanticAnalyzer
 
     ClassType_ptr initialize_class_type(ClassDefinition& def);
     void analyze_class(ClassDefinition& def);
+    void analyze_template_class(ClassDefinition& c, const ObjectStringMap& generics);
 
     void visit(ClassDefinition& statement);
     void visit(FieldDefinition& statement);
@@ -176,6 +177,15 @@ class SemanticAnalyzer
         const ObjectVector& arg_types
     );
 
+    Object_ptr evaluate_class_template_instantiation(
+        Constructor& constructor,
+        TemplateInstantiation& template_instantiation,
+        Identifier& target,
+        const ObjectVector& argument_types,
+        const ObjectVector& generic_args,
+        Symbol_ptr template_symbol
+    );
+
     Object_ptr evaluate_method_call(
         Call& call_expr,
         MemberAccess& mac,
@@ -183,18 +193,33 @@ class SemanticAnalyzer
         ClassType_ptr class_type
     );
 
-    Object_ptr evaluate_template_instantiation(
+    Object_ptr evaluate_template_method_call(
+        Call& call,
+        TemplateInstantiation& template_instantiation,
+        MemberAccess& member_access,
+        const ObjectVector& argument_types,
+        ClassType_ptr class_type
+    );
+
+    Object_ptr evaluate_template_call(
         Call& call_expr,
         TemplateInstantiation& template_instantiation,
         const ObjectVector& argument_types
     );
 
-    Object_ptr evaluate_function_template_instantiation(
+    Object_ptr evaluate_template_function_call(
         Call& call,
         TemplateInstantiation& template_instantiation,
         Identifier& target,
         const ObjectVector& argument_types,
         Symbol_ptr function_overload_symbol
+    );
+
+    Object_ptr evaluate_template_module_function_call(
+        Call& call,
+        TemplateInstantiation& template_instantiation,
+        MemberAccess& access,
+        const ObjectVector& argument_types
     );
 
     Object_ptr visit(Call& expr);

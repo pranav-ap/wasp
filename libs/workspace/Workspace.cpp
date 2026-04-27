@@ -234,16 +234,29 @@ void Symbol::set_type(Object_ptr new_type)
             {
                 d.type = new_type;
             },
+            [&](TemplateData& d)
+            {
+                d.type = new_type;
+            },
+            [&](GenericData& d)
+            {
+                d.type = new_type;
+            },
+            [&](FunctionOverloadsData& d)
+            {
+                d.type = new_type;
+            },
+            [&](MethodOverloadsData& d)
+            {
+                d.type = new_type;
+            },
+            [&](ModuleData& d)
+            {
+                d.mod->type = new_type;
+            },
             [&](AliasData& d)
             {
                 d.target->set_type(new_type);
-            },
-            [](auto&) -> void
-            {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "You are not allowed to set type for this object"
-                );
             }
         },
         payload

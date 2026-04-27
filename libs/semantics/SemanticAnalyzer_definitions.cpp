@@ -116,6 +116,70 @@ void SemanticAnalyzer::analyze_class(ClassDefinition& def)
     }
 }
 
+void SemanticAnalyzer::analyze_template_class(ClassDefinition& c, const ObjectStringMap& generics)
+{
+    auto class_type = initialize_class_type(c);
+    auto template_type = make_object(std::make_shared<ClassTemplateType>(generics, class_type));
+
+    c.symbol->set_type(template_type);
+
+    for (auto& stmt : c.members)
+    {
+        std::visit(
+            overloaded{
+                [&](MethodDefinition& m)
+                {
+                    hoist_method(class_type, m);
+                },
+                [&](PureMethodDefinition& m)
+                {
+                    hoist_method(class_type, m);
+                },
+                [&](OurMethodDefinition& m)
+                {
+                    hoist_method(class_type, m);
+                },
+                [&](OurPureMethodDefinition& m)
+                {
+                    hoist_method(class_type, m);
+                },
+                [&](auto&)
+                {
+                }
+            },
+            stmt->data
+        );
+    }
+
+    for (auto& stmt : c.members)
+    {
+        std::visit(
+            overloaded{
+                [&](MethodDefinition& m)
+                {
+                    analyze_instance_method(template_type, m);
+                },
+                [&](OurMethodDefinition& m)
+                {
+                    analyze_our_method(template_type, m);
+                },
+                [&](PureMethodDefinition& m)
+                {
+                    analyze_pure_method(m);
+                },
+                [&](OurPureMethodDefinition& m)
+                {
+                    analyze_our_pure_method(m);
+                },
+                [&](auto&)
+                {
+                }
+            },
+            stmt->data
+        );
+    }
+}
+
 ClassType_ptr SemanticAnalyzer::initialize_class_type(ClassDefinition& def)
 {
     ObjectStringMap members;
@@ -392,8 +456,7 @@ void SemanticAnalyzer::visit(TemplateDefinition& statement)
             },
             [&](ClassDefinition& c)
             {
-                // analyze_class(c);
-                Doctor::get().fatal(WaspStage::Semantics, "Class templates are not supported yet.");
+                analyze_template_class(c, generics);
             },
             [&](auto&)
             {
