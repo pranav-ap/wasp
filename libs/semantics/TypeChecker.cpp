@@ -1,19 +1,13 @@
 #include "TypeChecker.h"
 #include "Doctor.h"
 #include "Objects.h"
-
 #include "SymbolScope.h"
 #include "Token.h"
-#include "Workspace.h"
 
 #include <algorithm>
-#include <cstddef>
 #include <memory>
 #include <string>
-#include <tuple>
-#include <utility>
 #include <variant>
-#include <vector>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -45,6 +39,13 @@ bool TypeChecker::equal(
             type_1->as<VariantType>().types,
             type_2->as<VariantType>().types
         );
+    }
+
+    if (type_1->is<std::shared_ptr<GenericType>>() && type_2->is<std::shared_ptr<GenericType>>())
+    {
+        auto g1 = type_1->as<std::shared_ptr<GenericType>>();
+        auto g2 = type_2->as<std::shared_ptr<GenericType>>();
+        return g1->name == g2->name && equal(scope, g1->constraint_type, g2->constraint_type);
     }
 
     return std::visit(
@@ -180,8 +181,27 @@ bool TypeChecker::assignable(
 {
     if (!lhs_type || !rhs_type)
         return false;
+
     if (equal(scope, lhs_type, rhs_type))
         return true;
+
+    if (rhs_type->is<std::shared_ptr<GenericType>>())
+    {
+        return assignable(
+            scope,
+            lhs_type,
+            rhs_type->as<std::shared_ptr<GenericType>>()->constraint_type
+        );
+    }
+
+    if (lhs_type->is<std::shared_ptr<GenericType>>())
+    {
+        return assignable(
+            scope,
+            lhs_type->as<std::shared_ptr<GenericType>>()->constraint_type,
+            rhs_type
+        );
+    }
 
     if (rhs_type->is<VariantType>())
     {
@@ -210,7 +230,7 @@ bool TypeChecker::assignable(
     }
 
     return std::visit(
-        ::overloaded{
+        overloaded{
             [](AnyType const&, const auto&) -> bool
             {
                 return true;
@@ -232,7 +252,6 @@ bool TypeChecker::assignable(
                 return true;
             },
 
-            // Accept literals
             [](IntType const&, IntLiteralType const&) -> bool
             {
                 return true;
@@ -250,7 +269,6 @@ bool TypeChecker::assignable(
                 return true;
             },
 
-            // Handle nested composites
             [&](ListType const& t1, ListType const& t2) -> bool
             {
                 return assignable(scope, t1.element_type, t2.element_type);
@@ -310,6 +328,36 @@ Object_ptr TypeChecker::infer(
     Object_ptr right_type
 )
 {
+    if (left_type->is<GenericType_ptr>())
+    {
+        left_type = left_type->as<GenericType_ptr>()->constraint_type;
+    }
+
+    if (right_type->is<GenericType_ptr>())
+    {
+        right_type = right_type->as<GenericType_ptr>()->constraint_type;
+    }
+
+    if (left_type->is<VariantType>())
+    {
+        ObjectVector result_types;
+        for (const auto& t : left_type->as<VariantType>().types)
+        {
+            result_types.push_back(infer(scope, t, op, right_type));
+        }
+        return std::make_shared<Object>(VariantType{result_types});
+    }
+
+    if (right_type->is<VariantType>())
+    {
+        ObjectVector result_types;
+        for (const auto& t : right_type->as<VariantType>().types)
+        {
+            result_types.push_back(infer(scope, left_type, op, t));
+        }
+        return std::make_shared<Object>(VariantType{result_types});
+    }
+
     switch (op)
     {
     case TokenType::PLUS: {
@@ -318,11 +366,23 @@ Object_ptr TypeChecker::infer(
             bool left_valid = is_string_type(left_type) || is_number_type(left_type);
             bool right_valid = is_string_type(right_type) || is_number_type(right_type);
 
-            Doctor::get().assert(
-                left_valid && right_valid,
-                WaspStage::Semantics,
-                "Cannot concatenate string with a non-number/non-string type."
-            );
+            if (!left_valid)
+            {
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Invalid string concatenation: Left operand is '" +
+                        stringify_object(left_type) + "', expected a string or number."
+                );
+            }
+
+            if (!right_valid)
+            {
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Invalid string concatenation: Right operand is '" +
+                        stringify_object(right_type) + "', expected a string or number."
+                );
+            }
 
             return pool->get_string_type();
         }
@@ -354,7 +414,11 @@ Object_ptr TypeChecker::infer(
         else if (is_boolean_type(left_type))
             expect_boolean_type(right_type);
         else
-            Doctor::get().fatal(WaspStage::Semantics, "Unsupported types for equality comparison");
+            Doctor::get().fatal(
+                WaspStage::Semantics,
+                "Type mismatch in equality comparison: cannot compare '" +
+                    stringify_object(left_type) + "' with '" + stringify_object(right_type) + "'."
+            );
         return pool->get_boolean_type();
     }
     case TokenType::AND:
@@ -364,13 +428,32 @@ Object_ptr TypeChecker::infer(
         return pool->get_boolean_type();
     }
     default:
-        Doctor::get().fatal(WaspStage::Semantics, "Unknown binary operator");
+        Doctor::get().fatal(
+            WaspStage::Semantics,
+            "Unsupported binary operator for types '" + stringify_object(left_type) + "' and '" +
+                stringify_object(right_type) + "'."
+        );
     }
     return pool->get_none_type();
 }
 
 Object_ptr TypeChecker::infer(SymbolScope_ptr scope, Object_ptr operand_type, TokenType op)
 {
+    if (operand_type->is<std::shared_ptr<GenericType>>())
+    {
+        operand_type = operand_type->as<std::shared_ptr<GenericType>>()->constraint_type;
+    }
+
+    if (operand_type->is<VariantType>())
+    {
+        ObjectVector result_types;
+        for (const auto& t : operand_type->as<VariantType>().types)
+        {
+            result_types.push_back(infer(scope, t, op));
+        }
+        return std::make_shared<Object>(VariantType{result_types});
+    }
+
     switch (op)
     {
     case TokenType::PLUS:

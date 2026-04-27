@@ -1,5 +1,5 @@
 template
-    T: any
+    T: int | str
 
 fun greet(name: T)
     print('Hi ' + name)
