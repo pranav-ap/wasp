@@ -1,20 +1,2 @@
-template
-    T: int | str
-
-fun greet(name: T) => T
-    return 'Hi ' + name
-
-template
-    T: int | str
-    U: str
-
-fun greet(name: T) => U
-    let x: U = 'bye'
-    return 'Hi ' + name + ' ' + x
-
-
-let name = 'sam'
-let result = greet<str>(name)
-print(result)
-
-print(greet<str, str>('jim'))
+fun greet() => str
+    native

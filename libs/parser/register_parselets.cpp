@@ -55,6 +55,7 @@ namespace Wasp
         register_parselet(TokenType::TRUE_KEYWORD, make_shared<LiteralParselet>());
         register_parselet(TokenType::FALSE_KEYWORD, make_shared<LiteralParselet>());
         register_parselet(TokenType::NONE, make_shared<LiteralParselet>());
+        // register_parselet(TokenType::NATIVE, make_shared<LiteralParselet>());
 
         register_parselet(TokenType::OPEN_SQUARE_BRACKET, make_shared<SquareBracketParselet>());
         register_parselet(TokenType::OPEN_CURLY_BRACE, make_shared<CurlyBraceParselet>());
@@ -68,10 +69,10 @@ namespace Wasp
         register_parselet(TokenType::DOT, make_shared<MemberAccessParselet>());
 
         register_parselet(TokenType::DOT, make_shared<PlaceholderDotParselet>());
-        register_parselet(TokenType::DOT_DOT_LESS, std::make_shared<PrefixRangeParselet>(false));
-        register_parselet(TokenType::DOT_DOT_EQUAL, std::make_shared<PrefixRangeParselet>(true));
-        register_parselet(TokenType::DOT_DOT_LESS, std::make_shared<InfixRangeParselet>(false));
-        register_parselet(TokenType::DOT_DOT_EQUAL, std::make_shared<InfixRangeParselet>(true));
+        register_parselet(TokenType::DOT_DOT_LESS, make_shared<PrefixRangeParselet>(false));
+        register_parselet(TokenType::DOT_DOT_EQUAL, make_shared<PrefixRangeParselet>(true));
+        register_parselet(TokenType::DOT_DOT_LESS, make_shared<InfixRangeParselet>(false));
+        register_parselet(TokenType::DOT_DOT_EQUAL, make_shared<InfixRangeParselet>(true));
     }
 
     void Parser::register_parselet(TokenType token_type, IPrefixParselet_ptr parselet)

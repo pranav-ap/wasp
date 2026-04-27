@@ -286,4 +286,8 @@ void Compiler::visit(Pass& statement)
 {
 }
 
+void Compiler::visit(Native& statement)
+{
+}
+
 } // namespace Wasp

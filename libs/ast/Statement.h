@@ -276,6 +276,10 @@ struct Pass
 {
 };
 
+struct Native
+{
+};
+
 struct Return
 {
     std::optional<Expression_ptr> expression;
@@ -406,6 +410,7 @@ using StatementVariant = std::variant<
     LoopControl,
 
     Pass,
+    Native,
     Return>;
 
 // STATEMENT

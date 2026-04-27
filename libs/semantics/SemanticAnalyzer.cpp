@@ -414,6 +414,10 @@ void SemanticAnalyzer::visit(const Statement_ptr statement)
             {
                 visit(stat);
             },
+            [&](Native& stat)
+            {
+                visit(stat);
+            },
             [&](Return& stat)
             {
                 visit(stat);

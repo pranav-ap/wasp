@@ -72,6 +72,7 @@ private:
     Statement_ptr parse_loop_control_statement(TokenType control_type);
     Statement_ptr parse_return_statement();
     Statement_ptr parse_pass_statement();
+    Statement_ptr parse_native_statement();
 
     // Modules & Imports
     Statement_ptr parse_import();

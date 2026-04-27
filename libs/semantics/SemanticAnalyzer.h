@@ -108,6 +108,7 @@ class SemanticAnalyzer
     void visit(LoopControl& statement);
 
     void visit(Pass& statement);
+    void visit(Native& statement);
     void visit(Return& statement);
 
     // ------------------------------------------------------------------------

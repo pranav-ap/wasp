@@ -170,6 +170,10 @@ void Compiler::visit(const Statement_ptr statement)
             {
                 visit(stat);
             },
+            [&](Native& stat)
+            {
+                visit(stat);
+            },
             [&](LoopControl& stat)
             {
                 visit(stat);

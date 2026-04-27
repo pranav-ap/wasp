@@ -1,4 +1,5 @@
 #include "NativeRegistry.h"
+#include "ConstantPool.h"
 #include "Doctor.h"
 #include "Objects.h"
 
@@ -10,10 +11,6 @@
 #include <variant>
 #include <vector>
 
-#define MAKE_OBJECT_VARIANT(x) std::make_shared<Object>(x)
-#define MAKE_SHARED_OBJECT_VARIANT(Type, ...)                                                      \
-    std::make_shared<Object>(std::make_shared<Type>(__VA_ARGS__))
-
 template <class... Ts> struct overloaded : Ts...
 {
     using Ts::operator()...;
@@ -22,6 +19,74 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
+
+namespace
+{
+
+static Object_ptr native_print(const std::vector<Object_ptr>& args, ConstantPool_ptr pool)
+{
+    for (const auto& arg : args)
+    {
+        std::visit(
+            overloaded{
+                [](const IntObject& i)
+                {
+                    std::cout << i.value;
+                },
+                [](const StringObject& s)
+                {
+                    std::cout << s.value;
+                },
+                [](const BooleanObject& b)
+                {
+                    std::cout << (b.value ? "true" : "false");
+                },
+                [](const NoneObject&)
+                {
+                    std::cout << "none";
+                },
+                [](const std::shared_ptr<ErrorObject> e)
+                {
+                    std::cout << "Error : " << e->message;
+                },
+                [](const auto&)
+                {
+                    std::cout << "Unhandled type in print";
+                }
+            },
+            arg->value
+        );
+    }
+
+    std::cout << std::endl;
+
+    return pool->get_none_object();
+}
+
+static Object_ptr native_input(const std::vector<Object_ptr>& args)
+{
+    std::visit(
+        overloaded{
+            [](const StringObject& s)
+            {
+                std::cout << s.value << " ";
+            },
+            [](const auto&)
+            {
+                std::cout << "<prompt>";
+            }
+        },
+        args[0]->value
+    );
+
+    std::string input_line;
+    std::getline(std::cin, input_line);
+
+    return make_object(StringObject(input_line));
+}
+
+} // namespace
+
 Object_ptr NativeRegistry::get_native_object(int index) const
 {
     Doctor::get().assert(
@@ -66,10 +131,10 @@ void NativeRegistry::add_native(
 
     native_names[name] = global_index;
 
-    auto obj = MAKE_SHARED_OBJECT_VARIANT(NativeFunctionObject, function, arity, name);
+    auto obj = make_object(std::make_shared<NativeFunctionObject>(function, arity, name));
     native_objects.push_back(obj);
 
-    auto type_obj = MAKE_OBJECT_VARIANT(
+    auto type_obj = make_object(
         std::make_shared<FunctionType>(std::move(input_types), std::move(return_type))
     );
 
@@ -80,80 +145,23 @@ void NativeRegistry::load_stdlib()
 {
     add_native(
         "print",
-        // Arity -1 means it can take any number of arguments!
         1,
-        [&](const std::vector<Object_ptr>& args) -> Object_ptr
+        [this](const std::vector<Object_ptr>& args)
         {
-            for (const auto& arg : args)
-            {
-                std::visit(
-                    overloaded{
-                        [](const IntObject& i)
-                        {
-                            std::cout << i.value;
-                        },
-                        [](const StringObject& s)
-                        {
-                            std::cout << s.value;
-                        },
-                        [](const BooleanObject& b)
-                        {
-                            std::cout << (b.value ? "true" : "false");
-                        },
-                        [](const NoneObject&)
-                        {
-                            std::cout << "none";
-                        },
-                        [](const std::shared_ptr<ErrorObject> e)
-                        {
-                            std::cout << "Error : " << e->message;
-                        },
-                        [](const auto&)
-                        {
-                            std::cout << "Unhandled type in print";
-                        }
-                    },
-                    arg->value
-                );
-            }
-
-            std::cout << std::endl;
-
-            return pool->get_none_object();
+            return native_print(args, this->pool);
         },
-        // Input Types
         {pool->get_any_type()},
-        // Return Type
         pool->get_none_type()
     );
 
     add_native(
         "input",
         1,
-        [&](const std::vector<Object_ptr>& args) -> Object_ptr
+        [](const std::vector<Object_ptr>& args)
         {
-            std::visit(
-                overloaded{
-                    [](const StringObject& s)
-                    {
-                        std::cout << s.value << " ";
-                    },
-                    [](const auto&)
-                    {
-                        std::cout << "<prompt>";
-                    }
-                },
-                args[0]->value
-            );
-
-            std::string input_line;
-            std::getline(std::cin, input_line);
-
-            return MAKE_OBJECT_VARIANT(StringObject(input_line));
+            return native_input(args);
         },
-        // Input Types
         {pool->get_string_type()},
-        // Return Type
         pool->get_string_type()
     );
 }

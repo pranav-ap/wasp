@@ -51,6 +51,8 @@ Statement_ptr Parser::parse_statement(int expected_indent_level)
 
     case TokenType::PASS:
         return parse_pass_statement();
+    case TokenType::NATIVE:
+        return parse_native_statement();
 
     case TokenType::BREAK:
     case TokenType::CONTINUE:
@@ -141,6 +143,14 @@ Statement_ptr Parser::parse_pass_statement() {
     token_pipe.require_in_line(TokenType::EOL);
 
     return make_statement(Pass{});
+}
+
+Statement_ptr Parser::parse_native_statement()
+{
+    token_pipe.advance_pointer();
+    token_pipe.require_in_line(TokenType::EOL);
+
+    return make_statement(Native{});
 }
 
 Statement_ptr Parser::parse_return_statement() {

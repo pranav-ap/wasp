@@ -113,6 +113,7 @@ private:
     void visit(ForInLoop& statement);
 
     void visit(Pass& statement);
+    void visit(Native& statement);
     void visit(LoopControl& statement);
 
     void visit(SimpleImport& statement);
