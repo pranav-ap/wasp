@@ -144,112 +144,23 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                     "Cannot invoke method. Receiver is neither a class nor a module."
                 );
             },
+            [&](TemplateInstantiation& template_instantiation) -> Object_ptr
+            {
+                return evaluate_template_instantiation(
+                    call,
+                    template_instantiation,
+                    argument_types
+                );
+            },
             [&](auto&) -> Object_ptr
             {
                 Doctor::get().fatal(
                     WaspStage::Semantics,
                     "Expected an Identifier or MemberAccess as the callable."
                 );
-                return nullptr;
             }
         },
         call.callable->data
-    );
-}
-
-Object_ptr SemanticAnalyzer::evaluate_instance_creation(
-    Constructor& constructor,
-    Identifier& target,
-    Symbol_ptr class_symbol,
-    const ObjectVector& argument_types
-)
-{
-    target.symbol = class_symbol;
-
-    if (class_symbol->should_be_captured(current_scope->get_closure_depth()))
-    {
-        target.must_be_captured = true;
-    }
-
-    auto class_type_obj = class_symbol->get_type();
-    auto class_type = class_type_obj->as<ClassType_ptr>();
-
-    Doctor::get().fatal_if_nullptr(
-        class_type,
-        WaspStage::Semantics,
-        "Constructor target must be a class type."
-    );
-
-    Doctor::get().assert(
-        argument_types.size() == class_type->fields.size(),
-        WaspStage::Semantics,
-        "Constructor Arguments Count Mismatch. Expected " +
-            std::to_string(class_type->fields.size()) + ", got " +
-            std::to_string(argument_types.size())
-    );
-
-    for (size_t i = 0; i < class_type->fields.size(); ++i)
-    {
-        Object_ptr expected_type = class_type->get_member(class_type->fields[i]);
-        Object_ptr actual_type = argument_types[i];
-
-        Doctor::get().assert(
-            type_checker->assignable(current_scope, expected_type, actual_type),
-            WaspStage::Semantics,
-            "Constructor Arguments Type Mismatch for member '" + class_type->fields[i] + "'"
-        );
-    }
-
-    return class_type_obj;
-}
-
-Object_ptr SemanticAnalyzer::evaluate_module_instance_creation(
-    Constructor& constructor,
-    MemberAccess& access,
-    const ObjectVector& argument_types
-)
-{
-    Doctor::get().assert(
-        access.left->is<Identifier>() && access.right->is<Identifier>(),
-        WaspStage::Semantics,
-        "Supports module.ClassName() only."
-    );
-
-    auto& module_identifier = access.left->as<Identifier>();
-    auto& method_identifier = access.right->as<Identifier>();
-
-    Symbol_ptr module_symbol = current_scope->lookup(module_identifier.name);
-    Doctor::get().fatal_if_nullptr(module_symbol, WaspStage::Semantics);
-
-    module_identifier.symbol = module_symbol;
-
-    if (module_symbol->should_be_captured(current_scope->get_closure_depth()))
-    {
-        module_identifier.must_be_captured = true;
-    }
-
-    auto& module_data = module_symbol->get_payload_as<ModuleData>();
-    Symbol_ptr export_symbol = module_data.mod->get_member(method_identifier.name);
-
-    Doctor::get().fatal_if_nullptr(
-        export_symbol,
-        WaspStage::Semantics,
-        "Class '" + method_identifier.name + "' not found in module."
-    );
-
-    Doctor::get().assert(
-        export_symbol->payload_is<ClassData>(),
-        WaspStage::Semantics,
-        "Symbol '" + method_identifier.name + "' is not a class."
-    );
-
-    access.member_index = module_data.mod->get_member_index(method_identifier.name);
-
-    return evaluate_instance_creation(
-        constructor,
-        method_identifier,
-        export_symbol,
-        argument_types
     );
 }
 
@@ -286,6 +197,43 @@ Object_ptr SemanticAnalyzer::evaluate_function_call(
     }
 
     return get_function_return_type(function);
+}
+
+Object_ptr SemanticAnalyzer::evaluate_template_instantiation(
+    Call& call,
+    TemplateInstantiation& template_instantiation,
+    const ObjectVector& argument_types
+)
+{
+    ObjectVector generic_args;
+
+    for (const auto& arg : template_instantiation.arguments)
+    {
+        generic_args.push_back(visit(arg));
+    }
+
+    return std::visit(
+        overloaded{
+            [&](Identifier& target) -> Object_ptr
+            {
+                auto overload_symbol = current_scope->lookup(target.name);
+                Doctor::get().fatal_if_nullptr(overload_symbol, WaspStage::Semantics);
+
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Template instantiation is not supported in this context yet."
+                );
+            },
+            [&](auto&) -> Object_ptr
+            {
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Expected an Identifier or MemberAccess inside TemplateInstantiation."
+                );
+            }
+        },
+        template_instantiation.target->data
+    );
 }
 
 Object_ptr SemanticAnalyzer::evaluate_method_call(
@@ -400,6 +348,102 @@ Object_ptr SemanticAnalyzer::evaluate_module_function_call(
     method_identifier.symbol = resolved_function;
 
     return get_function_return_type(resolved_function);
+}
+
+Object_ptr SemanticAnalyzer::evaluate_instance_creation(
+    Constructor& constructor,
+    Identifier& target,
+    Symbol_ptr class_symbol,
+    const ObjectVector& argument_types
+)
+{
+    target.symbol = class_symbol;
+
+    if (class_symbol->should_be_captured(current_scope->get_closure_depth()))
+    {
+        target.must_be_captured = true;
+    }
+
+    auto class_type_obj = class_symbol->get_type();
+    auto class_type = class_type_obj->as<ClassType_ptr>();
+
+    Doctor::get().fatal_if_nullptr(
+        class_type,
+        WaspStage::Semantics,
+        "Constructor target must be a class type."
+    );
+
+    Doctor::get().assert(
+        argument_types.size() == class_type->fields.size(),
+        WaspStage::Semantics,
+        "Constructor Arguments Count Mismatch. Expected " +
+            std::to_string(class_type->fields.size()) + ", got " +
+            std::to_string(argument_types.size())
+    );
+
+    for (size_t i = 0; i < class_type->fields.size(); ++i)
+    {
+        Object_ptr expected_type = class_type->get_member(class_type->fields[i]);
+        Object_ptr actual_type = argument_types[i];
+
+        Doctor::get().assert(
+            type_checker->assignable(current_scope, expected_type, actual_type),
+            WaspStage::Semantics,
+            "Constructor Arguments Type Mismatch for member '" + class_type->fields[i] + "'"
+        );
+    }
+
+    return class_type_obj;
+}
+
+Object_ptr SemanticAnalyzer::evaluate_module_instance_creation(
+    Constructor& constructor,
+    MemberAccess& access,
+    const ObjectVector& argument_types
+)
+{
+    Doctor::get().assert(
+        access.left->is<Identifier>() && access.right->is<Identifier>(),
+        WaspStage::Semantics,
+        "Supports module.ClassName() only."
+    );
+
+    auto& module_identifier = access.left->as<Identifier>();
+    auto& method_identifier = access.right->as<Identifier>();
+
+    Symbol_ptr module_symbol = current_scope->lookup(module_identifier.name);
+    Doctor::get().fatal_if_nullptr(module_symbol, WaspStage::Semantics);
+
+    module_identifier.symbol = module_symbol;
+
+    if (module_symbol->should_be_captured(current_scope->get_closure_depth()))
+    {
+        module_identifier.must_be_captured = true;
+    }
+
+    auto& module_data = module_symbol->get_payload_as<ModuleData>();
+    Symbol_ptr export_symbol = module_data.mod->get_member(method_identifier.name);
+
+    Doctor::get().fatal_if_nullptr(
+        export_symbol,
+        WaspStage::Semantics,
+        "Class '" + method_identifier.name + "' not found in module."
+    );
+
+    Doctor::get().assert(
+        export_symbol->payload_is<ClassData>(),
+        WaspStage::Semantics,
+        "Symbol '" + method_identifier.name + "' is not a class."
+    );
+
+    access.member_index = module_data.mod->get_member_index(method_identifier.name);
+
+    return evaluate_instance_creation(
+        constructor,
+        method_identifier,
+        export_symbol,
+        argument_types
+    );
 }
 
 } // namespace Wasp

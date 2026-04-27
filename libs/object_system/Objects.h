@@ -454,27 +454,6 @@ struct VariantType : public CompositeType
 };
 
 // ============================================================================
-// Template Types
-// ============================================================================
-
-struct GenericType
-{
-    std::string name;
-    Object_ptr constraint_type;
-};
-
-using GenericType_ptr = std::shared_ptr<GenericType>;
-
-struct TemplateType
-{
-    ObjectStringMap generics;
-
-    TemplateType(ObjectStringMap generics) : generics(std::move(generics)) {};
-};
-
-using TemplateType_ptr = std::shared_ptr<TemplateType>;
-
-// ============================================================================
 // Function Types
 // ============================================================================
 
@@ -487,35 +466,21 @@ struct Signature : public AnyType
         : parameter_types(std::move(input_types)), return_type(std::move(return_type)) {};
 };
 
+using Signature_ptr = std::shared_ptr<Signature>;
+
 struct FunctionType : public Signature
 {
-    TemplateType_ptr template_type;
-
-    FunctionType(
-        ObjectVector parameter_types,
-        Object_ptr return_type,
-        TemplateType_ptr template_type = nullptr
-    )
-        : Signature(std::move(parameter_types), std::move(return_type)),
-          template_type(std::move(template_type))
-    {
-    }
+    using Signature::Signature;
 };
+
+using FunctionType_ptr = std::shared_ptr<FunctionType>;
 
 struct MethodType : public Signature
 {
-    TemplateType_ptr template_type;
-
-    MethodType(
-        ObjectVector parameter_types,
-        Object_ptr return_type,
-        TemplateType_ptr template_type = nullptr
-    )
-        : Signature(std::move(parameter_types), std::move(return_type)),
-          template_type(std::move(template_type))
-    {
-    }
+    using Signature::Signature;
 };
+
+using MethodType_ptr = std::shared_ptr<MethodType>;
 
 // ============================================================================
 // Membered Types
@@ -564,20 +529,16 @@ struct ClassType : public CompositeType
 
     ObjectStringMap members;
 
-    TemplateType_ptr template_type;
-
     ClassType(
         std::string name,
         ObjectStringMap members,
         StringVector fields,
         StringVector methods,
         StringVector pures,
-        StringVector statics,
-        TemplateType_ptr template_type = nullptr
+        StringVector statics
     )
         : name(std::move(name)), fields(std::move(fields)), methods(std::move(methods)),
-          pures(std::move(pures)), statics(std::move(statics)), members(std::move(members)),
-          template_type(std::move(template_type))
+          pures(std::move(pures)), statics(std::move(statics)), members(std::move(members))
     {
     }
 
@@ -607,6 +568,52 @@ using ClassType_ptr = std::shared_ptr<ClassType>;
 struct RecordType
 {
 };
+
+// ============================================================================
+// Template Types
+// ============================================================================
+
+struct GenericType
+{
+    Object_ptr constraint_type;
+};
+
+using GenericType_ptr = std::shared_ptr<GenericType>;
+
+struct TemplateType
+{
+    ObjectStringMap generics;
+
+    TemplateType(ObjectStringMap generics) : generics(std::move(generics))
+    {
+    }
+};
+
+using TemplateType_ptr = std::shared_ptr<TemplateType>;
+
+struct FunctionTemplateType : public TemplateType
+{
+    FunctionType_ptr signature;
+
+    FunctionTemplateType(ObjectStringMap generics, FunctionType_ptr signature)
+        : TemplateType(std::move(generics)), signature(std::move(signature))
+    {
+    }
+};
+
+using FunctionTemplateType_ptr = std::shared_ptr<FunctionTemplateType>;
+
+struct ClassTemplateType : public TemplateType
+{
+    ClassType_ptr class_type;
+
+    ClassTemplateType(ObjectStringMap generics, ClassType_ptr class_type = nullptr)
+        : TemplateType(std::move(generics)), class_type(std::move(class_type))
+    {
+    }
+};
+
+using ClassTemplateType_ptr = std::shared_ptr<ClassTemplateType>;
 
 // ============================================================================
 // The Core Object Variant
@@ -648,7 +655,8 @@ struct Object
         std::shared_ptr<ErrorObject>,
 
         std::shared_ptr<GenericType>,
-        std::shared_ptr<TemplateType>,
+        std::shared_ptr<FunctionTemplateType>,
+        std::shared_ptr<ClassTemplateType>,
 
         AnyType,
         NoneType,

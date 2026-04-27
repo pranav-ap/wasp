@@ -41,11 +41,11 @@ bool TypeChecker::equal(
         );
     }
 
-    if (type_1->is<std::shared_ptr<GenericType>>() && type_2->is<std::shared_ptr<GenericType>>())
+    if (type_1->is<GenericType_ptr>() && type_2->is<GenericType_ptr>())
     {
-        auto g1 = type_1->as<std::shared_ptr<GenericType>>();
-        auto g2 = type_2->as<std::shared_ptr<GenericType>>();
-        return g1->name == g2->name && equal(scope, g1->constraint_type, g2->constraint_type);
+        auto g1 = type_1->as<GenericType_ptr>();
+        auto g2 = type_2->as<GenericType_ptr>();
+        return equal(scope, g1->constraint_type, g2->constraint_type);
     }
 
     return std::visit(
@@ -185,22 +185,14 @@ bool TypeChecker::assignable(
     if (equal(scope, lhs_type, rhs_type))
         return true;
 
-    if (rhs_type->is<std::shared_ptr<GenericType>>())
+    if (rhs_type->is<GenericType_ptr>())
     {
-        return assignable(
-            scope,
-            lhs_type,
-            rhs_type->as<std::shared_ptr<GenericType>>()->constraint_type
-        );
+        return assignable(scope, lhs_type, rhs_type->as<GenericType_ptr>()->constraint_type);
     }
 
-    if (lhs_type->is<std::shared_ptr<GenericType>>())
+    if (lhs_type->is<GenericType_ptr>())
     {
-        return assignable(
-            scope,
-            lhs_type->as<std::shared_ptr<GenericType>>()->constraint_type,
-            rhs_type
-        );
+        return assignable(scope, lhs_type->as<GenericType_ptr>()->constraint_type, rhs_type);
     }
 
     if (rhs_type->is<VariantType>())
@@ -439,9 +431,9 @@ Object_ptr TypeChecker::infer(
 
 Object_ptr TypeChecker::infer(SymbolScope_ptr scope, Object_ptr operand_type, TokenType op)
 {
-    if (operand_type->is<std::shared_ptr<GenericType>>())
+    if (operand_type->is<GenericType_ptr>())
     {
-        operand_type = operand_type->as<std::shared_ptr<GenericType>>()->constraint_type;
+        operand_type = operand_type->as<GenericType_ptr>()->constraint_type;
     }
 
     if (operand_type->is<VariantType>())

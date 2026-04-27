@@ -1,7 +1,10 @@
 template
     T: int | str
 
-fun greet(name: T)
-    print('Hi ' + name)
+fun greet(name: T) => T
+    return 'Hi ' + name
 
 
+let name: str = 'jon'
+let result = greet<str>(name)
+print(result)

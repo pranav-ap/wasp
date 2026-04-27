@@ -14,8 +14,6 @@
 #include <variant>
 #include <vector>
 
-#define MAKE_OBJECT_VARIANT(x) std::make_shared<Object>(x)
-
 template <class... Ts> struct overloaded : Ts...
 {
     using Ts::operator()...;
@@ -191,21 +189,15 @@ void SemanticAnalyzer::register_natives()
 // ============================================================================
 
 template <typename T>
-void SemanticAnalyzer::hoist_function_target(
-    T& def,
-    std::shared_ptr<SymbolScope> target_scope,
-    TemplateType_ptr template_type
-)
+void SemanticAnalyzer::hoist_function(T& def, std::shared_ptr<SymbolScope> target_scope)
 {
     auto [return_type, param_types] = get_function_signature(def);
 
-    auto signature = make_object(
-        std::make_shared<FunctionType>(param_types, return_type, template_type)
-    );
+    auto type = make_object(std::make_shared<FunctionType>(param_types, return_type));
 
     auto symbol = SymbolFactory::create_function(
         def.name,
-        signature,
+        type,
         false,
         target_scope->get_closure_depth(),
         target_scope->get_lexical_depth()
@@ -217,11 +209,32 @@ void SemanticAnalyzer::hoist_function_target(
     def.group_symbol = target_scope->define(symbol);
 }
 
-void SemanticAnalyzer::hoist_class_target(
-    ClassDefinition& def,
+template <typename T>
+void SemanticAnalyzer::hoist_template_function(
+    T& def,
     std::shared_ptr<SymbolScope> target_scope,
-    TemplateType_ptr template_type
+    ObjectStringMap generics
 )
+{
+    auto [return_type, param_types] = get_function_signature(def);
+
+    auto function_type = std::make_shared<FunctionType>(param_types, return_type);
+    auto type = make_object(std::make_shared<FunctionTemplateType>(generics, function_type));
+
+    auto symbol = SymbolFactory::create_template(
+        def.name,
+        type,
+        target_scope->get_closure_depth(),
+        target_scope->get_lexical_depth()
+    );
+
+    type_checker->validate_new_function_overload(target_scope, def.name, symbol);
+
+    def.symbol = symbol;
+    def.group_symbol = target_scope->define(symbol);
+}
+
+void SemanticAnalyzer::hoist_class(ClassDefinition& def, std::shared_ptr<SymbolScope> target_scope)
 {
     auto symbol = SymbolFactory::create_class(
         def.name,
@@ -233,7 +246,25 @@ void SemanticAnalyzer::hoist_class_target(
     def.symbol = target_scope->define(symbol);
 }
 
-void SemanticAnalyzer::hoist_template_definition(
+void SemanticAnalyzer::hoist_template_class(
+    ClassDefinition& def,
+    std::shared_ptr<SymbolScope> target_scope,
+    ObjectStringMap generics
+)
+{
+    auto type = make_object(std::make_shared<ClassTemplateType>(generics));
+
+    auto symbol = SymbolFactory::create_template(
+        def.name,
+        type,
+        target_scope->get_closure_depth(),
+        target_scope->get_lexical_depth()
+    );
+
+    def.symbol = target_scope->define(symbol);
+}
+
+void SemanticAnalyzer::hoist_template(
     TemplateDefinition& def,
     std::shared_ptr<SymbolScope> target_scope
 )
@@ -245,30 +276,26 @@ void SemanticAnalyzer::hoist_template_definition(
     for (auto& field : def.members)
     {
         auto constraint_type = field.type ? visit(field.type) : workspace->pool->get_any_type();
-        auto generic_type_obj = make_object(
-            std::make_shared<GenericType>(field.name, constraint_type)
-        );
+        auto generic_type_obj = make_object(std::make_shared<GenericType>(constraint_type));
 
         auto symbol = SymbolFactory::create_generic(field.name, generic_type_obj);
         current_scope->define(symbol);
         generics[field.name] = generic_type_obj;
     }
 
-    auto template_type = std::make_shared<TemplateType>(generics);
-
     std::visit(
         overloaded{
             [&](FunctionDefinition& f)
             {
-                hoist_function_target(f, target_scope, template_type);
+                hoist_template_function(f, target_scope, generics);
             },
             [&](PureFunctionDefinition& f)
             {
-                hoist_function_target(f, target_scope, template_type);
+                hoist_template_function(f, target_scope, generics);
             },
             [&](ClassDefinition& c)
             {
-                hoist_class_target(c, target_scope, template_type);
+                hoist_template_class(c, target_scope, generics);
             },
             [](auto&)
             {
@@ -288,19 +315,19 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
             overloaded{
                 [&](FunctionDefinition& def)
                 {
-                    hoist_function_target(def, current_scope, nullptr);
+                    hoist_function(def, current_scope);
                 },
                 [&](PureFunctionDefinition& def)
                 {
-                    hoist_function_target(def, current_scope, nullptr);
+                    hoist_function(def, current_scope);
                 },
                 [&](ClassDefinition& def)
                 {
-                    hoist_class_target(def, current_scope, nullptr);
+                    hoist_class(def, current_scope);
                 },
                 [&](TemplateDefinition& def)
                 {
-                    hoist_template_definition(def, current_scope);
+                    hoist_template(def, current_scope);
                 },
                 [](auto&)
                 {

@@ -287,6 +287,15 @@ bool TokenPipe::peek_type_at_indent(int n, TokenType type) const {
     return false;
 }
 
+const Token* Wasp::TokenPipe::peek(int offset) const
+{
+    if (index + offset < tokens.size())
+    {
+        return &tokens[index + offset];
+    }
+    return nullptr;
+}
+
 // UTILS
 
 int TokenPipe::get_current_index() const { return index; }

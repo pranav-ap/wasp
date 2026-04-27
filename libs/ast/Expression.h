@@ -202,6 +202,17 @@ struct Constructor
     }
 };
 
+struct TemplateInstantiation
+{
+    Expression_ptr target;
+    TypeAnnotationVector arguments;
+
+    TemplateInstantiation(Expression_ptr target, TypeAnnotationVector generic_arguments)
+        : target(std::move(target)), arguments(std::move(generic_arguments))
+    {
+    }
+};
+
 // Others
 
 struct RangeLiteral {
@@ -233,6 +244,7 @@ using ExpressionVariant = std::variant<
 
     Call,
     Constructor,
+    TemplateInstantiation,
 
     Prefix,
     Infix,

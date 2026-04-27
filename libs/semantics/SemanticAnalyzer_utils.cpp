@@ -59,6 +59,11 @@ std::pair<Object_ptr, ObjectVector> SemanticAnalyzer::get_function_signature(Obj
                 return_type = t->return_type;
                 param_types = t->parameter_types;
             },
+            [&](const std::shared_ptr<FunctionTemplateType>& t)
+            {
+                return_type = t->signature->return_type;
+                param_types = t->signature->parameter_types;
+            },
             [&](const auto&)
             {
                 Doctor::get().fatal(WaspStage::Semantics, "Expected concrete function type.");
