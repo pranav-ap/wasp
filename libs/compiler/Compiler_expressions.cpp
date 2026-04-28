@@ -25,8 +25,10 @@ void Compiler::visit(Identifier& expr)
 
     if (symbol->is_native())
     {
-        auto native_registry_id = workspace->native_registry->get_native_index(symbol->name);
-        emit(OpCode::GET_NATIVE, native_registry_id, symbol->name);
+        std::string mangled = get_native_mangled_name(symbol->name, "", symbol->module_path);
+
+        auto id = workspace->native_registry->get_native_index(mangled);
+        emit(OpCode::GET_NATIVE, id, mangled);
     }
     else if (expr.must_be_captured)
     {

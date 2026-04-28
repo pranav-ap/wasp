@@ -40,30 +40,14 @@ void Compiler::visit(Return& statement)
 void Compiler::visit(TraitDefinition& trait_definition)
 {
 }
+
 void Compiler::visit(FunctionDefinition& def)
 {
     if (def.symbol->is_native())
     {
-        std::string mangled = get_native_mangled_name(def.name);
+        std::string mangled = get_native_mangled_name(def.name, "", def.symbol->module_path);
         int registry_id = workspace->native_registry->get_native_index(mangled);
-        emit(OpCode::GET_NATIVE, registry_id);
-    }
-    else
-    {
-        compile_function_closure(def.name, def.parameter_symbols, def.body);
-    }
-
-    int physical_index = get_or_add_local_index(def.group_symbol);
-    emit(OpCode::STORE_FUNCTION_OVERLOAD, physical_index);
-}
-
-void Compiler::visit(PureFunctionDefinition& def)
-{
-    if (def.symbol->is_native())
-    {
-        std::string mangled = get_native_mangled_name(def.name);
-        int registry_id = workspace->native_registry->get_native_index(mangled);
-        emit(OpCode::GET_NATIVE, registry_id);
+        emit(OpCode::GET_NATIVE, registry_id, mangled);
     }
     else
     {
@@ -72,6 +56,23 @@ void Compiler::visit(PureFunctionDefinition& def)
 
     int physical_index = get_or_add_local_index(def.group_symbol);
     emit(OpCode::STORE_FUNCTION_OVERLOAD, physical_index, "fun " + def.name);
+}
+
+void Compiler::visit(PureFunctionDefinition& def)
+{
+    if (def.symbol->is_native())
+    {
+        std::string mangled = get_native_mangled_name(def.name, "", def.symbol->module_path);
+        int registry_id = workspace->native_registry->get_native_index(mangled);
+        emit(OpCode::GET_NATIVE, registry_id, mangled);
+    }
+    else
+    {
+        compile_function_closure(def.name, def.parameter_symbols, def.body);
+    }
+
+    int physical_index = get_or_add_local_index(def.group_symbol);
+    emit(OpCode::STORE_FUNCTION_OVERLOAD, physical_index, "pure fun " + def.name);
 }
 
 void Compiler::visit(ClassDefinition& class_definition)
@@ -105,7 +106,13 @@ void Compiler::visit(ClassDefinition& class_definition)
         {
             if (method.symbol->is_native())
             {
-                std::string mangled = get_native_mangled_name(method.name, class_definition.name);
+                // Pass the symbol's module_path as the 3rd argument
+                std::string mangled = get_native_mangled_name(
+                    method.name,
+                    class_definition.name,
+                    method.symbol->module_path
+                );
+
                 int registry_id = workspace->native_registry->get_native_index(mangled);
                 emit(OpCode::GET_NATIVE, registry_id, "load native method " + mangled);
             }

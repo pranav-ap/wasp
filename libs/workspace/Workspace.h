@@ -137,6 +137,7 @@ using SymbolPayload = std::variant<
 struct Symbol : public std::enable_shared_from_this<Symbol>
 {
     std::string name;
+    std::string module_path = "";
     int id = -1;
 
     int closure_depth = 0;

@@ -37,22 +37,14 @@ void SemanticAnalyzer::visit(SimpleImport& import_stmt)
         current_scope->define(module_symbol);
         import_stmt.symbol = module_symbol;
     }
-
-    // setup aliases for all exported symbols
-
-    // for (const auto& exported_symbol : mod->exports)
-    // {
-    //     std::string alias_name = module_name + "::" + exported_symbol->name;
-
-    //     Symbol_ptr alias_symbol = SymbolFactory::create_alias(alias_name, exported_symbol);
-    //     current_scope->define(alias_symbol);
-    // }
 }
 
 void SemanticAnalyzer::visit(FromImport& import_stmt)
 {
     auto mod = workspace->get_module(import_stmt.absolute_path);
     Doctor::get().fatal_if_nullptr(mod, WaspStage::Semantics, "Failed to load module");
+
+    std::string origin_path = mod->absolute_filepath.string();
 
     Symbol_ptr module_symbol = SymbolFactory::create_module(mod->get_name(), mod);
     import_stmt.symbol = module_symbol;
@@ -63,11 +55,11 @@ void SemanticAnalyzer::visit(FromImport& import_stmt)
         std::string local_name = imported_symbol_node.alias.value_or(target_name);
 
         SymbolVector symbols_with_target_name;
-
         for (const auto& exported_symbol : mod->exports)
         {
             if (exported_symbol->name == target_name)
             {
+                exported_symbol->module_path = origin_path;
                 symbols_with_target_name.push_back(exported_symbol);
             }
         }
@@ -75,13 +67,16 @@ void SemanticAnalyzer::visit(FromImport& import_stmt)
         Doctor::get().assert(
             !symbols_with_target_name.empty(),
             WaspStage::Semantics,
-            "Module '" + mod->get_name() + "' does not export symbol: " + target_name);
+            "Module '" + mod->get_name() + "' does not export symbol: " + target_name
+        );
 
         for (const auto& exported_symbol : symbols_with_target_name)
         {
             Symbol_ptr local_symbol = SymbolFactory::create_alias(local_name, exported_symbol);
-            current_scope->define(local_symbol);
 
+            local_symbol->module_path = origin_path;
+
+            current_scope->define(local_symbol);
             imported_symbol_node.resolved_symbols.push_back(local_symbol);
         }
     }

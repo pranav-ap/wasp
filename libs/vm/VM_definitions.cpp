@@ -176,19 +176,25 @@ void VM::execute_overload_function(CallFrame* frame)
 void VM::execute_resolve_function(CallFrame* frame)
 {
     int overload_index = static_cast<int>(frame->consume_byte());
+    Object_ptr obj = pop_from_stack();
 
-    Object_ptr group_obj = pop_from_stack();
+    if (obj->is<std::shared_ptr<NativeFunctionObject>>() ||
+        obj->is<std::shared_ptr<FunctionRuntimeObject>>())
+    {
+        push_to_stack(obj);
+        return;
+    }
 
     Doctor::get().assert(
-        group_obj->is<std::shared_ptr<ObjectOverloadList>>(),
+        obj->is<std::shared_ptr<ObjectOverloadList>>(),
         WaspStage::VM,
-        "RESOLVE_FUNCTION expects an Overload Group on the stack!"
+        "RESOLVE_FUNCTION expects an Overload Group or Function on the stack!"
     );
 
-    auto group = group_obj->as<std::shared_ptr<ObjectOverloadList>>();
+    auto group = obj->as<std::shared_ptr<ObjectOverloadList>>();
 
     Doctor::get().assert(
-        overload_index >= 0 && overload_index < group->overloads.size(),
+        overload_index >= 0 && overload_index < static_cast<int>(group->overloads.size()),
         WaspStage::VM,
         "Overload index out of bounds!"
     );

@@ -49,7 +49,7 @@ public:
 private:
     Workspace_ptr workspace;
     Compiler* parent;
-    std::string module_filepath;
+    std::string module_path;
 
     // ------------------------------------------------------------------------
     // Symbols & Closure Support
@@ -196,7 +196,8 @@ private:
 
     std::string get_native_mangled_name(
         const std::string& fn_name,
-        const std::string& class_name = ""
+        const std::string& class_name,
+        const std::string& path_override
     );
 
     Object_ptr get_default_value_for_type(Object_ptr type);

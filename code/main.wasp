@@ -1,9 +1,8 @@
-import core.io as io
-
-# io.print('hello from comments')
+from core.io import print as p
+# import core.io as io
 
 fun check(value: str)
-    io.print(value)
+    p(value)
 
 
 check('sam')

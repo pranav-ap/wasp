@@ -31,7 +31,8 @@ Compiler::Compiler(Workspace_ptr workspace)
 
 Compiler::Compiler(Compiler* parent)
     : parent(parent), workspace(parent->workspace), compiler_depth(parent->compiler_depth + 1),
-      current_lexical_scope_depth(parent->current_lexical_scope_depth + 1)
+      current_lexical_scope_depth(parent->current_lexical_scope_depth + 1),
+      module_path(parent->module_path)
 {
     current_block_id = graph.create_block();
     graph.set_entry_block(current_block_id);
@@ -43,7 +44,7 @@ FunctionBlueprintObject_ptr Compiler::run(
     bool is_main
 )
 {
-    this->module_filepath = filepath;
+    this->module_path = filepath;
 
     if (is_main)
     {
