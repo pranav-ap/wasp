@@ -470,6 +470,19 @@ void SemanticAnalyzer::visit(TemplateDefinition& statement)
 
 void SemanticAnalyzer::visit(Native& statement)
 {
+    Doctor::get().fatal_if_nullptr(
+        current_module,
+        WaspStage::Semantics,
+        "Current module is nullptr while analyzing native statement"
+    );
+
+    std::string path = current_module->absolute_filepath.generic_string();
+
+    Doctor::get().assert(
+        path.find("/libs/core/") != std::string::npos,
+        WaspStage::Semantics,
+        "The 'native' keyword is strictly reserved for internal core libraries."
+    );
 }
 
 void SemanticAnalyzer::visit(AliasDefinition& statement)

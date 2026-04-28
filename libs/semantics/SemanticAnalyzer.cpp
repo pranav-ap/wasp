@@ -10,7 +10,6 @@
 #include <ctime>
 #include <memory>
 #include <string>
-#include <unordered_map>
 #include <variant>
 #include <vector>
 
@@ -30,10 +29,11 @@ namespace Wasp
 void SemanticAnalyzer::run(const std::vector<Module_ptr>& build_order)
 {
     enter_scope(ScopeType::WORKSPACE);
-    register_natives();
 
     for (const auto mod : build_order)
     {
+        current_module = mod;
+
         enter_scope(ScopeType::MODULE);
 
         hoist_statements(mod->stmts);
@@ -149,21 +149,6 @@ void SemanticAnalyzer::extract_module_type(Module_ptr module)
 
     module->type = make_object(module_type);
 }
-
-void SemanticAnalyzer::register_natives()
-{
-    std::unordered_map<std::string, int> native_names = workspace->native_registry
-                                                            ->get_all_native_names();
-
-    for (const auto& [name, index] : native_names)
-    {
-        auto symbol_type = workspace->native_registry->get_native_object_type(index);
-
-        auto symbol = SymbolFactory::create_function(name, symbol_type, true);
-        current_scope->define(symbol);
-    }
-}
-
 // ============================================================================
 // High Level Visitors
 // ============================================================================

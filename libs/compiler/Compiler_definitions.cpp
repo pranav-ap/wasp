@@ -127,28 +127,36 @@ void Compiler::visit(TraitDefinition& trait_definition)
 {
 }
 
-void Compiler::visit(FunctionDefinition& function_definition)
+void Compiler::visit(FunctionDefinition& def)
 {
-    compile_function_closure(
-        function_definition.name,
-        function_definition.parameter_symbols,
-        function_definition.body
-    );
+    if (def.symbol->is_native())
+    {
+        int registry_id = workspace->native_registry->get_native_index(def.name);
+        emit(OpCode::GET_NATIVE, registry_id);
+    }
+    else
+    {
+        compile_function_closure(def.name, def.parameter_symbols, def.body);
+    }
 
-    int physical_index = get_or_add_local_index(function_definition.group_symbol);
-    emit(OpCode::STORE_FUNCTION_OVERLOAD, physical_index, "fun " + function_definition.name);
+    int physical_index = get_or_add_local_index(def.group_symbol);
+    emit(OpCode::STORE_FUNCTION_OVERLOAD, physical_index);
 }
 
-void Compiler::visit(PureFunctionDefinition& function_definition)
+void Compiler::visit(PureFunctionDefinition& def)
 {
-    compile_function_closure(
-        function_definition.name,
-        function_definition.parameter_symbols,
-        function_definition.body
-    );
+    if (def.symbol->is_native())
+    {
+        int registry_id = workspace->native_registry->get_native_index(def.name);
+        emit(OpCode::GET_NATIVE, registry_id);
+    }
+    else
+    {
+        compile_function_closure(def.name, def.parameter_symbols, def.body);
+    }
 
-    int physical_index = get_or_add_local_index(function_definition.group_symbol);
-    emit(OpCode::STORE_FUNCTION_OVERLOAD, physical_index, "fun " + function_definition.name);
+    int physical_index = get_or_add_local_index(def.group_symbol);
+    emit(OpCode::STORE_FUNCTION_OVERLOAD, physical_index, "fun " + def.name);
 }
 
 void Compiler::emit_closure_upvalues(const std::vector<Upvalue>& upvalues)

@@ -28,7 +28,7 @@ public:
 private:
     Workspace_ptr workspace;
     TypeChecker_ptr type_checker;
-
+    Module_ptr current_module = nullptr;
     SymbolScope_ptr current_scope;
     ObjectVector return_type_stack;
 
@@ -39,7 +39,6 @@ private:
     void leave_scope();
     void leave_scope_keep_symbol(Symbol_ptr symbol_to_keep);
 
-    void register_natives();
     void extract_module_type(Module_ptr module);
     void setup_exports(Module_ptr mod, StringVector ordered_export_names);
     StringVector setup_ordered_export_names(Module_ptr mod);

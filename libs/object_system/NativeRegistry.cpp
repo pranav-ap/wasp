@@ -33,6 +33,10 @@ static Object_ptr native_print(const std::vector<Object_ptr>& args, ConstantPool
                 {
                     std::cout << i.value;
                 },
+                [](const FloatObject& f)
+                {
+                    std::cout << f.value;
+                },
                 [](const StringObject& s)
                 {
                     std::cout << s.value;
@@ -45,13 +49,12 @@ static Object_ptr native_print(const std::vector<Object_ptr>& args, ConstantPool
                 {
                     std::cout << "none";
                 },
-                [](const std::shared_ptr<ErrorObject> e)
-                {
-                    std::cout << "Error : " << e->message;
-                },
                 [](const auto&)
                 {
-                    std::cout << "Unhandled type in print";
+                    Doctor::get().fatal(
+                        WaspStage::VM,
+                        "Native Registry : Unhandled type provided as args to print()"
+                    );
                 }
             },
             arg->value
@@ -65,19 +68,31 @@ static Object_ptr native_print(const std::vector<Object_ptr>& args, ConstantPool
 
 static Object_ptr native_input(const std::vector<Object_ptr>& args)
 {
-    std::visit(
-        overloaded{
-            [](const StringObject& s)
-            {
-                std::cout << s.value << " ";
+    if (args.size() > 0)
+    {
+        Doctor::get().assert(
+            args.size() == 1,
+            WaspStage::VM,
+            "Native Registry : input() takes at most one argument (the prompt string)"
+        );
+
+        std::visit(
+            overloaded{
+                [](const StringObject& s)
+                {
+                    std::cout << s.value << " ";
+                },
+                [](const auto&)
+                {
+                    Doctor::get().fatal(
+                        WaspStage::VM,
+                        "Native Registry : Unhandled type provided as args to input()"
+                    );
+                }
             },
-            [](const auto&)
-            {
-                std::cout << "<prompt>";
-            }
-        },
-        args[0]->value
-    );
+            args[0]->value
+        );
+    }
 
     std::string input_line;
     std::getline(std::cin, input_line);

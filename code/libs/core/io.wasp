@@ -1,0 +1,8 @@
+fun print(value: int | float | str | bool)
+    native
+
+fun input() => str
+    native
+
+fun input(prompt: str) => str
+    native

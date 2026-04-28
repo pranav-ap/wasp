@@ -119,7 +119,7 @@ Object_ptr SemanticAnalyzer::evaluate_function_call(
         argument_types
     );
 
-    call.overload_index = function->is_native_function_or_method() ? -1 : overload_index;
+    call.overload_index = overload_index;
 
     return get_function_return_type(function);
 }

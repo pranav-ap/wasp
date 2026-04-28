@@ -106,10 +106,9 @@ void Compiler::visit(Call& expr)
 {
     visit(expr.callable);
 
-    if (expr.overload_index != -1)
-    {
-        emit(OpCode::RESOLVE_FUNCTION, expr.overload_index);
-    }
+    int resolve_idx = expr.overload_index == -1 ? 0 : expr.overload_index;
+
+    emit(OpCode::RESOLVE_FUNCTION, resolve_idx);
 
     int total_arguments = static_cast<int>(expr.arguments.size());
 
