@@ -345,7 +345,11 @@ struct TemplateObject : public MemberedCompositeObject
 // Type Interfaces
 // ============================================================================
 
-struct AnyType : public AbstractObject
+struct TypeType : public AbstractObject
+{
+};
+
+struct AnyType : public TypeType
 {
 };
 
@@ -714,6 +718,7 @@ struct Object
         std::shared_ptr<ClassTemplateType>,
         std::shared_ptr<TraitTemplateType>,
 
+        TypeType,
         AnyType,
         NoneType,
         NamedDefinitionType,

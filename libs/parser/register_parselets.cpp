@@ -62,7 +62,15 @@ namespace Wasp
         register_parselet(TokenType::OPEN_PARENTHESIS, make_shared<ParenthesisParselet>());
         register_parselet(TokenType::OPEN_PARENTHESIS, make_shared<CallParselet>());
 
-        register_parselet(TokenType::EQUAL, make_shared<AssignmentParselet>());
+        auto assignment_parselet = make_shared<AssignmentParselet>();
+        register_parselet(TokenType::EQUAL, assignment_parselet);
+        register_parselet(TokenType::PLUS_EQUAL, assignment_parselet);
+        register_parselet(TokenType::MINUS_EQUAL, assignment_parselet);
+        register_parselet(TokenType::STAR_EQUAL, assignment_parselet);
+        register_parselet(TokenType::DIVISION_EQUAL, assignment_parselet);
+        register_parselet(TokenType::MOD_EQUAL, assignment_parselet);
+        register_parselet(TokenType::POWER_EQUAL, assignment_parselet);
+
         register_parselet(TokenType::COLON, make_shared<TypePatternParselet>());
         register_parselet(TokenType::IF, make_shared<TernaryConditionParselet>());
 

@@ -177,6 +177,44 @@ Expression_ptr AssignmentParselet::parse(Parser& parser, Expression_ptr left, co
     Expression_ptr right = parser.parse_expression(static_cast<int>(Precedence::ASSIGNMENT) - 1);
     Doctor::get().fatal_if_nullptr(right, WaspStage::Parser);
 
+    if (token.type != TokenType::EQUAL)
+    {
+        Token op_token = token;
+
+        switch (token.type)
+        {
+        case TokenType::PLUS_EQUAL:
+            op_token.type = TokenType::PLUS;
+            op_token.value = "+";
+            break;
+        case TokenType::MINUS_EQUAL:
+            op_token.type = TokenType::MINUS;
+            op_token.value = "-";
+            break;
+        case TokenType::STAR_EQUAL:
+            op_token.type = TokenType::STAR;
+            op_token.value = "*";
+            break;
+        case TokenType::DIVISION_EQUAL:
+            op_token.type = TokenType::DIVISION;
+            op_token.value = "/";
+            break;
+        case TokenType::MOD_EQUAL:
+            op_token.type = TokenType::MOD;
+            op_token.value = "%";
+            break;
+        case TokenType::POWER_EQUAL:
+            op_token.type = TokenType::POWER;
+            op_token.value = "**";
+            break;
+        default:
+            break;
+        }
+
+        // Transform: right = (left op right)
+        right = make_expression(Infix(left, op_token, right));
+    }
+
     if (left->is<TypePattern>())
     {
         const auto& pattern = left->as<TypePattern>();
