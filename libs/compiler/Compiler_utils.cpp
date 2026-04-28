@@ -5,8 +5,10 @@
 #include "OpCode.h"
 #include "Workspace.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <map>
 #include <string>
 #include <utility>
@@ -21,6 +23,48 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
+
+std::string Compiler::get_native_mangled_name(
+    const std::string& fn_name,
+    const std::string& class_name
+)
+{
+    std::string full_path = this->module_filepath;
+    std::replace(full_path.begin(), full_path.end(), '\\', '/');
+
+    std::string prefix;
+    size_t libs_pos = full_path.find("libs/");
+
+    if (libs_pos != std::string::npos)
+    {
+        prefix = full_path.substr(libs_pos);
+    }
+    else
+    {
+        prefix = std::filesystem::path(full_path).stem().string();
+    }
+
+    size_t ext_pos = prefix.rfind(".wasp");
+    if (ext_pos != std::string::npos)
+    {
+        prefix.erase(ext_pos);
+    }
+
+    std::string::size_type pos = 0;
+    while ((pos = prefix.find('/', pos)) != std::string::npos)
+    {
+        prefix.replace(pos, 1, "::");
+        pos += 2;
+    }
+
+    if (class_name.empty())
+    {
+        return prefix + "::" + fn_name;
+    }
+
+    return prefix + "::" + class_name + "::" + fn_name;
+}
+
 // ------------------------------------------------------------------------
 // Scope
 // ------------------------------------------------------------------------

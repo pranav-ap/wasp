@@ -7,7 +7,6 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
-#include <utility>
 #include <variant>
 #include <vector>
 
@@ -33,6 +32,10 @@ static Object_ptr native_print(const std::vector<Object_ptr>& args, ConstantPool
                 {
                     std::cout << i.value;
                 },
+                [](const FloatObject& f)
+                {
+                    std::cout << f.value;
+                },
                 [](const StringObject& s)
                 {
                     std::cout << s.value;
@@ -45,13 +48,12 @@ static Object_ptr native_print(const std::vector<Object_ptr>& args, ConstantPool
                 {
                     std::cout << "none";
                 },
-                [](const std::shared_ptr<ErrorObject> e)
-                {
-                    std::cout << "Error : " << e->message;
-                },
                 [](const auto&)
                 {
-                    std::cout << "Unhandled type in print";
+                    Doctor::get().fatal(
+                        WaspStage::VM,
+                        "Native Registry : Unhandled type provided as args to print()"
+                    );
                 }
             },
             arg->value
@@ -65,19 +67,31 @@ static Object_ptr native_print(const std::vector<Object_ptr>& args, ConstantPool
 
 static Object_ptr native_input(const std::vector<Object_ptr>& args)
 {
-    std::visit(
-        overloaded{
-            [](const StringObject& s)
-            {
-                std::cout << s.value << " ";
+    if (args.size() > 0)
+    {
+        Doctor::get().assert(
+            args.size() == 1,
+            WaspStage::VM,
+            "Native Registry : input() takes at most one argument (the prompt string)"
+        );
+
+        std::visit(
+            overloaded{
+                [](const StringObject& s)
+                {
+                    std::cout << s.value << " ";
+                },
+                [](const auto&)
+                {
+                    Doctor::get().fatal(
+                        WaspStage::VM,
+                        "Native Registry : Unhandled type provided as args to input()"
+                    );
+                }
             },
-            [](const auto&)
-            {
-                std::cout << "<prompt>";
-            }
-        },
-        args[0]->value
-    );
+            args[0]->value
+        );
+    }
 
     std::string input_line;
     std::getline(std::cin, input_line);
@@ -98,71 +112,60 @@ Object_ptr NativeRegistry::get_native_object(int index) const
     return native_objects[index];
 }
 
-Object_ptr NativeRegistry::get_native_object_type(int index) const
-{
-    Doctor::get().assert(
-        index >= 0 && index < static_cast<int>(native_object_types.size()),
-        WaspStage::VM,
-        "Native function index out of bounds"
-    );
-
-    return native_object_types[index];
-}
-
 int NativeRegistry::get_native_index(const std::string& name) const
 {
     auto it = native_names.find(name);
 
-    Doctor::get()
-        .assert(it != native_names.end(), WaspStage::VM, "Native function not found" + name);
+    Doctor::get().assert(
+        it != native_names.end(),
+        WaspStage::VM,
+        "Native function '" + name + "' not found in registry"
+    );
 
     return it->second;
 }
 
-void NativeRegistry::add_native(
-    const std::string& name,
-    int arity,
-    NativeFnType function,
-    ObjectVector input_types,
-    Object_ptr return_type
-)
+void NativeRegistry::add_native(const std::string& name, NativeFnType function)
 {
     int global_index = static_cast<int>(native_objects.size());
 
     native_names[name] = global_index;
 
-    auto obj = make_object(std::make_shared<NativeFunctionObject>(function, arity, name));
+    auto obj = make_object(std::make_shared<NativeFunctionObject>(function, name));
     native_objects.push_back(obj);
-
-    auto type_obj = make_object(
-        std::make_shared<FunctionType>(std::move(input_types), std::move(return_type))
-    );
-
-    native_object_types.push_back(type_obj);
 }
 
 void NativeRegistry::load_stdlib()
 {
     add_native(
-        "print",
-        1,
+        "libs::core::io::print",
         [this](const std::vector<Object_ptr>& args)
         {
             return native_print(args, this->pool);
-        },
-        {pool->get_any_type()},
-        pool->get_none_type()
+        }
     );
 
     add_native(
-        "input",
-        1,
+        "libs::core::io::input",
         [](const std::vector<Object_ptr>& args)
         {
             return native_input(args);
-        },
-        {pool->get_string_type()},
-        pool->get_string_type()
+        }
+    );
+
+    add_native(
+        "libs::core::greet::Greeter::greet",
+        [this](const std::vector<Object_ptr>& args)
+        {
+            auto instance_ptr = args[0];
+            auto& instance = std::get<std::shared_ptr<InstanceObject>>(instance_ptr->value);
+
+            Object_ptr name_obj = instance->members[0];
+            std::cout << "Hello! I am " << std::get<StringObject>(name_obj->value).value << "!"
+                      << std::endl;
+
+            return pool->get_none_object();
+        }
     );
 }
 } // namespace Wasp

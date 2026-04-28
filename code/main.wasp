@@ -1,2 +1,8 @@
-fun greet() => str
-    native
+import core.io as io
+io.print('Hello world')
+
+import core.greet as g
+let x = g.Greeter('sam')
+x.greet()
+
+

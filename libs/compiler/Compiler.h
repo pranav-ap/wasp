@@ -42,13 +42,14 @@ public:
 
     FunctionBlueprintObject_ptr run(
         const StatementVector& block,
-        std::string name,
+        std::string filepath,
         bool is_main = false
     );
 
 private:
     Workspace_ptr workspace;
     Compiler* parent;
+    std::string module_filepath;
 
     // ------------------------------------------------------------------------
     // Symbols & Closure Support
@@ -192,6 +193,11 @@ private:
     void compile_variable_definition(const Expression_ptr& assignment, bool as_expression = false);
     void compile_identifier_assignment(Identifier& id, const Expression_ptr& rhs);
     void compile_member_assignment(MemberAccess& mac, const Expression_ptr& rhs);
+
+    std::string get_native_mangled_name(
+        const std::string& fn_name,
+        const std::string& class_name = ""
+    );
 
     Object_ptr get_default_value_for_type(Object_ptr type);
 

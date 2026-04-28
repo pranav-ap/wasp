@@ -1,0 +1,4 @@
+import core.io as io
+
+let x = io.input('gimme a number : ')
+io.print(x)

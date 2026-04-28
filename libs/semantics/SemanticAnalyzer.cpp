@@ -10,7 +10,6 @@
 #include <ctime>
 #include <memory>
 #include <string>
-#include <unordered_map>
 #include <variant>
 #include <vector>
 
@@ -30,10 +29,11 @@ namespace Wasp
 void SemanticAnalyzer::run(const std::vector<Module_ptr>& build_order)
 {
     enter_scope(ScopeType::WORKSPACE);
-    register_natives();
 
     for (const auto mod : build_order)
     {
+        current_module = mod;
+
         enter_scope(ScopeType::MODULE);
 
         hoist_statements(mod->stmts);
@@ -67,51 +67,31 @@ StringVector SemanticAnalyzer::setup_ordered_export_names(Module_ptr mod)
         }
     };
 
+    auto add_if_named = [&](auto& def)
+    {
+        if constexpr (requires { def.name; })
+        {
+            try_add_export(def.name);
+        }
+    };
+
     for (auto& stmt_ptr : mod->stmts)
     {
         std::visit(
             overloaded{
-                [&](VariableDefinition& def)
-                {
-                    try_add_export(def.name);
-                },
-                [&](FunctionDefinition& def)
-                {
-                    try_add_export(def.name);
-                },
-                [&](PureFunctionDefinition& def)
-                {
-                    try_add_export(def.name);
-                },
-                [&](ClassDefinition& def)
-                {
-                    try_add_export(def.name);
-                },
                 [&](TemplateDefinition& def)
                 {
                     std::visit(
-                        overloaded{
-                            [&](FunctionDefinition& f)
-                            {
-                                try_add_export(f.name);
-                            },
-                            [&](PureFunctionDefinition& f)
-                            {
-                                try_add_export(f.name);
-                            },
-                            [&](ClassDefinition& c)
-                            {
-                                try_add_export(c.name);
-                            },
-                            [](auto&)
-                            {
-                            }
+                        [&](auto& inner)
+                        {
+                            add_if_named(inner);
                         },
                         def.target->data
                     );
                 },
-                [](auto&)
+                [&](auto& def)
                 {
+                    add_if_named(def);
                 }
             },
             stmt_ptr->data
@@ -169,21 +149,6 @@ void SemanticAnalyzer::extract_module_type(Module_ptr module)
 
     module->type = make_object(module_type);
 }
-
-void SemanticAnalyzer::register_natives()
-{
-    std::unordered_map<std::string, int> native_names = workspace->native_registry
-                                                            ->get_all_native_names();
-
-    for (const auto& [name, index] : native_names)
-    {
-        auto symbol_type = workspace->native_registry->get_native_object_type(index);
-
-        auto symbol = SymbolFactory::create_function(name, symbol_type, true);
-        current_scope->define(symbol);
-    }
-}
-
 // ============================================================================
 // High Level Visitors
 // ============================================================================
@@ -248,7 +213,7 @@ void SemanticAnalyzer::hoist_class(ClassDefinition& def, std::shared_ptr<SymbolS
 
 void SemanticAnalyzer::hoist_trait(TraitDefinition& def, std::shared_ptr<SymbolScope> target_scope)
 {
-    auto symbol = SymbolFactory::create_class(
+    auto symbol = SymbolFactory::create_trait(
         def.name,
         nullptr,
         target_scope->get_closure_depth(),
@@ -265,6 +230,24 @@ void SemanticAnalyzer::hoist_template_class(
 )
 {
     auto type = make_object(std::make_shared<ClassTemplateType>(generics));
+
+    auto symbol = SymbolFactory::create_template(
+        def.name,
+        type,
+        target_scope->get_closure_depth(),
+        target_scope->get_lexical_depth()
+    );
+
+    def.symbol = target_scope->define(symbol);
+}
+
+void SemanticAnalyzer::hoist_template_trait(
+    TraitDefinition& def,
+    std::shared_ptr<SymbolScope> target_scope,
+    ObjectStringMap generics
+)
+{
+    auto type = make_object(std::make_shared<TraitTemplateType>(generics));
 
     auto symbol = SymbolFactory::create_template(
         def.name,
@@ -370,92 +353,16 @@ void SemanticAnalyzer::visit(const Statement_ptr statement)
 
     std::visit(
         overloaded{
-            [&](ExpressionStatement& stat)
-            {
-                visit(stat);
-            },
-            [&](VariableDefinition& stat)
-            {
-                visit(stat);
-            },
-            [&](AliasDefinition& stat)
-            {
-                visit(stat);
-            },
-            [&](EnumDefinition& stat)
-            {
-                visit(stat);
-            },
-            [&](FunctionDefinition& stat)
-            {
-                visit(stat);
-            },
-            [&](PureFunctionDefinition& stat)
-            {
-                visit(stat);
-            },
-            [&](ClassDefinition& stat)
-            {
-                visit(stat);
-            },
-            [&](TraitDefinition& stat)
-            {
-                visit(stat);
-            },
-            [&](TemplateDefinition& stat)
-            {
-                visit(stat);
-            },
-            [&](AnnotationDefinition& stat)
-            {
-                visit(stat);
-            },
-            [&](IfBranch& stat)
-            {
-                visit(stat);
-            },
-            [&](ElseBranch& stat)
-            {
-                visit(stat);
-            },
-            [&](SimpleLoop& stat)
-            {
-                visit(stat);
-            },
-            [&](ForInLoop& stat)
-            {
-                visit(stat);
-            },
-            [&](LoopControl& stat)
-            {
-                visit(stat);
-            },
-            [&](Pass& stat)
-            {
-                visit(stat);
-            },
-            [&](Native& stat)
-            {
-                visit(stat);
-            },
-            [&](Return& stat)
-            {
-                visit(stat);
-            },
-            [&](SimpleImport& stat)
-            {
-                visit(stat);
-            },
-            [&](FromImport& stat)
-            {
-                visit(stat);
-            },
-            [](auto)
+            [&](std::monostate&)
             {
                 Doctor::get().fatal(
                     WaspStage::Semantics,
                     "Unhandled Statement in Semantic Analyzer!"
                 );
+            },
+            [&](auto& stat)
+            {
+                this->visit(stat);
             }
         },
         statement->data

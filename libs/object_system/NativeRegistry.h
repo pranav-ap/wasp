@@ -13,39 +13,16 @@ class NativeRegistry {
     ConstantPool_ptr pool;
 
     std::vector<Object_ptr> native_objects;
-    std::vector<Object_ptr> native_object_types;
     std::unordered_map<std::string, int> native_names;
 
     void load_stdlib();
-
-    void add_native(
-        const std::string& name,
-        int arity,
-        NativeFnType function,
-        ObjectVector input_types,
-        Object_ptr return_type
-    );
+    void add_native(const std::string& name, NativeFnType function);
 
 public:
     NativeRegistry(ConstantPool_ptr pool) : pool(pool) { load_stdlib(); };
 
     Object_ptr get_native_object(int index) const;
-    Object_ptr get_native_object_type(int index) const;
-
     int get_native_index(const std::string& name) const;
-
-    std::string get_native_name(int index) const {
-        for (const auto& [native_name, native_index] : native_names) {
-            if (native_index == index)
-                return native_name;
-        }
-
-        return "<unknown native>";
-    }
-
-    std::unordered_map<std::string, int> get_all_native_names() const { return native_names; }
-
-    int get_size() const { return static_cast<int>(native_objects.size()); }
 };
 
 using NativeRegistry_ptr = std::shared_ptr<NativeRegistry>;

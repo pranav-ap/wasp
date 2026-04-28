@@ -37,6 +37,43 @@ void Compiler::visit(Return& statement)
     emit(OpCode::RETURN);
 }
 
+void Compiler::visit(TraitDefinition& trait_definition)
+{
+}
+void Compiler::visit(FunctionDefinition& def)
+{
+    if (def.symbol->is_native())
+    {
+        std::string mangled = get_native_mangled_name(def.name);
+        int registry_id = workspace->native_registry->get_native_index(mangled);
+        emit(OpCode::GET_NATIVE, registry_id);
+    }
+    else
+    {
+        compile_function_closure(def.name, def.parameter_symbols, def.body);
+    }
+
+    int physical_index = get_or_add_local_index(def.group_symbol);
+    emit(OpCode::STORE_FUNCTION_OVERLOAD, physical_index);
+}
+
+void Compiler::visit(PureFunctionDefinition& def)
+{
+    if (def.symbol->is_native())
+    {
+        std::string mangled = get_native_mangled_name(def.name);
+        int registry_id = workspace->native_registry->get_native_index(mangled);
+        emit(OpCode::GET_NATIVE, registry_id);
+    }
+    else
+    {
+        compile_function_closure(def.name, def.parameter_symbols, def.body);
+    }
+
+    int physical_index = get_or_add_local_index(def.group_symbol);
+    emit(OpCode::STORE_FUNCTION_OVERLOAD, physical_index, "fun " + def.name);
+}
+
 void Compiler::visit(ClassDefinition& class_definition)
 {
     int class_blueprint_physical_index = get_or_add_local_index(class_definition.symbol);
@@ -66,7 +103,16 @@ void Compiler::visit(ClassDefinition& class_definition)
     {
         if (method.name == target_name)
         {
-            compile_function_closure(method.name, method.parameter_symbols, method.body);
+            if (method.symbol->is_native())
+            {
+                std::string mangled = get_native_mangled_name(method.name, class_definition.name);
+                int registry_id = workspace->native_registry->get_native_index(mangled);
+                emit(OpCode::GET_NATIVE, registry_id, "load native method " + mangled);
+            }
+            else
+            {
+                compile_function_closure(method.name, method.parameter_symbols, method.body);
+            }
             count++;
         }
     };
@@ -121,34 +167,6 @@ void Compiler::visit(ClassDefinition& class_definition)
         "populate class " + class_definition.name
     );
     emit(OpCode::SET_LOCAL, class_blueprint_physical_index, "update local slot");
-}
-
-void Compiler::visit(TraitDefinition& trait_definition)
-{
-}
-
-void Compiler::visit(FunctionDefinition& function_definition)
-{
-    compile_function_closure(
-        function_definition.name,
-        function_definition.parameter_symbols,
-        function_definition.body
-    );
-
-    int physical_index = get_or_add_local_index(function_definition.group_symbol);
-    emit(OpCode::STORE_FUNCTION_OVERLOAD, physical_index, "fun " + function_definition.name);
-}
-
-void Compiler::visit(PureFunctionDefinition& function_definition)
-{
-    compile_function_closure(
-        function_definition.name,
-        function_definition.parameter_symbols,
-        function_definition.body
-    );
-
-    int physical_index = get_or_add_local_index(function_definition.group_symbol);
-    emit(OpCode::STORE_FUNCTION_OVERLOAD, physical_index, "fun " + function_definition.name);
 }
 
 void Compiler::emit_closure_upvalues(const std::vector<Upvalue>& upvalues)

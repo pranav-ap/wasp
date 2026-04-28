@@ -213,31 +213,18 @@ void VM::execute_call(CallFrame* frame)
 
                 // Create the new frame. No symbol mapping required!
                 frames.emplace_back(func, new_base_pointer);
-
-                // On the next VM cycle, it will start executing the first
-                // instruction of 'func' using the arguments already on the stack.
             },
-
             [&](std::shared_ptr<NativeFunctionObject>& native)
             {
-                Doctor::get().assert(
-                    native->arity == -1 || native->arity == arg_count,
-                    WaspStage::VM,
-                    "Arity mismatch in native function call: expected " +
-                        std::to_string(native->arity) + " but got " + std::to_string(arg_count)
-                );
-
-                // Collect arguments
+                // Extract arguments from the stack
                 ObjectVector args = pop_n_from_stack(arg_count);
 
                 // Remove the native function object itself
                 pop_from_stack();
 
-                // Execute and push result
-                Object_ptr result = native->function(args);
-                push_to_stack(result);
+                // Execute the C++ lambda and push the result immediately
+                push_to_stack(native->function(args));
             },
-
             [](auto&)
             {
                 Doctor::get().fatal(WaspStage::VM, "Attempted to call a non-callable object");
