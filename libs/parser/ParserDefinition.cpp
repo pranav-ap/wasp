@@ -302,6 +302,12 @@ StatementVector Parser::parse_name_type_block(int expected_indent)
     return members;
 }
 
+Statement_ptr Parser::parse_trait_definition(int indent_level)
+{
+    auto [name, traits, members] = parse_membered_definition_base(indent_level);
+    return make_statement(TraitDefinition(name, traits, members));
+}
+
 // Templates
 
 Statement_ptr Parser::parse_template_definition(int indent_level)

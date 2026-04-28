@@ -52,6 +52,10 @@ void SemanticAnalyzer::visit(ClassDefinition& def)
     analyze_class(def);
 }
 
+void SemanticAnalyzer::visit(TraitDefinition& def)
+{
+}
+
 void SemanticAnalyzer::analyze_class(ClassDefinition& def)
 {
     auto class_type = initialize_class_type(def);
@@ -407,6 +411,11 @@ void SemanticAnalyzer::analyze_function(T& def, ScopeType scope_type, bool is_mu
         def.parameter_symbols.push_back(symbol);
     }
 
+    if (def.body.size() == 1 && def.body.front()->template is<Native>())
+    {
+        def.symbol->mark_as_native();
+    }
+
     visit(def.body);
     return_type_stack.pop_back();
 
@@ -473,6 +482,10 @@ void SemanticAnalyzer::visit(TemplateDefinition& statement)
 // -------------------------------------------------------------------
 // Other Visitors
 // -------------------------------------------------------------------
+
+void SemanticAnalyzer::visit(Native& statement)
+{
+}
 
 void SemanticAnalyzer::visit(AliasDefinition& statement)
 {

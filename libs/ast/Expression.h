@@ -220,10 +220,10 @@ struct TemplateInstantiation : public Resolvable
 // Others
 
 struct RangeLiteral {
-    Expression_ptr start; // nullptr for ..10
-    Expression_ptr end;   // nullptr for 1..
-    Expression_ptr step;  // nullptr for 1..10
-    bool is_inclusive;    // true for ..., false for ..
+    Expression_ptr start;
+    Expression_ptr end;
+    Expression_ptr step;
+    bool is_inclusive;
 
     RangeLiteral() : start(nullptr), end(nullptr), step(nullptr), is_inclusive(false) {}
 

@@ -158,6 +158,10 @@ Object_ptr Symbol::get_type()
             {
                 return d.type;
             },
+            [](const TraitData& d)
+            {
+                return d.type;
+            },
             [](const ModuleData& d) -> Object_ptr
             {
                 return d.mod->type;
@@ -234,6 +238,10 @@ void Symbol::set_type(Object_ptr new_type)
             {
                 d.type = new_type;
             },
+            [&](TraitData& d)
+            {
+                d.type = new_type;
+            },
             [&](TemplateData& d)
             {
                 d.type = new_type;
@@ -257,6 +265,30 @@ void Symbol::set_type(Object_ptr new_type)
             [&](AliasData& d)
             {
                 d.target->set_type(new_type);
+            }
+        },
+        payload
+    );
+}
+
+void Symbol::mark_as_native()
+{
+    std::visit(
+        ::overloaded{
+            [&](FunctionData& d)
+            {
+                d.is_native = true;
+            },
+            [&](MethodData& d)
+            {
+                d.is_native = true;
+            },
+            [](auto&)
+            {
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Only functions and methods can be marked as native"
+                );
             }
         },
         payload
@@ -386,6 +418,22 @@ Symbol_ptr SymbolFactory::create_class(
         closure_depth,
         lexical_depth,
         ClassData{std::move(type)}
+    );
+}
+
+Symbol_ptr SymbolFactory::create_trait(
+    std::string name,
+    Object_ptr type,
+    int closure_depth,
+    int lexical_depth
+)
+{
+    return std::make_shared<Symbol>(
+        symbol_id_counter++,
+        std::move(name),
+        closure_depth,
+        lexical_depth,
+        TraitData{std::move(type)}
     );
 }
 

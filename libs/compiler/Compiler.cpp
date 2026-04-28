@@ -112,8 +112,6 @@ void Compiler::visit(std::vector<Statement_ptr>& statements)
 
     // -------------------------------------------------------------------
     // PASS 2: Compile the rest of the logic
-    // Now things like `ciao()` can successfully resolve because the
-    // function compiler already pushed `ciao` into the `stack`!
     // -------------------------------------------------------------------
     for (auto& stmt : statements)
     {
@@ -143,6 +141,10 @@ void Compiler::visit(const Statement_ptr statement)
                 visit(stat);
             },
             [&](ClassDefinition& stat)
+            {
+                visit(stat);
+            },
+            [&](TraitDefinition& stat)
             {
                 visit(stat);
             },

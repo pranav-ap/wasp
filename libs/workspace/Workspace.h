@@ -96,6 +96,11 @@ struct ClassData : public TypedData
     using TypedData::TypedData;
 };
 
+struct TraitData : public TypedData
+{
+    using TypedData::TypedData;
+};
+
 struct GenericData : public TypedData
 {
     using TypedData::TypedData;
@@ -124,6 +129,7 @@ using SymbolPayload = std::variant<
     MethodData,
     ModuleData,
     ClassData,
+    TraitData,
     GenericData,
     TemplateData,
     AliasData>;
@@ -150,6 +156,8 @@ struct Symbol : public std::enable_shared_from_this<Symbol>
 
     Object_ptr get_type();
     void set_type(Object_ptr new_type);
+
+    void mark_as_native();
 
     bool should_be_captured(int usage_depth) const;
 
@@ -221,6 +229,13 @@ public:
     );
 
     static Symbol_ptr create_class(
+        std::string name,
+        Object_ptr type = nullptr,
+        int closure_depth = 0,
+        int lexical_depth = 0
+    );
+
+    static Symbol_ptr create_trait(
         std::string name,
         Object_ptr type = nullptr,
         int closure_depth = 0,

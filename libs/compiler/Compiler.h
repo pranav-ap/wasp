@@ -133,6 +133,7 @@ private:
     );
 
     void visit(ClassDefinition& statement);
+    void visit(TraitDefinition& statement);
 
     // Expressions
 

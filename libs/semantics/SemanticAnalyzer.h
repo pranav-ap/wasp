@@ -76,6 +76,7 @@ class SemanticAnalyzer
     );
 
     void hoist_class(ClassDefinition& def, std::shared_ptr<SymbolScope> target_scope);
+    void hoist_trait(TraitDefinition& def, std::shared_ptr<SymbolScope> target_scope);
 
     void hoist_template_class(
         ClassDefinition& def,
@@ -93,6 +94,7 @@ class SemanticAnalyzer
     void analyze_template_class(ClassDefinition& c, const ObjectStringMap& generics);
 
     void visit(ClassDefinition& statement);
+    void visit(TraitDefinition& statement);
     void visit(FieldDefinition& statement);
 
     void visit(AliasDefinition& statement);

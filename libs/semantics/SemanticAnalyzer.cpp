@@ -246,6 +246,18 @@ void SemanticAnalyzer::hoist_class(ClassDefinition& def, std::shared_ptr<SymbolS
     def.symbol = target_scope->define(symbol);
 }
 
+void SemanticAnalyzer::hoist_trait(TraitDefinition& def, std::shared_ptr<SymbolScope> target_scope)
+{
+    auto symbol = SymbolFactory::create_class(
+        def.name,
+        nullptr,
+        target_scope->get_closure_depth(),
+        target_scope->get_lexical_depth()
+    );
+
+    def.symbol = target_scope->define(symbol);
+}
+
 void SemanticAnalyzer::hoist_template_class(
     ClassDefinition& def,
     std::shared_ptr<SymbolScope> target_scope,
@@ -325,6 +337,10 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
                 {
                     hoist_class(def, current_scope);
                 },
+                [&](TraitDefinition& def)
+                {
+                    hoist_trait(def, current_scope);
+                },
                 [&](TemplateDefinition& def)
                 {
                     hoist_template(def, current_scope);
@@ -379,6 +395,10 @@ void SemanticAnalyzer::visit(const Statement_ptr statement)
                 visit(stat);
             },
             [&](ClassDefinition& stat)
+            {
+                visit(stat);
+            },
+            [&](TraitDefinition& stat)
             {
                 visit(stat);
             },

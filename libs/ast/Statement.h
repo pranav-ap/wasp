@@ -150,6 +150,19 @@ struct ClassDefinition : public Definition
     }
 };
 
+struct TraitDefinition : public Definition
+{
+    StringVector traits;
+    StatementVector members;
+
+    TraitDefinition() = default;
+
+    TraitDefinition(std::string name, StringVector traits, StatementVector members)
+        : Definition(std::move(name)), traits(std::move(traits)), members(std::move(members))
+    {
+    }
+};
+
 struct TemplateDefinition
 {
     std::vector<FieldDefinition> members;
@@ -395,6 +408,7 @@ using StatementVariant = std::variant<
 
     FieldDefinition,
     ClassDefinition,
+    TraitDefinition,
 
     TemplateDefinition,
 

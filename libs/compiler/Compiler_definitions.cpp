@@ -123,6 +123,10 @@ void Compiler::visit(ClassDefinition& class_definition)
     emit(OpCode::SET_LOCAL, class_blueprint_physical_index, "update local slot");
 }
 
+void Compiler::visit(TraitDefinition& trait_definition)
+{
+}
+
 void Compiler::visit(FunctionDefinition& function_definition)
 {
     compile_function_closure(

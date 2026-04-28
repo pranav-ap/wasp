@@ -54,6 +54,8 @@ private:
     Statement_ptr parse_enum_definition(int indent_level = 0);
     StringVector parse_enum_members(std::string stem, int indent_level);
 
+    Statement_ptr parse_trait_definition(int indent_level = 0);
+
     Statement_ptr parse_class_definition(int indent_level = 0);
     std::tuple<std::string, std::vector<std::string>, StatementVector>
     parse_membered_definition_base(int indent_level);
