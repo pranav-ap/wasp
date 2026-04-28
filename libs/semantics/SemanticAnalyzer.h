@@ -35,7 +35,6 @@ private:
     // =========================================================================
     // Scope & Environment Management
     // =========================================================================
-
     void enter_scope(ScopeType scope_type);
     void leave_scope();
     void leave_scope_keep_symbol(Symbol_ptr symbol_to_keep);
@@ -48,19 +47,7 @@ private:
     // =========================================================================
     // Hoisting
     // =========================================================================
-
     void hoist_statements(StatementVector& statements);
-
-    template <typename T> void hoist_function(T& def, std::shared_ptr<SymbolScope> target_scope);
-    template <typename T>
-    void hoist_template_function(
-        T& def,
-        std::shared_ptr<SymbolScope> target_scope,
-        ObjectStringMap generics
-    );
-    template <typename T> void hoist_method(ClassType_ptr class_type, T& m);
-    template <typename T> void hoist_method(TraitType_ptr trait_type, T& m);
-
     void hoist_class(ClassDefinition& def, std::shared_ptr<SymbolScope> target_scope);
     void hoist_trait(TraitDefinition& def, std::shared_ptr<SymbolScope> target_scope);
     void hoist_template_class(
@@ -75,27 +62,59 @@ private:
     );
     void hoist_template(TemplateDefinition& def, std::shared_ptr<SymbolScope> target_scope);
 
+    template <typename T> void hoist_function(T& def, std::shared_ptr<SymbolScope> target_scope);
+    template <typename T>
+    void hoist_template_function(
+        T& def,
+        std::shared_ptr<SymbolScope> target_scope,
+        ObjectStringMap generics
+    );
+
+    // Unified Method Hoisting
+    template <typename BaseTypePtr, typename MethodDef>
+    void hoist_method(BaseTypePtr base_type, MethodDef& m);
+
     // =========================================================================
     // Statement Analysis
     // =========================================================================
-
     void visit(const Statement_ptr statement);
     void visit(StatementVector& statements);
-    void visit(ExpressionStatement& statement);
 
-    // Functions & Methods
+    // Exhaustive Statement Visitors (Required by std::visit to satisfy the compiler)
+    void visit(ExpressionStatement& statement);
     void visit(FunctionDefinition& statement);
     void visit(PureFunctionDefinition& statement);
+    void visit(MethodDefinition& statement);
+    void visit(PureMethodDefinition& statement);
+    void visit(OurMethodDefinition& statement);
+    void visit(OurPureMethodDefinition& statement);
     void visit(TemplateDefinition& statement);
+    void visit(ClassDefinition& statement);
+    void visit(TraitDefinition& statement);
+    void visit(FieldDefinition& statement);
+    void visit(EnumDefinition& statement);
+    void visit(VariableDefinition& statement);
+    void visit(AliasDefinition& statement);
+    void visit(AnnotationDefinition& statement);
+    void visit(IfBranch& statement);
+    void visit(ElseBranch& statement);
+    void visit(SimpleLoop& statement);
+    void visit(ForInLoop& statement);
+    void visit(LoopControl& statement);
+    void visit(SimpleImport& statement);
+    void visit(FromImport& statement);
+    void visit(Pass& statement);
+    void visit(Native& statement);
+    void visit(Return& statement);
+
+    ClassType_ptr initialize_class_type(ClassDefinition& def);
+    TraitType_ptr initialize_trait_type(TraitDefinition& def);
+
+    template <typename DefType, typename TypeObjPtr, typename BaseTypePtr>
+    void analyze_membered_type(DefType& def, TypeObjPtr type_obj, BaseTypePtr base_type);
 
     template <typename T> void analyze_function(T& def, ScopeType scope_type, bool is_mutable);
-    template <typename T>
-    void analyze_template_function(
-        T& def,
-        ScopeType scope_type,
-        bool is_mutable,
-        ObjectStringMap generics
-    );
+
     template <typename T>
     void analyze_method_base(
         Object_ptr class_type_obj,
@@ -103,99 +122,54 @@ private:
         ScopeType scope_type,
         const std::string& receiver_name
     );
-    template <typename T> void analyze_my_method(Object_ptr class_type_obj, T& m);
-    template <typename T> void analyze_our_method(Object_ptr class_type_obj, T& m);
-    template <typename T> void analyze_pure_method(T& m);
-    template <typename T> void analyze_our_pure_method(T& m);
-
-    // Classes, Traits & Data Structures
-    void visit(ClassDefinition& statement);
-    void visit(TraitDefinition& statement);
-    void visit(FieldDefinition& statement);
-    void visit(EnumDefinition& statement);
-
-    ClassType_ptr initialize_class_type(ClassDefinition& def);
-    TraitType_ptr initialize_trait_type(TraitDefinition& def);
-
-    void analyze_class(ClassDefinition& def);
-    void analyze_template_class(ClassDefinition& c, const ObjectStringMap& generics);
-
-    void analyze_trait(TraitDefinition& def);
-    void analyze_template_trait(TraitDefinition& t, const ObjectStringMap& generics);
-
-    // Variables, Aliases & Annotations
-    void visit(VariableDefinition& statement);
-    void visit(AliasDefinition& statement);
-    void visit(AnnotationDefinition& statement);
-
-    // Control Flow (Branching & Looping)
-    void visit(IfBranch& statement);
-    void visit(ElseBranch& statement);
-    void visit(SimpleLoop& statement);
-    void visit(ForInLoop& statement);
-    void visit(LoopControl& statement);
-
-    // Imports
-    void visit(SimpleImport& statement);
-    void visit(FromImport& statement);
-
-    // Actions & Native
-    void visit(Pass& statement);
-    void visit(Native& statement);
-    void visit(Return& statement);
 
     // =========================================================================
     // Expression Analysis
     // =========================================================================
-
     Object_ptr visit(const Expression_ptr expr);
     ObjectVector visit(ExpressionVector expressions);
 
-    // Literals & Primitives
     Object_ptr visit(int expr);
     Object_ptr visit(double expr);
     Object_ptr visit(std::string expr);
     Object_ptr visit(bool expr);
+
     Object_ptr visit(DotLiteral& expr);
     Object_ptr visit(ListLiteral& expr);
     Object_ptr visit(TupleLiteral& expr);
     Object_ptr visit(MapLiteral& expr);
     Object_ptr visit(SetLiteral& expr);
     Object_ptr visit(RangeLiteral& expr);
-
-    // Operators & Accessors
     Object_ptr visit(Prefix& expr);
     Object_ptr visit(Infix& expr);
     Object_ptr visit(Postfix& expr);
     Object_ptr visit(Identifier& expr);
     Object_ptr visit(MemberAccess& expr);
-
-    // Assignments & Variables
-    Object_ptr define_variable(Expression_ptr assignment_expr, bool is_mutable);
-    Object_ptr mutate_variable(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
-    Object_ptr mutate_member(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
     Object_ptr visit(VariableDefinitionExpression& expr);
     Object_ptr visit(UntypedAssignment& expr);
     Object_ptr visit(TypedAssignment& expr);
-
-    // Control Flow Expressions
     Object_ptr visit(TypePattern& expr);
     Object_ptr visit(IfTernaryBranch& expr);
     Object_ptr visit(ElseTernaryBranch& expr);
-
-    // Calls & Instantiations
     Object_ptr visit(Call& expr);
     Object_ptr visit(Constructor& expr);
+
+    Object_ptr define_variable(Expression_ptr assignment_expr, bool is_mutable);
+    Object_ptr mutate_variable(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
+    Object_ptr mutate_member(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
 
     // =========================================================================
     // Call & Instantiation Evaluators
     // =========================================================================
-
     std::pair<Object_ptr, ObjectVector> get_function_signature(AbstractFunctionDefinition& func);
     std::pair<Object_ptr, ObjectVector> get_function_signature(Object_ptr type_obj);
     Object_ptr get_function_return_type(Symbol_ptr symbol);
     bool is_native_function(Symbol_ptr symbol);
     void validate_purity_constraints(Symbol_ptr target_symbol) const;
+
+    void bind_identifier(Identifier& id, Symbol_ptr symbol);
+    Symbol_ptr resolve_module_export(MemberAccess& access);
+    void validate_constructor_args(ClassType_ptr class_type, const ObjectVector& arg_types);
 
     Object_ptr evaluate_function_call(
         Call& call_expr,
@@ -214,7 +188,6 @@ private:
         const ObjectVector& arg_types,
         ClassType_ptr class_type
     );
-
     Object_ptr evaluate_instance_creation(
         Constructor& constructor,
         Identifier& callable_identifier,
@@ -226,7 +199,6 @@ private:
         MemberAccess& access,
         const ObjectVector& arg_types
     );
-
     Object_ptr evaluate_template_call(
         Call& call_expr,
         TemplateInstantiation& template_instantiation,
@@ -264,25 +236,20 @@ private:
     // =========================================================================
     // Type Annotation Visitors
     // =========================================================================
-
     Object_ptr visit(const TypeAnnotation_ptr type_node);
-    ObjectVector visit(std::vector<TypeAnnotation_ptr>& type_nodes);
+    ObjectVector visit(TypeAnnotationVector& type_nodes);
 
     Object_ptr visit(AnyTypeNode& expr);
     Object_ptr visit(NoneTypeNode& expr);
-
     Object_ptr visit(IntTypeNode& expr);
     Object_ptr visit(FloatTypeNode& expr);
     Object_ptr visit(StringTypeNode& expr);
     Object_ptr visit(BoolTypeNode& expr);
-
     Object_ptr visit(IntLiteralTypeNode& expr);
     Object_ptr visit(FloatLiteralTypeNode& expr);
     Object_ptr visit(StringLiteralTypeNode& expr);
     Object_ptr visit(BoolLiteralTypeNode& expr);
-
     Object_ptr visit(TypeIdentifierNode& expr);
-
     Object_ptr visit(ListTypeNode& expr);
     Object_ptr visit(TupleTypeNode& expr);
     Object_ptr visit(SetTypeNode& expr);

@@ -67,51 +67,31 @@ StringVector SemanticAnalyzer::setup_ordered_export_names(Module_ptr mod)
         }
     };
 
+    auto add_if_named = [&](auto& def)
+    {
+        if constexpr (requires { def.name; })
+        {
+            try_add_export(def.name);
+        }
+    };
+
     for (auto& stmt_ptr : mod->stmts)
     {
         std::visit(
             overloaded{
-                [&](VariableDefinition& def)
-                {
-                    try_add_export(def.name);
-                },
-                [&](FunctionDefinition& def)
-                {
-                    try_add_export(def.name);
-                },
-                [&](PureFunctionDefinition& def)
-                {
-                    try_add_export(def.name);
-                },
-                [&](ClassDefinition& def)
-                {
-                    try_add_export(def.name);
-                },
                 [&](TemplateDefinition& def)
                 {
                     std::visit(
-                        overloaded{
-                            [&](FunctionDefinition& f)
-                            {
-                                try_add_export(f.name);
-                            },
-                            [&](PureFunctionDefinition& f)
-                            {
-                                try_add_export(f.name);
-                            },
-                            [&](ClassDefinition& c)
-                            {
-                                try_add_export(c.name);
-                            },
-                            [](auto&)
-                            {
-                            }
+                        [&](auto& inner)
+                        {
+                            add_if_named(inner);
                         },
                         def.target->data
                     );
                 },
-                [](auto&)
+                [&](auto& def)
                 {
+                    add_if_named(def);
                 }
             },
             stmt_ptr->data
@@ -388,92 +368,16 @@ void SemanticAnalyzer::visit(const Statement_ptr statement)
 
     std::visit(
         overloaded{
-            [&](ExpressionStatement& stat)
-            {
-                visit(stat);
-            },
-            [&](VariableDefinition& stat)
-            {
-                visit(stat);
-            },
-            [&](AliasDefinition& stat)
-            {
-                visit(stat);
-            },
-            [&](EnumDefinition& stat)
-            {
-                visit(stat);
-            },
-            [&](FunctionDefinition& stat)
-            {
-                visit(stat);
-            },
-            [&](PureFunctionDefinition& stat)
-            {
-                visit(stat);
-            },
-            [&](ClassDefinition& stat)
-            {
-                visit(stat);
-            },
-            [&](TraitDefinition& stat)
-            {
-                visit(stat);
-            },
-            [&](TemplateDefinition& stat)
-            {
-                visit(stat);
-            },
-            [&](AnnotationDefinition& stat)
-            {
-                visit(stat);
-            },
-            [&](IfBranch& stat)
-            {
-                visit(stat);
-            },
-            [&](ElseBranch& stat)
-            {
-                visit(stat);
-            },
-            [&](SimpleLoop& stat)
-            {
-                visit(stat);
-            },
-            [&](ForInLoop& stat)
-            {
-                visit(stat);
-            },
-            [&](LoopControl& stat)
-            {
-                visit(stat);
-            },
-            [&](Pass& stat)
-            {
-                visit(stat);
-            },
-            [&](Native& stat)
-            {
-                visit(stat);
-            },
-            [&](Return& stat)
-            {
-                visit(stat);
-            },
-            [&](SimpleImport& stat)
-            {
-                visit(stat);
-            },
-            [&](FromImport& stat)
-            {
-                visit(stat);
-            },
-            [](auto)
+            [&](std::monostate&)
             {
                 Doctor::get().fatal(
                     WaspStage::Semantics,
                     "Unhandled Statement in Semantic Analyzer!"
                 );
+            },
+            [&](auto& stat)
+            {
+                this->visit(stat);
             }
         },
         statement->data

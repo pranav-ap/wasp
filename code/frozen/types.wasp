@@ -1,0 +1,11 @@
+template
+    T: Any
+
+class List
+    data: T
+
+    pure fun get(index: int) => T
+        native
+
+    pure fun length() => int
+        native

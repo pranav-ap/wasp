@@ -39,7 +39,6 @@ namespace Wasp
         objects.push_back(MAKE_OBJECT_VARIANT(IntObject(0)));         // 11
         objects.push_back(MAKE_OBJECT_VARIANT(FloatObject(0.0)));     // 12
         objects.push_back(MAKE_OBJECT_VARIANT(StringObject("")));     // 13
-        objects.push_back(MAKE_OBJECT_VARIANT(BooleanObject(false))); // 14
     }
 
     Object_ptr ConstantPool::get(int id) const {

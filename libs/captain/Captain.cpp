@@ -21,6 +21,7 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
+
 Captain::Captain(const std::filesystem::path& target_path)
 {
     std::filesystem::path clean_target = std::filesystem::absolute(target_path).lexically_normal();

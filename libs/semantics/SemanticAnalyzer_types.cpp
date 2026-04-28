@@ -8,9 +8,7 @@
 #include <map>
 #include <memory>
 #include <string>
-#include <utility>
 #include <variant>
-#include <vector>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -22,7 +20,7 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-ObjectVector SemanticAnalyzer::visit(std::vector<TypeAnnotation_ptr>& type_nodes)
+ObjectVector SemanticAnalyzer::visit(TypeAnnotationVector& type_nodes)
 {
     ObjectVector resolved_types;
     resolved_types.reserve(type_nodes.size());
@@ -39,86 +37,23 @@ Object_ptr SemanticAnalyzer::visit(const TypeAnnotation_ptr type_node)
 
     return std::visit(
         overloaded{
-            [&](AnyTypeNode& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-            [&](NoneTypeNode& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-            [&](IntTypeNode& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-            [&](FloatTypeNode& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-            [&](StringTypeNode& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-            [&](BoolTypeNode& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-            [&](IntLiteralTypeNode& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-            [&](FloatLiteralTypeNode& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-            [&](StringLiteralTypeNode& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-            [&](BoolLiteralTypeNode& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-            [&](TypeIdentifierNode& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-
-            [&](std::shared_ptr<ListTypeNode>& node) -> Object_ptr
-            {
-                return visit(*node);
-            },
-            [&](std::shared_ptr<TupleTypeNode>& node) -> Object_ptr
-            {
-                return visit(*node);
-            },
-            [&](std::shared_ptr<SetTypeNode>& node) -> Object_ptr
-            {
-                return visit(*node);
-            },
-            [&](std::shared_ptr<MapTypeNode>& node) -> Object_ptr
-            {
-                return visit(*node);
-            },
-            [&](std::shared_ptr<VariantTypeNode>& node) -> Object_ptr
-            {
-                return visit(*node);
-            },
-            [&](std::shared_ptr<FunctionTypeNode>& node) -> Object_ptr
-            {
-                return visit(*node);
-            },
-            [&](std::shared_ptr<RecordTypeNode>& node) -> Object_ptr
-            {
-                return visit(*node);
-            },
-
-            [](auto&) -> Object_ptr
+            [&](std::monostate&) -> Object_ptr
             {
                 Doctor::get().fatal(
                     WaspStage::Semantics,
                     "Unhandled TypeAnnotation node in visitor"
                 );
+            },
+            [&](auto& node) -> Object_ptr
+            {
+                if constexpr (requires { *node; })
+                {
+                    return this->visit(*node);
+                }
+                else
+                {
+                    return this->visit(node);
+                }
             }
         },
         type_node->data
@@ -127,32 +62,32 @@ Object_ptr SemanticAnalyzer::visit(const TypeAnnotation_ptr type_node)
 
 Object_ptr SemanticAnalyzer::visit(AnyTypeNode& expr)
 {
-    return make_object(AnyType());
+    return workspace->pool->get_any_type();
 }
 
 Object_ptr SemanticAnalyzer::visit(NoneTypeNode& expr)
 {
-    return make_object(NoneType());
+    return workspace->pool->get_none_type();
 }
 
 Object_ptr SemanticAnalyzer::visit(IntTypeNode& expr)
 {
-    return make_object(IntType());
+    return workspace->pool->get_int_type();
 }
 
 Object_ptr SemanticAnalyzer::visit(FloatTypeNode& expr)
 {
-    return make_object(FloatType());
+    return workspace->pool->get_float_type();
 }
 
 Object_ptr SemanticAnalyzer::visit(StringTypeNode& expr)
 {
-    return make_object(StringType());
+    return workspace->pool->get_string_type();
 }
 
 Object_ptr SemanticAnalyzer::visit(BoolTypeNode& expr)
 {
-    return make_object(BooleanType());
+    return workspace->pool->get_boolean_type();
 }
 
 Object_ptr SemanticAnalyzer::visit(IntLiteralTypeNode& expr)
@@ -172,7 +107,10 @@ Object_ptr SemanticAnalyzer::visit(StringLiteralTypeNode& expr)
 
 Object_ptr SemanticAnalyzer::visit(BoolLiteralTypeNode& expr)
 {
-    return make_object(BooleanLiteralType(expr.value));
+    if (expr.value)
+        return workspace->pool->get_true_literal_type();
+    else
+        return workspace->pool->get_false_literal_type();
 }
 
 Object_ptr SemanticAnalyzer::visit(TypeIdentifierNode& expr)

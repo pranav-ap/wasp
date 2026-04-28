@@ -168,22 +168,22 @@ Object_ptr SemanticAnalyzer::visit(const Expression_ptr expr)
 
 Object_ptr SemanticAnalyzer::visit(int expr)
 {
-    return make_object(IntType());
+    return workspace->pool->get_int_type();
 }
 
 Object_ptr SemanticAnalyzer::visit(double expr)
 {
-    return make_object(FloatType());
+    return workspace->pool->get_float_type();
 }
 
 Object_ptr SemanticAnalyzer::visit(std::string expr)
 {
-    return make_object(StringType());
+    return workspace->pool->get_string_type();
 }
 
 Object_ptr SemanticAnalyzer::visit(bool expr)
 {
-    return make_object(BooleanType());
+    return workspace->pool->get_boolean_type();
 }
 
 Object_ptr SemanticAnalyzer::visit(DotLiteral& expr) { return nullptr; }
