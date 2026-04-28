@@ -241,11 +241,10 @@ using NativeFnType = std::function<Object_ptr(const ObjectVector&)>;
 struct NativeFunctionObject : public CompositeObject
 {
     NativeFnType function;
-    int arity;
     std::string name;
 
-    NativeFunctionObject(NativeFnType function, int arity, std::string name)
-        : function(std::move(function)), arity(arity), name(name)
+    NativeFunctionObject(NativeFnType function, std::string name)
+        : function(std::move(function)), name(name)
     {
     }
 };

@@ -16,7 +16,7 @@ class NativeRegistry {
     std::unordered_map<std::string, int> native_names;
 
     void load_stdlib();
-    void add_native(const std::string& name, int arity, NativeFnType function);
+    void add_native(const std::string& name, NativeFnType function);
 
 public:
     NativeRegistry(ConstantPool_ptr pool) : pool(pool) { load_stdlib(); };

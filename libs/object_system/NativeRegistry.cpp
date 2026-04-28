@@ -125,13 +125,13 @@ int NativeRegistry::get_native_index(const std::string& name) const
     return it->second;
 }
 
-void NativeRegistry::add_native(const std::string& name, int arity, NativeFnType function)
+void NativeRegistry::add_native(const std::string& name, NativeFnType function)
 {
     int global_index = static_cast<int>(native_objects.size());
 
     native_names[name] = global_index;
 
-    auto obj = make_object(std::make_shared<NativeFunctionObject>(function, arity, name));
+    auto obj = make_object(std::make_shared<NativeFunctionObject>(function, name));
     native_objects.push_back(obj);
 }
 
@@ -139,7 +139,6 @@ void NativeRegistry::load_stdlib()
 {
     add_native(
         "libs::core::io::print",
-        1,
         [this](const std::vector<Object_ptr>& args)
         {
             return native_print(args, this->pool);
@@ -148,7 +147,6 @@ void NativeRegistry::load_stdlib()
 
     add_native(
         "libs::core::io::input",
-        1,
         [](const std::vector<Object_ptr>& args)
         {
             return native_input(args);
@@ -157,7 +155,6 @@ void NativeRegistry::load_stdlib()
 
     add_native(
         "libs::core::greet::Greeter::greet",
-        1,
         [this](const std::vector<Object_ptr>& args)
         {
             std::cout << "Greetings from the C++ Native Registry!" << std::endl;
