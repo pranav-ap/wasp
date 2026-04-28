@@ -206,7 +206,7 @@ let x = 1
 
 while x < 5 do
     if x % 2 == 0 then
-        print(x)
+        pass
 
     x = x + 1
 )");
@@ -236,7 +236,7 @@ while x < 5 do
 
         B(Wasp::OpCode::POP_SCOPE),
         B(Wasp::OpCode::JUMP),          B(28), B(0),
-        B(Wasp::OpCode::JUMP),          B(74), B(0),
+        B(Wasp::OpCode::JUMP),          B(67), B(0),
 
         B(Wasp::OpCode::PUSH_SCOPE),
         B(Wasp::OpCode::GET_LOCAL),     B(0),
@@ -244,18 +244,14 @@ while x < 5 do
         B(Wasp::OpCode::MOD),
         B(Wasp::OpCode::LOAD_CONST),    B(val_0),
         B(Wasp::OpCode::EQ),
-        B(Wasp::OpCode::JUMP_IF_FALSE), B(57), B(0),
+        B(Wasp::OpCode::JUMP_IF_FALSE), B(50), B(0),
         B(Wasp::OpCode::JUMP),          B(46), B(0),
 
-        B(Wasp::OpCode::GET_NATIVE),    B(0),
-        B(Wasp::OpCode::GET_LOCAL),     B(0),
-        B(Wasp::OpCode::CALL),          B(1),
-        B(Wasp::OpCode::POP),
         B(Wasp::OpCode::POP_SCOPE),
-        B(Wasp::OpCode::JUMP),          B(61), B(0),
+        B(Wasp::OpCode::JUMP),          B(54), B(0),
 
         B(Wasp::OpCode::POP_SCOPE),
-        B(Wasp::OpCode::JUMP),          B(61), B(0),
+        B(Wasp::OpCode::JUMP),          B(54), B(0),
 
         B(Wasp::OpCode::GET_LOCAL),     B(0),
         B(Wasp::OpCode::LOAD_CONST),    B(val_1),
