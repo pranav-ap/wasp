@@ -39,10 +39,12 @@ Compiler::Compiler(Compiler* parent)
 
 FunctionBlueprintObject_ptr Compiler::run(
     const StatementVector& block,
-    std::string name,
+    std::string filepath,
     bool is_main
 )
 {
+    this->module_filepath = filepath;
+
     if (is_main)
     {
         emit(OpCode::ENTER_WORKSPACE);
@@ -82,7 +84,10 @@ FunctionBlueprintObject_ptr Compiler::run(
 
     CodeObject final_code = flatten();
 
-    auto function_object = std::make_shared<FunctionBlueprintObject>(std::move(final_code), name);
+    auto function_object = std::make_shared<FunctionBlueprintObject>(
+        std::move(final_code),
+        filepath
+    );
 
     return function_object;
 }

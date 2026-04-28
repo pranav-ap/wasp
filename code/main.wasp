@@ -1,4 +1,8 @@
 import core.io as io
+io.print('Hello world')
 
-let x = io.input('gimme a number : ')
-io.print(x)
+import core.greet as g
+let x = g.Greeter()
+x.greet()
+
+
