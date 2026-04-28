@@ -157,7 +157,13 @@ void NativeRegistry::load_stdlib()
         "libs::core::greet::Greeter::greet",
         [this](const std::vector<Object_ptr>& args)
         {
-            std::cout << "Greetings from the C++ Native Registry!" << std::endl;
+            auto instance_ptr = args[0];
+            auto& instance = std::get<std::shared_ptr<InstanceObject>>(instance_ptr->value);
+
+            Object_ptr name_obj = instance->members[0];
+            std::cout << "Hello! I am " << std::get<StringObject>(name_obj->value).value << "!"
+                      << std::endl;
+
             return pool->get_none_object();
         }
     );

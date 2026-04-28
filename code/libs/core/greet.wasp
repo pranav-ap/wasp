@@ -1,5 +1,7 @@
 import core.io as io
 
 class Greeter
+    name: str
+
     fun greet()
         native
