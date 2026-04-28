@@ -90,14 +90,15 @@ std::vector<Module_ptr> Captain::calculate_build_order()
     return build_order;
 }
 
-void Captain::type_check_and_link(const std::vector<Module_ptr>& build_order)
+Workspace_ptr Captain::build()
 {
+    parse_modules();
+
+    auto build_order = calculate_build_order();
+
     SemanticAnalyzer sa(workspace);
     sa.run(build_order);
-}
 
-void Captain::compile(const std::vector<Module_ptr>& build_order)
-{
     for (const auto& module : build_order)
     {
         bool is_main = (module->absolute_filepath == entry_file);
@@ -109,15 +110,6 @@ void Captain::compile(const std::vector<Module_ptr>& build_order)
 
         dump_build_artifacts(workspace, module->absolute_filepath, module->blueprint);
     }
-}
-
-Workspace_ptr Captain::build()
-{
-    parse_modules();
-
-    auto build_order = calculate_build_order();
-    type_check_and_link(build_order);
-    compile(build_order);
 
     return workspace;
 }
