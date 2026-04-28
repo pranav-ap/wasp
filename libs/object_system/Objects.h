@@ -565,6 +565,50 @@ struct ClassType : public CompositeType
 
 using ClassType_ptr = std::shared_ptr<ClassType>;
 
+struct TraitType : public CompositeType
+{
+    std::string name;
+
+    StringVector methods;
+    StringVector pures;
+    StringVector statics;
+
+    ObjectStringMap members;
+
+    TraitType(
+        std::string name,
+        ObjectStringMap members,
+        StringVector methods,
+        StringVector pures,
+        StringVector statics
+    )
+        : name(std::move(name)), methods(std::move(methods)), pures(std::move(pures)),
+          statics(std::move(statics)), members(std::move(members))
+    {
+    }
+
+    bool contains_member(const std::string& member_name) const;
+
+    Object_ptr get_member(const std::string& member_name) const;
+    void set_member(const std::string& member_name, Object_ptr value);
+
+    int get_member_index(const std::string& member_name) const;
+    Object_ptr get_member(int member_id) const;
+
+    void add_overload(const std::string& member_name, Object_ptr overload);
+    ObjectVector get_overloads(const std::string& member_name) const;
+
+    ObjectVector get_methods() const;
+    ObjectVector get_pures() const;
+    ObjectVector get_statics() const;
+    ObjectVector get_members() const;
+
+    bool is_pure(std::string member_name) const;
+    bool is_static(std::string member_name) const;
+};
+
+using TraitType_ptr = std::shared_ptr<TraitType>;
+
 struct RecordType
 {
 };
@@ -615,6 +659,18 @@ struct ClassTemplateType : public TemplateType
 
 using ClassTemplateType_ptr = std::shared_ptr<ClassTemplateType>;
 
+struct TraitTemplateType : public TemplateType
+{
+    TraitType_ptr class_type;
+
+    TraitTemplateType(ObjectStringMap generics, TraitType_ptr class_type = nullptr)
+        : TemplateType(std::move(generics)), class_type(std::move(class_type))
+    {
+    }
+};
+
+using TraitTemplateType_ptr = std::shared_ptr<TraitTemplateType>;
+
 // ============================================================================
 // The Core Object Variant
 // ============================================================================
@@ -657,6 +713,7 @@ struct Object
         std::shared_ptr<GenericType>,
         std::shared_ptr<FunctionTemplateType>,
         std::shared_ptr<ClassTemplateType>,
+        std::shared_ptr<TraitTemplateType>,
 
         AnyType,
         NoneType,
@@ -681,7 +738,8 @@ struct Object
 
         std::shared_ptr<RecordType>,
         ModuleType_ptr,
-        ClassType_ptr>;
+        ClassType_ptr,
+        TraitType_ptr>;
 
     UnderlyingVariant value;
 

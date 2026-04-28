@@ -52,10 +52,6 @@ void SemanticAnalyzer::visit(ClassDefinition& def)
     analyze_class(def);
 }
 
-void SemanticAnalyzer::visit(TraitDefinition& def)
-{
-}
-
 void SemanticAnalyzer::analyze_class(ClassDefinition& def)
 {
     auto class_type = initialize_class_type(def);
@@ -97,7 +93,7 @@ void SemanticAnalyzer::analyze_class(ClassDefinition& def)
             overloaded{
                 [&](MethodDefinition& m)
                 {
-                    analyze_instance_method(class_type_obj, m);
+                    analyze_my_method(class_type_obj, m);
                 },
                 [&](OurMethodDefinition& m)
                 {
@@ -161,7 +157,7 @@ void SemanticAnalyzer::analyze_template_class(ClassDefinition& c, const ObjectSt
             overloaded{
                 [&](MethodDefinition& m)
                 {
-                    analyze_instance_method(template_type, m);
+                    analyze_my_method(template_type, m);
                 },
                 [&](OurMethodDefinition& m)
                 {
@@ -212,7 +208,6 @@ ClassType_ptr SemanticAnalyzer::initialize_class_type(ClassDefinition& def)
                 [&](MethodDefinition& m)
                 {
                     if (std::find(methods.begin(), methods.end(), m.name) == methods.end())
-
                     {
                         methods.push_back(m.name);
                         members[m.name] = make_object(std::make_shared<ObjectOverloadList>(m.name));
@@ -221,13 +216,11 @@ ClassType_ptr SemanticAnalyzer::initialize_class_type(ClassDefinition& def)
                 [&](OurMethodDefinition& m)
                 {
                     if (std::find(methods.begin(), methods.end(), m.name) == methods.end())
-
                     {
                         methods.push_back(m.name);
                         members[m.name] = make_object(std::make_shared<ObjectOverloadList>(m.name));
                     }
                     if (std::find(statics.begin(), statics.end(), m.name) == statics.end())
-
                     {
                         statics.push_back(m.name);
                     }
@@ -235,7 +228,6 @@ ClassType_ptr SemanticAnalyzer::initialize_class_type(ClassDefinition& def)
                 [&](PureMethodDefinition& p)
                 {
                     if (std::find(pures.begin(), pures.end(), p.name) == pures.end())
-
                     {
                         pures.push_back(p.name);
                         members[p.name] = make_object(std::make_shared<ObjectOverloadList>(p.name));
@@ -244,13 +236,11 @@ ClassType_ptr SemanticAnalyzer::initialize_class_type(ClassDefinition& def)
                 [&](OurPureMethodDefinition& p)
                 {
                     if (std::find(pures.begin(), pures.end(), p.name) == pures.end())
-
                     {
                         pures.push_back(p.name);
                         members[p.name] = make_object(std::make_shared<ObjectOverloadList>(p.name));
                     }
                     if (std::find(statics.begin(), statics.end(), p.name) == statics.end())
-
                     {
                         statics.push_back(p.name);
                     }
@@ -275,6 +265,224 @@ ClassType_ptr SemanticAnalyzer::initialize_class_type(ClassDefinition& def)
     );
 }
 
+// ============================================================================
+// TRAIT
+// ============================================================================
+
+void SemanticAnalyzer::visit(TraitDefinition& def)
+{
+    analyze_trait(def);
+}
+
+void SemanticAnalyzer::analyze_trait(TraitDefinition& def)
+{
+    auto trait_type = initialize_trait_type(def);
+    auto trait_type_obj = make_object(trait_type);
+
+    def.symbol->set_type(trait_type_obj);
+
+    for (auto& stmt : def.members)
+    {
+        std::visit(
+            overloaded{
+                [&](MethodDefinition& m)
+                {
+                    hoist_method(trait_type, m);
+                },
+                [&](PureMethodDefinition& m)
+                {
+                    hoist_method(trait_type, m);
+                },
+                [&](OurMethodDefinition& m)
+                {
+                    hoist_method(trait_type, m);
+                },
+                [&](OurPureMethodDefinition& m)
+                {
+                    hoist_method(trait_type, m);
+                },
+                [&](auto&)
+                {
+                }
+            },
+            stmt->data
+        );
+    }
+
+    for (auto& stmt : def.members)
+    {
+        std::visit(
+            overloaded{
+                [&](MethodDefinition& m)
+                {
+                    analyze_my_method(trait_type_obj, m);
+                },
+                [&](OurMethodDefinition& m)
+                {
+                    analyze_our_method(trait_type_obj, m);
+                },
+                [&](PureMethodDefinition& m)
+                {
+                    analyze_pure_method(m);
+                },
+                [&](OurPureMethodDefinition& m)
+                {
+                    analyze_our_pure_method(m);
+                },
+                [&](auto&)
+                {
+                }
+            },
+            stmt->data
+        );
+    }
+}
+
+void SemanticAnalyzer::analyze_template_trait(TraitDefinition& t, const ObjectStringMap& generics)
+{
+    auto trait_type = initialize_trait_type(t);
+    auto template_type = make_object(std::make_shared<TraitTemplateType>(generics, trait_type));
+
+    t.symbol->set_type(template_type);
+
+    for (auto& stmt : t.members)
+    {
+        std::visit(
+            overloaded{
+                [&](MethodDefinition& m)
+                {
+                    hoist_method(trait_type, m);
+                },
+                [&](PureMethodDefinition& m)
+                {
+                    hoist_method(trait_type, m);
+                },
+                [&](OurMethodDefinition& m)
+                {
+                    hoist_method(trait_type, m);
+                },
+                [&](OurPureMethodDefinition& m)
+                {
+                    hoist_method(trait_type, m);
+                },
+                [&](auto&)
+                {
+                }
+            },
+            stmt->data
+        );
+    }
+
+    for (auto& stmt : t.members)
+    {
+        std::visit(
+            overloaded{
+                [&](MethodDefinition& m)
+                {
+                    analyze_my_method(template_type, m);
+                },
+                [&](OurMethodDefinition& m)
+                {
+                    analyze_our_method(template_type, m);
+                },
+                [&](PureMethodDefinition& m)
+                {
+                    analyze_pure_method(m);
+                },
+                [&](OurPureMethodDefinition& m)
+                {
+                    analyze_our_pure_method(m);
+                },
+                [&](auto&)
+                {
+                }
+            },
+            stmt->data
+        );
+    }
+}
+
+TraitType_ptr SemanticAnalyzer::initialize_trait_type(TraitDefinition& def)
+{
+    ObjectStringMap members;
+    StringVector methods;
+    StringVector pures;
+    StringVector statics;
+
+    for (auto& stmt : def.members)
+    {
+        std::visit(
+            overloaded{
+                [&](FieldDefinition& f)
+                {
+                    Doctor::get().fatal(
+                        WaspStage::Semantics,
+                        "Traits cannot contain fields. Found field: " + f.name
+                    );
+                },
+                [&](MethodDefinition& m)
+                {
+                    if (std::find(methods.begin(), methods.end(), m.name) == methods.end())
+                    {
+                        methods.push_back(m.name);
+                        members[m.name] = make_object(std::make_shared<ObjectOverloadList>(m.name));
+                    }
+                },
+                [&](OurMethodDefinition& m)
+                {
+                    if (std::find(methods.begin(), methods.end(), m.name) == methods.end())
+                    {
+                        methods.push_back(m.name);
+                        members[m.name] = make_object(std::make_shared<ObjectOverloadList>(m.name));
+                    }
+                    if (std::find(statics.begin(), statics.end(), m.name) == statics.end())
+                    {
+                        statics.push_back(m.name);
+                    }
+                },
+                [&](PureMethodDefinition& p)
+                {
+                    if (std::find(pures.begin(), pures.end(), p.name) == pures.end())
+                    {
+                        pures.push_back(p.name);
+                        members[p.name] = make_object(std::make_shared<ObjectOverloadList>(p.name));
+                    }
+                },
+                [&](OurPureMethodDefinition& p)
+                {
+                    if (std::find(pures.begin(), pures.end(), p.name) == pures.end())
+                    {
+                        pures.push_back(p.name);
+                        members[p.name] = make_object(std::make_shared<ObjectOverloadList>(p.name));
+                    }
+                    if (std::find(statics.begin(), statics.end(), p.name) == statics.end())
+                    {
+                        statics.push_back(p.name);
+                    }
+                },
+                [&](auto&)
+                {
+                    Doctor::get().fatal(WaspStage::Semantics, "Invalid statement in trait body.");
+                }
+
+            },
+            stmt->data
+        );
+    }
+
+    return std::make_shared<TraitType>(
+        def.name,
+        std::move(members),
+        std::move(methods),
+        std::move(pures),
+        std::move(statics)
+    );
+}
+
+// ============================================================================
+// METHOD HOISTING & ANALYSIS
+// ============================================================================
+
 template <typename T> void SemanticAnalyzer::hoist_method(ClassType_ptr class_type, T& m)
 {
     auto [return_type, parameter_types] = get_function_signature(m);
@@ -296,9 +504,30 @@ template <typename T> void SemanticAnalyzer::hoist_method(ClassType_ptr class_ty
     m.symbol = symbol;
 }
 
+template <typename T> void SemanticAnalyzer::hoist_method(TraitType_ptr trait_type, T& m)
+{
+    auto [return_type, parameter_types] = get_function_signature(m);
+
+    Object_ptr signature = make_object(std::make_shared<MethodType>(parameter_types, return_type));
+
+    Symbol_ptr symbol = SymbolFactory::create_method(
+        m.name,
+        signature,
+        false,
+        current_scope->get_closure_depth(),
+        current_scope->get_lexical_depth()
+    );
+
+    auto overloads = trait_type->get_overloads(m.name);
+    type_checker->validate_new_method_overload(current_scope, overloads, symbol);
+
+    trait_type->add_overload(m.name, signature);
+    m.symbol = symbol;
+}
+
 template <typename T>
 void SemanticAnalyzer::analyze_method_base(
-    Object_ptr class_type_obj,
+    Object_ptr class_or_trait_type_obj,
     T& m,
     ScopeType scope_type,
     const std::string& receiver_name
@@ -330,9 +559,9 @@ void SemanticAnalyzer::analyze_method_base(
         m.parameter_symbols.push_back(sym);
     };
 
-    if (!receiver_name.empty() && class_type_obj)
+    if (!receiver_name.empty() && class_or_trait_type_obj)
     {
-        define_param(receiver_name, class_type_obj, false);
+        define_param(receiver_name, class_or_trait_type_obj, false);
     }
 
     for (size_t i = 0; i < m.parameters.size(); ++i)
@@ -347,14 +576,15 @@ void SemanticAnalyzer::analyze_method_base(
 }
 
 template <typename T>
-void SemanticAnalyzer::analyze_instance_method(Object_ptr class_type_obj, T& m)
+void SemanticAnalyzer::analyze_my_method(Object_ptr class_or_trait_type_obj, T& m)
 {
-    analyze_method_base(class_type_obj, m, ScopeType::METHOD, "my");
+    analyze_method_base(class_or_trait_type_obj, m, ScopeType::METHOD, "my");
 }
 
-template <typename T> void SemanticAnalyzer::analyze_our_method(Object_ptr class_type_obj, T& m)
+template <typename T>
+void SemanticAnalyzer::analyze_our_method(Object_ptr class_or_trait_type_obj, T& m)
 {
-    analyze_method_base(class_type_obj, m, ScopeType::METHOD, "our");
+    analyze_method_base(class_or_trait_type_obj, m, ScopeType::METHOD, "our");
 }
 
 template <typename T> void SemanticAnalyzer::analyze_pure_method(T& m)
@@ -432,9 +662,9 @@ void SemanticAnalyzer::visit(PureFunctionDefinition& def)
     analyze_function(def, ScopeType::PURE_FUNCTION, false);
 }
 
-// --------------------------------------------------------------------
-// Templates
-// -------------------------------------------------------------------
+// ============================================================================
+// TEMPLATES
+// ============================================================================
 
 void SemanticAnalyzer::visit(TemplateDefinition& statement)
 {
@@ -467,11 +697,14 @@ void SemanticAnalyzer::visit(TemplateDefinition& statement)
             {
                 analyze_template_class(c, generics);
             },
+            [&](TraitDefinition& t)
+            {
+                analyze_template_trait(t, generics);
+            },
             [&](auto&)
             {
                 Doctor::get().fatal(WaspStage::Semantics, "Invalid template target");
             }
-
         },
         statement.target->data
     );

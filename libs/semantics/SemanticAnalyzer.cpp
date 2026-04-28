@@ -248,7 +248,7 @@ void SemanticAnalyzer::hoist_class(ClassDefinition& def, std::shared_ptr<SymbolS
 
 void SemanticAnalyzer::hoist_trait(TraitDefinition& def, std::shared_ptr<SymbolScope> target_scope)
 {
-    auto symbol = SymbolFactory::create_class(
+    auto symbol = SymbolFactory::create_trait(
         def.name,
         nullptr,
         target_scope->get_closure_depth(),
@@ -265,6 +265,24 @@ void SemanticAnalyzer::hoist_template_class(
 )
 {
     auto type = make_object(std::make_shared<ClassTemplateType>(generics));
+
+    auto symbol = SymbolFactory::create_template(
+        def.name,
+        type,
+        target_scope->get_closure_depth(),
+        target_scope->get_lexical_depth()
+    );
+
+    def.symbol = target_scope->define(symbol);
+}
+
+void SemanticAnalyzer::hoist_template_trait(
+    TraitDefinition& def,
+    std::shared_ptr<SymbolScope> target_scope,
+    ObjectStringMap generics
+)
+{
+    auto type = make_object(std::make_shared<TraitTemplateType>(generics));
 
     auto symbol = SymbolFactory::create_template(
         def.name,
