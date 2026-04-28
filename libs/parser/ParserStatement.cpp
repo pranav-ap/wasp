@@ -28,6 +28,12 @@ Statement_ptr Parser::parse_statement(int expected_indent_level)
         return nullptr;
     }
 
+    if (token->type == TokenType::COMMENT)
+    {
+        token_pipe.advance_pointer();
+        return parse_statement(expected_indent_level);
+    }
+
     switch (token->type)
     {
     case TokenType::LET:

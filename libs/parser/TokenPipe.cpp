@@ -16,7 +16,8 @@ namespace Wasp {
 optional<Token> TokenPipe::current() const {
     if (index >= tokens.size())
         return nullopt;
-    return tokens[index];
+    auto t = tokens[index];
+    return t;
 }
 
 optional<Token> TokenPipe::current_in_line() {
