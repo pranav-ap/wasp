@@ -5,6 +5,7 @@
 #include "Token.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <variant>
@@ -114,7 +115,13 @@ bool TypeChecker::equal(
             },
             [&](EnumType_ptr const& t1, EnumType_ptr const& t2) -> bool
             {
-                return t1->name == t2->name;
+                auto get_root = [](const std::string& name)
+                {
+                    size_t pos = name.find('.');
+                    return pos == std::string::npos ? name : name.substr(0, pos);
+                };
+
+                return get_root(t1->name) == get_root(t2->name);
             },
 
             [](const auto&, const auto&) -> bool

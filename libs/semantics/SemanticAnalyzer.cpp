@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <ctime>
+#include <functional>
 #include <memory>
 #include <string>
 #include <variant>
@@ -330,7 +331,8 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
                 },
                 [&](EnumDefinition& def)
                 {
-                    // Recursive helper to build the EnumType tree
+                    int global_enum_value = 0;
+
                     std::function<EnumType_ptr(const EnumDefinition&, const std::string&)>
                         build_enum = [&](const EnumDefinition& e_def,
                                          const std::string& prefix) -> EnumType_ptr
@@ -339,9 +341,9 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
                                                                   : prefix + "." + e_def.name;
                         auto enum_type = std::make_shared<EnumType>(current_name);
 
-                        for (const auto& [name, val] : e_def.members)
+                        for (const auto& [name, old_val] : e_def.members)
                         {
-                            enum_type->members[current_name + "." + name] = val;
+                            enum_type->members[current_name + "." + name] = global_enum_value++;
                         }
 
                         for (const auto& nested_def : e_def.nested_enums)
