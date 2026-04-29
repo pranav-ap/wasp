@@ -1,11 +1,6 @@
 from core.io import print
 
-enum Animal
-    Dog
-    enum Bird
-        Crow
-        Pigeon
+let name: str = 'sam'
+let message: str = 'hello ${name}'
 
-
-if Animal.Dog != Animal.Bird.Crow then
-    print('hi')
+print(message)

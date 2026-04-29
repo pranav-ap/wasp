@@ -32,7 +32,19 @@ enum Animal
 
     auto& enum_def = check<Wasp::EnumDefinition>(block[0]);
     EXPECT_EQ(enum_def.name, "Animal");
-    EXPECT_EQ(enum_def.members.size(), 3);
+
+    // Check top-level members
+    EXPECT_EQ(enum_def.members.size(), 1);
+    EXPECT_TRUE(enum_def.members.contains("Dog"));
+
+    // Check nested enums
+    ASSERT_EQ(enum_def.nested_enums.size(), 1);
+
+    auto& bird_def = enum_def.nested_enums[0];
+    EXPECT_EQ(bird_def.name, "Bird");
+    EXPECT_EQ(bird_def.members.size(), 2);
+    EXPECT_TRUE(bird_def.members.contains("Crow"));
+    EXPECT_TRUE(bird_def.members.contains("Pigeon"));
 }
 
 TEST(ParseDefinitions, FunctionDefinitionWithIfElifElse)
