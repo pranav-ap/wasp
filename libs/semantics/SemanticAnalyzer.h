@@ -112,6 +112,16 @@ private:
     template <typename DefType, typename TypeObjPtr, typename BaseTypePtr>
     void analyze_membered_type(DefType& def, TypeObjPtr type_obj, BaseTypePtr base_type);
 
+    void verify_trait_compliance(
+        ClassDefinition& def,
+        ClassType_ptr class_type,
+        const std::string& trait_name
+    );
+
+    bool are_types_compatible(Object_ptr trait_member_type, Object_ptr class_member_type);
+    ObjectVector extract_overloads(Object_ptr type_obj);
+    bool is_signature_compatible(Object_ptr trait_func, Object_ptr class_func);
+
     template <typename T> void analyze_function(T& def, ScopeType scope_type, bool is_mutable);
 
     template <typename T>
@@ -119,7 +129,8 @@ private:
         Object_ptr class_type_obj,
         T& m,
         ScopeType scope_type,
-        const std::string& receiver_name
+        const std::string& receiver_name,
+        bool is_mutable
     );
 
     // =========================================================================

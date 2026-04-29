@@ -149,19 +149,19 @@ void SemanticAnalyzer::analyze_membered_type(
             overloaded{
                 [&](MethodDefinition& m)
                 {
-                    analyze_method_base(type_obj, m, ScopeType::METHOD, "my");
+                    analyze_method_base(type_obj, m, ScopeType::METHOD, "my", true);
                 },
                 [&](OurMethodDefinition& m)
                 {
-                    analyze_method_base(type_obj, m, ScopeType::METHOD, "our");
+                    analyze_method_base(type_obj, m, ScopeType::METHOD, "our", true);
                 },
                 [&](PureMethodDefinition& m)
                 {
-                    analyze_method_base(nullptr, m, ScopeType::PURE_METHOD, "");
+                    analyze_method_base(nullptr, m, ScopeType::PURE_METHOD, "my", false);
                 },
                 [&](OurPureMethodDefinition& m)
                 {
-                    analyze_method_base(nullptr, m, ScopeType::PURE_METHOD, "");
+                    analyze_method_base(nullptr, m, ScopeType::PURE_METHOD, "our", false);
                 },
                 [](auto&)
                 {
@@ -176,6 +176,112 @@ void SemanticAnalyzer::visit(ClassDefinition& def)
 {
     auto class_type = initialize_class_type(def);
     analyze_membered_type(def, make_object(class_type), class_type);
+
+    for (const auto& trait_name : def.traits)
+    {
+        verify_trait_compliance(def, class_type, trait_name);
+    }
+}
+
+void SemanticAnalyzer::verify_trait_compliance(
+    ClassDefinition& def,
+    ClassType_ptr class_type,
+    const std::string& trait_name
+)
+{
+    auto symbol = current_scope->lookup(trait_name);
+    Doctor::get()
+        .fatal_if_nullptr(symbol, WaspStage::Semantics, "Trait '" + trait_name + "' not found.");
+
+    auto trait_type = symbol->get_type()->as<TraitType_ptr>();
+
+    for (auto const& [member_name, trait_member_type] : trait_type->members)
+    {
+        Doctor::get().assert(
+            class_type->members.contains(member_name),
+            WaspStage::Semantics,
+            "Class '" + def.name + "' fails to implement required trait member: " + trait_name +
+                "." + member_name
+        );
+
+        auto class_member_type = class_type->members.at(member_name);
+
+        Doctor::get().assert(
+            are_types_compatible(trait_member_type, class_member_type),
+            WaspStage::Semantics,
+            "Implementation of '" + member_name + "' in class '" + def.name +
+                "' is incompatible with trait '" + trait_name + "'"
+        );
+    }
+}
+
+ObjectVector SemanticAnalyzer::extract_overloads(Object_ptr type_obj)
+{
+    if (type_obj->is<ObjectOverloadList_ptr>())
+    {
+        return type_obj->as<ObjectOverloadList_ptr>()->overloads;
+    }
+    return {type_obj};
+}
+
+bool SemanticAnalyzer::is_signature_compatible(Object_ptr trait_func, Object_ptr class_func)
+{
+    if (trait_func->is<MethodType_ptr>() && class_func->is<MethodType_ptr>())
+    {
+        auto trait_sig = trait_func->as<MethodType_ptr>();
+        auto class_sig = class_func->as<MethodType_ptr>();
+
+        if (trait_sig->parameter_types.size() != class_sig->parameter_types.size())
+        {
+            return false;
+        }
+
+        for (size_t i = 1; i < trait_sig->parameter_types.size(); ++i)
+        {
+            if (!type_checker->assignable(
+                    current_scope,
+                    trait_sig->parameter_types[i],
+                    class_sig->parameter_types[i]
+                ))
+            {
+                return false;
+            }
+        }
+
+        return type_checker
+            ->assignable(current_scope, trait_sig->return_type, class_sig->return_type);
+    }
+
+    return type_checker->assignable(current_scope, trait_func, class_func);
+}
+
+bool SemanticAnalyzer::are_types_compatible(
+    Object_ptr trait_member_type,
+    Object_ptr class_member_type
+)
+{
+    ObjectVector trait_overloads = extract_overloads(trait_member_type);
+    ObjectVector class_overloads = extract_overloads(class_member_type);
+
+    for (const auto& trait_func : trait_overloads)
+    {
+        bool found_match = false;
+        for (const auto& class_func : class_overloads)
+        {
+            if (is_signature_compatible(trait_func, class_func))
+            {
+                found_match = true;
+                break;
+            }
+        }
+
+        if (!found_match)
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 ClassType_ptr SemanticAnalyzer::initialize_class_type(ClassDefinition& def)
@@ -311,7 +417,8 @@ void SemanticAnalyzer::analyze_method_base(
     Object_ptr class_or_trait_type_obj,
     T& m,
     ScopeType scope_type,
-    const std::string& receiver_name
+    const std::string& receiver_name,
+    bool is_mutable
 )
 {
     enter_scope(scope_type);
@@ -326,7 +433,7 @@ void SemanticAnalyzer::analyze_method_base(
         "Expect parameter symbols to be empty at this stage"
     );
 
-    auto define_param = [&](const std::string& name, Object_ptr type, bool is_mutable)
+    auto define_param = [&](const std::string& name, Object_ptr type)
     {
         auto sym = SymbolFactory::create_variable(
             name,
@@ -342,12 +449,12 @@ void SemanticAnalyzer::analyze_method_base(
 
     if (!receiver_name.empty() && class_or_trait_type_obj)
     {
-        define_param(receiver_name, class_or_trait_type_obj, false);
+        define_param(receiver_name, class_or_trait_type_obj);
     }
 
     for (size_t i = 0; i < m.parameters.size(); ++i)
     {
-        define_param(m.parameters[i].first, param_types[i], true);
+        define_param(m.parameters[i].first, param_types[i]);
     }
 
     if (m.body.size() == 1 && m.body.front()->template is<Native>())

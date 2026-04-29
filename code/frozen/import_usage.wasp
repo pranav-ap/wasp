@@ -1,0 +1,8 @@
+from core.io import print as p
+# import core.io as io
+
+fun check(value: str)
+    p(value)
+
+
+check('sam')
