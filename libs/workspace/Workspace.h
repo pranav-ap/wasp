@@ -121,6 +121,11 @@ struct ModuleData
     Module_ptr mod;
 };
 
+struct EnumData : public TypedData
+{
+    using TypedData::TypedData;
+};
+
 using SymbolPayload = std::variant<
     VariableData,
     FunctionOverloadsData,
@@ -131,6 +136,7 @@ using SymbolPayload = std::variant<
     ClassData,
     TraitData,
     GenericData,
+    EnumData,
     TemplateData,
     AliasData>;
 
@@ -251,6 +257,13 @@ public:
     );
 
     static Symbol_ptr create_template(
+        std::string name,
+        Object_ptr type = nullptr,
+        int closure_depth = 0,
+        int lexical_depth = 0
+    );
+
+    static Symbol_ptr create_enum(
         std::string name,
         Object_ptr type = nullptr,
         int closure_depth = 0,

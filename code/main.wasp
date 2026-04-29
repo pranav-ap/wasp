@@ -1,30 +1,10 @@
 from core.io import print
 
-trait Logger
-    fun log(message: str)
-        pass
+enum Animal
+    Dog
+    enum Bird
+        Crow
+        Pigeon
 
-    fun log(message: str, code: int)
-        pass
-
-trait Alertable
-    fun alert(admin_email: str)
-        pass
-
-
-class SystemLogger is Logger & Alertable
-    fun log(message: str)
-        print('[INFO] ' + message)
-
-    fun log(message: str, code: int)
-        print('[CODE ' + code + '] ' + message)
-
-    fun alert(admin_email: str)
-        print('--> ALERT EMAIL SENT TO: ' + admin_email)
-
-
-let l = SystemLogger()
-
-l.log('Booting up')
-l.log('Disk full', 503)
-l.alert('admin@wasp-lang.dev')
+print(Animal.Dog)
+print(Animal.Bird.Crow)

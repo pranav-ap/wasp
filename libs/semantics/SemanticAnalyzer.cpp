@@ -328,6 +328,46 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
                 {
                     hoist_template(def, current_scope);
                 },
+                [&](EnumDefinition& def)
+                {
+                    // Recursive helper to build the EnumType tree
+                    std::function<EnumType_ptr(const EnumDefinition&, const std::string&)>
+                        build_enum = [&](const EnumDefinition& e_def,
+                                         const std::string& prefix) -> EnumType_ptr
+                    {
+                        std::string current_name = prefix.empty() ? e_def.name
+                                                                  : prefix + "." + e_def.name;
+                        auto enum_type = std::make_shared<EnumType>(current_name);
+
+                        for (const auto& [name, val] : e_def.members)
+                        {
+                            enum_type->members[current_name + "." + name] = val;
+                        }
+
+                        for (const auto& nested_def : e_def.nested_enums)
+                        {
+                            enum_type
+                                ->nested_enums[current_name + "." + nested_def.name] = build_enum(
+                                nested_def,
+                                current_name
+                            );
+                        }
+
+                        return enum_type;
+                    };
+
+                    auto enum_type = build_enum(def, "");
+                    auto type_obj = make_object(enum_type);
+
+                    auto symbol = SymbolFactory::create_enum(
+                        def.name,
+                        type_obj,
+                        current_scope->get_closure_depth(),
+                        current_scope->get_lexical_depth()
+                    );
+
+                    def.symbol = current_scope->define(symbol);
+                },
                 [](auto&)
                 {
                 }

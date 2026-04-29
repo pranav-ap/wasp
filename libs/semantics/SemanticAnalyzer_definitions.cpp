@@ -596,7 +596,7 @@ void SemanticAnalyzer::visit(AliasDefinition& statement)
 {
 }
 
-void SemanticAnalyzer::visit(EnumDefinition& statement)
+void SemanticAnalyzer::visit(EnumDefinition& def)
 {
 }
 

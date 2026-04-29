@@ -316,11 +316,32 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
         expr.member_index = type->get_member_index(member_name);
         return type->get_member(member_name);
     }
+    else if (left_type->is<EnumType_ptr>())
+    {
+        const auto type = left_type->as<EnumType_ptr>();
+        std::string full_name = type->name + "." + member_name;
+
+        if (type->nested_enums.contains(full_name))
+        {
+            return make_object(type->nested_enums.at(full_name));
+        }
+
+        Doctor::get().assert(
+            type->members.contains(full_name),
+            WaspStage::Semantics,
+            "Enum '" + type->name + "' does not contain member '" + member_name + "'."
+        );
+
+        expr.member_index = type->members.at(full_name);
+        expr.is_enum_value = true;
+
+        return left_type;
+    }
 
     Doctor::get().fatal(
         WaspStage::Semantics,
-        "Cannot access member " + member_name +
-            ". The left-hand side is neither a module nor a class instance."
+        "Cannot access member '" + member_name +
+            "'. The left-hand side is not a module, class, or enum."
     );
 }
 

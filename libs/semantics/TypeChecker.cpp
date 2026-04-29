@@ -112,6 +112,10 @@ bool TypeChecker::equal(
                 return equal(scope, t1.key_type, t2.key_type) &&
                        equal(scope, t1.value_type, t2.value_type);
             },
+            [&](EnumType_ptr const& t1, EnumType_ptr const& t2) -> bool
+            {
+                return t1->name == t2->name;
+            },
 
             [](const auto&, const auto&) -> bool
             {

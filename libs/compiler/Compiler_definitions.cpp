@@ -255,4 +255,38 @@ void Compiler::visit(TemplateDefinition& statement)
     );
 }
 
+// OTHERS
+
+void Compiler::visit(EnumDefinition& def)
+{
+}
+
+void Compiler::visit(AliasDefinition& def)
+{
+}
+
+void Compiler::visit(AnnotationDefinition& statement)
+{
+}
+
+void Compiler::visit(MethodDefinition& statement)
+{
+}
+
+void Compiler::visit(PureMethodDefinition& statement)
+{
+}
+
+void Compiler::visit(OurMethodDefinition& statement)
+{
+}
+
+void Compiler::visit(OurPureMethodDefinition& statement)
+{
+}
+
+void Compiler::visit(FieldDefinition& statement)
+{
+}
+
 } // namespace Wasp
