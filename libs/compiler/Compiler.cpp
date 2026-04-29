@@ -21,9 +21,10 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
+
 Compiler::Compiler(Workspace_ptr workspace)
-    : workspace(workspace), current_block_id(InvalidBlockId), parent(nullptr), compiler_depth(0),
-      current_lexical_scope_depth(0)
+    : workspace(std::move(workspace)), current_block_id(InvalidBlockId), parent(nullptr),
+      compiler_depth(0), current_lexical_scope_depth(0)
 {
     current_block_id = graph.create_block();
     graph.set_entry_block(current_block_id);
@@ -44,53 +45,40 @@ FunctionBlueprintObject_ptr Compiler::run(
     bool is_main
 )
 {
-    this->module_path = filepath;
+    this->module_path = std::move(filepath);
 
     if (is_main)
-    {
         emit(OpCode::ENTER_WORKSPACE);
-    }
-
     emit(OpCode::ENTER_MODULE);
 
     for (const auto& s : block)
-    {
         visit(s);
-    }
 
     BlockId exit = graph.create_block();
     graph.add_edge(current_block_id, exit);
     emit(OpCode::JUMP, static_cast<int>(exit));
     set_current_block(exit);
 
-    int export_count = 0;
+    emit_exports();
 
+    if (is_main)
+        emit(OpCode::EXIT_WORKSPACE);
+
+    return std::make_shared<FunctionBlueprintObject>(flatten(), module_path);
+}
+
+void Compiler::emit_exports()
+{
+    int export_count = 0;
     for (const auto& sym : stack)
     {
         if (sym->is_exportable())
         {
-            int physical_index = resolve_local(sym->id);
-            emit(OpCode::GET_LOCAL, physical_index, sym->name);
+            emit(OpCode::GET_LOCAL, resolve_local(sym->id), sym->name);
             export_count++;
         }
     }
-
-    // Tell the VM exactly how many items to pop and bundle into the ModuleObject
     emit(OpCode::EXIT_MODULE, export_count);
-
-    if (is_main)
-    {
-        emit(OpCode::EXIT_WORKSPACE);
-    }
-
-    CodeObject final_code = flatten();
-
-    auto function_object = std::make_shared<FunctionBlueprintObject>(
-        std::move(final_code),
-        filepath
-    );
-
-    return function_object;
 }
 
 // ========================================================================
@@ -99,37 +87,18 @@ FunctionBlueprintObject_ptr Compiler::run(
 
 void Compiler::visit(std::vector<Statement_ptr>& statements)
 {
-    // -------------------------------------------------------------------
-    // PASS 1: Compiler Hoisting
-    // Compile local functions FIRST so the VM creates them in memory
-    // and reserves their local variable slots before standard code executes!
-    // -------------------------------------------------------------------
-    for (auto& stmt : statements)
+    auto is_func = [](const Statement_ptr& s)
     {
-        if (stmt->is<FunctionDefinition>())
-        {
-            visit(stmt);
-        }
-        else if (stmt->is<PureFunctionDefinition>())
-        {
-            visit(stmt);
-        }
-    }
+        return s->is<FunctionDefinition>() || s->is<PureFunctionDefinition>();
+    };
 
-    // -------------------------------------------------------------------
-    // PASS 2: Compile the rest of the logic
-    // -------------------------------------------------------------------
     for (auto& stmt : statements)
-    {
-        if (!stmt->is<FunctionDefinition>())
-        {
+        if (is_func(stmt))
             visit(stmt);
-        }
-        else if (stmt->is<PureFunctionDefinition>())
-        {
+
+    for (auto& stmt : statements)
+        if (!is_func(stmt))
             visit(stmt);
-        }
-    }
 }
 
 void Compiler::visit(const Statement_ptr statement)
@@ -138,77 +107,16 @@ void Compiler::visit(const Statement_ptr statement)
 
     std::visit(
         overloaded{
-            [&](ExpressionStatement& stat)
+            [&](std::monostate&)
             {
-                visit(stat);
+                Doctor::get().fatal(
+                    WaspStage::Compiler,
+                    "Unhandled Statement (monostate) in Compiler!"
+                );
             },
-            [&](VariableDefinition& stat)
+            [&](auto& stat)
             {
-                visit(stat);
-            },
-            [&](ClassDefinition& stat)
-            {
-                visit(stat);
-            },
-            [&](TraitDefinition& stat)
-            {
-                visit(stat);
-            },
-            [&](TemplateDefinition& stat)
-            {
-                visit(stat);
-            },
-            [&](IfBranch& stat)
-            {
-                visit(stat);
-            },
-            [&](ElseBranch& stat)
-            {
-                visit(stat);
-            },
-            [&](SimpleLoop& stat)
-            {
-                visit(stat);
-            },
-            [&](ForInLoop& stat)
-            {
-                visit(stat);
-            },
-            [&](Pass& stat)
-            {
-                visit(stat);
-            },
-            [&](Native& stat)
-            {
-                visit(stat);
-            },
-            [&](LoopControl& stat)
-            {
-                visit(stat);
-            },
-            [&](FunctionDefinition& stat)
-            {
-                visit(stat);
-            },
-            [&](PureFunctionDefinition& stat)
-            {
-                visit(stat);
-            },
-            [&](Return& stat)
-            {
-                visit(stat);
-            },
-            [&](SimpleImport& stat)
-            {
-                visit(stat);
-            },
-            [&](FromImport& stat)
-            {
-                visit(stat);
-            },
-            [](auto)
-            {
-                Doctor::get().fatal(WaspStage::Compiler, "Unknown Statement");
+                this->visit(stat);
             }
         },
         statement->data

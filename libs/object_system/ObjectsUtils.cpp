@@ -157,7 +157,6 @@ namespace Wasp
 
         return nullptr;
     }
-
     std::string stringify_object(Object_ptr value)
     {
         Doctor::get()
@@ -187,7 +186,6 @@ namespace Wasp
                 {
                     return "my method type";
                 },
-
                 [](const NoneType&) -> std::string
                 {
                     return "none type";
@@ -286,13 +284,16 @@ namespace Wasp
                 {
                     return "class type: " + cls->name;
                 },
+                [](const std::shared_ptr<EnumType>& enum_type) -> std::string
+                {
+                    return "enum type: " + enum_type->name;
+                },
 
                 // Composite Objects
                 [](const std::shared_ptr<IteratorObject>&) -> std::string
                 {
                     return "<iterator>";
                 },
-
                 [](const std::shared_ptr<ListObject>& obj) -> std::string
                 {
                     std::string res = "[";
@@ -304,7 +305,6 @@ namespace Wasp
                     }
                     return res + "]";
                 },
-
                 [](const std::shared_ptr<TupleObject>& obj) -> std::string
                 {
                     std::string res = "(";
@@ -316,7 +316,6 @@ namespace Wasp
                     }
                     return res + ")";
                 },
-
                 [](const std::shared_ptr<SetObject>& obj) -> std::string
                 {
                     std::string res = "{";
@@ -329,7 +328,6 @@ namespace Wasp
                     }
                     return res + "}";
                 },
-
                 [](const std::shared_ptr<MapObject>& obj) -> std::string
                 {
                     std::string res = "{";
@@ -342,7 +340,6 @@ namespace Wasp
                     }
                     return res + "}";
                 },
-
                 [](const std::shared_ptr<VariantObject>&) -> std::string
                 {
                     return "<variant>";
@@ -405,7 +402,6 @@ namespace Wasp
                 {
                     return "<Unknown Object>";
                 }
-
             },
             value->value
         );

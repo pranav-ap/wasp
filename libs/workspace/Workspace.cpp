@@ -178,7 +178,10 @@ Object_ptr Symbol::get_type()
             {
                 return d.target->get_type();
             },
-
+            [](const EnumData& d) -> Object_ptr
+            {
+                return d.type;
+            },
             [this](FunctionOverloadsData& d) -> Object_ptr
             {
                 if (d.type)
@@ -195,7 +198,6 @@ Object_ptr Symbol::get_type()
                 );
                 return d.type;
             },
-
             [this](MethodOverloadsData& d) -> Object_ptr
             {
                 if (d.type)
@@ -247,6 +249,10 @@ void Symbol::set_type(Object_ptr new_type)
                 d.type = new_type;
             },
             [&](GenericData& d)
+            {
+                d.type = new_type;
+            },
+            [&](EnumData& d)
             {
                 d.type = new_type;
             },
@@ -470,6 +476,22 @@ Symbol_ptr SymbolFactory::create_template(
         TemplateData{
             std::move(type),
         }
+    );
+}
+
+Symbol_ptr SymbolFactory::create_enum(
+    std::string name,
+    Object_ptr type,
+    int closure_depth,
+    int lexical_depth
+)
+{
+    return std::make_shared<Symbol>(
+        symbol_id_counter++,
+        std::move(name),
+        closure_depth,
+        lexical_depth,
+        EnumData{type}
     );
 }
 

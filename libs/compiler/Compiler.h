@@ -96,6 +96,7 @@ private:
     void emit_raw_byte(std::byte b);
 
     void emit_local_cleanups(int target_depth);
+    void emit_exports();
 
     // ========================================================================
     // Visitors
@@ -125,6 +126,9 @@ private:
 
     void visit(TemplateDefinition& statement);
 
+    void visit(AliasDefinition& statement);
+    void visit(AnnotationDefinition& statement);
+
     void visit(Return& statement);
 
     void compile_function_closure(
@@ -135,6 +139,8 @@ private:
 
     void visit(ClassDefinition& statement);
     void visit(TraitDefinition& statement);
+
+    void visit(EnumDefinition& statement);
 
     // Expressions
 
@@ -173,6 +179,13 @@ private:
     void visit(ElseTernaryBranch& expr);
 
     void visit(TemplateInstantiation& expr);
+
+    void visit(MethodDefinition& statement);
+    void visit(PureMethodDefinition& statement);
+    void visit(OurMethodDefinition& statement);
+    void visit(OurPureMethodDefinition& statement);
+
+    void visit(FieldDefinition& statement);
 
     // -----------------------------------------------------------------------
     // UTILS

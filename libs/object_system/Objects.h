@@ -50,6 +50,352 @@ struct IterableAbstractObject : public AbstractObject
 };
 
 // ============================================================================
+// Type Interfaces
+// ============================================================================
+
+struct TypeType : public AbstractObject
+{
+};
+
+struct AnyType : public TypeType
+{
+};
+
+struct NoneType : public AnyType
+{
+};
+
+struct ScalarType : public AnyType
+{
+};
+
+struct LiteralType : public AnyType
+{
+};
+
+struct CompositeType : public AnyType
+{
+};
+
+struct NamedDefinitionType : public AnyType
+{
+    std::string name;
+    NamedDefinitionType(std::string name) : name(std::move(name)) {};
+};
+
+// ============================================================================
+// Scalar & Literal Types
+// ============================================================================
+
+struct IntType : public ScalarType
+{
+};
+
+struct FloatType : public ScalarType
+{
+};
+
+struct StringType : public ScalarType
+{
+};
+
+struct BooleanType : public ScalarType
+{
+};
+
+struct IntLiteralType : public LiteralType
+{
+    int value;
+    IntLiteralType(int value) : value(value) {};
+};
+
+struct FloatLiteralType : public LiteralType
+{
+    double value;
+    FloatLiteralType(double value) : value(value) {};
+};
+
+struct StringLiteralType : public LiteralType
+{
+    std::string value;
+    StringLiteralType(std::string value) : value(std::move(value)) {};
+};
+
+struct BooleanLiteralType : public LiteralType
+{
+    bool value;
+    BooleanLiteralType(bool value) : value(value) {};
+};
+
+// ============================================================================
+// Composite Types
+// ============================================================================
+
+struct ListType : public CompositeType
+{
+    Object_ptr element_type;
+    ListType(Object_ptr element_type) : element_type(std::move(element_type)) {};
+};
+
+struct TupleType : public CompositeType
+{
+    ObjectVector element_types;
+    TupleType(ObjectVector element_types) : element_types(std::move(element_types)) {};
+};
+
+struct SetType : public CompositeType
+{
+    Object_ptr element_type;
+    SetType(Object_ptr element_type) : element_type(std::move(element_type)) {};
+};
+
+struct MapType : public CompositeType
+{
+    Object_ptr key_type;
+    Object_ptr value_type;
+
+    MapType(Object_ptr key_type, Object_ptr value_type)
+        : key_type(std::move(key_type)), value_type(std::move(value_type)) {};
+};
+
+struct VariantType : public CompositeType
+{
+    ObjectVector types;
+    VariantType(ObjectVector types) : types(std::move(types)) {};
+};
+
+// ============================================================================
+// Function Types
+// ============================================================================
+
+struct Signature : public AnyType
+{
+    ObjectVector parameter_types;
+    Object_ptr return_type;
+
+    Signature(ObjectVector input_types, Object_ptr return_type)
+        : parameter_types(std::move(input_types)), return_type(std::move(return_type)) {};
+};
+
+using Signature_ptr = std::shared_ptr<Signature>;
+
+struct FunctionType : public Signature
+{
+    using Signature::Signature;
+};
+
+using FunctionType_ptr = std::shared_ptr<FunctionType>;
+
+struct MethodType : public Signature
+{
+    using Signature::Signature;
+};
+
+using MethodType_ptr = std::shared_ptr<MethodType>;
+
+// ============================================================================
+// Membered Types
+// ============================================================================
+
+struct ModuleType : public CompositeType
+{
+    std::string name;
+    std::filesystem::path absolute_filepath;
+
+    ObjectStringMap members;
+    StringVector ordered_keys;
+
+    ModuleType(
+        std::string name,
+        std::filesystem::path absolute_filepath,
+        StringVector ordered_keys,
+        ObjectStringMap members
+    )
+        : name(std::move(name)), absolute_filepath(std::move(absolute_filepath)),
+          ordered_keys(std::move(ordered_keys)), members(std::move(members))
+    {
+    }
+
+    bool contains_member(const std::string& member_name) const;
+
+    Object_ptr get_member(const std::string& member_name) const;
+    void set_member(const std::string& member_name, Object_ptr value);
+
+    Object_ptr get_member(int member_id) const;
+    void set_member(int member_id, Object_ptr value);
+
+    int get_member_index(const std::string& member_name) const;
+};
+
+using ModuleType_ptr = std::shared_ptr<ModuleType>;
+
+struct ClassType : public CompositeType
+{
+    std::string name;
+
+    StringVector fields;
+    StringVector methods;
+    StringVector pures;
+    StringVector statics;
+
+    ObjectStringMap members;
+
+    ClassType(
+        std::string name,
+        ObjectStringMap members,
+        StringVector fields,
+        StringVector methods,
+        StringVector pures,
+        StringVector statics
+    )
+        : name(std::move(name)), fields(std::move(fields)), methods(std::move(methods)),
+          pures(std::move(pures)), statics(std::move(statics)), members(std::move(members))
+    {
+    }
+
+    bool contains_member(const std::string& member_name) const;
+
+    Object_ptr get_member(const std::string& member_name) const;
+    void set_member(const std::string& member_name, Object_ptr value);
+
+    int get_member_index(const std::string& member_name) const;
+    Object_ptr get_member(int member_id) const;
+
+    void add_overload(const std::string& member_name, Object_ptr overload);
+    ObjectVector get_overloads(const std::string& member_name) const;
+
+    ObjectVector get_fields() const;
+    ObjectVector get_methods() const;
+    ObjectVector get_pures() const;
+    ObjectVector get_statics() const;
+    ObjectVector get_members() const;
+
+    bool is_pure(std::string member_name) const;
+    bool is_static(std::string member_name) const;
+};
+
+using ClassType_ptr = std::shared_ptr<ClassType>;
+
+struct TraitType : public CompositeType
+{
+    std::string name;
+
+    StringVector methods;
+    StringVector pures;
+    StringVector statics;
+
+    ObjectStringMap members;
+
+    TraitType(
+        std::string name,
+        ObjectStringMap members,
+        StringVector methods,
+        StringVector pures,
+        StringVector statics
+    )
+        : name(std::move(name)), methods(std::move(methods)), pures(std::move(pures)),
+          statics(std::move(statics)), members(std::move(members))
+    {
+    }
+
+    bool contains_member(const std::string& member_name) const;
+
+    Object_ptr get_member(const std::string& member_name) const;
+    void set_member(const std::string& member_name, Object_ptr value);
+
+    int get_member_index(const std::string& member_name) const;
+    Object_ptr get_member(int member_id) const;
+
+    void add_overload(const std::string& member_name, Object_ptr overload);
+    ObjectVector get_overloads(const std::string& member_name) const;
+
+    ObjectVector get_methods() const;
+    ObjectVector get_pures() const;
+    ObjectVector get_statics() const;
+    ObjectVector get_members() const;
+
+    bool is_pure(std::string member_name) const;
+    bool is_static(std::string member_name) const;
+};
+
+using TraitType_ptr = std::shared_ptr<TraitType>;
+
+struct RecordType
+{
+};
+
+struct EnumType : public CompositeType
+{
+    std::string name;
+    std::map<std::string, int> members;
+    std::map<std::string, std::shared_ptr<EnumType>> nested_enums;
+
+    EnumType(std::string name) : name(std::move(name))
+    {
+    }
+};
+
+using EnumType_ptr = std::shared_ptr<EnumType>;
+
+// ============================================================================
+// Template Types
+// ============================================================================
+
+struct GenericType
+{
+    Object_ptr constraint_type;
+};
+
+using GenericType_ptr = std::shared_ptr<GenericType>;
+
+struct TemplateType
+{
+    ObjectStringMap generics;
+
+    TemplateType(ObjectStringMap generics) : generics(std::move(generics))
+    {
+    }
+};
+
+using TemplateType_ptr = std::shared_ptr<TemplateType>;
+
+struct FunctionTemplateType : public TemplateType
+{
+    FunctionType_ptr signature;
+
+    FunctionTemplateType(ObjectStringMap generics, FunctionType_ptr signature)
+        : TemplateType(std::move(generics)), signature(std::move(signature))
+    {
+    }
+};
+
+using FunctionTemplateType_ptr = std::shared_ptr<FunctionTemplateType>;
+
+struct ClassTemplateType : public TemplateType
+{
+    ClassType_ptr class_type;
+
+    ClassTemplateType(ObjectStringMap generics, ClassType_ptr class_type = nullptr)
+        : TemplateType(std::move(generics)), class_type(std::move(class_type))
+    {
+    }
+};
+
+using ClassTemplateType_ptr = std::shared_ptr<ClassTemplateType>;
+
+struct TraitTemplateType : public TemplateType
+{
+    TraitType_ptr class_type;
+
+    TraitTemplateType(ObjectStringMap generics, TraitType_ptr class_type = nullptr)
+        : TemplateType(std::move(generics)), class_type(std::move(class_type))
+    {
+    }
+};
+
+using TraitTemplateType_ptr = std::shared_ptr<TraitTemplateType>;
+
+// ============================================================================
 // Scalar Objects
 // ============================================================================
 
@@ -342,339 +688,6 @@ struct TemplateObject : public MemberedCompositeObject
 };
 
 // ============================================================================
-// Type Interfaces
-// ============================================================================
-
-struct TypeType : public AbstractObject
-{
-};
-
-struct AnyType : public TypeType
-{
-};
-
-struct NoneType : public AnyType
-{
-};
-
-struct ScalarType : public AnyType
-{
-};
-
-struct LiteralType : public AnyType
-{
-};
-
-struct CompositeType : public AnyType
-{
-};
-
-struct NamedDefinitionType : public AnyType
-{
-    std::string name;
-    NamedDefinitionType(std::string name) : name(std::move(name)) {};
-};
-
-// ============================================================================
-// Scalar & Literal Types
-// ============================================================================
-
-struct IntType : public ScalarType
-{
-};
-
-struct FloatType : public ScalarType
-{
-};
-
-struct StringType : public ScalarType
-{
-};
-
-struct BooleanType : public ScalarType
-{
-};
-
-struct IntLiteralType : public LiteralType
-{
-    int value;
-    IntLiteralType(int value) : value(value) {};
-};
-
-struct FloatLiteralType : public LiteralType
-{
-    double value;
-    FloatLiteralType(double value) : value(value) {};
-};
-
-struct StringLiteralType : public LiteralType
-{
-    std::string value;
-    StringLiteralType(std::string value) : value(std::move(value)) {};
-};
-
-struct BooleanLiteralType : public LiteralType
-{
-    bool value;
-    BooleanLiteralType(bool value) : value(value) {};
-};
-
-// ============================================================================
-// Composite Types
-// ============================================================================
-
-struct ListType : public CompositeType
-{
-    Object_ptr element_type;
-    ListType(Object_ptr element_type) : element_type(std::move(element_type)) {};
-};
-
-struct TupleType : public CompositeType
-{
-    ObjectVector element_types;
-    TupleType(ObjectVector element_types) : element_types(std::move(element_types)) {};
-};
-
-struct SetType : public CompositeType
-{
-    Object_ptr element_type;
-    SetType(Object_ptr element_type) : element_type(std::move(element_type)) {};
-};
-
-struct MapType : public CompositeType
-{
-    Object_ptr key_type;
-    Object_ptr value_type;
-
-    MapType(Object_ptr key_type, Object_ptr value_type)
-        : key_type(std::move(key_type)), value_type(std::move(value_type)) {};
-};
-
-struct VariantType : public CompositeType
-{
-    ObjectVector types;
-    VariantType(ObjectVector types) : types(std::move(types)) {};
-};
-
-// ============================================================================
-// Function Types
-// ============================================================================
-
-struct Signature : public AnyType
-{
-    ObjectVector parameter_types;
-    Object_ptr return_type;
-
-    Signature(ObjectVector input_types, Object_ptr return_type)
-        : parameter_types(std::move(input_types)), return_type(std::move(return_type)) {};
-};
-
-using Signature_ptr = std::shared_ptr<Signature>;
-
-struct FunctionType : public Signature
-{
-    using Signature::Signature;
-};
-
-using FunctionType_ptr = std::shared_ptr<FunctionType>;
-
-struct MethodType : public Signature
-{
-    using Signature::Signature;
-};
-
-using MethodType_ptr = std::shared_ptr<MethodType>;
-
-// ============================================================================
-// Membered Types
-// ============================================================================
-
-struct ModuleType : public CompositeType
-{
-    std::string name;
-    std::filesystem::path absolute_filepath;
-
-    ObjectStringMap members;
-    StringVector ordered_keys;
-
-    ModuleType(
-        std::string name,
-        std::filesystem::path absolute_filepath,
-        StringVector ordered_keys,
-        ObjectStringMap members
-    )
-        : name(std::move(name)), absolute_filepath(std::move(absolute_filepath)),
-          ordered_keys(std::move(ordered_keys)), members(std::move(members))
-    {
-    }
-
-    bool contains_member(const std::string& member_name) const;
-
-    Object_ptr get_member(const std::string& member_name) const;
-    void set_member(const std::string& member_name, Object_ptr value);
-
-    Object_ptr get_member(int member_id) const;
-    void set_member(int member_id, Object_ptr value);
-
-    int get_member_index(const std::string& member_name) const;
-};
-
-using ModuleType_ptr = std::shared_ptr<ModuleType>;
-
-struct ClassType : public CompositeType
-{
-    std::string name;
-
-    StringVector fields;
-    StringVector methods;
-    StringVector pures;
-    StringVector statics;
-
-    ObjectStringMap members;
-
-    ClassType(
-        std::string name,
-        ObjectStringMap members,
-        StringVector fields,
-        StringVector methods,
-        StringVector pures,
-        StringVector statics
-    )
-        : name(std::move(name)), fields(std::move(fields)), methods(std::move(methods)),
-          pures(std::move(pures)), statics(std::move(statics)), members(std::move(members))
-    {
-    }
-
-    bool contains_member(const std::string& member_name) const;
-
-    Object_ptr get_member(const std::string& member_name) const;
-    void set_member(const std::string& member_name, Object_ptr value);
-
-    int get_member_index(const std::string& member_name) const;
-    Object_ptr get_member(int member_id) const;
-
-    void add_overload(const std::string& member_name, Object_ptr overload);
-    ObjectVector get_overloads(const std::string& member_name) const;
-
-    ObjectVector get_fields() const;
-    ObjectVector get_methods() const;
-    ObjectVector get_pures() const;
-    ObjectVector get_statics() const;
-    ObjectVector get_members() const;
-
-    bool is_pure(std::string member_name) const;
-    bool is_static(std::string member_name) const;
-};
-
-using ClassType_ptr = std::shared_ptr<ClassType>;
-
-struct TraitType : public CompositeType
-{
-    std::string name;
-
-    StringVector methods;
-    StringVector pures;
-    StringVector statics;
-
-    ObjectStringMap members;
-
-    TraitType(
-        std::string name,
-        ObjectStringMap members,
-        StringVector methods,
-        StringVector pures,
-        StringVector statics
-    )
-        : name(std::move(name)), methods(std::move(methods)), pures(std::move(pures)),
-          statics(std::move(statics)), members(std::move(members))
-    {
-    }
-
-    bool contains_member(const std::string& member_name) const;
-
-    Object_ptr get_member(const std::string& member_name) const;
-    void set_member(const std::string& member_name, Object_ptr value);
-
-    int get_member_index(const std::string& member_name) const;
-    Object_ptr get_member(int member_id) const;
-
-    void add_overload(const std::string& member_name, Object_ptr overload);
-    ObjectVector get_overloads(const std::string& member_name) const;
-
-    ObjectVector get_methods() const;
-    ObjectVector get_pures() const;
-    ObjectVector get_statics() const;
-    ObjectVector get_members() const;
-
-    bool is_pure(std::string member_name) const;
-    bool is_static(std::string member_name) const;
-};
-
-using TraitType_ptr = std::shared_ptr<TraitType>;
-
-struct RecordType
-{
-};
-
-// ============================================================================
-// Template Types
-// ============================================================================
-
-struct GenericType
-{
-    Object_ptr constraint_type;
-};
-
-using GenericType_ptr = std::shared_ptr<GenericType>;
-
-struct TemplateType
-{
-    ObjectStringMap generics;
-
-    TemplateType(ObjectStringMap generics) : generics(std::move(generics))
-    {
-    }
-};
-
-using TemplateType_ptr = std::shared_ptr<TemplateType>;
-
-struct FunctionTemplateType : public TemplateType
-{
-    FunctionType_ptr signature;
-
-    FunctionTemplateType(ObjectStringMap generics, FunctionType_ptr signature)
-        : TemplateType(std::move(generics)), signature(std::move(signature))
-    {
-    }
-};
-
-using FunctionTemplateType_ptr = std::shared_ptr<FunctionTemplateType>;
-
-struct ClassTemplateType : public TemplateType
-{
-    ClassType_ptr class_type;
-
-    ClassTemplateType(ObjectStringMap generics, ClassType_ptr class_type = nullptr)
-        : TemplateType(std::move(generics)), class_type(std::move(class_type))
-    {
-    }
-};
-
-using ClassTemplateType_ptr = std::shared_ptr<ClassTemplateType>;
-
-struct TraitTemplateType : public TemplateType
-{
-    TraitType_ptr class_type;
-
-    TraitTemplateType(ObjectStringMap generics, TraitType_ptr class_type = nullptr)
-        : TemplateType(std::move(generics)), class_type(std::move(class_type))
-    {
-    }
-};
-
-using TraitTemplateType_ptr = std::shared_ptr<TraitTemplateType>;
-
-// ============================================================================
 // The Core Object Variant
 // ============================================================================
 
@@ -743,7 +756,8 @@ struct Object
         std::shared_ptr<RecordType>,
         ModuleType_ptr,
         ClassType_ptr,
-        TraitType_ptr>;
+        TraitType_ptr,
+        EnumType_ptr>;
 
     UnderlyingVariant value;
 

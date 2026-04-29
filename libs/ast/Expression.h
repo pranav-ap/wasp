@@ -151,6 +151,7 @@ struct MemberAccess
     Expression_ptr right;
 
     int member_index = -1;
+    bool is_enum_value = false;
 
     MemberAccess() = default;
     MemberAccess(Expression_ptr left, Expression_ptr right)

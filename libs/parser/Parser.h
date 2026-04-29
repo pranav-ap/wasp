@@ -52,7 +52,7 @@ private:
     );
 
     Statement_ptr parse_enum_definition(int indent_level = 0);
-    StringVector parse_enum_members(std::string stem, int indent_level);
+    EnumDefinition parse_enum_body(std::string name, int indent_level);
 
     Statement_ptr parse_trait_definition(int indent_level = 0);
 

@@ -195,10 +195,16 @@ struct AliasDefinition : public Definition
 struct EnumDefinition : public Definition
 {
     std::map<std::string, int> members;
+    std::vector<EnumDefinition> nested_enums;
 
     EnumDefinition() = default;
 
-    EnumDefinition(std::string name, StringVector member_list) : Definition(std::move(name))
+    EnumDefinition(
+        std::string name,
+        const StringVector& member_list,
+        std::vector<EnumDefinition> nested = {}
+    )
+        : Definition(std::move(name)), nested_enums(std::move(nested))
     {
         int index = 0;
         for (const auto& member : member_list)

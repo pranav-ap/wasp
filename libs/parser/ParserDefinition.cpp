@@ -57,53 +57,48 @@ Statement_ptr Parser::parse_enum_definition(int indent_level)
     Token identifier = token_pipe.require_in_line(TokenType::IDENTIFIER);
     token_pipe.require_in_line(TokenType::EOL);
 
-    std::vector<std::string> members = parse_enum_members(identifier.value, indent_level + 1);
-    return make_statement(EnumDefinition(identifier.value, members));
+    return make_statement(parse_enum_body(identifier.value, indent_level + 1));
 }
 
-std::vector<std::string> Parser::parse_enum_members(std::string stem, int indent_level)
+EnumDefinition Parser::parse_enum_body(std::string name, int indent_level)
 {
     std::vector<std::string> members;
+    std::vector<EnumDefinition> nested_enums;
 
     while (true)
     {
         token_pipe.ignore_empty_lines();
 
-        // Check indentation at the start of each line
         if (token_pipe.lookahead_indents() != indent_level)
         {
-            // End of this enum block
             break;
         }
 
         token_pipe.expect_n_indents(indent_level);
 
-        // Nested Enum
         if (token_pipe.consume_optional(TokenType::ENUM))
         {
             auto nested_name = token_pipe.require_in_line(TokenType::IDENTIFIER).value;
             token_pipe.require_in_line(TokenType::EOL);
 
-            // Recurse with extended stem and deeper indentation
-            auto nested_members = parse_enum_members(stem + "." + nested_name, indent_level + 1);
-            members.insert(members.end(), nested_members.begin(), nested_members.end());
+            nested_enums.push_back(parse_enum_body(nested_name, indent_level + 1));
             continue;
         }
 
-        // Leaf Member
         if (auto token = token_pipe.consume_optional(TokenType::IDENTIFIER))
         {
-            members.push_back(stem + "." + token->value);
+            members.push_back(token->value);
             token_pipe.require_in_line(TokenType::EOL);
             continue;
         }
 
-        // No more members found
         break;
     }
 
-    return members;
+    return EnumDefinition(std::move(name), members, nested_enums);
 }
+
+// Others
 
 Statement_ptr Parser::parse_annotation_definition()
 {

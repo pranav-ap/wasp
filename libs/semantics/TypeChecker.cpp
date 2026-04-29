@@ -5,6 +5,7 @@
 #include "Token.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <variant>
@@ -111,6 +112,16 @@ bool TypeChecker::equal(
             {
                 return equal(scope, t1.key_type, t2.key_type) &&
                        equal(scope, t1.value_type, t2.value_type);
+            },
+            [&](EnumType_ptr const& t1, EnumType_ptr const& t2) -> bool
+            {
+                auto get_root = [](const std::string& name)
+                {
+                    size_t pos = name.find('.');
+                    return pos == std::string::npos ? name : name.substr(0, pos);
+                };
+
+                return get_root(t1->name) == get_root(t2->name);
             },
 
             [](const auto&, const auto&) -> bool
@@ -405,6 +416,15 @@ Object_ptr TypeChecker::infer(
             expect_string_type(right_type);
         else if (is_boolean_type(left_type))
             expect_boolean_type(right_type);
+        else if (left_type->is<EnumType_ptr>())
+        {
+            Doctor::get().assert(
+                equal(scope, left_type, right_type),
+                WaspStage::Semantics,
+                "Type mismatch in equality comparison: cannot compare enum '" +
+                    stringify_object(left_type) + "' with '" + stringify_object(right_type) + "'."
+            );
+        }
         else
             Doctor::get().fatal(
                 WaspStage::Semantics,
