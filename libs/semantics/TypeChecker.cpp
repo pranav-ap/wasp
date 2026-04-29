@@ -409,6 +409,15 @@ Object_ptr TypeChecker::infer(
             expect_string_type(right_type);
         else if (is_boolean_type(left_type))
             expect_boolean_type(right_type);
+        else if (left_type->is<EnumType_ptr>())
+        {
+            Doctor::get().assert(
+                equal(scope, left_type, right_type),
+                WaspStage::Semantics,
+                "Type mismatch in equality comparison: cannot compare enum '" +
+                    stringify_object(left_type) + "' with '" + stringify_object(right_type) + "'."
+            );
+        }
         else
             Doctor::get().fatal(
                 WaspStage::Semantics,
