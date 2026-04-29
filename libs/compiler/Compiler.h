@@ -194,7 +194,7 @@ private:
     void compile_identifier_assignment(Identifier& id, const Expression_ptr& rhs);
     void compile_member_assignment(MemberAccess& mac, const Expression_ptr& rhs);
 
-    std::string get_native_mangled_name(
+    std::string mangle_name(
         const std::string& fn_name,
         const std::string& class_name,
         const std::string& path_override

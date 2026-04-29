@@ -137,7 +137,7 @@ using SymbolPayload = std::variant<
 struct Symbol : public std::enable_shared_from_this<Symbol>
 {
     std::string name;
-    std::string module_path = "";
+    std::filesystem::path module_path;
     int id = -1;
 
     int closure_depth = 0;
@@ -277,6 +277,7 @@ struct Module
     Module(std::filesystem::path file_path, StatementVector stmts);
 
     std::string get_name() const;
+    std::string get_path() const;
 
     int get_member_index(const std::string& member_name) const;
     Symbol_ptr get_member(const std::string& member_name) const;

@@ -46,7 +46,7 @@ Symbol::Symbol(
     SymbolPayload payload
 )
     : id(id), name(std::move(name)), closure_depth(closure_depth), lexical_depth(lexical_depth),
-      payload(std::move(payload))
+      payload(std::move(payload)), module_path("")
 {
 }
 
@@ -503,6 +503,11 @@ Module::Module(std::filesystem::path file_path, StatementVector stmts)
 std::string Module::get_name() const
 {
     return absolute_filepath.stem().string();
+}
+
+std::string Module::get_path() const
+{
+    return absolute_filepath.string();
 }
 
 int Module::get_member_index(const std::string& member_name) const

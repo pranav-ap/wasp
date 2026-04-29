@@ -138,7 +138,7 @@ void NativeRegistry::add_native(const std::string& name, NativeFnType function)
 void NativeRegistry::load_stdlib()
 {
     add_native(
-        "libs::core::io::print",
+        "libs.core.io.print",
         [this](const std::vector<Object_ptr>& args)
         {
             return native_print(args, this->pool);
@@ -146,7 +146,7 @@ void NativeRegistry::load_stdlib()
     );
 
     add_native(
-        "libs::core::io::input",
+        "libs.core.io.input",
         [](const std::vector<Object_ptr>& args)
         {
             return native_input(args);
@@ -154,7 +154,7 @@ void NativeRegistry::load_stdlib()
     );
 
     add_native(
-        "libs::core::greet::Greeter::greet",
+        "libs.core.greet.Greeter.greet",
         [this](const std::vector<Object_ptr>& args)
         {
             auto instance_ptr = args[0];

@@ -24,18 +24,17 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-std::string Compiler::get_native_mangled_name(
+std::string Compiler::mangle_name(
     const std::string& fn_name,
     const std::string& class_name,
     const std::string& path_override
 )
 {
-    // Use the override from the Symbol if available, otherwise use current module
     std::string full_path = path_override.empty() ? this->module_path : path_override;
 
     if (full_path.empty())
     {
-        return (class_name.empty() ? "" : class_name + "::") + fn_name;
+        return (class_name.empty() ? "" : class_name + ".") + fn_name;
     }
 
     std::replace(full_path.begin(), full_path.end(), '\\', '/');
@@ -49,30 +48,29 @@ std::string Compiler::get_native_mangled_name(
     }
     else
     {
-        // For local files, we just use the filename (stem) as the prefix
         prefix = std::filesystem::path(full_path).stem().string();
     }
 
-    // Strip the extension if present
     size_t ext_pos = prefix.rfind(".wasp");
     if (ext_pos != std::string::npos)
     {
         prefix.erase(ext_pos);
     }
 
-    // Replace folder separators with Wasp namespace separators
+    // Replace folder separators with dots
     std::string::size_type pos = 0;
     while ((pos = prefix.find('/', pos)) != std::string::npos)
     {
-        prefix.replace(pos, 1, "::");
-        pos += 2;
+        prefix.replace(pos, 1, ".");
+        pos += 1;
     }
 
     // Final Assembly
     std::string result = prefix;
     if (!class_name.empty())
-        result += "::" + class_name;
-    result += "::" + fn_name;
+        result += "." + class_name;
+
+    result += "." + fn_name;
 
     return result;
 }

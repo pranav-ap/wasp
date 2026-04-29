@@ -45,7 +45,12 @@ void Compiler::visit(FunctionDefinition& def)
 {
     if (def.symbol->is_native())
     {
-        std::string mangled = get_native_mangled_name(def.name, "", def.symbol->module_path);
+        std::string mangled = mangle_name(
+            def.name,
+            "", // No class name for free functions
+            def.symbol->module_path
+        );
+
         int registry_id = workspace->native_registry->get_native_index(mangled);
         emit(OpCode::GET_NATIVE, registry_id, mangled);
     }
@@ -62,7 +67,12 @@ void Compiler::visit(PureFunctionDefinition& def)
 {
     if (def.symbol->is_native())
     {
-        std::string mangled = get_native_mangled_name(def.name, "", def.symbol->module_path);
+        std::string mangled = mangle_name(
+            def.name,
+            "", // No class name for free functions
+            def.symbol->module_path
+        );
+
         int registry_id = workspace->native_registry->get_native_index(mangled);
         emit(OpCode::GET_NATIVE, registry_id, mangled);
     }
@@ -106,8 +116,7 @@ void Compiler::visit(ClassDefinition& class_definition)
         {
             if (method.symbol->is_native())
             {
-                // Pass the symbol's module_path as the 3rd argument
-                std::string mangled = get_native_mangled_name(
+                std::string mangled = mangle_name(
                     method.name,
                     class_definition.name,
                     method.symbol->module_path

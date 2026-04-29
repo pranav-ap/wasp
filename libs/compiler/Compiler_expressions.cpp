@@ -25,7 +25,11 @@ void Compiler::visit(Identifier& expr)
 
     if (symbol->is_native())
     {
-        std::string mangled = get_native_mangled_name(symbol->name, "", symbol->module_path);
+        std::string mangled = mangle_name(
+            symbol->name,
+            "", // No class name for free functions
+            symbol->module_path
+        );
 
         auto id = workspace->native_registry->get_native_index(mangled);
         emit(OpCode::GET_NATIVE, id, mangled);
