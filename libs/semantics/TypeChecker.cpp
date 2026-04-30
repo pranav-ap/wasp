@@ -248,6 +248,8 @@ bool TypeChecker::assignable(
             {
                 return true;
             },
+
+            // Base to Base (let a: int = b)
             [](IntType const&, IntType const&) -> bool
             {
                 return true;
@@ -265,6 +267,25 @@ bool TypeChecker::assignable(
                 return true;
             },
 
+            // Literal to Literal (let a: 'sam' = 'sam')
+            [](IntLiteralType const& l, IntLiteralType const& r) -> bool
+            {
+                return l.value == r.value;
+            },
+            [](FloatLiteralType const& l, FloatLiteralType const& r) -> bool
+            {
+                return l.value == r.value;
+            },
+            [](BooleanLiteralType const& l, BooleanLiteralType const& r) -> bool
+            {
+                return l.value == r.value;
+            },
+            [](StringLiteralType const& l, StringLiteralType const& r) -> bool
+            {
+                return l.value == r.value;
+            },
+
+            // Base to Literal (let a: int = 34)
             [](IntType const&, IntLiteralType const&) -> bool
             {
                 return true;
@@ -278,6 +299,23 @@ bool TypeChecker::assignable(
                 return true;
             },
             [](StringType const&, StringLiteralType const&) -> bool
+            {
+                return true;
+            },
+
+            [](IntLiteralType const&, IntType const&) -> bool
+            {
+                return true;
+            },
+            [](FloatLiteralType const&, FloatType const&) -> bool
+            {
+                return true;
+            },
+            [](BooleanLiteralType const&, BooleanType const&) -> bool
+            {
+                return true;
+            },
+            [](StringLiteralType const&, StringType const&) -> bool
             {
                 return true;
             },

@@ -1,15 +1,6 @@
 from core.io import print
 
-type Foo = int | str
+type Foo = 'sam' | 'jon'
 
-let a: Foo = 34
+let a: Foo = 'tim'
 print(a)
-
-
-template
-    T: int | float
-
-type Bar = T | str
-
-let b: Bar<int> = 12
-print(b)
