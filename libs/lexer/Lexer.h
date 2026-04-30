@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Token.h"
+#include <queue>
 #include <string>
 #include <vector>
 
@@ -26,8 +27,7 @@ public:
     }
 };
 
-
-class TokenPosition 
+class TokenPosition
 {
 	int line_num;
 	int column_num;
@@ -69,6 +69,7 @@ private:
     std::string source;
 	SourceCodePointer source_code_pointer;
 	TokenPosition token_position;
+    std::queue<Token> pending_tokens;
 
     Token next_token();
 
@@ -99,7 +100,7 @@ private:
     Token consume_tab();
 	Token consume_unknown_token();
 
-    // UTILS 
+    // UTILS
 
     bool expect_current_char(char ch);
     char get_char_at(int index) const;
@@ -109,4 +110,4 @@ private:
     void previous();
 };
 
-} 
+} // namespace Wasp

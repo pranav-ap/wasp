@@ -233,6 +233,11 @@ struct RangeLiteral {
           is_inclusive(is_inclusive) {}
 };
 
+struct InterpolatedString
+{
+    ExpressionVector parts;
+};
+
 // Expression
 
 using ExpressionVariant = std::variant<
