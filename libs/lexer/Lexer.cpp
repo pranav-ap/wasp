@@ -4,6 +4,7 @@
 #include <cctype>
 #include <cstddef>
 #include <cwctype>
+#include <queue>
 #include <string>
 #include <vector>
 
@@ -63,6 +64,13 @@ std::vector<Token> Lexer::run(const std::string source_code) {
 }
 
 Token Lexer::next_token() {
+    if (!pending_tokens.empty())
+    {
+        Token t = pending_tokens.front();
+        pending_tokens.pop();
+        return t;
+    }
+
     const char current_char = get_current_char();
 
     if (current_char == ' ') {
@@ -143,22 +151,81 @@ Token Lexer::consume_number_literal() {
 
     return Token{TokenType::NUMBER_LITERAL, value, LINE_NUM, COL_NUM};
 }
+Token Lexer::consume_string_literal()
+{
+    int start_line = token_position.get_line_num();
+    int start_col = token_position.get_column_num();
 
-Token Lexer::consume_string_literal() {
-    std::string value;
-    // Skip the opening quote
     next();
 
-    char current_char = get_current_char();
-    while (current_char != '\'' && current_char != '\0') {
-        value += current_char;
+    std::string current_chars;
+    std::queue<Token> local_pending;
+
+    auto emit_string = [&]()
+    {
+        local_pending.push(Token{TokenType::STRING_LITERAL, current_chars, start_line, start_col});
+        current_chars.clear();
+    };
+
+    auto emit_plus = [&](int line, int col)
+    {
+        local_pending.push(Token{TokenType::PLUS, "+", line, col});
+    };
+
+    while (get_current_char() != '\'' && get_current_char() != '\0')
+    {
+        if (get_current_char() == '{')
+        {
+            emit_string();
+            emit_plus(token_position.get_line_num(), token_position.get_column_num());
+
+            next();
+
+            int brace_depth = 1;
+            while (get_current_char() != '\0')
+            {
+                Token t = next_token();
+
+                if (t.type == TokenType::OPEN_CURLY_BRACE)
+                    brace_depth++;
+                if (t.type == TokenType::CLOSE_CURLY_BRACE)
+                    brace_depth--;
+
+                if (brace_depth == 0)
+                {
+                    emit_plus(t.line, t.column);
+                    break;
+                }
+
+                local_pending.push(t);
+            }
+
+            start_line = token_position.get_line_num();
+            start_col = token_position.get_column_num();
+            continue;
+        }
+
+        current_chars += get_current_char();
         next();
-        current_char = get_current_char();
     }
 
-    // Skip the closing quote
-    next();
-    return Token{TokenType::STRING_LITERAL, value, LINE_NUM, COL_NUM};
+    emit_string();
+
+    if (get_current_char() == '\'')
+    {
+        next();
+    }
+
+    Token first_token = local_pending.front();
+    local_pending.pop();
+
+    while (!local_pending.empty())
+    {
+        pending_tokens.push(local_pending.front());
+        local_pending.pop();
+    }
+
+    return first_token;
 }
 
 Token Lexer::consume_operators() {

@@ -123,7 +123,9 @@
     X(TAB, "TAB", false)                                                                           \
     X(EOL, "EOL", false)                                                                           \
     X(END_OF_FILE, "END_OF_FILE", false)                                                           \
-    X(COMMENT, "#", false)
+    X(COMMENT, "#", false)                                                                         \
+    X(SINGLE_QUOTE, "'", false)                                                                    \
+    X(CHARACTER, "CHARACTER", false)
 
 namespace Wasp {
 
