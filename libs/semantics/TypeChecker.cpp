@@ -193,6 +193,16 @@ bool TypeChecker::assignable(
     if (!lhs_type || !rhs_type)
         return false;
 
+    if (lhs_type->is<TypeAlias_ptr>())
+    {
+        return assignable(scope, lhs_type->as<TypeAlias_ptr>()->aliased_type, rhs_type);
+    }
+
+    if (rhs_type->is<TypeAlias_ptr>())
+    {
+        return assignable(scope, lhs_type, rhs_type->as<TypeAlias_ptr>()->aliased_type);
+    }
+
     if (equal(scope, lhs_type, rhs_type))
         return true;
 

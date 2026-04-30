@@ -4,3 +4,12 @@ type Foo = int | str
 
 let a: Foo = 34
 print(a)
+
+
+template
+    T: int | float
+
+type Bar = T | str
+
+let b: Bar<int> = 12
+print(b)

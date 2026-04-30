@@ -15,32 +15,59 @@ using std::vector;
 
 namespace Wasp {
 
-TypeAnnotation_ptr Parser::parse_type() {
+TypeAnnotation_ptr Parser::parse_type()
+{
     vector<TypeAnnotation_ptr> types;
 
-    while (true) {
+    while (true)
+    {
         TypeAnnotation_ptr type;
 
-        if (token_pipe.consume_optional_in_line(TokenType::OPEN_SQUARE_BRACKET)) {
+        if (token_pipe.consume_optional_in_line(TokenType::OPEN_SQUARE_BRACKET))
+        {
             type = parse_list_type();
-        } else if (token_pipe.consume_optional_in_line(TokenType::OPEN_CURLY_BRACE)) {
+        }
+        else if (token_pipe.consume_optional_in_line(TokenType::OPEN_CURLY_BRACE))
+        {
             type = parse_set_or_map_type();
-        } else if (token_pipe.consume_optional_in_line(TokenType::OPEN_PARENTHESIS)) {
+        }
+        else if (token_pipe.consume_optional_in_line(TokenType::OPEN_PARENTHESIS))
+        {
             type = parse_tuple_or_fun_type();
-        } else {
+        }
+        else
+        {
             type = consume_datatype_word();
+
+            if (type && token_pipe.consume_optional_in_line(TokenType::LESSER_THAN))
+            {
+                vector<TypeAnnotation_ptr> generic_args;
+                do
+                {
+                    generic_args.push_back(parse_type());
+                }
+                while (token_pipe.consume_optional_in_line(TokenType::COMMA));
+
+                token_pipe.require(TokenType::GREATER_THAN);
+
+                type = std::make_shared<TypeAnnotation>(TypeAnnotation{
+                    std::make_shared<TemplateTypeNode>(type, std::move(generic_args))
+                });
+            }
         }
 
         types.push_back(type);
 
-        if (token_pipe.consume_optional_in_line(TokenType::VERTICAL_BAR)) {
+        if (token_pipe.consume_optional_in_line(TokenType::VERTICAL_BAR))
+        {
             continue;
         }
 
         break;
     }
 
-    if (types.size() > 1) {
+    if (types.size() > 1)
+    {
         return std::make_shared<TypeAnnotation>(
             TypeAnnotation{std::make_shared<VariantTypeNode>(std::move(types))}
         );

@@ -260,6 +260,24 @@ void SemanticAnalyzer::hoist_template_trait(
     def.symbol = target_scope->define(symbol);
 }
 
+void SemanticAnalyzer::hoist_template_type_alias(
+    TypeAliasDefinition& def,
+    std::shared_ptr<SymbolScope> target_scope,
+    ObjectStringMap generics
+)
+{
+    auto type = make_object(std::make_shared<TypeAliasTemplateType>(generics));
+
+    auto symbol = SymbolFactory::create_template(
+        def.name,
+        type,
+        target_scope->get_closure_depth(),
+        target_scope->get_lexical_depth()
+    );
+
+    def.symbol = target_scope->define(symbol);
+}
+
 void SemanticAnalyzer::hoist_template(
     TemplateDefinition& def,
     std::shared_ptr<SymbolScope> target_scope
@@ -281,20 +299,29 @@ void SemanticAnalyzer::hoist_template(
 
     std::visit(
         overloaded{
-            [&](FunctionDefinition& f)
+            [&](FunctionDefinition& def)
             {
-                hoist_template_function(f, target_scope, generics);
+                hoist_template_function(def, target_scope, generics);
             },
-            [&](PureFunctionDefinition& f)
+            [&](PureFunctionDefinition& def)
             {
-                hoist_template_function(f, target_scope, generics);
+                hoist_template_function(def, target_scope, generics);
             },
-            [&](ClassDefinition& c)
+            [&](ClassDefinition& def)
             {
-                hoist_template_class(c, target_scope, generics);
+                hoist_template_class(def, target_scope, generics);
+            },
+            [&](TraitDefinition& def)
+            {
+                hoist_template_trait(def, target_scope, generics);
+            },
+            [&](TypeAliasDefinition& def)
+            {
+                hoist_template_type_alias(def, target_scope, generics);
             },
             [](auto&)
             {
+                Doctor::get().fatal(WaspStage::Semantics, "Invalid template target");
             }
         },
         def.target->data

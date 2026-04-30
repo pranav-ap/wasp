@@ -564,6 +564,13 @@ void SemanticAnalyzer::visit(TemplateDefinition& statement)
                     trait_type
                 );
             },
+            [&](TypeAliasDefinition& t)
+            {
+                Object_ptr ref_type = visit(t.ref_type);
+                t.symbol->set_type(
+                    make_object(std::make_shared<TypeAliasTemplateType>(generics, ref_type))
+                );
+            },
             [&](auto&)
             {
                 Doctor::get().fatal(WaspStage::Semantics, "Invalid template target");
@@ -595,7 +602,7 @@ void SemanticAnalyzer::visit(Native& statement)
 void SemanticAnalyzer::visit(TypeAliasDefinition& def)
 {
     Object_ptr ref_type = visit(def.ref_type);
-    def.symbol->set_type(ref_type);
+    def.symbol->set_type(make_object(std::make_shared<TypeAlias>(def.name, ref_type)));
 }
 
 void SemanticAnalyzer::visit(EnumDefinition& def)

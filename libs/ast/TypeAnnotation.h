@@ -42,6 +42,7 @@ struct MapTypeNode;
 struct VariantTypeNode;
 struct FunctionTypeNode;
 struct RecordTypeNode;
+struct TemplateTypeNode;
 
 struct ListTypeNode {
     TypeAnnotation_ptr element_type;
@@ -96,6 +97,18 @@ struct RecordTypeNode
     }
 };
 
+struct TemplateTypeNode
+{
+    TypeAnnotation_ptr base_type;
+    TypeAnnotationVector generic_args;
+
+    explicit TemplateTypeNode() = default;
+    explicit TemplateTypeNode(TypeAnnotation_ptr base_type, TypeAnnotationVector args)
+        : base_type(std::move(base_type)), generic_args(std::move(args))
+    {
+    }
+};
+
 using TypeAnnotationVariant = std::variant<
     std::monostate,
 
@@ -120,7 +133,8 @@ using TypeAnnotationVariant = std::variant<
     std::shared_ptr<MapTypeNode>,
     std::shared_ptr<VariantTypeNode>,
     std::shared_ptr<FunctionTypeNode>,
-    std::shared_ptr<RecordTypeNode>>;
+    std::shared_ptr<RecordTypeNode>,
+    std::shared_ptr<TemplateTypeNode>>;
 
 struct TypeAnnotation : public AstNode<TypeAnnotationVariant> {
     using AstNode::AstNode;

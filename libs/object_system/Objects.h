@@ -395,6 +395,18 @@ struct TraitTemplateType : public TemplateType
 
 using TraitTemplateType_ptr = std::shared_ptr<TraitTemplateType>;
 
+struct TypeAliasTemplateType : public TemplateType
+{
+    Object_ptr underlying_type;
+
+    TypeAliasTemplateType(ObjectStringMap generics, Object_ptr underlying_type = nullptr)
+        : TemplateType(std::move(generics)), underlying_type(std::move(underlying_type))
+    {
+    }
+};
+
+using TypeAliasTemplateType_ptr = std::shared_ptr<TypeAliasTemplateType>;
+
 // ============================================================================
 // Alias
 // ============================================================================
@@ -747,6 +759,7 @@ struct Object
         std::shared_ptr<FunctionTemplateType>,
         std::shared_ptr<ClassTemplateType>,
         std::shared_ptr<TraitTemplateType>,
+        TypeAliasTemplateType_ptr,
 
         TypeType,
         AnyType,

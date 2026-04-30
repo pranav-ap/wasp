@@ -246,6 +246,14 @@ void Compiler::visit(TemplateDefinition& statement)
             {
                 visit(c);
             },
+            [&](TraitDefinition& t)
+            {
+                visit(t);
+            },
+            [&](TypeAliasDefinition& t)
+            {
+                visit(t);
+            },
             [&](auto&)
             {
                 Doctor::get().fatal(WaspStage::Compiler, "Invalid template target");

@@ -59,6 +59,11 @@ private:
         std::shared_ptr<SymbolScope> target_scope,
         ObjectStringMap generics
     );
+    void hoist_template_type_alias(
+        TypeAliasDefinition& def,
+        std::shared_ptr<SymbolScope> target_scope,
+        ObjectStringMap generics
+    );
     void hoist_template(TemplateDefinition& def, std::shared_ptr<SymbolScope> target_scope);
 
     template <typename T> void hoist_function(T& def, std::shared_ptr<SymbolScope> target_scope);
@@ -243,6 +248,11 @@ private:
         Symbol_ptr template_symbol
     );
 
+    Object_ptr evaluate_type_template_instantiation(
+        Object_ptr base_type_obj,
+        const ObjectVector& resolved_args
+    );
+
     // =========================================================================
     // Type Annotation Visitors
     // =========================================================================
@@ -267,6 +277,6 @@ private:
     Object_ptr visit(VariantTypeNode& expr);
     Object_ptr visit(FunctionTypeNode& expr);
     Object_ptr visit(RecordTypeNode& expr);
+    Object_ptr visit(TemplateTypeNode& node);
 };
-
 } // namespace Wasp

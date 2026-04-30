@@ -23,6 +23,7 @@ using std::make_pair;
 
 namespace Wasp
 {
+
 Statement_ptr Parser::parse_variable_definition(bool is_mutable)
 {
     token_pipe.advance_pointer();
