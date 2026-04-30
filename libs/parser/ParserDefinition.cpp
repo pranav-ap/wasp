@@ -45,7 +45,7 @@ Statement_ptr Parser::parse_alias_definition()
     auto ref_type = parse_type();
     token_pipe.require_in_line(TokenType::EOL);
 
-    return make_statement(AliasDefinition(name, ref_type));
+    return make_statement(TypeAliasDefinition(name, ref_type));
 }
 
 // Enum

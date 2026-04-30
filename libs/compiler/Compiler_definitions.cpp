@@ -261,7 +261,7 @@ void Compiler::visit(EnumDefinition& def)
 {
 }
 
-void Compiler::visit(AliasDefinition& def)
+void Compiler::visit(TypeAliasDefinition& def)
 {
 }
 

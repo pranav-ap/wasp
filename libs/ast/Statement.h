@@ -182,13 +182,13 @@ struct VariableDefinition : public Definition
         : expression(std::move(expression)), is_mutable(is_mutable) {};
 };
 
-struct AliasDefinition : public Definition
+struct TypeAliasDefinition : public Definition
 {
     TypeAnnotation_ptr ref_type;
 
-    AliasDefinition() = default;
+    TypeAliasDefinition() = default;
 
-    AliasDefinition(std::string name, TypeAnnotation_ptr ref_type)
+    TypeAliasDefinition(std::string name, TypeAnnotation_ptr ref_type)
         : Definition(name), ref_type(ref_type) {};
 };
 
@@ -402,7 +402,7 @@ using StatementVariant = std::variant<
     ExpressionStatement,
 
     VariableDefinition,
-    AliasDefinition,
+    TypeAliasDefinition,
     EnumDefinition,
 
     FunctionDefinition,

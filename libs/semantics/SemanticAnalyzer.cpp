@@ -370,6 +370,17 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
 
                     def.symbol = current_scope->define(symbol);
                 },
+                [&](TypeAliasDefinition& def)
+                {
+                    auto symbol = SymbolFactory::create_type_alias(
+                        def.name,
+                        nullptr,
+                        current_scope->get_closure_depth(),
+                        current_scope->get_lexical_depth()
+                    );
+
+                    def.symbol = current_scope->define(symbol);
+                },
                 [](auto&)
                 {
                 }

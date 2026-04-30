@@ -111,9 +111,13 @@ struct TemplateData : public TypedData
     using TypedData::TypedData;
 };
 
-struct AliasData
+struct SymbolAliasData
 {
     Symbol_ptr target;
+};
+
+struct TypeAliasData : public TypedData
+{
 };
 
 struct ModuleData
@@ -138,7 +142,8 @@ using SymbolPayload = std::variant<
     GenericData,
     EnumData,
     TemplateData,
-    AliasData>;
+    TypeAliasData,
+    SymbolAliasData>;
 
 struct Symbol : public std::enable_shared_from_this<Symbol>
 {
@@ -264,6 +269,13 @@ public:
     );
 
     static Symbol_ptr create_enum(
+        std::string name,
+        Object_ptr type = nullptr,
+        int closure_depth = 0,
+        int lexical_depth = 0
+    );
+
+    static Symbol_ptr create_type_alias(
         std::string name,
         Object_ptr type = nullptr,
         int closure_depth = 0,

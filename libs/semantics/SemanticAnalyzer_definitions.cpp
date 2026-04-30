@@ -592,12 +592,15 @@ void SemanticAnalyzer::visit(Native& statement)
     );
 }
 
-void SemanticAnalyzer::visit(AliasDefinition& statement)
+void SemanticAnalyzer::visit(TypeAliasDefinition& def)
 {
+    Object_ptr ref_type = visit(def.ref_type);
+    def.symbol->set_type(ref_type);
 }
 
 void SemanticAnalyzer::visit(EnumDefinition& def)
 {
+    // already dealt with during hoisting phase
 }
 
 void SemanticAnalyzer::visit(AnnotationDefinition& statement)

@@ -126,7 +126,7 @@ private:
 
     void visit(TemplateDefinition& statement);
 
-    void visit(AliasDefinition& statement);
+    void visit(TypeAliasDefinition& statement);
     void visit(AnnotationDefinition& statement);
 
     void visit(Return& statement);

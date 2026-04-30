@@ -59,7 +59,7 @@ bool Symbol::is_exportable() const
 {
     bool global = is_global();
     bool is_module = payload_is<ModuleData>();
-    bool is_alias = payload_is<AliasData>();
+    bool is_alias = payload_is<SymbolAliasData>();
     return global && !is_module && !is_alias;
 }
 
@@ -174,9 +174,13 @@ Object_ptr Symbol::get_type()
             {
                 return d.type;
             },
-            [](const AliasData& d)
+            [](const SymbolAliasData& d)
             {
                 return d.target->get_type();
+            },
+            [](const TypeAliasData& d) -> Object_ptr
+            {
+                return d.type;
             },
             [](const EnumData& d) -> Object_ptr
             {
@@ -268,9 +272,13 @@ void Symbol::set_type(Object_ptr new_type)
             {
                 d.mod->type = new_type;
             },
-            [&](AliasData& d)
+            [&](SymbolAliasData& d)
             {
                 d.target->set_type(new_type);
+            },
+            [&](TypeAliasData& d)
+            {
+                d.type = new_type;
             }
         },
         payload
@@ -303,9 +311,9 @@ void Symbol::mark_as_native()
 
 Symbol_ptr Symbol::resolve()
 {
-    if (payload_is<AliasData>())
+    if (payload_is<SymbolAliasData>())
     {
-        return get_payload_as<AliasData>().target->resolve();
+        return get_payload_as<SymbolAliasData>().target->resolve();
     }
     return shared_from_this();
 }
@@ -495,6 +503,22 @@ Symbol_ptr SymbolFactory::create_enum(
     );
 }
 
+Symbol_ptr SymbolFactory::create_type_alias(
+    std::string name,
+    Object_ptr type,
+    int closure_depth,
+    int lexical_depth
+)
+{
+    return std::make_shared<Symbol>(
+        symbol_id_counter++,
+        std::move(name),
+        closure_depth,
+        lexical_depth,
+        TypeAliasData{type}
+    );
+}
+
 Symbol_ptr SymbolFactory::create_module(std::string name, Module_ptr mod)
 {
     return std::make_shared<Symbol>(
@@ -513,7 +537,7 @@ Symbol_ptr SymbolFactory::create_alias(std::string name, Symbol_ptr target)
         std::move(name),
         0,
         0,
-        AliasData{std::move(target)}
+        SymbolAliasData{std::move(target)}
     );
 }
 

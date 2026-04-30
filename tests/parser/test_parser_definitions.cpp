@@ -10,7 +10,7 @@ TEST(ParseDefinitions, AliasDefinition)
     auto block = parse("type int_list = [int]");
     ASSERT_EQ(block.size(), 1);
 
-    auto& alias_def = check<Wasp::AliasDefinition>(block[0]);
+    auto& alias_def = check<Wasp::TypeAliasDefinition>(block[0]);
     EXPECT_EQ(alias_def.name, "int_list");
 
     auto& list_type_ptr = check<std::shared_ptr<Wasp::ListTypeNode>>(alias_def.ref_type);

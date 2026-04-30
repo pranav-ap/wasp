@@ -396,6 +396,23 @@ struct TraitTemplateType : public TemplateType
 using TraitTemplateType_ptr = std::shared_ptr<TraitTemplateType>;
 
 // ============================================================================
+// Alias
+// ============================================================================
+
+struct TypeAlias
+{
+    std::string name;
+    Object_ptr aliased_type;
+
+    TypeAlias(std::string name, Object_ptr aliased_type)
+        : name(std::move(name)), aliased_type(std::move(aliased_type))
+    {
+    }
+};
+
+using TypeAlias_ptr = std::shared_ptr<TypeAlias>;
+
+// ============================================================================
 // Scalar Objects
 // ============================================================================
 
@@ -757,7 +774,8 @@ struct Object
         ModuleType_ptr,
         ClassType_ptr,
         TraitType_ptr,
-        EnumType_ptr>;
+        EnumType_ptr,
+        TypeAlias_ptr>;
 
     UnderlyingVariant value;
 

@@ -63,9 +63,9 @@ void Compiler::visit(FromImport& import_stmt)
 
             int member_id = symbol->id;
 
-            if (symbol->payload_is<AliasData>())
+            if (symbol->payload_is<SymbolAliasData>())
             {
-                member_id = symbol->get_payload_as<AliasData>().target->id;
+                member_id = symbol->get_payload_as<SymbolAliasData>().target->id;
             }
 
             // Stack: [ Module, Function ]

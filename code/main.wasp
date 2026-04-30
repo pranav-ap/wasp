@@ -1,6 +1,6 @@
 from core.io import print
 
-let name: str = 'sam'
-let message: str = 'Hello {name}!'
+type Foo = int | str
 
-print(message)
+let a: Foo = 34
+print(a)

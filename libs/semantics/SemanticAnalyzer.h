@@ -93,7 +93,7 @@ private:
     void visit(FieldDefinition& statement);
     void visit(EnumDefinition& statement);
     void visit(VariableDefinition& statement);
-    void visit(AliasDefinition& statement);
+    void visit(TypeAliasDefinition& statement);
     void visit(AnnotationDefinition& statement);
     void visit(IfBranch& statement);
     void visit(ElseBranch& statement);

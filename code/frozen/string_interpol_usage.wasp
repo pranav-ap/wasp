@@ -1,0 +1,6 @@
+from core.io import print
+
+let name: str = 'sam'
+let message: str = 'Hello {name}!'
+
+print(message)
