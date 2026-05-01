@@ -203,11 +203,9 @@ Object_ptr SemanticAnalyzer::define_variable(Expression_ptr assignment_node, boo
 
     std::string symbol_name = identifier_expr->as<Identifier>().name;
 
-    // Resolve RHS Type
     Object_ptr initializer_type = visit(rhs_expr);
     Object_ptr resolved_type = initializer_type;
 
-    // Check whether it is assignable
     if (declared_type)
     {
         Doctor::get().assert(
@@ -215,15 +213,24 @@ Object_ptr SemanticAnalyzer::define_variable(Expression_ptr assignment_node, boo
             WaspStage::Semantics,
             "Type mismatch in variable definition for " + symbol_name
         );
-
         resolved_type = declared_type;
     }
+    else
+    {
+        // literal type widening (e.g. int literal -> int type)
 
-    // Hoister Usage
+        if (initializer_type->is<IntLiteralType>())
+            resolved_type = workspace->pool->get_int_type();
+        else if (initializer_type->is<FloatLiteralType>())
+            resolved_type = workspace->pool->get_float_type();
+        else if (initializer_type->is<StringLiteralType>())
+            resolved_type = workspace->pool->get_string_type();
+        else if (initializer_type->is<BooleanLiteralType>())
+            resolved_type = workspace->pool->get_boolean_type();
+    }
 
     if (Symbol_ptr hoisted_symbol = current_scope->lookup(symbol_name))
     {
-        // If it exists, it must be a hoisted global waiting for its type
         Doctor::get().assert(
             hoisted_symbol->get_type() == nullptr,
             WaspStage::Semantics,
@@ -235,8 +242,6 @@ Object_ptr SemanticAnalyzer::define_variable(Expression_ptr assignment_node, boo
 
         return hoisted_symbol->get_type();
     }
-
-    // New Local Variable
 
     auto local_symbol = SymbolFactory::create_variable(
         symbol_name,

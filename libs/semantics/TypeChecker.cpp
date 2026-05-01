@@ -30,28 +30,39 @@ bool TypeChecker::equal(
 {
     if (!type_1 || !type_2)
         return false;
+
     if (type_1 == type_2)
         return true;
 
-    if (type_1->is<VariantType>() && type_2->is<VariantType>())
+    Object_ptr t1 = type_1;
+    Object_ptr t2 = type_2;
+
+    if (t1->is<TypeAlias_ptr>())
     {
-        return equal_unordered(
-            scope,
-            type_1->as<VariantType>().types,
-            type_2->as<VariantType>().types
-        );
+        t1 = t1->as<TypeAlias_ptr>()->aliased_type;
+    }
+    if (t2->is<TypeAlias_ptr>())
+    {
+        t2 = t2->as<TypeAlias_ptr>()->aliased_type;
     }
 
-    if (type_1->is<GenericType_ptr>() && type_2->is<GenericType_ptr>())
+    if (t1 == t2)
+        return true;
+
+    if (t1->is<VariantType>() && t2->is<VariantType>())
     {
-        auto g1 = type_1->as<GenericType_ptr>();
-        auto g2 = type_2->as<GenericType_ptr>();
+        return equal_unordered(scope, t1->as<VariantType>().types, t2->as<VariantType>().types);
+    }
+
+    if (t1->is<GenericType_ptr>() && t2->is<GenericType_ptr>())
+    {
+        auto g1 = t1->as<GenericType_ptr>();
+        auto g2 = t2->as<GenericType_ptr>();
         return equal(scope, g1->constraint_type, g2->constraint_type);
     }
 
     return std::visit(
         ::overloaded{
-            // Standard Types
             [&](AnyType const&, AnyType const&) -> bool
             {
                 return true;
@@ -77,51 +88,48 @@ bool TypeChecker::equal(
                 return true;
             },
 
-            // Literal Types
-            [&](IntLiteralType const& t1, IntLiteralType const& t2) -> bool
+            [&](IntLiteralType const& l1, IntLiteralType const& l2) -> bool
             {
-                return t1.value == t2.value;
+                return l1.value == l2.value;
             },
-            [&](FloatLiteralType const& t1, FloatLiteralType const& t2) -> bool
+            [&](FloatLiteralType const& l1, FloatLiteralType const& l2) -> bool
             {
-                return t1.value == t2.value;
+                return l1.value == l2.value;
             },
-            [&](BooleanLiteralType const& t1, BooleanLiteralType const& t2) -> bool
+            [&](BooleanLiteralType const& l1, BooleanLiteralType const& l2) -> bool
             {
-                return t1.value == t2.value;
+                return l1.value == l2.value;
             },
-            [&](StringLiteralType const& t1, StringLiteralType const& t2) -> bool
+            [&](StringLiteralType const& l1, StringLiteralType const& l2) -> bool
             {
-                return t1.value == t2.value;
+                return l1.value == l2.value;
             },
 
-            // Composites
-            [&](ListType const& t1, ListType const& t2) -> bool
+            [&](ListType const& l1, ListType const& l2) -> bool
             {
-                return equal(scope, t1.element_type, t2.element_type);
+                return equal(scope, l1.element_type, l2.element_type);
             },
-            [&](SetType const& t1, SetType const& t2) -> bool
+            [&](SetType const& s1, SetType const& s2) -> bool
             {
-                return equal(scope, t1.element_type, t2.element_type);
+                return equal(scope, s1.element_type, s2.element_type);
             },
-            [&](TupleType const& t1, TupleType const& t2) -> bool
+            [&](TupleType const& t_1, TupleType const& t_2) -> bool
             {
-                return equal(scope, t1.element_types, t2.element_types);
+                return equal(scope, t_1.element_types, t_2.element_types);
             },
-            [&](MapType const& t1, MapType const& t2) -> bool
+            [&](MapType const& m1, MapType const& m2) -> bool
             {
-                return equal(scope, t1.key_type, t2.key_type) &&
-                       equal(scope, t1.value_type, t2.value_type);
+                return equal(scope, m1.key_type, m2.key_type) &&
+                       equal(scope, m1.value_type, m2.value_type);
             },
-            [&](EnumType_ptr const& t1, EnumType_ptr const& t2) -> bool
+            [&](EnumType_ptr const& e1, EnumType_ptr const& e2) -> bool
             {
                 auto get_root = [](const std::string& name)
                 {
                     size_t pos = name.find('.');
                     return pos == std::string::npos ? name : name.substr(0, pos);
                 };
-
-                return get_root(t1->name) == get_root(t2->name);
+                return get_root(e1->name) == get_root(e2->name);
             },
 
             [](const auto&, const auto&) -> bool
@@ -129,8 +137,8 @@ bool TypeChecker::equal(
                 return false;
             }
         },
-        type_1->value,
-        type_2->value
+        t1->value,
+        t2->value
     );
 }
 
@@ -193,6 +201,7 @@ bool TypeChecker::assignable(
     if (!lhs_type || !rhs_type)
         return false;
 
+    // Resolve Aliases
     if (lhs_type->is<TypeAlias_ptr>())
     {
         return assignable(scope, lhs_type->as<TypeAlias_ptr>()->aliased_type, rhs_type);
@@ -203,9 +212,11 @@ bool TypeChecker::assignable(
         return assignable(scope, lhs_type, rhs_type->as<TypeAlias_ptr>()->aliased_type);
     }
 
+    // Exact Matches
     if (equal(scope, lhs_type, rhs_type))
         return true;
 
+    // Generics
     if (rhs_type->is<GenericType_ptr>())
     {
         return assignable(scope, lhs_type, rhs_type->as<GenericType_ptr>()->constraint_type);
@@ -216,9 +227,10 @@ bool TypeChecker::assignable(
         return assignable(scope, lhs_type->as<GenericType_ptr>()->constraint_type, rhs_type);
     }
 
+    // Variants
     if (rhs_type->is<VariantType>())
     {
-        auto& rhs_var = rhs_type->as<VariantType>();
+        auto rhs_var = rhs_type->as<VariantType>();
         return std::all_of(
             rhs_var.types.begin(),
             rhs_var.types.end(),
@@ -231,7 +243,7 @@ bool TypeChecker::assignable(
 
     if (lhs_type->is<VariantType>())
     {
-        auto& lhs_var = lhs_type->as<VariantType>();
+        auto lhs_var = lhs_type->as<VariantType>();
         return std::any_of(
             lhs_var.types.begin(),
             lhs_var.types.end(),
@@ -242,6 +254,7 @@ bool TypeChecker::assignable(
         );
     }
 
+    // Primitive & Collection Matching
     return std::visit(
         overloaded{
             [](AnyType const&, const auto&) -> bool
@@ -268,6 +281,7 @@ bool TypeChecker::assignable(
             },
 
             // Literal to Literal (let a: 'sam' = 'sam')
+            // This ensures 'sam' = 'tim' correctly evaluates to false!
             [](IntLiteralType const& l, IntLiteralType const& r) -> bool
             {
                 return l.value == r.value;
@@ -285,7 +299,8 @@ bool TypeChecker::assignable(
                 return l.value == r.value;
             },
 
-            // Base to Literal (let a: int = 34)
+            // Literal to Base (let a: int = 34)
+            // (LHS is Base, RHS is Literal)
             [](IntType const&, IntLiteralType const&) -> bool
             {
                 return true;
@@ -303,23 +318,7 @@ bool TypeChecker::assignable(
                 return true;
             },
 
-            [](IntLiteralType const&, IntType const&) -> bool
-            {
-                return true;
-            },
-            [](FloatLiteralType const&, FloatType const&) -> bool
-            {
-                return true;
-            },
-            [](BooleanLiteralType const&, BooleanType const&) -> bool
-            {
-                return true;
-            },
-            [](StringLiteralType const&, StringType const&) -> bool
-            {
-                return true;
-            },
-
+            // Collections
             [&](ListType const& t1, ListType const& t2) -> bool
             {
                 return assignable(scope, t1.element_type, t2.element_type);
@@ -338,6 +337,7 @@ bool TypeChecker::assignable(
                        assignable(scope, t1.value_type, t2.value_type);
             },
 
+            // Fallback for everything else (including unsafe Base-to-Literal assignments)
             [](const auto&, const auto&) -> bool
             {
                 return false;
@@ -379,6 +379,15 @@ Object_ptr TypeChecker::infer(
     Object_ptr right_type
 )
 {
+    if (left_type->is<TypeAlias_ptr>())
+    {
+        left_type = left_type->as<TypeAlias_ptr>()->aliased_type;
+    }
+    if (right_type->is<TypeAlias_ptr>())
+    {
+        right_type = right_type->as<TypeAlias_ptr>()->aliased_type;
+    }
+
     if (left_type->is<GenericType_ptr>())
     {
         left_type = left_type->as<GenericType_ptr>()->constraint_type;
@@ -499,6 +508,11 @@ Object_ptr TypeChecker::infer(
 
 Object_ptr TypeChecker::infer(SymbolScope_ptr scope, Object_ptr operand_type, TokenType op)
 {
+    if (operand_type->is<TypeAlias_ptr>())
+    {
+        operand_type = operand_type->as<TypeAlias_ptr>()->aliased_type;
+    }
+
     if (operand_type->is<GenericType_ptr>())
     {
         operand_type = operand_type->as<GenericType_ptr>()->constraint_type;

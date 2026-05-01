@@ -123,38 +123,34 @@ Object_ptr TypeChecker::extract_iterable_element_type(
     );
 }
 
-bool TypeChecker::is_boolean_type(const Object_ptr type) const
+bool TypeChecker::is_int_type(Object_ptr obj) const
 {
-    return type && (holds_alternative<BooleanType>(type->value) ||
-                    holds_alternative<BooleanLiteralType>(type->value));
+    return obj->is<IntType>() || obj->is<IntLiteralType>();
 }
 
-bool TypeChecker::is_int_type(const Object_ptr type) const
+bool TypeChecker::is_float_type(Object_ptr obj) const
 {
-    return type && (holds_alternative<IntType>(type->value) ||
-                    holds_alternative<IntLiteralType>(type->value));
+    return obj->is<FloatType>() || obj->is<FloatLiteralType>();
 }
 
-bool TypeChecker::is_float_type(const Object_ptr type) const
+bool TypeChecker::is_number_type(Object_ptr obj) const
 {
-    return type && (holds_alternative<FloatType>(type->value) ||
-                    holds_alternative<FloatLiteralType>(type->value));
+    return is_int_type(obj) || is_float_type(obj);
 }
 
-bool TypeChecker::is_string_type(const Object_ptr type) const
+bool TypeChecker::is_string_type(Object_ptr obj) const
 {
-    return type && (holds_alternative<StringType>(type->value) ||
-                    holds_alternative<StringLiteralType>(type->value));
+    return obj->is<StringType>() || obj->is<StringLiteralType>();
+}
+
+bool TypeChecker::is_boolean_type(Object_ptr obj) const
+{
+    return obj->is<BooleanType>() || obj->is<BooleanLiteralType>();
 }
 
 bool TypeChecker::is_none_type(const Object_ptr type) const
 {
     return type && holds_alternative<NoneType>(type->value);
-}
-
-bool TypeChecker::is_number_type(const Object_ptr type) const
-{
-    return is_int_type(type) || is_float_type(type);
 }
 
 bool TypeChecker::is_condition_type(SymbolScope_ptr scope, const Object_ptr condition_type) const

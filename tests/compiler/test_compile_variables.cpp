@@ -51,28 +51,30 @@ x = x + 1
 
     int val_42 = pool_size++;
     int val_1 = pool_size++;
-
     int var_x = 0;
 
-    // clang-format off
     std::vector<std::byte> expected_bytes = {
         B(Wasp::OpCode::ENTER_MODULE),
-
-        B(Wasp::OpCode::LOAD_CONST),    B(val_42),
-        B(Wasp::OpCode::SET_LOCAL),     B(var_x),
-
-        B(Wasp::OpCode::GET_LOCAL),     B(var_x),
-        B(Wasp::OpCode::LOAD_CONST),    B(val_1),
+        B(Wasp::OpCode::LOAD_CONST),
+        B(val_42),
+        B(Wasp::OpCode::SET_LOCAL),
+        B(var_x),
+        B(Wasp::OpCode::GET_LOCAL),
+        B(var_x),
+        B(Wasp::OpCode::LOAD_CONST),
+        B(val_1),
         B(Wasp::OpCode::ADD),
-        B(Wasp::OpCode::SET_LOCAL),     B(var_x),
+        B(Wasp::OpCode::SET_LOCAL),
+        B(var_x),
         B(Wasp::OpCode::POP),
-
-        B(Wasp::OpCode::JUMP),          B(16), B(0),
-
-        B(Wasp::OpCode::GET_LOCAL),     B(var_x),
-        B(Wasp::OpCode::EXIT_MODULE),   B(1)
+        B(Wasp::OpCode::JUMP),
+        B(16),
+        B(0),
+        B(Wasp::OpCode::GET_LOCAL),
+        B(var_x),
+        B(Wasp::OpCode::EXIT_MODULE),
+        B(1)
     };
-    // clang-format on
 
     EXPECT_EQ(actual_bytes, expected_bytes);
 }
