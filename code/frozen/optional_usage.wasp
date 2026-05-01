@@ -1,0 +1,25 @@
+from core.io import print
+
+template
+    T: any
+
+class Option
+    value: T | none
+
+    our pure fun Some(val: T) => Option<T>
+        return Option<T>(val)
+
+    our pure fun None() => Option<T>
+        return Option<T>(none)
+
+    fun is_some() => bool
+        return my.value != none
+
+    fun is_none() => bool
+        return my.value == none
+
+
+let a = Option<int>.Some(42)
+if a.is_some() then
+    print('hi')
+

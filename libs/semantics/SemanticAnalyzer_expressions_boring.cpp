@@ -61,6 +61,10 @@ Object_ptr SemanticAnalyzer::visit(const Expression_ptr expr)
             {
                 return visit(node);
             },
+            [&](NoneLiteral& node) -> Object_ptr
+            {
+                return visit(node);
+            },
 
             [&](DotLiteral& node) -> Object_ptr
             {
@@ -191,6 +195,11 @@ Object_ptr SemanticAnalyzer::visit(bool expr)
     {
         return workspace->pool->get_false_literal_type();
     }
+}
+
+Object_ptr SemanticAnalyzer::visit(NoneLiteral& expr)
+{
+    return workspace->pool->get_none_type();
 }
 
 Object_ptr SemanticAnalyzer::visit(DotLiteral& expr) { return nullptr; }

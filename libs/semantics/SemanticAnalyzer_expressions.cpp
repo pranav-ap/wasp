@@ -244,7 +244,7 @@ Object_ptr SemanticAnalyzer::evaluate_class_template_instantiation(
         arg_idx++;
     }
 
-    auto base_class_type = class_template_type->class_type;
+    auto base_class_type = class_template_type->underlying_type;
     ObjectStringMap concrete_members;
 
     for (const auto& [name, type] : base_class_type->members)
@@ -311,7 +311,7 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
     }
     else if (left_type->is<ClassTemplateType_ptr>())
     {
-        const auto type = left_type->as<ClassTemplateType_ptr>()->class_type;
+        const auto type = left_type->as<ClassTemplateType_ptr>()->underlying_type;
 
         expr.member_index = type->get_member_index(member_name);
         return type->get_member(member_name);
@@ -441,11 +441,68 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
             {
                 Object_ptr left_type = visit(access.left);
 
+                ClassType_ptr class_type = nullptr;
+                TraitType_ptr trait_type = nullptr;
+
+                // 1. Resolve Underlying Class Types
                 if (left_type->is<ClassType_ptr>())
                 {
-                    auto class_type = left_type->as<ClassType_ptr>();
-                    return evaluate_method_call(call, access, argument_types, class_type);
+                    class_type = left_type->as<ClassType_ptr>();
                 }
+                else if (left_type->is<ClassTemplateType_ptr>())
+                {
+                    class_type = left_type->as<ClassTemplateType_ptr>()->underlying_type;
+                }
+
+                // 2. Resolve Underlying Trait Types
+                else if (left_type->is<TraitType_ptr>())
+                {
+                    trait_type = left_type->as<TraitType_ptr>();
+                }
+                else if (left_type->is<TraitTemplateType_ptr>())
+                {
+                    trait_type = left_type->as<TraitTemplateType_ptr>()->underlying_type;
+                }
+
+                // --- Class Method Evaluation ---
+                if (class_type)
+                {
+                    if (access.right->is<Identifier>())
+                    {
+                        std::string method_name = access.right->as<Identifier>().name;
+
+                        if (!class_type->is_pure(method_name) &&
+                            !class_type->is_static(method_name))
+                        {
+                            call.is_method_call = true;
+                            argument_types.insert(argument_types.begin(), left_type);
+                        }
+                    }
+
+                    return evaluate_class_method_call(call, access, argument_types, class_type);
+                }
+
+                // --- Trait Method Evaluation ---
+                else if (trait_type)
+                {
+                    if (access.right->is<Identifier>())
+                    {
+                        std::string method_name = access.right->as<Identifier>().name;
+
+                        // Assuming TraitType has is_pure / is_static accessors similar to ClassType
+                        if (!trait_type->is_pure(method_name) &&
+                            !trait_type->is_static(method_name))
+                        {
+                            call.is_method_call = true;
+                            argument_types.insert(argument_types.begin(), left_type);
+                        }
+                    }
+
+                    // You will need an evaluation function specifically designed for TraitType_ptr
+                    return evaluate_trait_method_call(call, access, argument_types, trait_type);
+                }
+
+                // --- Module Evaluation ---
                 else if (left_type->is<ModuleType_ptr>())
                 {
                     return evaluate_module_function_call(call, access, argument_types);
@@ -453,7 +510,7 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
 
                 Doctor::get().fatal(
                     WaspStage::Semantics,
-                    "Cannot invoke method. Receiver is neither a class nor a module."
+                    "Cannot invoke method. Receiver is neither a class, trait, nor a module."
                 );
             },
             [&](TemplateInstantiation& template_instantiation) -> Object_ptr
@@ -673,7 +730,7 @@ Object_ptr SemanticAnalyzer::evaluate_template_function_call(
     return final_return_type;
 }
 
-Object_ptr SemanticAnalyzer::evaluate_method_call(
+Object_ptr SemanticAnalyzer::evaluate_class_method_call(
     Call& call,
     MemberAccess& member_access,
     const ObjectVector& argument_types,
@@ -728,6 +785,65 @@ Object_ptr SemanticAnalyzer::evaluate_method_call(
     call.overload_index = match_indices.front();
     call.is_method_call = true;
     call.is_pure_method_call = class_type->is_pure(method_name);
+
+    return get_function_signature(valid_matches.front()).first;
+}
+
+Object_ptr SemanticAnalyzer::evaluate_trait_method_call(
+    Call& call,
+    MemberAccess& member_access,
+    const ObjectVector& argument_types,
+    TraitType_ptr trait_type
+)
+{
+    auto method_identifier = member_access.right->try_as<Identifier>();
+    auto method_name = method_identifier->name;
+
+    Doctor::get().assert(
+        trait_type->contains_member(method_name),
+        WaspStage::Semantics,
+        "Method '" + method_name + "()' does not exist on trait " + trait_type->name
+    );
+
+    auto member = trait_type->get_member(method_name);
+
+    Doctor::get().assert(
+        member->is<ObjectOverloadList_ptr>(),
+        WaspStage::Semantics,
+        "Member '" + method_name + "' must be an object overload group"
+    );
+
+    const auto object_overloads = member->as<ObjectOverloadList_ptr>();
+
+    ObjectVector valid_matches;
+    std::vector<int> match_indices;
+
+    for (size_t i = 0; i < object_overloads->overloads.size(); ++i)
+    {
+        auto overload = object_overloads->overloads[i];
+        auto [return_type, parameter_types] = get_function_signature(overload);
+
+        if (type_checker->assignable(current_scope, parameter_types, argument_types))
+        {
+            valid_matches.push_back(overload);
+            match_indices.push_back(static_cast<int>(i));
+        }
+    }
+
+    Doctor::get().assert(
+        !valid_matches.empty(),
+        WaspStage::Semantics,
+        "No matching function signature found"
+    );
+
+    Doctor::get()
+        .assert(valid_matches.size() == 1, WaspStage::Semantics, "Ambiguous function call");
+
+    member_access.member_index = trait_type->get_member_index(method_name);
+
+    call.overload_index = match_indices.front();
+    call.is_method_call = true;
+    call.is_pure_method_call = trait_type->is_pure(method_name);
 
     return get_function_signature(valid_matches.front()).first;
 }

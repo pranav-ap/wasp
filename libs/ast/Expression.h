@@ -12,6 +12,10 @@
 
 namespace Wasp {
 
+struct NoneLiteral
+{
+};
+
 struct DotLiteral {};
 
 struct Prefix {
@@ -247,7 +251,7 @@ using ExpressionVariant = std::variant<
     double,
     std::string,
     bool,
-
+    NoneLiteral,
     DotLiteral,
     Identifier,
     MemberAccess,

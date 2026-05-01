@@ -99,7 +99,7 @@ void Compiler::visit(ClassDefinition& class_definition)
 
     if (auto template_type = type_obj->try_as<ClassTemplateType_ptr>())
     {
-        class_type = (*template_type)->class_type;
+        class_type = (*template_type)->underlying_type;
     }
     else
     {

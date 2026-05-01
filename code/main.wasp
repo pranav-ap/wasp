@@ -1,27 +1,17 @@
 from core.io import print
 
-type LogLevel = 'info' | 'warn' | 'error'
-
 template
-    T: int | float
+    T: any
 
-type LogResult = T | LogLevel
+class Option
+    value: T
+
+    our pure fun new(val: T) => Option<T>
+        return Option<T>(val)
+
+    fun talk() => T
+        return my.value
 
 
-let current_level: LogLevel = 'warn'
-print('Current level is {current_level}')
-
-let status_code: LogResult<int> = 500
-print('Status code is {status_code}')
-
-let fallback_status: LogResult<int> = 'error'
-print('Fallback status is {fallback_status}')
-
-let incoming_request = 'error'
-
-if incoming_request == current_level then
-    print('Match')
-elif incoming_request == 'error' then
-    print('Escalating')
-else
-    print('Ignore')
+let a = Option<int>(42)
+print(a.talk())

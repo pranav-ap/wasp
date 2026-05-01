@@ -140,6 +140,11 @@ TypeAnnotation_ptr Parser::consume_datatype_word() {
         token_pipe.advance_pointer();
         return std::make_shared<TypeAnnotation>(TypeAnnotation{TypeIdentifierNode(token->value)});
     }
+    case TokenType::NONE: {
+        token_pipe.advance_pointer();
+        return std::make_shared<TypeAnnotation>(TypeAnnotation{NoneTypeNode()});
+    }
+
     default: {
         Doctor::get().fatal(
             WaspStage::Parser,

@@ -148,7 +148,7 @@ private:
     Object_ptr visit(double expr);
     Object_ptr visit(std::string expr);
     Object_ptr visit(bool expr);
-
+    Object_ptr visit(NoneLiteral& expr);
     Object_ptr visit(DotLiteral& expr);
     Object_ptr visit(ListLiteral& expr);
     Object_ptr visit(TupleLiteral& expr);
@@ -197,12 +197,20 @@ private:
         MemberAccess& mac,
         const ObjectVector& arg_types
     );
-    Object_ptr evaluate_method_call(
+    Object_ptr evaluate_class_method_call(
         Call& call_expr,
         MemberAccess& mac,
         const ObjectVector& arg_types,
         ClassType_ptr class_type
     );
+
+    Object_ptr evaluate_trait_method_call(
+        Call& call,
+        MemberAccess& member_access,
+        const ObjectVector& argument_types,
+        TraitType_ptr trait_type
+    );
+
     Object_ptr evaluate_instance_creation(
         Constructor& constructor,
         Identifier& callable_identifier,

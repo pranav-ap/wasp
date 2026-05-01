@@ -337,6 +337,11 @@ bool TypeChecker::assignable(
                        assignable(scope, t1.value_type, t2.value_type);
             },
 
+            [&](ClassType_ptr const& c1, ClassType_ptr const& c2) -> bool
+            {
+                return c1->name == c2->name;
+            },
+
             // Fallback for everything else (including unsafe Base-to-Literal assignments)
             [](const auto&, const auto&) -> bool
             {
@@ -467,6 +472,9 @@ Object_ptr TypeChecker::infer(
     }
     case TokenType::EQUAL_EQUAL:
     case TokenType::BANG_EQUAL: {
+        if (left_type->is<NoneType>() || right_type->is<NoneType>())
+            return pool->get_boolean_type();
+
         if (is_number_type(left_type))
             expect_number_type(right_type);
         else if (is_string_type(left_type))

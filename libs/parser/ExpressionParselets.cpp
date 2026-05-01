@@ -48,6 +48,9 @@ Expression_ptr LiteralParselet::parse(Parser& parser, const Token& token)
         }
         return make_expression(value);
     }
+    case TokenType::NONE: {
+        return make_expression(NoneLiteral{});
+    }
     default:
         Doctor::get().fatal(WaspStage::Parser, "Expected a literal value");
     }

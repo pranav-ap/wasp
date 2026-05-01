@@ -102,7 +102,7 @@ void SemanticAnalyzer::visit(Return& statement)
     Doctor::get().assert(
         type_checker->assignable(current_scope, expected, actual),
         WaspStage::Semantics,
-        "Return type mismatch."
+        "Return type mismatch"
     );
 }
 

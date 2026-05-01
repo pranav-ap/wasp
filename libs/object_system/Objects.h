@@ -373,10 +373,10 @@ using FunctionTemplateType_ptr = std::shared_ptr<FunctionTemplateType>;
 
 struct ClassTemplateType : public TemplateType
 {
-    ClassType_ptr class_type;
+    ClassType_ptr underlying_type;
 
-    ClassTemplateType(ObjectStringMap generics, ClassType_ptr class_type = nullptr)
-        : TemplateType(std::move(generics)), class_type(std::move(class_type))
+    ClassTemplateType(ObjectStringMap generics, ClassType_ptr underlying_type = nullptr)
+        : TemplateType(std::move(generics)), underlying_type(std::move(underlying_type))
     {
     }
 };
@@ -385,10 +385,10 @@ using ClassTemplateType_ptr = std::shared_ptr<ClassTemplateType>;
 
 struct TraitTemplateType : public TemplateType
 {
-    TraitType_ptr class_type;
+    TraitType_ptr underlying_type;
 
-    TraitTemplateType(ObjectStringMap generics, TraitType_ptr class_type = nullptr)
-        : TemplateType(std::move(generics)), class_type(std::move(class_type))
+    TraitTemplateType(ObjectStringMap generics, TraitType_ptr underlying_type = nullptr)
+        : TemplateType(std::move(generics)), underlying_type(std::move(underlying_type))
     {
     }
 };

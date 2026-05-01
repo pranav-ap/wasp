@@ -191,7 +191,7 @@ Object_ptr SemanticAnalyzer::evaluate_type_template_instantiation(
     if (base_type_obj->is<ClassTemplateType_ptr>())
     {
         auto tmpl = base_type_obj->as<ClassTemplateType_ptr>();
-        auto base_class = tmpl->class_type;
+        auto base_class = tmpl->underlying_type;
 
         ObjectStringMap concrete_members;
         for (const auto& [name, type] : base_class->members)
@@ -218,7 +218,7 @@ Object_ptr SemanticAnalyzer::evaluate_type_template_instantiation(
     else if (base_type_obj->is<TraitTemplateType_ptr>())
     {
         auto tmpl = base_type_obj->as<TraitTemplateType_ptr>();
-        auto base_trait = tmpl->class_type;
+        auto base_trait = tmpl->underlying_type;
 
         ObjectStringMap concrete_members;
         for (const auto& [name, type] : base_trait->members)
