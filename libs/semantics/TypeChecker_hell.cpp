@@ -266,15 +266,18 @@ Object_ptr TypeChecker::substitute_generics(
 
     if (type->is<GenericType_ptr>())
     {
+        auto generic_type = type->as<GenericType_ptr>();
         size_t i = 0;
+
         for (const auto& [name, obj] : templ->generics)
         {
-            if (type->as<GenericType_ptr>() == obj->as<GenericType_ptr>())
+            if (generic_type->name == name)
             {
                 return generic_args[i];
             }
             i++;
         }
+
         return type;
     }
 

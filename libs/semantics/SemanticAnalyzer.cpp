@@ -290,7 +290,9 @@ void SemanticAnalyzer::hoist_template(
     for (auto& field : def.members)
     {
         auto constraint_type = field.type ? visit(field.type) : workspace->pool->get_any_type();
-        auto generic_type_obj = make_object(std::make_shared<GenericType>(constraint_type));
+        auto generic_type_obj = make_object(
+            std::make_shared<GenericType>(field.name, constraint_type)
+        );
 
         auto symbol = SymbolFactory::create_generic(field.name, generic_type_obj);
         current_scope->define(symbol);

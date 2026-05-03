@@ -343,6 +343,7 @@ using EnumType_ptr = std::shared_ptr<EnumType>;
 
 struct GenericType
 {
+    std::string name;
     Object_ptr constraint_type;
 };
 

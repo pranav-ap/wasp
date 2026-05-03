@@ -528,7 +528,9 @@ void SemanticAnalyzer::visit(TemplateDefinition& statement)
     for (auto& field : statement.members)
     {
         auto constraint_type = visit(field.type);
-        auto generic_type_obj = make_object(std::make_shared<GenericType>(constraint_type));
+        auto generic_type_obj = make_object(
+            std::make_shared<GenericType>(field.name, constraint_type)
+        );
 
         auto symbol = SymbolFactory::create_generic(field.name, generic_type_obj);
         field.symbol = current_scope->define(symbol);

@@ -404,7 +404,6 @@ Object_ptr SemanticAnalyzer::visit(Constructor& constructor)
                                 WaspStage::Semantics,
                                 "Expected an Identifier for class template target."
                             );
-                            return nullptr;
                         }
                     },
                     template_instantiation.target->data
@@ -421,6 +420,150 @@ Object_ptr SemanticAnalyzer::visit(Constructor& constructor)
             }
         },
         constructor.construtable->data
+    );
+}
+
+Object_ptr SemanticAnalyzer::evaluate_type_template_instantiation(
+    TemplateInstantiation& template_instantiation,
+    Identifier& target,
+    Symbol_ptr template_symbol,
+    const ObjectVector& generic_args
+)
+{
+    template_instantiation.group_symbol = template_symbol;
+    bind_identifier(target, template_symbol);
+
+    auto type_obj = template_symbol->get_type();
+    Doctor::get().fatal_if_nullptr(type_obj, WaspStage::Semantics);
+
+    if (type_obj->is<TypeAliasTemplateType_ptr>())
+    {
+        auto alias_template = type_obj->as<TypeAliasTemplateType_ptr>();
+
+        Doctor::get().assert(
+            alias_template->generics.size() == generic_args.size(),
+            WaspStage::Semantics,
+            "Generic arguments count mismatch."
+        );
+
+        size_t arg_idx = 0;
+        for (const auto& [name, generic_obj] : alias_template->generics)
+        {
+            auto generic_type = generic_obj->as<GenericType_ptr>();
+            Doctor::get().assert(
+                type_checker->assignable(
+                    current_scope,
+                    generic_type->constraint_type,
+                    generic_args[arg_idx]
+                ),
+                WaspStage::Semantics,
+                "Type bound violated for parameter '" + name + "'."
+            );
+            arg_idx++;
+        }
+
+        return type_checker
+            ->substitute_generics(alias_template->underlying_type, alias_template, generic_args);
+    }
+
+    if (type_obj->is<ClassTemplateType_ptr>())
+    {
+        auto class_template = type_obj->as<ClassTemplateType_ptr>();
+
+        Doctor::get().assert(
+            class_template->generics.size() == generic_args.size(),
+            WaspStage::Semantics,
+            "Generic arguments count mismatch."
+        );
+
+        size_t arg_idx = 0;
+        for (const auto& [name, generic_obj] : class_template->generics)
+        {
+            auto generic_type = generic_obj->as<GenericType_ptr>();
+            Doctor::get().assert(
+                type_checker->assignable(
+                    current_scope,
+                    generic_type->constraint_type,
+                    generic_args[arg_idx]
+                ),
+                WaspStage::Semantics,
+                "Type bound violated for parameter '" + name + "'."
+            );
+            arg_idx++;
+        }
+
+        auto base_class_type = class_template->underlying_type;
+        ObjectStringMap concrete_members;
+
+        for (const auto& [name, member_type] : base_class_type->members)
+        {
+            concrete_members[name] = type_checker->substitute_generics(
+                member_type,
+                class_template,
+                generic_args
+            );
+        }
+
+        return make_object(
+            std::make_shared<ClassType>(
+                base_class_type->name,
+                concrete_members,
+                base_class_type->fields,
+                base_class_type->methods,
+                base_class_type->pures,
+                base_class_type->statics
+            )
+        );
+    }
+
+    Doctor::get().fatal(WaspStage::Semantics, "Symbol is not a valid type template.");
+    return nullptr;
+}
+
+Object_ptr SemanticAnalyzer::visit(TemplateInstantiation& template_instantiation)
+{
+    ObjectVector generic_args;
+
+    for (const auto& arg : template_instantiation.arguments)
+    {
+        generic_args.push_back(visit(arg));
+    }
+
+    return std::visit(
+        overloaded{
+            [&](Identifier& target) -> Object_ptr
+            {
+                auto template_symbol = current_scope->lookup(target.name);
+                Doctor::get().fatal_if_nullptr(template_symbol, WaspStage::Semantics);
+
+                return evaluate_type_template_instantiation(
+                    template_instantiation,
+                    target,
+                    template_symbol,
+                    generic_args
+                );
+            },
+            [&](MemberAccess& access) -> Object_ptr
+            {
+                Symbol_ptr export_symbol = resolve_module_export(access);
+
+                return evaluate_type_template_instantiation(
+                    template_instantiation,
+                    access.right->as<Identifier>(),
+                    export_symbol,
+                    generic_args
+                );
+            },
+            [&](auto&) -> Object_ptr
+            {
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Expected an Identifier or MemberAccess inside TemplateInstantiation."
+                );
+                return nullptr;
+            }
+        },
+        template_instantiation.target->data
     );
 }
 
@@ -475,7 +618,6 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                             !class_type->is_static(method_name))
                         {
                             call.is_method_call = true;
-                            argument_types.insert(argument_types.begin(), left_type);
                         }
                     }
 
@@ -489,16 +631,13 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                     {
                         std::string method_name = access.right->as<Identifier>().name;
 
-                        // Assuming TraitType has is_pure / is_static accessors similar to ClassType
                         if (!trait_type->is_pure(method_name) &&
                             !trait_type->is_static(method_name))
                         {
                             call.is_method_call = true;
-                            argument_types.insert(argument_types.begin(), left_type);
                         }
                     }
 
-                    // You will need an evaluation function specifically designed for TraitType_ptr
                     return evaluate_trait_method_call(call, access, argument_types, trait_type);
                 }
 

@@ -13,5 +13,6 @@ class Option
         return my.value
 
 
-let a = Option<int>(42)
-print(a.talk())
+let a = Option<int>.new(42)
+let b = a.talk()
+print(b)

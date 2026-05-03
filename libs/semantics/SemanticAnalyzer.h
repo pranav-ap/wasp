@@ -168,6 +168,7 @@ private:
     Object_ptr visit(ElseTernaryBranch& expr);
     Object_ptr visit(Call& expr);
     Object_ptr visit(Constructor& expr);
+    Object_ptr visit(TemplateInstantiation& template_instantiation);
 
     Object_ptr define_variable(Expression_ptr assignment_expr, bool is_mutable);
     Object_ptr mutate_variable(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
@@ -259,6 +260,13 @@ private:
     Object_ptr evaluate_type_template_instantiation(
         Object_ptr base_type_obj,
         const ObjectVector& resolved_args
+    );
+
+    Object_ptr evaluate_type_template_instantiation(
+        TemplateInstantiation& template_instantiation,
+        Identifier& target,
+        Symbol_ptr template_symbol,
+        const ObjectVector& generic_args
     );
 
     // =========================================================================

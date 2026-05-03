@@ -89,6 +89,10 @@ Object_ptr SemanticAnalyzer::visit(const Expression_ptr expr)
             {
                 return visit(node);
             },
+            [&](TemplateInstantiation& node) -> Object_ptr
+            {
+                return visit(node);
+            },
 
             // Operators
             [&](Prefix& node) -> Object_ptr
