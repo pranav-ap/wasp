@@ -28,23 +28,11 @@ using StringVector = std::vector<std::string>;
 // Runtime Object Interfaces
 // ============================================================================
 
-struct AbstractObject
-{
-};
-struct ScalarObject : public AbstractObject
-{
-};
-struct CompositeObject : public AbstractObject
-{
-};
-struct ActionObject : public AbstractObject
-{
-};
-struct NoneObject : public AbstractObject
+struct NoneObject
 {
 };
 
-struct IterableAbstractObject : public AbstractObject
+struct IterableAbstractObject
 {
     virtual Object_ptr get_iter() = 0;
 };
@@ -53,7 +41,7 @@ struct IterableAbstractObject : public AbstractObject
 // Type Interfaces
 // ============================================================================
 
-struct TypeType : public AbstractObject
+struct TypeType
 {
 };
 
@@ -62,18 +50,6 @@ struct AnyType : public TypeType
 };
 
 struct NoneType : public AnyType
-{
-};
-
-struct ScalarType : public AnyType
-{
-};
-
-struct LiteralType : public AnyType
-{
-};
-
-struct CompositeType : public AnyType
 {
 };
 
@@ -87,41 +63,41 @@ struct NamedDefinitionType : public AnyType
 // Scalar & Literal Types
 // ============================================================================
 
-struct IntType : public ScalarType
+struct IntType
 {
 };
 
-struct FloatType : public ScalarType
+struct FloatType
 {
 };
 
-struct StringType : public ScalarType
+struct StringType
 {
 };
 
-struct BooleanType : public ScalarType
+struct BooleanType
 {
 };
 
-struct IntLiteralType : public LiteralType
+struct IntLiteralType
 {
     int value;
     IntLiteralType(int value) : value(value) {};
 };
 
-struct FloatLiteralType : public LiteralType
+struct FloatLiteralType
 {
     double value;
     FloatLiteralType(double value) : value(value) {};
 };
 
-struct StringLiteralType : public LiteralType
+struct StringLiteralType
 {
     std::string value;
     StringLiteralType(std::string value) : value(std::move(value)) {};
 };
 
-struct BooleanLiteralType : public LiteralType
+struct BooleanLiteralType
 {
     bool value;
     BooleanLiteralType(bool value) : value(value) {};
@@ -131,25 +107,25 @@ struct BooleanLiteralType : public LiteralType
 // Composite Types
 // ============================================================================
 
-struct ListType : public CompositeType
+struct ListType
 {
     Object_ptr element_type;
     ListType(Object_ptr element_type) : element_type(std::move(element_type)) {};
 };
 
-struct TupleType : public CompositeType
+struct TupleType
 {
     ObjectVector element_types;
     TupleType(ObjectVector element_types) : element_types(std::move(element_types)) {};
 };
 
-struct SetType : public CompositeType
+struct SetType
 {
     Object_ptr element_type;
     SetType(Object_ptr element_type) : element_type(std::move(element_type)) {};
 };
 
-struct MapType : public CompositeType
+struct MapType
 {
     Object_ptr key_type;
     Object_ptr value_type;
@@ -158,7 +134,7 @@ struct MapType : public CompositeType
         : key_type(std::move(key_type)), value_type(std::move(value_type)) {};
 };
 
-struct VariantType : public CompositeType
+struct VariantType
 {
     ObjectVector types;
     VariantType(ObjectVector types) : types(std::move(types)) {};
@@ -197,7 +173,7 @@ using MethodType_ptr = std::shared_ptr<MethodType>;
 // Membered Types
 // ============================================================================
 
-struct ModuleType : public CompositeType
+struct ModuleType
 {
     std::string name;
     std::filesystem::path absolute_filepath;
@@ -229,7 +205,7 @@ struct ModuleType : public CompositeType
 
 using ModuleType_ptr = std::shared_ptr<ModuleType>;
 
-struct ClassType : public CompositeType
+struct ClassType
 {
     std::string name;
 
@@ -276,7 +252,7 @@ struct ClassType : public CompositeType
 
 using ClassType_ptr = std::shared_ptr<ClassType>;
 
-struct TraitType : public CompositeType
+struct TraitType
 {
     std::string name;
 
@@ -324,7 +300,7 @@ struct RecordType
 {
 };
 
-struct EnumType : public CompositeType
+struct EnumType
 {
     std::string name;
     std::map<std::string, int> members;
@@ -429,26 +405,26 @@ using TypeAlias_ptr = std::shared_ptr<TypeAlias>;
 // Scalar Objects
 // ============================================================================
 
-struct IntObject : public ScalarObject
+struct IntObject
 {
     int value;
     IntObject(int value) : value(value) {};
 };
 
-struct FloatObject : public ScalarObject
+struct FloatObject
 {
     double value;
     FloatObject(double value) : value(value) {};
 };
 
-struct StringObject : public ScalarObject, public IterableAbstractObject
+struct StringObject : public IterableAbstractObject
 {
     std::string value;
     StringObject(std::string value) : value(std::move(value)) {};
     virtual Object_ptr get_iter() override;
 };
 
-struct BooleanObject : public ScalarObject
+struct BooleanObject
 {
     bool value;
     BooleanObject(bool value) : value(value) {};
@@ -458,7 +434,7 @@ struct BooleanObject : public ScalarObject
 // Composite Objects
 // ============================================================================
 
-struct IteratorObject : public CompositeObject
+struct IteratorObject
 {
     ObjectVector vec;
     size_t index;
@@ -472,7 +448,7 @@ struct IteratorObject : public CompositeObject
     void reset_iter();
 };
 
-struct ListObject : public CompositeObject, public IterableAbstractObject
+struct ListObject : public IterableAbstractObject
 {
     ObjectVector values;
 
@@ -492,7 +468,7 @@ struct ListObject : public CompositeObject, public IterableAbstractObject
     virtual Object_ptr get_iter() override;
 };
 
-struct TupleObject : public CompositeObject
+struct TupleObject
 {
     ObjectVector values;
 
@@ -504,7 +480,7 @@ struct TupleObject : public CompositeObject
     int get_length();
 };
 
-struct SetObject : public CompositeObject, public IterableAbstractObject
+struct SetObject : public IterableAbstractObject
 {
     ObjectVector values;
 
@@ -516,7 +492,7 @@ struct SetObject : public CompositeObject, public IterableAbstractObject
     int get_length();
 };
 
-struct MapObject : public CompositeObject, public IterableAbstractObject
+struct MapObject : public IterableAbstractObject
 {
     std::map<Object_ptr, Object_ptr> pairs;
 
@@ -530,7 +506,7 @@ struct MapObject : public CompositeObject, public IterableAbstractObject
     int get_size();
 };
 
-struct VariantObject : public CompositeObject
+struct VariantObject
 {
     Object_ptr value;
     VariantObject(Object_ptr value) : value(std::move(value)) {};
@@ -541,19 +517,19 @@ struct VariantObject : public CompositeObject
 // Action Objects
 // ============================================================================
 
-struct BreakObject : public ActionObject
+struct BreakObject
 {
 };
 
-struct ContinueObject : public ActionObject
+struct ContinueObject
 {
 };
 
-struct RedoObject : public ActionObject
+struct RedoObject
 {
 };
 
-struct ReturnObject : public ActionObject
+struct ReturnObject
 {
     std::optional<Object_ptr> value;
 
@@ -561,7 +537,7 @@ struct ReturnObject : public ActionObject
     ReturnObject(Object_ptr value) : value(std::optional(std::move(value))) {};
 };
 
-struct ErrorObject : public ActionObject
+struct ErrorObject
 {
     std::string message;
 
@@ -573,7 +549,7 @@ struct ErrorObject : public ActionObject
 // Function Objects
 // ============================================================================
 
-struct FunctionBlueprintObject : public CompositeObject
+struct FunctionBlueprintObject
 {
     CodeObject code;
     std::string name;
@@ -614,7 +590,7 @@ using FunctionRuntimeObject_ptr = std::shared_ptr<FunctionRuntimeObject>;
 
 using NativeFnType = std::function<Object_ptr(const ObjectVector&)>;
 
-struct NativeFunctionObject : public CompositeObject
+struct NativeFunctionObject
 {
     NativeFnType function;
     std::string name;
@@ -629,7 +605,7 @@ struct NativeFunctionObject : public CompositeObject
 // Overloads
 // ============================================================================
 
-struct ObjectOverloadList : public CompositeObject
+struct ObjectOverloadList
 {
     std::string name;
     ObjectVector overloads;
@@ -659,7 +635,7 @@ using ObjectOverloadList_ptr = std::shared_ptr<ObjectOverloadList>;
 // Membered Objects
 // ============================================================================
 
-struct MemberedCompositeObject : public CompositeObject
+struct MemberedCompositeObject
 {
     ObjectVector members;
 

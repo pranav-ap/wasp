@@ -264,6 +264,17 @@ Object_ptr TypeChecker::substitute_generics(
     if (!type)
         return nullptr;
 
+    if (type->is<TypeAlias_ptr>())
+    {
+        auto aliased = type->as<TypeAlias_ptr>()->aliased_type;
+        auto substituted = substitute_generics(aliased, templ, generic_args);
+
+        if (substituted != aliased)
+            return substituted;
+
+        return type;
+    }
+
     if (type->is<GenericType_ptr>())
     {
         auto generic_type = type->as<GenericType_ptr>();
@@ -324,6 +335,32 @@ Object_ptr TypeChecker::substitute_generics(
             new_types.push_back(substitute_generics(t, templ, generic_args));
         }
         return make_object(VariantType{new_types});
+    }
+
+    if (type->is<FunctionType_ptr>())
+    {
+        auto func_type = type->as<FunctionType_ptr>();
+        ObjectVector new_params;
+        for (auto& p : func_type->parameter_types)
+        {
+            new_params.push_back(substitute_generics(p, templ, generic_args));
+        }
+        auto new_return = substitute_generics(func_type->return_type, templ, generic_args);
+
+        return make_object(std::make_shared<FunctionType>(new_params, new_return));
+    }
+
+    if (type->is<ObjectOverloadList_ptr>())
+    {
+        auto overload_list = type->as<ObjectOverloadList_ptr>();
+        auto new_list = std::make_shared<ObjectOverloadList>(overload_list->name);
+
+        for (auto& overload : overload_list->overloads)
+        {
+            new_list->overloads.push_back(substitute_generics(overload, templ, generic_args));
+        }
+
+        return make_object(new_list);
     }
 
     return type;

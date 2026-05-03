@@ -239,30 +239,65 @@ Object_ptr SemanticAnalyzer::evaluate_class_template_instantiation(
             type_checker
                 ->assignable(current_scope, generic_type->constraint_type, generic_args[arg_idx]),
             WaspStage::Semantics,
-            "Type bound violated for generic parameter '" + name + "'."
+            "Type bound violated."
         );
         arg_idx++;
     }
 
     auto base_class_type = class_template_type->underlying_type;
-    ObjectStringMap concrete_members;
 
+    auto concrete_class_type = std::make_shared<ClassType>(
+        base_class_type->name,
+        ObjectStringMap{},
+        base_class_type->fields,
+        base_class_type->methods,
+        base_class_type->pures,
+        base_class_type->statics
+    );
+    auto concrete_class_type_obj = make_object(concrete_class_type);
+
+    ObjectStringMap concrete_members;
     for (const auto& [name, type] : base_class_type->members)
     {
         concrete_members[name] = type_checker
                                      ->substitute_generics(type, class_template_type, generic_args);
     }
 
-    auto concrete_class_type = std::make_shared<ClassType>(
-        base_class_type->name,
-        concrete_members,
-        base_class_type->fields,
-        base_class_type->methods,
-        base_class_type->pures,
-        base_class_type->statics
-    );
+    auto is_self_type = [&](const Object_ptr& t)
+    {
+        return (t->is<ClassType_ptr>() && t->as<ClassType_ptr>()->name == base_class_type->name) ||
+               (t->is<ClassTemplateType_ptr>() &&
+                t->as<ClassTemplateType_ptr>()->underlying_type->name == base_class_type->name);
+    };
 
-    auto concrete_class_type_obj = make_object(concrete_class_type);
+    for (auto& [name, member] : concrete_members)
+    {
+        if (!member->is<ObjectOverloadList_ptr>())
+            continue;
+
+        for (auto& overload : member->as<ObjectOverloadList_ptr>()->overloads)
+        {
+            if (!overload->is<FunctionType_ptr>())
+                continue;
+
+            auto func = overload->as<FunctionType_ptr>();
+
+            if (is_self_type(func->return_type))
+            {
+                func->return_type = concrete_class_type_obj;
+            }
+
+            for (auto& param : func->parameter_types)
+            {
+                if (is_self_type(param))
+                {
+                    param = concrete_class_type_obj;
+                }
+            }
+        }
+    }
+
+    concrete_class_type->members = concrete_members;
 
     validate_constructor_args(concrete_class_type, argument_types);
 
@@ -274,7 +309,6 @@ Object_ptr SemanticAnalyzer::evaluate_class_template_instantiation(
     );
 
     concrete_symbol->id = template_symbol->id;
-
     template_instantiation.symbol = concrete_symbol;
     template_instantiation.group_symbol = template_symbol;
 
@@ -925,7 +959,17 @@ Object_ptr SemanticAnalyzer::evaluate_class_method_call(
     call.is_method_call = true;
     call.is_pure_method_call = class_type->is_pure(method_name);
 
-    return get_function_signature(valid_matches.front()).first;
+    // --- THE FIX: Return Type Patching ---
+    Object_ptr final_return_type = get_function_signature(valid_matches.front()).first;
+
+    if (final_return_type->is<ClassTemplateType_ptr>() ||
+        final_return_type->is<TraitTemplateType_ptr>())
+    {
+        // Wrap the ClassType_ptr back into an Object_ptr!
+        final_return_type = make_object(class_type);
+    }
+
+    return final_return_type;
 }
 
 Object_ptr SemanticAnalyzer::evaluate_trait_method_call(
