@@ -97,9 +97,9 @@ void Compiler::visit(ClassDefinition& class_definition)
     std::shared_ptr<ClassType> class_type;
     auto type_obj = class_definition.symbol->get_type();
 
-    if (auto template_type = type_obj->try_as<ClassTemplateType_ptr>())
+    if (auto template_type = type_obj->try_as<TemplateType_ptr>())
     {
-        class_type = (*template_type)->underlying_type;
+        class_type = (*template_type)->underlying_type->as<ClassType_ptr>();
     }
     else
     {

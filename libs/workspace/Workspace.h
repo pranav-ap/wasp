@@ -59,27 +59,14 @@ struct MethodData : public PossibleNativeData
     }
 };
 
-struct FunctionOverloadsData : public TypedData
-{
-    SymbolVector siblings;
-    SymbolVector parents;
-
-    FunctionOverloadsData()
-    {
-    }
-
-    SymbolVector get_overloads() const;
-};
-
-struct MethodOverloadsData : public TypedData
+struct OverloadsData : public TypedData
 {
     SymbolVector overloads;
+    SymbolVector parents;
 
-    MethodOverloadsData()
-    {
-    }
+    OverloadsData() = default;
 
-    SymbolVector get_overloads() const;
+    const SymbolVector& get_overloads() const;
 };
 
 struct VariableData : public TypedData
@@ -132,8 +119,7 @@ struct EnumData : public TypedData
 
 using SymbolPayload = std::variant<
     VariableData,
-    FunctionOverloadsData,
-    MethodOverloadsData,
+    OverloadsData,
     FunctionData,
     MethodData,
     ModuleData,
@@ -228,13 +214,7 @@ public:
         int lexical_depth = 0
     );
 
-    static Symbol_ptr create_function_overloads(
-        std::string name,
-        int closure_depth = 0,
-        int lexical_depth = 0
-    );
-
-    static Symbol_ptr create_method_overloads(
+    static Symbol_ptr create_overloads(
         std::string name,
         int closure_depth = 0,
         int lexical_depth = 0
@@ -299,7 +279,11 @@ struct Module
     Object_ptr type;
 
     Module() = default;
-    Module(std::filesystem::path file_path, StatementVector stmts);
+
+    Module(std::filesystem::path file_path, StatementVector stmts)
+        : absolute_filepath(std::move(file_path)), stmts(std::move(stmts))
+    {
+    }
 
     std::string get_name() const;
     std::string get_path() const;

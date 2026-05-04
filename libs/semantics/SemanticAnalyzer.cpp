@@ -150,6 +150,7 @@ void SemanticAnalyzer::extract_module_type(Module_ptr module)
 
     module->type = make_object(module_type);
 }
+
 // ============================================================================
 // High Level Visitors
 // ============================================================================
@@ -159,7 +160,7 @@ void SemanticAnalyzer::hoist_function(T& def, std::shared_ptr<SymbolScope> targe
 {
     auto [return_type, param_types] = get_function_signature(def);
 
-    auto type = make_object(std::make_shared<FunctionType>(param_types, return_type));
+    auto type = make_object(std::make_shared<Signature>(Signature{param_types, return_type}));
 
     auto symbol = SymbolFactory::create_function(
         def.name,
@@ -184,8 +185,8 @@ void SemanticAnalyzer::hoist_template_function(
 {
     auto [return_type, param_types] = get_function_signature(def);
 
-    auto function_type = std::make_shared<FunctionType>(param_types, return_type);
-    auto type = make_object(std::make_shared<FunctionTemplateType>(generics, function_type));
+    auto function_type = std::make_shared<Signature>(Signature{param_types, return_type});
+    auto type = make_object(std::make_shared<TemplateType>(generics, make_object(function_type)));
 
     auto symbol = SymbolFactory::create_template(
         def.name,
@@ -230,7 +231,17 @@ void SemanticAnalyzer::hoist_template_class(
     ObjectStringMap generics
 )
 {
-    auto type = make_object(std::make_shared<ClassTemplateType>(generics));
+    auto class_type = make_object(
+        std::make_shared<ClassType>(
+            def.name,
+            ObjectStringMap{},
+            StringVector{},
+            StringVector{},
+            StringVector{},
+            StringVector{}
+        )
+    );
+    auto type = make_object(std::make_shared<TemplateType>(generics, class_type));
 
     auto symbol = SymbolFactory::create_template(
         def.name,
@@ -248,7 +259,11 @@ void SemanticAnalyzer::hoist_template_trait(
     ObjectStringMap generics
 )
 {
-    auto type = make_object(std::make_shared<TraitTemplateType>(generics));
+    auto trait_type = make_object(
+        std::make_shared<
+            TraitType>(def.name, ObjectStringMap{}, StringVector{}, StringVector{}, StringVector{})
+    );
+    auto type = make_object(std::make_shared<TemplateType>(generics, trait_type));
 
     auto symbol = SymbolFactory::create_template(
         def.name,
@@ -266,7 +281,7 @@ void SemanticAnalyzer::hoist_template_type_alias(
     ObjectStringMap generics
 )
 {
-    auto type = make_object(std::make_shared<TypeAliasTemplateType>(generics));
+    auto type = make_object(std::make_shared<TemplateType>(generics, nullptr));
 
     auto symbol = SymbolFactory::create_template(
         def.name,
@@ -291,7 +306,7 @@ void SemanticAnalyzer::hoist_template(
     {
         auto constraint_type = field.type ? visit(field.type) : workspace->pool->get_any_type();
         auto generic_type_obj = make_object(
-            std::make_shared<GenericType>(field.name, constraint_type)
+            std::make_shared<GenericType>(GenericType{field.name, constraint_type})
         );
 
         auto symbol = SymbolFactory::create_generic(field.name, generic_type_obj);
@@ -301,25 +316,25 @@ void SemanticAnalyzer::hoist_template(
 
     std::visit(
         overloaded{
-            [&](FunctionDefinition& def)
+            [&](FunctionDefinition& target_def)
             {
-                hoist_template_function(def, target_scope, generics);
+                hoist_template_function(target_def, target_scope, generics);
             },
-            [&](PureFunctionDefinition& def)
+            [&](PureFunctionDefinition& target_def)
             {
-                hoist_template_function(def, target_scope, generics);
+                hoist_template_function(target_def, target_scope, generics);
             },
-            [&](ClassDefinition& def)
+            [&](ClassDefinition& target_def)
             {
-                hoist_template_class(def, target_scope, generics);
+                hoist_template_class(target_def, target_scope, generics);
             },
-            [&](TraitDefinition& def)
+            [&](TraitDefinition& target_def)
             {
-                hoist_template_trait(def, target_scope, generics);
+                hoist_template_trait(target_def, target_scope, generics);
             },
-            [&](TypeAliasDefinition& def)
+            [&](TypeAliasDefinition& target_def)
             {
-                hoist_template_type_alias(def, target_scope, generics);
+                hoist_template_type_alias(target_def, target_scope, generics);
             },
             [](auto&)
             {
@@ -360,39 +375,9 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
                 },
                 [&](EnumDefinition& def)
                 {
-                    int global_enum_value = 0;
-
-                    std::function<EnumType_ptr(const EnumDefinition&, const std::string&)>
-                        build_enum = [&](const EnumDefinition& e_def,
-                                         const std::string& prefix) -> EnumType_ptr
-                    {
-                        std::string current_name = prefix.empty() ? e_def.name
-                                                                  : prefix + "." + e_def.name;
-                        auto enum_type = std::make_shared<EnumType>(current_name);
-
-                        for (const auto& [name, old_val] : e_def.members)
-                        {
-                            enum_type->members[current_name + "." + name] = global_enum_value++;
-                        }
-
-                        for (const auto& nested_def : e_def.nested_enums)
-                        {
-                            enum_type
-                                ->nested_enums[current_name + "." + nested_def.name] = build_enum(
-                                nested_def,
-                                current_name
-                            );
-                        }
-
-                        return enum_type;
-                    };
-
-                    auto enum_type = build_enum(def, "");
-                    auto type_obj = make_object(enum_type);
-
                     auto symbol = SymbolFactory::create_enum(
                         def.name,
-                        type_obj,
+                        nullptr,
                         current_scope->get_closure_depth(),
                         current_scope->get_lexical_depth()
                     );

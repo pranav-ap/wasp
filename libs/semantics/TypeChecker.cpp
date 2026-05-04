@@ -122,6 +122,29 @@ bool TypeChecker::equal(
                 return equal(scope, m1.key_type, m2.key_type) &&
                        equal(scope, m1.value_type, m2.value_type);
             },
+
+            // Structured Types
+            [&](Signature_ptr const& s1, Signature_ptr const& s2) -> bool
+            {
+                return equal(scope, s1->parameter_types, s2->parameter_types) &&
+                       equal(scope, s1->return_type, s2->return_type);
+            },
+            [&](ClassType_ptr const& c1, ClassType_ptr const& c2) -> bool
+            {
+                return c1->name == c2->name;
+            },
+            [&](TraitType_ptr const& t1, TraitType_ptr const& t2) -> bool
+            {
+                return t1->name == t2->name;
+            },
+            [&](ModuleType_ptr const& m1, ModuleType_ptr const& m2) -> bool
+            {
+                return m1->name == m2->name;
+            },
+            [&](TemplateType_ptr const& t1, TemplateType_ptr const& t2) -> bool
+            {
+                return equal(scope, t1->underlying_type, t2->underlying_type);
+            },
             [&](EnumType_ptr const& e1, EnumType_ptr const& e2) -> bool
             {
                 auto get_root = [](const std::string& name)
@@ -212,7 +235,8 @@ bool TypeChecker::assignable(
         return assignable(scope, lhs_type, rhs_type->as<TypeAlias_ptr>()->aliased_type);
     }
 
-    // Exact Matches
+    // Exact Matches (Catches Nominals like ClassType, TraitType, ModuleType, EnumType, and
+    // Signatures)
     if (equal(scope, lhs_type, rhs_type))
         return true;
 
@@ -335,11 +359,6 @@ bool TypeChecker::assignable(
             {
                 return assignable(scope, t1.key_type, t2.key_type) &&
                        assignable(scope, t1.value_type, t2.value_type);
-            },
-
-            [&](ClassType_ptr const& c1, ClassType_ptr const& c2) -> bool
-            {
-                return c1->name == c2->name;
             },
 
             // Fallback for everything else (including unsafe Base-to-Literal assignments)

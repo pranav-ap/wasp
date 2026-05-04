@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <string>
 #include <utility>
@@ -39,7 +40,7 @@ void parse_common_members(
         if (std::find(vec.begin(), vec.end(), n) == vec.end())
         {
             vec.push_back(n);
-            members[n] = make_object(std::make_shared<ObjectOverloadList>(n));
+            members[n] = make_object(std::make_shared<ObjectOverloadList>());
         }
     };
 
@@ -226,10 +227,10 @@ ObjectVector SemanticAnalyzer::extract_overloads(Object_ptr type_obj)
 
 bool SemanticAnalyzer::is_signature_compatible(Object_ptr trait_func, Object_ptr class_func)
 {
-    if (trait_func->is<MethodType_ptr>() && class_func->is<MethodType_ptr>())
+    if (trait_func->is<Signature_ptr>() && class_func->is<Signature_ptr>())
     {
-        auto trait_sig = trait_func->as<MethodType_ptr>();
-        auto class_sig = class_func->as<MethodType_ptr>();
+        auto trait_sig = trait_func->as<Signature_ptr>();
+        auto class_sig = class_func->as<Signature_ptr>();
 
         if (trait_sig->parameter_types.size() != class_sig->parameter_types.size())
         {
@@ -395,7 +396,9 @@ void SemanticAnalyzer::hoist_method(BaseTypePtr base_type, MethodDef& m)
 {
     auto [return_type, parameter_types] = get_function_signature(m);
 
-    Object_ptr signature = make_object(std::make_shared<MethodType>(parameter_types, return_type));
+    Object_ptr signature = make_object(
+        std::make_shared<Signature>(Signature{parameter_types, return_type})
+    );
 
     Symbol_ptr symbol = SymbolFactory::create_method(
         m.name,
@@ -527,9 +530,9 @@ void SemanticAnalyzer::visit(TemplateDefinition& statement)
 
     for (auto& field : statement.members)
     {
-        auto constraint_type = visit(field.type);
+        auto constraint_type = field.type ? visit(field.type) : workspace->pool->get_any_type();
         auto generic_type_obj = make_object(
-            std::make_shared<GenericType>(field.name, constraint_type)
+            std::make_shared<GenericType>(GenericType{field.name, constraint_type})
         );
 
         auto symbol = SymbolFactory::create_generic(field.name, generic_type_obj);
@@ -553,7 +556,7 @@ void SemanticAnalyzer::visit(TemplateDefinition& statement)
                 auto class_type = initialize_class_type(c);
                 analyze_membered_type(
                     c,
-                    make_object(std::make_shared<ClassTemplateType>(generics, class_type)),
+                    make_object(std::make_shared<TemplateType>(generics, make_object(class_type))),
                     class_type
                 );
             },
@@ -562,16 +565,14 @@ void SemanticAnalyzer::visit(TemplateDefinition& statement)
                 auto trait_type = initialize_trait_type(t);
                 analyze_membered_type(
                     t,
-                    make_object(std::make_shared<TraitTemplateType>(generics, trait_type)),
+                    make_object(std::make_shared<TemplateType>(generics, make_object(trait_type))),
                     trait_type
                 );
             },
             [&](TypeAliasDefinition& t)
             {
                 Object_ptr ref_type = visit(t.ref_type);
-                t.symbol->set_type(
-                    make_object(std::make_shared<TypeAliasTemplateType>(generics, ref_type))
-                );
+                t.symbol->set_type(make_object(std::make_shared<TemplateType>(generics, ref_type)));
             },
             [&](auto&)
             {
@@ -604,12 +605,37 @@ void SemanticAnalyzer::visit(Native& statement)
 void SemanticAnalyzer::visit(TypeAliasDefinition& def)
 {
     Object_ptr ref_type = visit(def.ref_type);
-    def.symbol->set_type(make_object(std::make_shared<TypeAlias>(def.name, ref_type)));
+    def.symbol->set_type(make_object(std::make_shared<TypeAlias>(TypeAlias{def.name, ref_type})));
 }
 
 void SemanticAnalyzer::visit(EnumDefinition& def)
 {
-    // already dealt with during hoisting phase
+    int global_enum_value = 0;
+
+    std::function<EnumType_ptr(const EnumDefinition&, const std::string&)> build_enum =
+        [&](const EnumDefinition& e_def, const std::string& prefix) -> EnumType_ptr
+    {
+        std::string current_name = prefix.empty() ? e_def.name : prefix + "." + e_def.name;
+        auto enum_type = std::make_shared<EnumType>(current_name);
+
+        for (const auto& [name, old_val] : e_def.members)
+        {
+            enum_type->members[current_name + "." + name] = global_enum_value++;
+        }
+
+        for (const auto& nested_def : e_def.nested_enums)
+        {
+            enum_type->nested_enums[current_name + "." + nested_def.name] = build_enum(
+                nested_def,
+                current_name
+            );
+        }
+
+        return enum_type;
+    };
+
+    auto enum_type = build_enum(def, "");
+    def.symbol->set_type(make_object(enum_type));
 }
 
 void SemanticAnalyzer::visit(AnnotationDefinition& statement)

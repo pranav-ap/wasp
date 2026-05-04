@@ -110,7 +110,7 @@ Object_ptr SemanticAnalyzer::evaluate_function_call(
 {
     bind_identifier(identifier, overload_symbol);
 
-    const auto& function_overloads_data = overload_symbol->get_payload_as<FunctionOverloadsData>();
+    const auto& function_overloads_data = overload_symbol->get_payload_as<OverloadsData>();
     const auto overloads = function_overloads_data.get_overloads();
 
     auto [function, overload_index] = type_checker->get_best_function_signature(
@@ -133,12 +133,12 @@ Object_ptr SemanticAnalyzer::evaluate_module_function_call(
     Symbol_ptr export_symbol = resolve_module_export(access);
 
     Doctor::get().assert(
-        export_symbol->payload_is<FunctionOverloadsData>(),
+        export_symbol->payload_is<OverloadsData>(),
         WaspStage::Semantics,
         "Symbol is not an overload group"
     );
 
-    const auto& group_data = export_symbol->get_payload_as<FunctionOverloadsData>();
+    const auto& group_data = export_symbol->get_payload_as<OverloadsData>();
     auto [resolved_function, overload_index] = type_checker->get_best_function_signature(
         current_scope,
         group_data.get_overloads(),
@@ -223,7 +223,7 @@ Object_ptr SemanticAnalyzer::evaluate_class_template_instantiation(
     Symbol_ptr template_symbol
 )
 {
-    auto class_template_type = template_symbol->get_type()->as<ClassTemplateType_ptr>();
+    auto class_template_type = template_symbol->get_type()->as<TemplateType_ptr>();
 
     Doctor::get().assert(
         class_template_type->generics.size() == generic_args.size(),
@@ -244,7 +244,7 @@ Object_ptr SemanticAnalyzer::evaluate_class_template_instantiation(
         arg_idx++;
     }
 
-    auto base_class_type = class_template_type->underlying_type;
+    auto base_class_type = class_template_type->underlying_type->as<ClassType_ptr>();
 
     auto concrete_class_type = std::make_shared<ClassType>(
         base_class_type->name,
@@ -266,8 +266,9 @@ Object_ptr SemanticAnalyzer::evaluate_class_template_instantiation(
     auto is_self_type = [&](const Object_ptr& t)
     {
         return (t->is<ClassType_ptr>() && t->as<ClassType_ptr>()->name == base_class_type->name) ||
-               (t->is<ClassTemplateType_ptr>() &&
-                t->as<ClassTemplateType_ptr>()->underlying_type->name == base_class_type->name);
+               (t->is<TemplateType_ptr>() &&
+                t->as<TemplateType_ptr>()->underlying_type->as<ClassType_ptr>()->name ==
+                    base_class_type->name);
     };
 
     for (auto& [name, member] : concrete_members)
@@ -277,10 +278,10 @@ Object_ptr SemanticAnalyzer::evaluate_class_template_instantiation(
 
         for (auto& overload : member->as<ObjectOverloadList_ptr>()->overloads)
         {
-            if (!overload->is<FunctionType_ptr>())
+            if (!overload->is<Signature_ptr>())
                 continue;
 
-            auto func = overload->as<FunctionType_ptr>();
+            auto func = overload->as<Signature_ptr>();
 
             if (is_self_type(func->return_type))
             {
@@ -343,12 +344,23 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
         expr.member_index = type->get_member_index(member_name);
         return type->get_member(member_name);
     }
-    else if (left_type->is<ClassTemplateType_ptr>())
+    else if (left_type->is<TemplateType_ptr>())
     {
-        const auto type = left_type->as<ClassTemplateType_ptr>()->underlying_type;
+        // Must handle the fact that underlying_type is an Object_ptr variant now
+        const auto type = left_type->as<TemplateType_ptr>()->underlying_type;
 
-        expr.member_index = type->get_member_index(member_name);
-        return type->get_member(member_name);
+        if (type->is<ClassType_ptr>())
+        {
+            auto class_type = type->as<ClassType_ptr>();
+            expr.member_index = class_type->get_member_index(member_name);
+            return class_type->get_member(member_name);
+        }
+        else if (type->is<TraitType_ptr>())
+        {
+            auto trait_type = type->as<TraitType_ptr>();
+            expr.member_index = trait_type->get_member_index(member_name);
+            return trait_type->get_member(member_name);
+        }
     }
     else if (left_type->is<EnumType_ptr>())
     {
@@ -375,8 +387,9 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
     Doctor::get().fatal(
         WaspStage::Semantics,
         "Cannot access member '" + member_name +
-            "'. The left-hand side is not a module, class, or enum."
+            "'. The left-hand side is not a module, class, trait, or enum."
     );
+    return nullptr;
 }
 
 Object_ptr SemanticAnalyzer::visit(Constructor& constructor)
@@ -438,6 +451,7 @@ Object_ptr SemanticAnalyzer::visit(Constructor& constructor)
                                 WaspStage::Semantics,
                                 "Expected an Identifier for class template target."
                             );
+                            return nullptr;
                         }
                     },
                     template_instantiation.target->data
@@ -470,18 +484,18 @@ Object_ptr SemanticAnalyzer::evaluate_type_template_instantiation(
     auto type_obj = template_symbol->get_type();
     Doctor::get().fatal_if_nullptr(type_obj, WaspStage::Semantics);
 
-    if (type_obj->is<TypeAliasTemplateType_ptr>())
+    if (type_obj->is<TemplateType_ptr>())
     {
-        auto alias_template = type_obj->as<TypeAliasTemplateType_ptr>();
+        auto t_type = type_obj->as<TemplateType_ptr>();
 
         Doctor::get().assert(
-            alias_template->generics.size() == generic_args.size(),
+            t_type->generics.size() == generic_args.size(),
             WaspStage::Semantics,
             "Generic arguments count mismatch."
         );
 
         size_t arg_idx = 0;
-        for (const auto& [name, generic_obj] : alias_template->generics)
+        for (const auto& [name, generic_obj] : t_type->generics)
         {
             auto generic_type = generic_obj->as<GenericType_ptr>();
             Doctor::get().assert(
@@ -496,58 +510,58 @@ Object_ptr SemanticAnalyzer::evaluate_type_template_instantiation(
             arg_idx++;
         }
 
-        return type_checker
-            ->substitute_generics(alias_template->underlying_type, alias_template, generic_args);
-    }
-
-    if (type_obj->is<ClassTemplateType_ptr>())
-    {
-        auto class_template = type_obj->as<ClassTemplateType_ptr>();
-
-        Doctor::get().assert(
-            class_template->generics.size() == generic_args.size(),
-            WaspStage::Semantics,
-            "Generic arguments count mismatch."
-        );
-
-        size_t arg_idx = 0;
-        for (const auto& [name, generic_obj] : class_template->generics)
+        if (t_type->underlying_type->is<ClassType_ptr>())
         {
-            auto generic_type = generic_obj->as<GenericType_ptr>();
-            Doctor::get().assert(
-                type_checker->assignable(
-                    current_scope,
-                    generic_type->constraint_type,
-                    generic_args[arg_idx]
-                ),
-                WaspStage::Semantics,
-                "Type bound violated for parameter '" + name + "'."
-            );
-            arg_idx++;
-        }
+            auto base_class_type = t_type->underlying_type->as<ClassType_ptr>();
+            ObjectStringMap concrete_members;
 
-        auto base_class_type = class_template->underlying_type;
-        ObjectStringMap concrete_members;
+            for (const auto& [name, member_type] : base_class_type->members)
+            {
+                concrete_members[name] = type_checker->substitute_generics(
+                    member_type,
+                    t_type,
+                    generic_args
+                );
+            }
 
-        for (const auto& [name, member_type] : base_class_type->members)
-        {
-            concrete_members[name] = type_checker->substitute_generics(
-                member_type,
-                class_template,
-                generic_args
+            return make_object(
+                std::make_shared<ClassType>(
+                    base_class_type->name,
+                    concrete_members,
+                    base_class_type->fields,
+                    base_class_type->methods,
+                    base_class_type->pures,
+                    base_class_type->statics
+                )
             );
         }
+        else if (t_type->underlying_type->is<TraitType_ptr>())
+        {
+            auto base_trait_type = t_type->underlying_type->as<TraitType_ptr>();
+            ObjectStringMap concrete_members;
 
-        return make_object(
-            std::make_shared<ClassType>(
-                base_class_type->name,
-                concrete_members,
-                base_class_type->fields,
-                base_class_type->methods,
-                base_class_type->pures,
-                base_class_type->statics
-            )
-        );
+            for (const auto& [name, member_type] : base_trait_type->members)
+            {
+                concrete_members[name] = type_checker->substitute_generics(
+                    member_type,
+                    t_type,
+                    generic_args
+                );
+            }
+
+            return make_object(
+                std::make_shared<TraitType>(
+                    base_trait_type->name,
+                    concrete_members,
+                    base_trait_type->methods,
+                    base_trait_type->pures,
+                    base_trait_type->statics
+                )
+            );
+        }
+
+        // It's a type alias template
+        return type_checker->substitute_generics(t_type->underlying_type, t_type, generic_args);
     }
 
     Doctor::get().fatal(WaspStage::Semantics, "Symbol is not a valid type template.");
@@ -626,19 +640,30 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                 {
                     class_type = left_type->as<ClassType_ptr>();
                 }
-                else if (left_type->is<ClassTemplateType_ptr>())
+                else if (left_type->is<TemplateType_ptr>())
                 {
-                    class_type = left_type->as<ClassTemplateType_ptr>()->underlying_type;
+                    if (left_type->as<TemplateType_ptr>()->underlying_type->is<ClassType_ptr>())
+                    {
+                        class_type = left_type->as<TemplateType_ptr>()
+                                         ->underlying_type->as<ClassType_ptr>();
+                    }
                 }
 
                 // 2. Resolve Underlying Trait Types
-                else if (left_type->is<TraitType_ptr>())
+                if (!class_type)
                 {
-                    trait_type = left_type->as<TraitType_ptr>();
-                }
-                else if (left_type->is<TraitTemplateType_ptr>())
-                {
-                    trait_type = left_type->as<TraitTemplateType_ptr>()->underlying_type;
+                    if (left_type->is<TraitType_ptr>())
+                    {
+                        trait_type = left_type->as<TraitType_ptr>();
+                    }
+                    else if (left_type->is<TemplateType_ptr>())
+                    {
+                        if (left_type->as<TemplateType_ptr>()->underlying_type->is<TraitType_ptr>())
+                        {
+                            trait_type = left_type->as<TemplateType_ptr>()
+                                             ->underlying_type->as<TraitType_ptr>();
+                        }
+                    }
                 }
 
                 // --- Class Method Evaluation ---
@@ -685,6 +710,7 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                     WaspStage::Semantics,
                     "Cannot invoke method. Receiver is neither a class, trait, nor a module."
                 );
+                return nullptr;
             },
             [&](TemplateInstantiation& template_instantiation) -> Object_ptr
             {
@@ -696,6 +722,7 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                     WaspStage::Semantics,
                     "Expected an Identifier or MemberAccess as the callable."
                 );
+                return nullptr;
             }
         },
         call.callable->data
@@ -760,6 +787,7 @@ Object_ptr SemanticAnalyzer::evaluate_template_call(
                     WaspStage::Semantics,
                     "Cannot invoke template method. Receiver is neither a class nor a module."
                 );
+                return nullptr;
             },
             [&](auto&) -> Object_ptr
             {
@@ -767,6 +795,7 @@ Object_ptr SemanticAnalyzer::evaluate_template_call(
                     WaspStage::Semantics,
                     "Expected an Identifier or MemberAccess inside TemplateInstantiation."
                 );
+                return nullptr;
             }
         },
         template_instantiation.target->data
@@ -789,12 +818,12 @@ Object_ptr SemanticAnalyzer::evaluate_template_function_call(
     }
 
     Doctor::get().assert(
-        overload_group_symbol->payload_is<FunctionOverloadsData>(),
+        overload_group_symbol->payload_is<OverloadsData>(),
         WaspStage::Semantics,
         "Expected an overload group for template function call."
     );
 
-    const auto& group_data = overload_group_symbol->get_payload_as<FunctionOverloadsData>();
+    const auto& group_data = overload_group_symbol->get_payload_as<OverloadsData>();
     const auto& overloads = group_data.get_overloads();
 
     ObjectVector valid_matches;
@@ -808,7 +837,7 @@ Object_ptr SemanticAnalyzer::evaluate_template_function_call(
         auto overload = overloads[i];
         auto type_obj = overload->get_type();
 
-        auto t = type_obj->try_as<FunctionTemplateType_ptr>();
+        auto t = type_obj->try_as<TemplateType_ptr>();
         if (!t)
             continue;
 
@@ -839,7 +868,8 @@ Object_ptr SemanticAnalyzer::evaluate_template_function_call(
             continue;
 
         ObjectVector concrete_param_types;
-        for (const auto& param_type : function_template_type->signature->parameter_types)
+        auto underlying_sig = function_template_type->underlying_type->as<Signature_ptr>();
+        for (const auto& param_type : underlying_sig->parameter_types)
         {
             concrete_param_types.push_back(
                 type_checker->substitute_generics(param_type, function_template_type, generic_args)
@@ -854,7 +884,7 @@ Object_ptr SemanticAnalyzer::evaluate_template_function_call(
             final_concrete_param_types = concrete_param_types;
 
             final_return_type = type_checker->substitute_generics(
-                function_template_type->signature->return_type,
+                underlying_sig->return_type,
                 function_template_type,
                 generic_args
             );
@@ -874,7 +904,7 @@ Object_ptr SemanticAnalyzer::evaluate_template_function_call(
     );
 
     auto concrete_function_type = make_object(
-        std::make_shared<FunctionType>(final_concrete_param_types, final_return_type)
+        std::make_shared<Signature>(Signature{final_concrete_param_types, final_return_type})
     );
 
     auto concrete_symbol = SymbolFactory::create_function(
@@ -959,13 +989,10 @@ Object_ptr SemanticAnalyzer::evaluate_class_method_call(
     call.is_method_call = true;
     call.is_pure_method_call = class_type->is_pure(method_name);
 
-    // --- THE FIX: Return Type Patching ---
     Object_ptr final_return_type = get_function_signature(valid_matches.front()).first;
 
-    if (final_return_type->is<ClassTemplateType_ptr>() ||
-        final_return_type->is<TraitTemplateType_ptr>())
+    if (final_return_type->is<TemplateType_ptr>())
     {
-        // Wrap the ClassType_ptr back into an Object_ptr!
         final_return_type = make_object(class_type);
     }
 
@@ -1072,9 +1099,9 @@ Object_ptr SemanticAnalyzer::evaluate_template_method_call(
     {
         auto overload = object_overloads->overloads[i];
 
-        if (!overload->is<FunctionTemplateType_ptr>())
+        if (!overload->is<TemplateType_ptr>())
             continue;
-        auto function_template_type = overload->as<FunctionTemplateType_ptr>();
+        auto function_template_type = overload->as<TemplateType_ptr>();
 
         if (function_template_type->generics.size() != generic_args.size())
             continue;
@@ -1101,7 +1128,8 @@ Object_ptr SemanticAnalyzer::evaluate_template_method_call(
             continue;
 
         ObjectVector concrete_param_types;
-        for (const auto& param_type : function_template_type->signature->parameter_types)
+        auto underlying_sig = function_template_type->underlying_type->as<Signature_ptr>();
+        for (const auto& param_type : underlying_sig->parameter_types)
         {
             concrete_param_types.push_back(
                 type_checker->substitute_generics(param_type, function_template_type, generic_args)
@@ -1114,7 +1142,7 @@ Object_ptr SemanticAnalyzer::evaluate_template_method_call(
             match_indices.push_back(static_cast<int>(i));
 
             final_return_type = type_checker->substitute_generics(
-                function_template_type->signature->return_type,
+                underlying_sig->return_type,
                 function_template_type,
                 generic_args
             );

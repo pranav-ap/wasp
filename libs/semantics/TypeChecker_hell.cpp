@@ -1,8 +1,7 @@
 #include "Doctor.h"
 #include "Objects.h"
-#include "TypeChecker.h"
-
 #include "SymbolScope.h"
+#include "TypeChecker.h"
 #include "Workspace.h"
 
 #include <algorithm>
@@ -79,10 +78,13 @@ void TypeChecker::validate_new_function_overload(
     bool new_is_template = false;
     size_t new_generic_count = 0;
 
-    if (auto t = new_type->try_as<std::shared_ptr<FunctionTemplateType>>())
+    if (auto t = new_type->try_as<TemplateType_ptr>())
     {
-        new_is_template = true;
-        new_generic_count = (*t)->generics.size();
+        if ((*t)->underlying_type->is<Signature_ptr>())
+        {
+            new_is_template = true;
+            new_generic_count = (*t)->generics.size();
+        }
     }
 
     // Helper to check against a single existing symbol
@@ -106,10 +108,13 @@ void TypeChecker::validate_new_function_overload(
         bool existing_is_template = false;
         size_t existing_generic_count = 0;
 
-        if (auto t = type_obj->try_as<std::shared_ptr<FunctionTemplateType>>())
+        if (auto t = type_obj->try_as<TemplateType_ptr>())
         {
-            existing_is_template = true;
-            existing_generic_count = (*t)->generics.size();
+            if ((*t)->underlying_type->is<Signature_ptr>())
+            {
+                existing_is_template = true;
+                existing_generic_count = (*t)->generics.size();
+            }
         }
 
         bool signatures_match = equal(scope, existing_signature->parameter_types, parameter_types);
@@ -123,12 +128,12 @@ void TypeChecker::validate_new_function_overload(
         );
     };
 
-    if (existing_symbol->payload_is<FunctionOverloadsData>())
+    if (existing_symbol->payload_is<OverloadsData>())
     {
-        auto& group_data = existing_symbol->get_payload_as<FunctionOverloadsData>();
+        auto& group_data = existing_symbol->get_payload_as<OverloadsData>();
 
         // Sibling Duplicate Check
-        for (const auto& sibling : group_data.siblings)
+        for (const auto& sibling : group_data.overloads)
         {
             check_duplicate(sibling);
         }
@@ -150,10 +155,13 @@ void TypeChecker::validate_new_function_overload(
                 bool parent_is_template = false;
                 size_t parent_generic_count = 0;
 
-                if (auto t = parent_type->try_as<std::shared_ptr<FunctionTemplateType>>())
+                if (auto t = parent_type->try_as<TemplateType_ptr>())
                 {
-                    parent_is_template = true;
-                    parent_generic_count = (*t)->generics.size();
+                    if ((*t)->underlying_type->is<Signature_ptr>())
+                    {
+                        parent_is_template = true;
+                        parent_generic_count = (*t)->generics.size();
+                    }
                 }
 
                 return (parent_is_template == new_is_template) &&
@@ -337,23 +345,23 @@ Object_ptr TypeChecker::substitute_generics(
         return make_object(VariantType{new_types});
     }
 
-    if (type->is<FunctionType_ptr>())
+    if (type->is<Signature_ptr>())
     {
-        auto func_type = type->as<FunctionType_ptr>();
+        auto sig = type->as<Signature_ptr>();
         ObjectVector new_params;
-        for (auto& p : func_type->parameter_types)
+        for (auto& p : sig->parameter_types)
         {
             new_params.push_back(substitute_generics(p, templ, generic_args));
         }
-        auto new_return = substitute_generics(func_type->return_type, templ, generic_args);
+        auto new_return = substitute_generics(sig->return_type, templ, generic_args);
 
-        return make_object(std::make_shared<FunctionType>(new_params, new_return));
+        return make_object(std::make_shared<Signature>(Signature{new_params, new_return}));
     }
 
     if (type->is<ObjectOverloadList_ptr>())
     {
         auto overload_list = type->as<ObjectOverloadList_ptr>();
-        auto new_list = std::make_shared<ObjectOverloadList>(overload_list->name);
+        auto new_list = std::make_shared<ObjectOverloadList>();
 
         for (auto& overload : overload_list->overloads)
         {
@@ -367,23 +375,27 @@ Object_ptr TypeChecker::substitute_generics(
 }
 
 Object_ptr TypeChecker::substitute_generics(
-    FunctionTemplateType_ptr templ,
+    TemplateType_ptr templ,
     const ObjectVector& generic_args
 ) const
 {
+    auto underlying_sig = templ->underlying_type->as<Signature_ptr>();
+
     ObjectVector concrete_param_types;
-    for (const auto& param_type : templ->signature->parameter_types)
+    for (const auto& param_type : underlying_sig->parameter_types)
     {
         concrete_param_types.push_back(substitute_generics(param_type, templ, generic_args));
     }
 
     Object_ptr concrete_return_type = substitute_generics(
-        templ->signature->return_type,
+        underlying_sig->return_type,
         templ,
         generic_args
     );
 
-    return make_object(std::make_shared<FunctionType>(concrete_param_types, concrete_return_type));
+    return make_object(
+        std::make_shared<Signature>(Signature{concrete_param_types, concrete_return_type})
+    );
 }
 
 } // namespace Wasp

@@ -39,7 +39,7 @@ Symbol_ptr SymbolScope::define(Symbol_ptr symbol)
 
     bool is_func = symbol->payload_is<FunctionData>();
     bool is_func_template = symbol->payload_is<TemplateData>() &&
-                            symbol->get_type()->is<FunctionTemplateType_ptr>();
+                            symbol->get_type()->is<TemplateType_ptr>();
 
     if (is_func || is_func_template)
     {
@@ -74,23 +74,23 @@ Symbol_ptr SymbolScope::define_function(Symbol_ptr new_symbol)
         Symbol_ptr overload_group = symbols[new_symbol->name];
 
         Doctor::get().assert(
-            overload_group->payload_is<FunctionOverloadsData>(),
+            overload_group->payload_is<OverloadsData>(),
             WaspStage::Semantics,
             new_symbol->name + " already declared in this scope and is not an overload set"
         );
 
-        overload_group->get_payload_as<FunctionOverloadsData>().siblings.push_back(new_symbol);
+        overload_group->get_payload_as<OverloadsData>().overloads.push_back(new_symbol);
         return overload_group;
     }
 
-    auto overload_group = SymbolFactory::create_function_overloads(
+    auto overload_group = SymbolFactory::create_overloads(
         new_symbol->name,
         new_symbol->closure_depth,
         new_symbol->lexical_depth
     );
 
-    auto& overload_group_data = overload_group->get_payload_as<FunctionOverloadsData>();
-    overload_group_data.siblings.push_back(new_symbol);
+    auto& overload_group_data = overload_group->get_payload_as<OverloadsData>();
+    overload_group_data.overloads.push_back(new_symbol);
 
     symbols[new_symbol->name] = overload_group;
 
@@ -98,14 +98,14 @@ Symbol_ptr SymbolScope::define_function(Symbol_ptr new_symbol)
     {
         Symbol_ptr existing_parent = enclosing_scope->lookup(new_symbol->name);
 
-        if (existing_parent && existing_parent->payload_is<FunctionOverloadsData>())
+        if (existing_parent && existing_parent->payload_is<OverloadsData>())
         {
-            const auto& parent_data = existing_parent->get_payload_as<FunctionOverloadsData>();
+            const auto& parent_data = existing_parent->get_payload_as<OverloadsData>();
 
             overload_group_data.parents.insert(
                 overload_group_data.parents.end(),
-                parent_data.siblings.begin(),
-                parent_data.siblings.end()
+                parent_data.overloads.begin(),
+                parent_data.overloads.end()
             );
 
             overload_group_data.parents.insert(
@@ -132,22 +132,22 @@ Symbol_ptr SymbolScope::define_method(Symbol_ptr new_symbol)
         Symbol_ptr existing_local = symbols[new_symbol->name];
 
         Doctor::get().assert(
-            existing_local->payload_is<MethodOverloadsData>(),
+            existing_local->payload_is<OverloadsData>(),
             WaspStage::Semantics,
             new_symbol->name + " already declared in this scope and is not an overload set"
         );
 
-        existing_local->get_payload_as<MethodOverloadsData>().overloads.push_back(new_symbol);
+        existing_local->get_payload_as<OverloadsData>().overloads.push_back(new_symbol);
         return new_symbol;
     }
 
-    auto overload_group = SymbolFactory::create_method_overloads(
+    auto overload_group = SymbolFactory::create_overloads(
         new_symbol->name,
         new_symbol->closure_depth,
         new_symbol->lexical_depth
     );
 
-    auto& set_data = overload_group->get_payload_as<MethodOverloadsData>();
+    auto& set_data = overload_group->get_payload_as<OverloadsData>();
     set_data.overloads.push_back(new_symbol);
 
     symbols[new_symbol->name] = overload_group;
@@ -212,13 +212,25 @@ bool SymbolScope::enclosed_in(const std::vector<ScopeType>& types) const
     return false;
 }
 
-ScopeType SymbolScope::get_type() const { return type; }
+ScopeType SymbolScope::get_type() const
+{
+    return type;
+}
 
-SymbolScope_ptr SymbolScope::get_enclosing() const { return enclosing_scope; }
+SymbolScope_ptr SymbolScope::get_enclosing() const
+{
+    return enclosing_scope;
+}
 
-int SymbolScope::get_closure_depth() const { return closure_depth; }
+int SymbolScope::get_closure_depth() const
+{
+    return closure_depth;
+}
 
-int SymbolScope::get_lexical_depth() const { return lexical_depth; }
+int SymbolScope::get_lexical_depth() const
+{
+    return lexical_depth;
+}
 
 int SymbolScope::get_function_distance(int target_closure_depth) const
 {

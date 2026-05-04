@@ -25,7 +25,7 @@ using ObjectIntMap = std::map<int, Object_ptr>;
 using StringVector = std::vector<std::string>;
 
 // ============================================================================
-// Runtime Object Interfaces
+// Other
 // ============================================================================
 
 struct NoneObject
@@ -34,26 +34,27 @@ struct NoneObject
 
 struct IterableAbstractObject
 {
+    virtual ~IterableAbstractObject() = default;
     virtual Object_ptr get_iter() = 0;
 };
 
 // ============================================================================
-// Type Interfaces
+// Types
 // ============================================================================
 
 struct TypeType
 {
 };
 
-struct AnyType : public TypeType
+struct AnyType
 {
 };
 
-struct NoneType : public AnyType
+struct NoneType
 {
 };
 
-struct NamedDefinitionType : public AnyType
+struct NamedDefinitionType
 {
     std::string name;
     NamedDefinitionType(std::string name) : name(std::move(name)) {};
@@ -82,25 +83,21 @@ struct BooleanType
 struct IntLiteralType
 {
     int value;
-    IntLiteralType(int value) : value(value) {};
 };
 
 struct FloatLiteralType
 {
     double value;
-    FloatLiteralType(double value) : value(value) {};
 };
 
 struct StringLiteralType
 {
     std::string value;
-    StringLiteralType(std::string value) : value(std::move(value)) {};
 };
 
 struct BooleanLiteralType
 {
     bool value;
-    BooleanLiteralType(bool value) : value(value) {};
 };
 
 // ============================================================================
@@ -110,75 +107,63 @@ struct BooleanLiteralType
 struct ListType
 {
     Object_ptr element_type;
-    ListType(Object_ptr element_type) : element_type(std::move(element_type)) {};
-};
-
-struct TupleType
-{
-    ObjectVector element_types;
-    TupleType(ObjectVector element_types) : element_types(std::move(element_types)) {};
 };
 
 struct SetType
 {
     Object_ptr element_type;
-    SetType(Object_ptr element_type) : element_type(std::move(element_type)) {};
+};
+
+struct TupleType
+{
+    ObjectVector element_types;
+};
+
+struct VariantType
+{
+    ObjectVector types;
 };
 
 struct MapType
 {
     Object_ptr key_type;
     Object_ptr value_type;
-
-    MapType(Object_ptr key_type, Object_ptr value_type)
-        : key_type(std::move(key_type)), value_type(std::move(value_type)) {};
-};
-
-struct VariantType
-{
-    ObjectVector types;
-    VariantType(ObjectVector types) : types(std::move(types)) {};
 };
 
 // ============================================================================
 // Function Types
 // ============================================================================
 
-struct Signature : public AnyType
+struct Signature
 {
     ObjectVector parameter_types;
     Object_ptr return_type;
-
-    Signature(ObjectVector input_types, Object_ptr return_type)
-        : parameter_types(std::move(input_types)), return_type(std::move(return_type)) {};
 };
 
 using Signature_ptr = std::shared_ptr<Signature>;
-
-struct FunctionType : public Signature
-{
-    using Signature::Signature;
-};
-
-using FunctionType_ptr = std::shared_ptr<FunctionType>;
-
-struct MethodType : public Signature
-{
-    using Signature::Signature;
-};
-
-using MethodType_ptr = std::shared_ptr<MethodType>;
 
 // ============================================================================
 // Membered Types
 // ============================================================================
 
-struct ModuleType
+struct BaseMemberedType
 {
     std::string name;
-    std::filesystem::path absolute_filepath;
-
     ObjectStringMap members;
+
+    BaseMemberedType(std::string name, ObjectStringMap members = {})
+        : name(std::move(name)), members(std::move(members))
+    {
+    }
+
+    bool contains_member(const std::string& member_name) const;
+    Object_ptr get_member(const std::string& member_name) const;
+    void set_member(const std::string& member_name, Object_ptr value);
+};
+
+struct ModuleType : public BaseMemberedType
+{
+    std::filesystem::path absolute_filepath;
     StringVector ordered_keys;
 
     ModuleType(
@@ -187,34 +172,49 @@ struct ModuleType
         StringVector ordered_keys,
         ObjectStringMap members
     )
-        : name(std::move(name)), absolute_filepath(std::move(absolute_filepath)),
-          ordered_keys(std::move(ordered_keys)), members(std::move(members))
+        : BaseMemberedType(std::move(name), std::move(members)),
+          absolute_filepath(std::move(absolute_filepath)), ordered_keys(std::move(ordered_keys))
     {
     }
 
-    bool contains_member(const std::string& member_name) const;
-
-    Object_ptr get_member(const std::string& member_name) const;
-    void set_member(const std::string& member_name, Object_ptr value);
-
+    using BaseMemberedType::get_member;
     Object_ptr get_member(int member_id) const;
     void set_member(int member_id, Object_ptr value);
-
     int get_member_index(const std::string& member_name) const;
 };
 
 using ModuleType_ptr = std::shared_ptr<ModuleType>;
-
-struct ClassType
+struct BaseOOPType : public BaseMemberedType
 {
-    std::string name;
-
-    StringVector fields;
     StringVector methods;
     StringVector pures;
     StringVector statics;
 
-    ObjectStringMap members;
+    BaseOOPType(
+        std::string name,
+        ObjectStringMap members,
+        StringVector methods,
+        StringVector pures,
+        StringVector statics
+    )
+        : BaseMemberedType(std::move(name), std::move(members)), methods(std::move(methods)),
+          pures(std::move(pures)), statics(std::move(statics))
+    {
+    }
+
+    void add_overload(const std::string& member_name, Object_ptr overload);
+    ObjectVector get_overloads(const std::string& member_name) const;
+    ObjectVector get_methods() const;
+    ObjectVector get_pures() const;
+    ObjectVector get_statics() const;
+
+    bool is_pure(std::string member_name) const;
+    bool is_static(std::string member_name) const;
+};
+
+struct ClassType : public BaseOOPType
+{
+    StringVector fields;
 
     ClassType(
         std::string name,
@@ -224,81 +224,37 @@ struct ClassType
         StringVector pures,
         StringVector statics
     )
-        : name(std::move(name)), fields(std::move(fields)), methods(std::move(methods)),
-          pures(std::move(pures)), statics(std::move(statics)), members(std::move(members))
+        : BaseOOPType(
+              std::move(name),
+              std::move(members),
+              std::move(methods),
+              std::move(pures),
+              std::move(statics)
+          ),
+          fields(std::move(fields))
     {
     }
 
-    bool contains_member(const std::string& member_name) const;
-
-    Object_ptr get_member(const std::string& member_name) const;
-    void set_member(const std::string& member_name, Object_ptr value);
-
+    using BaseMemberedType::get_member;
     int get_member_index(const std::string& member_name) const;
     Object_ptr get_member(int member_id) const;
-
-    void add_overload(const std::string& member_name, Object_ptr overload);
-    ObjectVector get_overloads(const std::string& member_name) const;
-
     ObjectVector get_fields() const;
-    ObjectVector get_methods() const;
-    ObjectVector get_pures() const;
-    ObjectVector get_statics() const;
     ObjectVector get_members() const;
-
-    bool is_pure(std::string member_name) const;
-    bool is_static(std::string member_name) const;
 };
 
 using ClassType_ptr = std::shared_ptr<ClassType>;
 
-struct TraitType
+struct TraitType : public BaseOOPType
 {
-    std::string name;
+    using BaseOOPType::BaseOOPType;
 
-    StringVector methods;
-    StringVector pures;
-    StringVector statics;
-
-    ObjectStringMap members;
-
-    TraitType(
-        std::string name,
-        ObjectStringMap members,
-        StringVector methods,
-        StringVector pures,
-        StringVector statics
-    )
-        : name(std::move(name)), methods(std::move(methods)), pures(std::move(pures)),
-          statics(std::move(statics)), members(std::move(members))
-    {
-    }
-
-    bool contains_member(const std::string& member_name) const;
-
-    Object_ptr get_member(const std::string& member_name) const;
-    void set_member(const std::string& member_name, Object_ptr value);
-
+    using BaseMemberedType::get_member;
     int get_member_index(const std::string& member_name) const;
     Object_ptr get_member(int member_id) const;
-
-    void add_overload(const std::string& member_name, Object_ptr overload);
-    ObjectVector get_overloads(const std::string& member_name) const;
-
-    ObjectVector get_methods() const;
-    ObjectVector get_pures() const;
-    ObjectVector get_statics() const;
     ObjectVector get_members() const;
-
-    bool is_pure(std::string member_name) const;
-    bool is_static(std::string member_name) const;
 };
 
 using TraitType_ptr = std::shared_ptr<TraitType>;
-
-struct RecordType
-{
-};
 
 struct EnumType
 {
@@ -328,61 +284,15 @@ using GenericType_ptr = std::shared_ptr<GenericType>;
 struct TemplateType
 {
     ObjectStringMap generics;
+    Object_ptr underlying_type;
 
-    TemplateType(ObjectStringMap generics) : generics(std::move(generics))
+    TemplateType(ObjectStringMap generics, Object_ptr underlying_type = nullptr)
+        : generics(std::move(generics)), underlying_type(std::move(underlying_type))
     {
     }
 };
 
 using TemplateType_ptr = std::shared_ptr<TemplateType>;
-
-struct FunctionTemplateType : public TemplateType
-{
-    FunctionType_ptr signature;
-
-    FunctionTemplateType(ObjectStringMap generics, FunctionType_ptr signature)
-        : TemplateType(std::move(generics)), signature(std::move(signature))
-    {
-    }
-};
-
-using FunctionTemplateType_ptr = std::shared_ptr<FunctionTemplateType>;
-
-struct ClassTemplateType : public TemplateType
-{
-    ClassType_ptr underlying_type;
-
-    ClassTemplateType(ObjectStringMap generics, ClassType_ptr underlying_type = nullptr)
-        : TemplateType(std::move(generics)), underlying_type(std::move(underlying_type))
-    {
-    }
-};
-
-using ClassTemplateType_ptr = std::shared_ptr<ClassTemplateType>;
-
-struct TraitTemplateType : public TemplateType
-{
-    TraitType_ptr underlying_type;
-
-    TraitTemplateType(ObjectStringMap generics, TraitType_ptr underlying_type = nullptr)
-        : TemplateType(std::move(generics)), underlying_type(std::move(underlying_type))
-    {
-    }
-};
-
-using TraitTemplateType_ptr = std::shared_ptr<TraitTemplateType>;
-
-struct TypeAliasTemplateType : public TemplateType
-{
-    Object_ptr underlying_type;
-
-    TypeAliasTemplateType(ObjectStringMap generics, Object_ptr underlying_type = nullptr)
-        : TemplateType(std::move(generics)), underlying_type(std::move(underlying_type))
-    {
-    }
-};
-
-using TypeAliasTemplateType_ptr = std::shared_ptr<TypeAliasTemplateType>;
 
 // ============================================================================
 // Alias
@@ -392,11 +302,6 @@ struct TypeAlias
 {
     std::string name;
     Object_ptr aliased_type;
-
-    TypeAlias(std::string name, Object_ptr aliased_type)
-        : name(std::move(name)), aliased_type(std::move(aliased_type))
-    {
-    }
 };
 
 using TypeAlias_ptr = std::shared_ptr<TypeAlias>;
@@ -408,26 +313,21 @@ using TypeAlias_ptr = std::shared_ptr<TypeAlias>;
 struct IntObject
 {
     int value;
-    IntObject(int value) : value(value) {};
 };
-
 struct FloatObject
 {
     double value;
-    FloatObject(double value) : value(value) {};
+};
+struct BooleanObject
+{
+    bool value;
 };
 
 struct StringObject : public IterableAbstractObject
 {
     std::string value;
     StringObject(std::string value) : value(std::move(value)) {};
-    virtual Object_ptr get_iter() override;
-};
-
-struct BooleanObject
-{
-    bool value;
-    BooleanObject(bool value) : value(value) {};
+    Object_ptr get_iter() override;
 };
 
 // ============================================================================
@@ -437,73 +337,70 @@ struct BooleanObject
 struct IteratorObject
 {
     ObjectVector vec;
-    size_t index;
-
-    IteratorObject(ObjectVector v) : vec(std::move(v)), index(0)
+    size_t index = 0;
+    IteratorObject(ObjectVector v) : vec(std::move(v))
     {
     }
-
     bool has_next() const;
     std::optional<Object_ptr> get_next();
     void reset_iter();
 };
 
-struct ListObject : public IterableAbstractObject
+struct BaseArrayObject
 {
     ObjectVector values;
+    BaseArrayObject(ObjectVector values = {}) : values(std::move(values))
+    {
+    }
+    int get_length() const
+    {
+        return static_cast<int>(values.size());
+    }
+};
 
-    ListObject();
-    ListObject(ObjectVector values);
-
+struct ListObject : public BaseArrayObject, public IterableAbstractObject
+{
+    using BaseArrayObject::BaseArrayObject;
     Object_ptr append(Object_ptr value);
     Object_ptr prepend(Object_ptr value);
     Object_ptr pop_back();
     Object_ptr pop_front();
     Object_ptr get(Object_ptr index);
     Object_ptr set(Object_ptr index, Object_ptr value);
-
     void clear();
     bool is_empty();
-    int get_length();
-    virtual Object_ptr get_iter() override;
+    Object_ptr get_iter() override;
 };
 
-struct TupleObject
+struct TupleObject : public BaseArrayObject
 {
-    ObjectVector values;
-
-    TupleObject(ObjectVector values) : values(std::move(values)) {};
-
+    using BaseArrayObject::BaseArrayObject;
     Object_ptr get(Object_ptr index);
     Object_ptr set(Object_ptr index, Object_ptr value);
-    Object_ptr set(ObjectVector values);
-    int get_length();
+    Object_ptr set(ObjectVector new_values);
 };
 
-struct SetObject : public IterableAbstractObject
+struct SetObject : public BaseArrayObject, public IterableAbstractObject
 {
-    ObjectVector values;
-
-    SetObject(ObjectVector values) : values(std::move(values)) {};
-
+    using BaseArrayObject::BaseArrayObject;
     ObjectVector get();
-    Object_ptr set(ObjectVector values);
-    virtual Object_ptr get_iter() override;
-    int get_length();
+    Object_ptr set(ObjectVector new_values);
+    Object_ptr get_iter() override;
 };
 
 struct MapObject : public IterableAbstractObject
 {
     std::map<Object_ptr, Object_ptr> pairs;
-
-    MapObject(std::map<Object_ptr, Object_ptr> pairs) : pairs(std::move(pairs)) {};
+    MapObject(std::map<Object_ptr, Object_ptr> pairs = {}) : pairs(std::move(pairs))
+    {
+    }
 
     Object_ptr insert(Object_ptr key, Object_ptr value);
     Object_ptr get_pair(Object_ptr key);
     Object_ptr get(Object_ptr key);
     Object_ptr set(Object_ptr key, Object_ptr value);
-    virtual Object_ptr get_iter() override;
     int get_size();
+    Object_ptr get_iter() override;
 };
 
 struct VariantObject
@@ -532,17 +429,17 @@ struct RedoObject
 struct ReturnObject
 {
     std::optional<Object_ptr> value;
-
-    ReturnObject() : value(std::nullopt) {};
-    ReturnObject(Object_ptr value) : value(std::optional(std::move(value))) {};
+    ReturnObject(std::optional<Object_ptr> value = std::nullopt) : value(std::move(value))
+    {
+    }
 };
 
 struct ErrorObject
 {
     std::string message;
-
-    ErrorObject() : message("") {};
-    ErrorObject(std::string message) : message(std::move(message)) {};
+    ErrorObject(std::string message = "") : message(std::move(message))
+    {
+    }
 };
 
 // ============================================================================
@@ -553,11 +450,7 @@ struct FunctionBlueprintObject
 {
     CodeObject code;
     std::string name;
-
-    FunctionBlueprintObject(CodeObject code) : code(std::move(code))
-    {
-    }
-    FunctionBlueprintObject(CodeObject code, std::string name)
+    FunctionBlueprintObject(CodeObject code, std::string name = "")
         : code(std::move(code)), name(std::move(name))
     {
     }
@@ -570,12 +463,7 @@ struct FunctionRuntimeObject
     FunctionBlueprintObject_ptr blueprint;
     ObjectVector upvalues;
 
-    FunctionRuntimeObject(FunctionBlueprintObject_ptr blueprint)
-        : blueprint(std::move(blueprint)), upvalues({})
-    {
-    }
-
-    FunctionRuntimeObject(FunctionBlueprintObject_ptr blueprint, ObjectVector upvalues)
+    FunctionRuntimeObject(FunctionBlueprintObject_ptr blueprint, ObjectVector upvalues = {})
         : blueprint(std::move(blueprint)), upvalues(std::move(upvalues))
     {
     }
@@ -594,12 +482,13 @@ struct NativeFunctionObject
 {
     NativeFnType function;
     std::string name;
-
     NativeFunctionObject(NativeFnType function, std::string name)
-        : function(std::move(function)), name(name)
+        : function(std::move(function)), name(std::move(name))
     {
     }
 };
+
+using NativeFunctionObject_ptr = std::shared_ptr<NativeFunctionObject>;
 
 // ============================================================================
 // Overloads
@@ -607,21 +496,7 @@ struct NativeFunctionObject
 
 struct ObjectOverloadList
 {
-    std::string name;
     ObjectVector overloads;
-
-    ObjectOverloadList(std::string name) : name(std::move(name))
-    {
-    }
-
-    ObjectOverloadList(ObjectVector overloads) : overloads(std::move(overloads))
-    {
-    }
-
-    ObjectOverloadList(std::string name, ObjectVector overloads)
-        : name(std::move(name)), overloads(std::move(overloads))
-    {
-    }
 
     void add_overload(Object_ptr object)
     {
@@ -638,12 +513,7 @@ using ObjectOverloadList_ptr = std::shared_ptr<ObjectOverloadList>;
 struct MemberedCompositeObject
 {
     ObjectVector members;
-
-    MemberedCompositeObject() : members({})
-    {
-    }
-
-    MemberedCompositeObject(ObjectVector members) : members(std::move(members))
+    MemberedCompositeObject(ObjectVector members = {}) : members(std::move(members))
     {
     }
 
@@ -665,12 +535,7 @@ struct ModuleObject : public MemberedCompositeObject
 struct ClassBlueprintObject : public MemberedCompositeObject
 {
     int fields_count;
-
-    ClassBlueprintObject() : MemberedCompositeObject(), fields_count(0)
-    {
-    }
-
-    ClassBlueprintObject(ObjectVector members, int fields_count)
+    ClassBlueprintObject(ObjectVector members = {}, int fields_count = 0)
         : MemberedCompositeObject(std::move(members)), fields_count(fields_count)
     {
     }
@@ -678,9 +543,7 @@ struct ClassBlueprintObject : public MemberedCompositeObject
 
 struct InstanceObject : public MemberedCompositeObject
 {
-    InstanceObject(ObjectVector members) : MemberedCompositeObject(std::move(members))
-    {
-    }
+    using MemberedCompositeObject::MemberedCompositeObject;
 };
 
 struct TemplateObject : public MemberedCompositeObject
@@ -732,12 +595,6 @@ struct Object
         std::shared_ptr<ReturnObject>,
         std::shared_ptr<ErrorObject>,
 
-        std::shared_ptr<GenericType>,
-        std::shared_ptr<FunctionTemplateType>,
-        std::shared_ptr<ClassTemplateType>,
-        std::shared_ptr<TraitTemplateType>,
-        TypeAliasTemplateType_ptr,
-
         TypeType,
         AnyType,
         NoneType,
@@ -757,15 +614,16 @@ struct Object
         MapType,
         VariantType,
 
-        std::shared_ptr<FunctionType>,
-        std::shared_ptr<MethodType>,
+        Signature_ptr,
 
-        std::shared_ptr<RecordType>,
         ModuleType_ptr,
         ClassType_ptr,
         TraitType_ptr,
         EnumType_ptr,
-        TypeAlias_ptr>;
+        TypeAlias_ptr,
+
+        GenericType_ptr,
+        TemplateType_ptr>;
 
     UnderlyingVariant value;
 

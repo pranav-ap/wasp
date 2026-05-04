@@ -6,7 +6,6 @@
 #include "SymbolScope.h"
 #include "Workspace.h"
 
-
 #include <ctime>
 #include <memory>
 #include <string>
@@ -49,20 +48,26 @@ std::pair<Object_ptr, ObjectVector> SemanticAnalyzer::get_function_signature(Obj
 
     std::visit(
         overloaded{
-            [&](const std::shared_ptr<FunctionType>& t)
+            [&](const Signature_ptr& t)
             {
                 return_type = t->return_type;
                 param_types = t->parameter_types;
             },
-            [&](const std::shared_ptr<MethodType>& t)
+            [&](const TemplateType_ptr& t)
             {
-                return_type = t->return_type;
-                param_types = t->parameter_types;
-            },
-            [&](const std::shared_ptr<FunctionTemplateType>& t)
-            {
-                return_type = t->signature->return_type;
-                param_types = t->signature->parameter_types;
+                if (t->underlying_type->is<Signature_ptr>())
+                {
+                    auto sig = t->underlying_type->as<Signature_ptr>();
+                    return_type = sig->return_type;
+                    param_types = sig->parameter_types;
+                }
+                else
+                {
+                    Doctor::get().fatal(
+                        WaspStage::Semantics,
+                        "Expected template to wrap a signature."
+                    );
+                }
             },
             [&](const auto&)
             {
@@ -84,16 +89,21 @@ Object_ptr SemanticAnalyzer::get_function_return_type(Symbol_ptr symbol)
         return nullptr;
     }
 
-    if (auto p = type_obj->try_as<std::shared_ptr<FunctionType>>())
-    {
-        return (*p)->return_type;
-    }
-    if (auto p = type_obj->try_as<std::shared_ptr<MethodType>>())
+    if (auto p = type_obj->try_as<Signature_ptr>())
     {
         return (*p)->return_type;
     }
 
+    if (auto p = type_obj->try_as<TemplateType_ptr>())
+    {
+        if ((*p)->underlying_type->is<Signature_ptr>())
+        {
+            return (*p)->underlying_type->as<Signature_ptr>()->return_type;
+        }
+    }
+
     Doctor::get().fatal(WaspStage::Semantics, "Expected a valid function signature type.");
+    return nullptr;
 }
 
 // ============================================================================

@@ -90,10 +90,7 @@ struct TypeChecker
         const ObjectVector& generic_args
     ) const;
 
-    Object_ptr substitute_generics(
-        FunctionTemplateType_ptr templ,
-        const ObjectVector& generic_args
-    ) const;
+    Object_ptr substitute_generics(TemplateType_ptr templ, const ObjectVector& generic_args) const;
 
     // Type Checks
 

@@ -17,26 +17,24 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-std::shared_ptr<Signature> TypeChecker::get_function_signature(Object_ptr type_obj) const
+Signature_ptr TypeChecker::get_function_signature(Object_ptr type_obj) const
 {
     if (!type_obj)
     {
         return nullptr;
     }
 
-    if (auto p = type_obj->try_as<std::shared_ptr<FunctionType>>())
+    if (auto p = type_obj->try_as<Signature_ptr>())
     {
         return *p;
     }
 
-    if (auto p = type_obj->try_as<std::shared_ptr<MethodType>>())
+    if (auto p = type_obj->try_as<TemplateType_ptr>())
     {
-        return *p;
-    }
-
-    if (auto p = type_obj->try_as<std::shared_ptr<FunctionTemplateType>>())
-    {
-        return (*p)->signature;
+        if (auto sig = (*p)->underlying_type->try_as<Signature_ptr>())
+        {
+            return *sig;
+        }
     }
 
     return nullptr;
@@ -59,7 +57,7 @@ Object_ptr TypeChecker::spread_type(Object_ptr type)
             },
             [&](MapType const& t)
             {
-                return make_object(TupleType({t.key_type, t.value_type}));
+                return make_object(TupleType(ObjectVector{t.key_type, t.value_type}));
             },
             [&](const auto&) -> Object_ptr
             {
@@ -103,7 +101,7 @@ Object_ptr TypeChecker::extract_iterable_element_type(
             },
             [](MapType const& t) -> Object_ptr
             {
-                return make_object(TupleType({t.key_type, t.value_type}));
+                return make_object(TupleType(ObjectVector{t.key_type, t.value_type}));
             },
             [&](TupleType const& t) -> Object_ptr
             {
@@ -150,7 +148,7 @@ bool TypeChecker::is_boolean_type(Object_ptr obj) const
 
 bool TypeChecker::is_none_type(const Object_ptr type) const
 {
-    return type && holds_alternative<NoneType>(type->value);
+    return type && std::holds_alternative<NoneType>(type->value);
 }
 
 bool TypeChecker::is_condition_type(SymbolScope_ptr scope, const Object_ptr condition_type) const
@@ -273,7 +271,7 @@ void TypeChecker::expect_number_type(const Object_ptr type) const
 
 void TypeChecker::expect_int_type(const Object_ptr type) const
 {
-    Doctor::get().assert(is_int_type(type), WaspStage::Semantics, "Expected a integer type");
+    Doctor::get().assert(is_int_type(type), WaspStage::Semantics, "Expected an integer type");
 }
 
 void TypeChecker::expect_float_type(const Object_ptr type) const
