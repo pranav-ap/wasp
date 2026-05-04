@@ -122,7 +122,6 @@ private:
     void visit(FromImport& statement);
 
     void visit(FunctionDefinition& statement);
-    void visit(PureFunctionDefinition& statement);
 
     void visit(TemplateDefinition& statement);
 
@@ -181,10 +180,6 @@ private:
     void visit(TemplateInstantiation& expr);
 
     void visit(MethodDefinition& statement);
-    void visit(PureMethodDefinition& statement);
-    void visit(OurMethodDefinition& statement);
-    void visit(OurPureMethodDefinition& statement);
-
     void visit(FieldDefinition& statement);
 
     // -----------------------------------------------------------------------

@@ -161,98 +161,20 @@ Object_ptr SemanticAnalyzer::visit(RecordTypeNode& node)
     Doctor::get().fatal(WaspStage::Semantics, "Record types are not yet supported.");
 }
 
-Object_ptr SemanticAnalyzer::evaluate_type_template_instantiation(
-    Object_ptr base_type_obj,
-    const ObjectVector& resolved_args
-)
-{
-    if (base_type_obj->is<TemplateType_ptr>())
-    {
-        auto tmpl = base_type_obj->as<TemplateType_ptr>();
-        auto underlying = tmpl->underlying_type;
-
-        if (underlying->is<ClassType_ptr>())
-        {
-            auto base_class = underlying->as<ClassType_ptr>();
-
-            ObjectStringMap concrete_members;
-            for (const auto& [name, type] : base_class->members)
-            {
-                concrete_members[name] = type_checker
-                                             ->substitute_generics(type, tmpl, resolved_args);
-            }
-
-            return make_object(
-                std::make_shared<ClassType>(
-                    base_class->name,
-                    std::move(concrete_members),
-                    base_class->fields,
-                    base_class->methods,
-                    base_class->pures,
-                    base_class->statics
-                )
-            );
-        }
-        else if (underlying->is<TraitType_ptr>())
-        {
-            auto base_trait = underlying->as<TraitType_ptr>();
-
-            ObjectStringMap concrete_members;
-            for (const auto& [name, type] : base_trait->members)
-            {
-                concrete_members[name] = type_checker
-                                             ->substitute_generics(type, tmpl, resolved_args);
-            }
-
-            return make_object(
-                std::make_shared<TraitType>(
-                    base_trait->name,
-                    std::move(concrete_members),
-                    base_trait->methods,
-                    base_trait->pures,
-                    base_trait->statics
-                )
-            );
-        }
-        else
-        {
-            return type_checker->substitute_generics(underlying, tmpl, resolved_args);
-        }
-    }
-
-    Doctor::get().fatal(WaspStage::Semantics, "Failed to instantiate template type.");
-    return nullptr;
-}
-
 Object_ptr SemanticAnalyzer::visit(TemplateTypeNode& node)
 {
-    Object_ptr base_type_obj = visit(node.base_type);
+    Object_ptr base = visit(node.base_type);
 
-    ObjectVector resolved_args;
-    resolved_args.reserve(node.generic_args.size());
+    Doctor::get()
+        .assert(base->is<TemplateType_ptr>(), WaspStage::Semantics, "Target is not a template.");
 
-    for (const auto& arg : node.generic_args)
-    {
-        resolved_args.push_back(visit(arg));
-    }
+    auto template_type = base->as<TemplateType_ptr>();
 
-    if (base_type_obj->is<TemplateType_ptr>())
-    {
-        auto tmpl = base_type_obj->as<TemplateType_ptr>();
-        Doctor::get().assert(
-            tmpl->generics.size() == resolved_args.size(),
-            WaspStage::Semantics,
-            "Argument count mismatch for template."
-        );
-    }
-    else
-    {
-        Doctor::get().fatal(WaspStage::Semantics, "Target type is not a generic template.");
-    }
-
-    // Call your internal instantiation helper to bind the resolved_args
-    // to the template's generic parameters and return the concrete type.
-    return evaluate_type_template_instantiation(base_type_obj, resolved_args);
+    return type_checker->substitute_generics(
+        template_type->underlying_type,
+        template_type,
+        visit(node.generic_args)
+    );
 }
 
 } // namespace Wasp

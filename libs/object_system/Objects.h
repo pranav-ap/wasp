@@ -301,7 +301,7 @@ using TemplateType_ptr = std::shared_ptr<TemplateType>;
 struct TypeAlias
 {
     std::string name;
-    Object_ptr aliased_type;
+    Object_ptr underlying_type;
 };
 
 using TypeAlias_ptr = std::shared_ptr<TypeAlias>;

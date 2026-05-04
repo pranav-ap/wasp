@@ -7,8 +7,6 @@
 #include <memory>
 #include <string>
 
-#define MAKE_OBJECT_VARIANT(x) std::make_shared<Object>(x)
-
 template <class... Ts> struct overloaded : Ts... {
     using Ts::operator()...;
 };

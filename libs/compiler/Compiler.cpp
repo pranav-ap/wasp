@@ -89,7 +89,7 @@ void Compiler::visit(std::vector<Statement_ptr>& statements)
 {
     auto is_func = [](const Statement_ptr& s)
     {
-        return s->is<FunctionDefinition>() || s->is<PureFunctionDefinition>();
+        return s->is<FunctionDefinition>();
     };
 
     for (auto& stmt : statements)

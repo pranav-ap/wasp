@@ -14,11 +14,11 @@
 namespace Wasp
 {
 
-struct TypeChecker
+struct TypeSystem
 {
     ConstantPool_ptr pool;
 
-    TypeChecker(ConstantPool_ptr pool) : pool(pool) {};
+    TypeSystem(ConstantPool_ptr pool) : pool(pool) {};
 
     SymbolVector::iterator find_matching_signature(
         SymbolScope_ptr scope,
@@ -86,11 +86,14 @@ struct TypeChecker
 
     Object_ptr substitute_generics(
         Object_ptr type,
-        TemplateType_ptr templ,
+        TemplateType_ptr template_type,
         const ObjectVector& generic_args
     ) const;
 
-    Object_ptr substitute_generics(TemplateType_ptr templ, const ObjectVector& generic_args) const;
+    Object_ptr substitute_generics(
+        TemplateType_ptr template_type,
+        const ObjectVector& generic_args
+    ) const;
 
     // Type Checks
 
@@ -124,5 +127,5 @@ struct TypeChecker
     ObjectVector remove_duplicates(SymbolScope_ptr scope, const ObjectVector& vec) const;
 };
 
-using TypeChecker_ptr = std::shared_ptr<TypeChecker>;
+using TypeSystem_ptr = std::shared_ptr<TypeSystem>;
 } // namespace Wasp

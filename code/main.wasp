@@ -1,18 +1,13 @@
 from core.io import print
 
 template
-    T: any
+    T: int | str
 
-class Option
-    value: T
+class Foo
+    id: T
 
-    our pure fun new(val: T) => Option<T>
-        return Option<T>(val)
+    fun bar()
+        print(my.id)
 
-    fun talk() => T
-        return my.value
-
-
-let a = Option<int>.new(42)
-let b = a.talk()
-print(b)
+let f = Foo<int>(10)
+f.bar()

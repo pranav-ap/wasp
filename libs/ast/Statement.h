@@ -35,6 +35,7 @@ struct Definition : public Resolvable
     std::string name;
 
     Definition() = default;
+    virtual ~Definition() = default;
 
     explicit Definition(std::string name) : name(std::move(name))
     {
@@ -51,78 +52,52 @@ struct AbstractFunctionDefinition : public Definition
 
     std::shared_ptr<Symbol> group_symbol;
 
+    bool is_pure = false;
+
     AbstractFunctionDefinition() = default;
 
     AbstractFunctionDefinition(
         std::string name,
         std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters,
         TypeAnnotation_ptr return_type,
-        StatementVector body
+        StatementVector body,
+        bool is_pure = false
     )
         : Definition(std::move(name)), parameters(std::move(parameters)),
-          return_type(std::move(return_type)), body(std::move(body))
+          return_type(std::move(return_type)), body(std::move(body)), is_pure(is_pure)
     {
     }
 };
 
 struct FunctionDefinition : public AbstractFunctionDefinition
 {
-
-    FunctionDefinition() = default;
-
-    FunctionDefinition(
-        std::string name,
-        std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters,
-        TypeAnnotation_ptr return_type,
-        StatementVector body
-    )
-        : AbstractFunctionDefinition(
-              std::move(name),
-              std::move(parameters),
-              std::move(return_type),
-              std::move(body)
-          )
-    {
-    }
-};
-
-struct PureFunctionDefinition : public AbstractFunctionDefinition
-{
-
-    PureFunctionDefinition() = default;
-
-    PureFunctionDefinition(
-        std::string name,
-        std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters,
-        TypeAnnotation_ptr return_type,
-        StatementVector body
-    )
-        : AbstractFunctionDefinition(
-              std::move(name),
-              std::move(parameters),
-              std::move(return_type),
-              std::move(body)
-          ) {};
+    using AbstractFunctionDefinition::AbstractFunctionDefinition;
 };
 
 struct MethodDefinition : public AbstractFunctionDefinition
 {
-    using AbstractFunctionDefinition::AbstractFunctionDefinition;
-};
+    bool is_static = false;
 
-struct PureMethodDefinition : public AbstractFunctionDefinition
-{
-    using AbstractFunctionDefinition::AbstractFunctionDefinition;
-};
+    MethodDefinition() = default;
 
-struct OurMethodDefinition : public AbstractFunctionDefinition
-{
-    using AbstractFunctionDefinition::AbstractFunctionDefinition;
-};
-
-struct OurPureMethodDefinition : public AbstractFunctionDefinition
-{
-    using AbstractFunctionDefinition::AbstractFunctionDefinition;
+    MethodDefinition(
+        std::string name,
+        std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters,
+        TypeAnnotation_ptr return_type,
+        StatementVector body,
+        bool is_pure = false,
+        bool is_static = false
+    )
+        : AbstractFunctionDefinition(
+              std::move(name),
+              std::move(parameters),
+              std::move(return_type),
+              std::move(body),
+              is_pure
+          ),
+          is_static(is_static)
+    {
+    }
 };
 
 struct FieldDefinition : public Definition
@@ -163,12 +138,17 @@ struct TraitDefinition : public Definition
     }
 };
 
-struct TemplateDefinition
+struct TemplateDefinition : public Definition
 {
     std::vector<FieldDefinition> members;
-
-    // function or class or trait
     Statement_ptr target;
+
+    TemplateDefinition() = default;
+
+    TemplateDefinition(std::string name, std::vector<FieldDefinition> members, Statement_ptr target)
+        : Definition(std::move(name)), members(std::move(members)), target(std::move(target))
+    {
+    }
 };
 
 struct VariableDefinition : public Definition
@@ -406,11 +386,7 @@ using StatementVariant = std::variant<
     EnumDefinition,
 
     FunctionDefinition,
-    PureFunctionDefinition,
     MethodDefinition,
-    PureMethodDefinition,
-    OurMethodDefinition,
-    OurPureMethodDefinition,
 
     FieldDefinition,
     ClassDefinition,

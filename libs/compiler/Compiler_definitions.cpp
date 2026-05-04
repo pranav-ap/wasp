@@ -45,11 +45,7 @@ void Compiler::visit(FunctionDefinition& def)
 {
     if (def.symbol->is_native())
     {
-        std::string mangled = mangle_name(
-            def.name,
-            "", // No class name for free functions
-            def.symbol->module_path
-        );
+        std::string mangled = mangle_name(def.name, "", def.symbol->module_path);
 
         int registry_id = workspace->native_registry->get_native_index(mangled);
         emit(OpCode::GET_NATIVE, registry_id, mangled);
@@ -60,29 +56,8 @@ void Compiler::visit(FunctionDefinition& def)
     }
 
     int physical_index = get_or_add_local_index(def.group_symbol);
-    emit(OpCode::STORE_FUNCTION_OVERLOAD, physical_index, "fun " + def.name);
-}
-
-void Compiler::visit(PureFunctionDefinition& def)
-{
-    if (def.symbol->is_native())
-    {
-        std::string mangled = mangle_name(
-            def.name,
-            "", // No class name for free functions
-            def.symbol->module_path
-        );
-
-        int registry_id = workspace->native_registry->get_native_index(mangled);
-        emit(OpCode::GET_NATIVE, registry_id, mangled);
-    }
-    else
-    {
-        compile_function_closure(def.name, def.parameter_symbols, def.body);
-    }
-
-    int physical_index = get_or_add_local_index(def.group_symbol);
-    emit(OpCode::STORE_FUNCTION_OVERLOAD, physical_index, "pure fun " + def.name);
+    std::string debug_prefix = def.is_pure ? "pure fun " : "fun ";
+    emit(OpCode::STORE_FUNCTION_OVERLOAD, physical_index, debug_prefix + def.name);
 }
 
 void Compiler::visit(ClassDefinition& class_definition)
@@ -145,20 +120,9 @@ void Compiler::visit(ClassDefinition& class_definition)
                     {
                         compile_if_match(m, method_name, overload_count);
                     },
-                    [&](PureMethodDefinition& m)
-                    {
-                        compile_if_match(m, method_name, overload_count);
-                    },
-                    [&](OurMethodDefinition& m)
-                    {
-                        compile_if_match(m, method_name, overload_count);
-                    },
-                    [&](OurPureMethodDefinition& m)
-                    {
-                        compile_if_match(m, method_name, overload_count);
-                    },
                     [&](auto&)
                     {
+                        // Ignore fields, type aliases, etc.
                     }
                 },
                 stmt->data
@@ -238,10 +202,6 @@ void Compiler::visit(TemplateDefinition& statement)
             {
                 visit(f);
             },
-            [&](PureFunctionDefinition& f)
-            {
-                visit(f);
-            },
             [&](ClassDefinition& c)
             {
                 visit(c);
@@ -278,18 +238,6 @@ void Compiler::visit(AnnotationDefinition& statement)
 }
 
 void Compiler::visit(MethodDefinition& statement)
-{
-}
-
-void Compiler::visit(PureMethodDefinition& statement)
-{
-}
-
-void Compiler::visit(OurMethodDefinition& statement)
-{
-}
-
-void Compiler::visit(OurPureMethodDefinition& statement)
 {
 }
 

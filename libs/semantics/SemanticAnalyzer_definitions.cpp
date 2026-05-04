@@ -9,6 +9,7 @@
 
 #include "AST.h"
 #include "Doctor.h"
+#include "Expression.h"
 #include "Objects.h"
 #include "SemanticAnalyzer.h"
 #include "Statement.h"
@@ -23,196 +24,31 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
+// ---------------------------------------------------------------------------
+// Core Semantic Checks & Utilities
+// ---------------------------------------------------------------------------
 
-namespace
+void SemanticAnalyzer::validate_purity_constraints(Symbol_ptr target_symbol) const
 {
-template <typename DefType>
-void parse_common_members(
-    DefType& def,
-    ObjectStringMap& members,
-    StringVector& methods,
-    StringVector& pures,
-    StringVector& statics
-)
-{
-    auto add_m = [&](const std::string& n, auto& vec)
+    if (target_symbol->closure_depth >= current_scope->get_closure_depth())
     {
-        if (std::find(vec.begin(), vec.end(), n) == vec.end())
+        return;
+    }
+
+    auto scope = current_scope;
+
+    while (scope != nullptr && scope->get_closure_depth() > target_symbol->closure_depth)
+    {
+        if (scope->get_type() == ScopeType::PURE_FUNCTION ||
+            scope->get_type() == ScopeType::PURE_METHOD)
         {
-            vec.push_back(n);
-            members[n] = make_object(std::make_shared<ObjectOverloadList>());
+            Doctor::get().fatal(
+                WaspStage::Semantics,
+                "Pure functions cannot mutate outer state variable '" + target_symbol->name + "'"
+            );
         }
-    };
 
-    auto add_s = [&](const std::string& n)
-    {
-        if (std::find(statics.begin(), statics.end(), n) == statics.end())
-        {
-            statics.push_back(n);
-        }
-    };
-
-    for (auto& stmt : def.members)
-    {
-        std::visit(
-            overloaded{
-                [&](MethodDefinition& m)
-                {
-                    add_m(m.name, methods);
-                },
-                [&](OurMethodDefinition& m)
-                {
-                    add_m(m.name, methods);
-                    add_s(m.name);
-                },
-                [&](PureMethodDefinition& p)
-                {
-                    add_m(p.name, pures);
-                },
-                [&](OurPureMethodDefinition& p)
-                {
-                    add_m(p.name, pures);
-                    add_s(p.name);
-                },
-                [](FieldDefinition&)
-                {
-                },
-                [](auto&)
-                {
-                    Doctor::get().fatal(WaspStage::Semantics, "Invalid statement in body.");
-                }
-            },
-            stmt->data
-        );
-    }
-}
-} // namespace
-
-void SemanticAnalyzer::visit(Return& statement)
-{
-    Doctor::get().assert(
-        !return_type_stack.empty(),
-        WaspStage::Semantics,
-        "'return' statement used outside of a function."
-    );
-
-    Object_ptr expected = return_type_stack.back();
-    Object_ptr actual = statement.expression ? visit(statement.expression.value())
-                                             : workspace->pool->get_none_type();
-
-    Doctor::get().assert(
-        type_checker->assignable(current_scope, expected, actual),
-        WaspStage::Semantics,
-        "Return type mismatch"
-    );
-}
-
-template <typename DefType, typename TypeObjPtr, typename BaseTypePtr>
-void SemanticAnalyzer::analyze_membered_type(
-    DefType& def,
-    TypeObjPtr type_obj,
-    BaseTypePtr base_type
-)
-{
-    def.symbol->set_type(type_obj);
-
-    for (auto& stmt : def.members)
-    {
-        std::visit(
-            overloaded{
-                [&](MethodDefinition& m)
-                {
-                    hoist_method(base_type, m);
-                },
-                [&](PureMethodDefinition& m)
-                {
-                    hoist_method(base_type, m);
-                },
-                [&](OurMethodDefinition& m)
-                {
-                    hoist_method(base_type, m);
-                },
-                [&](OurPureMethodDefinition& m)
-                {
-                    hoist_method(base_type, m);
-                },
-                [](auto&)
-                {
-                }
-            },
-            stmt->data
-        );
-    }
-
-    for (auto& stmt : def.members)
-    {
-        std::visit(
-            overloaded{
-                [&](MethodDefinition& m)
-                {
-                    analyze_method_base(type_obj, m, ScopeType::METHOD, "my", true);
-                },
-                [&](OurMethodDefinition& m)
-                {
-                    analyze_method_base(type_obj, m, ScopeType::METHOD, "our", true);
-                },
-                [&](PureMethodDefinition& m)
-                {
-                    analyze_method_base(nullptr, m, ScopeType::PURE_METHOD, "my", false);
-                },
-                [&](OurPureMethodDefinition& m)
-                {
-                    analyze_method_base(nullptr, m, ScopeType::PURE_METHOD, "our", false);
-                },
-                [](auto&)
-                {
-                }
-            },
-            stmt->data
-        );
-    }
-}
-
-void SemanticAnalyzer::visit(ClassDefinition& def)
-{
-    auto class_type = initialize_class_type(def);
-    analyze_membered_type(def, make_object(class_type), class_type);
-
-    for (const auto& trait_name : def.traits)
-    {
-        verify_trait_compliance(def, class_type, trait_name);
-    }
-}
-
-void SemanticAnalyzer::verify_trait_compliance(
-    ClassDefinition& def,
-    ClassType_ptr class_type,
-    const std::string& trait_name
-)
-{
-    auto symbol = current_scope->lookup(trait_name);
-    Doctor::get()
-        .fatal_if_nullptr(symbol, WaspStage::Semantics, "Trait '" + trait_name + "' not found.");
-
-    auto trait_type = symbol->get_type()->as<TraitType_ptr>();
-
-    for (auto const& [member_name, trait_member_type] : trait_type->members)
-    {
-        Doctor::get().assert(
-            class_type->members.contains(member_name),
-            WaspStage::Semantics,
-            "Class '" + def.name + "' fails to implement required trait member: " + trait_name +
-                "." + member_name
-        );
-
-        auto class_member_type = class_type->members.at(member_name);
-
-        Doctor::get().assert(
-            are_types_compatible(trait_member_type, class_member_type),
-            WaspStage::Semantics,
-            "Implementation of '" + member_name + "' in class '" + def.name +
-                "' is incompatible with trait '" + trait_name + "'"
-        );
+        scope = scope->get_enclosing();
     }
 }
 
@@ -285,195 +121,229 @@ bool SemanticAnalyzer::are_types_compatible(
     return true;
 }
 
-ClassType_ptr SemanticAnalyzer::initialize_class_type(ClassDefinition& def)
+// ---------------------------------------------------------------------------
+// Variable Definitions & Assignments
+// ---------------------------------------------------------------------------
+
+Object_ptr SemanticAnalyzer::define_variable(Expression_ptr assignment_node, bool is_mutable)
 {
-    ObjectStringMap members;
-    StringVector fields;
-    StringVector methods;
-    StringVector pures;
-    StringVector statics;
+    Expression_ptr identifier_expr = nullptr;
+    Expression_ptr rhs_expr = nullptr;
+    Object_ptr declared_type = nullptr;
 
-    for (auto& stmt : def.members)
+    std::visit(
+        overloaded{
+            [&](UntypedAssignment& assign)
+            {
+                identifier_expr = assign.lhs_expression;
+                rhs_expr = assign.rhs_expression;
+            },
+            [&](TypedAssignment& assign)
+            {
+                identifier_expr = assign.lhs_expression;
+                rhs_expr = assign.rhs_expression;
+                declared_type = visit(assign.type_node);
+            },
+            [](auto&)
+            {
+                Doctor::get().fatal(WaspStage::Semantics, "Invalid variable definition expression");
+            }
+        },
+        assignment_node->data
+    );
+
+    Doctor::get().assert(
+        identifier_expr->is<Identifier>(),
+        WaspStage::Semantics,
+        "Left-hand side of definition must be an Identifier."
+    );
+
+    std::string symbol_name = identifier_expr->as<Identifier>().name;
+
+    Object_ptr initializer_type = visit(rhs_expr);
+    Object_ptr resolved_type = initializer_type;
+
+    if (declared_type)
     {
-        if (auto* f = std::get_if<FieldDefinition>(&stmt->data))
+        Doctor::get().assert(
+            type_checker->assignable(current_scope, declared_type, initializer_type),
+            WaspStage::Semantics,
+            "Type mismatch in variable definition for " + symbol_name
+        );
+
+        resolved_type = declared_type;
+    }
+    else
+    {
+        if (initializer_type->is<IntLiteralType>())
         {
-            auto field_type = visit(f->type);
-
-            Doctor::get().assert(
-                std::find(fields.begin(), fields.end(), f->name) == fields.end(),
-                WaspStage::Semantics,
-                "Duplicate field name " + f->name
-            );
-
-            fields.push_back(f->name);
-            members[f->name] = field_type;
+            resolved_type = workspace->pool->get_int_type();
+        }
+        else if (initializer_type->is<FloatLiteralType>())
+        {
+            resolved_type = workspace->pool->get_float_type();
+        }
+        else if (initializer_type->is<StringLiteralType>())
+        {
+            resolved_type = workspace->pool->get_string_type();
+        }
+        else if (initializer_type->is<BooleanLiteralType>())
+        {
+            resolved_type = workspace->pool->get_boolean_type();
         }
     }
 
-    parse_common_members(def, members, methods, pures, statics);
-
-    return std::make_shared<ClassType>(
-        def.name,
-        std::move(members),
-        std::move(fields),
-        std::move(methods),
-        std::move(pures),
-        std::move(statics)
-    );
-}
-
-void SemanticAnalyzer::visit(TraitDefinition& def)
-{
-    auto trait_type = initialize_trait_type(def);
-    analyze_membered_type(def, make_object(trait_type), trait_type);
-}
-
-TraitType_ptr SemanticAnalyzer::initialize_trait_type(TraitDefinition& def)
-{
-    ObjectStringMap members;
-    StringVector methods;
-    StringVector pures;
-    StringVector statics;
-
-    for (auto& stmt : def.members)
+    if (Symbol_ptr hoisted_symbol = current_scope->lookup(symbol_name))
     {
-        if (auto* f = std::get_if<FieldDefinition>(&stmt->data))
-        {
-            Doctor::get().fatal(WaspStage::Semantics, "Traits cannot contain fields.");
-        }
+        Doctor::get().assert(
+            hoisted_symbol->get_type() == nullptr,
+            WaspStage::Semantics,
+            "Variable '" + symbol_name + "' is hoisted but already has a type!"
+        );
+
+        hoisted_symbol->set_type(resolved_type);
+        identifier_expr->as<Identifier>().symbol = hoisted_symbol;
+
+        return hoisted_symbol->get_type();
     }
 
-    parse_common_members(def, members, methods, pures, statics);
-
-    return std::make_shared<TraitType>(
-        def.name,
-        std::move(members),
-        std::move(methods),
-        std::move(pures),
-        std::move(statics)
-    );
-}
-
-void SemanticAnalyzer::visit(FieldDefinition& stat)
-{
-    Doctor::get().fatal(WaspStage::Semantics, "Fields cannot be defined outside of a class.");
-}
-
-void SemanticAnalyzer::visit(MethodDefinition& stat)
-{
-    Doctor::get().fatal(
-        WaspStage::Semantics,
-        "Methods cannot be defined outside of a class or trait."
-    );
-}
-
-void SemanticAnalyzer::visit(PureMethodDefinition& stat)
-{
-    Doctor::get().fatal(
-        WaspStage::Semantics,
-        "Methods cannot be defined outside of a class or trait."
-    );
-}
-
-void SemanticAnalyzer::visit(OurMethodDefinition& stat)
-{
-    Doctor::get().fatal(
-        WaspStage::Semantics,
-        "Methods cannot be defined outside of a class or trait."
-    );
-}
-
-void SemanticAnalyzer::visit(OurPureMethodDefinition& stat)
-{
-    Doctor::get().fatal(
-        WaspStage::Semantics,
-        "Methods cannot be defined outside of a class or trait."
-    );
-}
-
-template <typename BaseTypePtr, typename MethodDef>
-void SemanticAnalyzer::hoist_method(BaseTypePtr base_type, MethodDef& m)
-{
-    auto [return_type, parameter_types] = get_function_signature(m);
-
-    Object_ptr signature = make_object(
-        std::make_shared<Signature>(Signature{parameter_types, return_type})
-    );
-
-    Symbol_ptr symbol = SymbolFactory::create_method(
-        m.name,
-        signature,
-        false,
+    auto local_symbol = SymbolFactory::create_variable(
+        symbol_name,
+        resolved_type,
+        is_mutable,
         current_scope->get_closure_depth(),
         current_scope->get_lexical_depth()
     );
 
-    type_checker
-        ->validate_new_method_overload(current_scope, base_type->get_overloads(m.name), symbol);
+    current_scope->define(local_symbol);
+    identifier_expr->as<Identifier>().symbol = local_symbol;
 
-    base_type->add_overload(m.name, signature);
-    m.symbol = symbol;
+    return local_symbol->get_type();
 }
 
-template <typename T>
-void SemanticAnalyzer::analyze_method_base(
-    Object_ptr class_or_trait_type_obj,
-    T& m,
-    ScopeType scope_type,
-    const std::string& receiver_name,
-    bool is_mutable
+Object_ptr SemanticAnalyzer::mutate_variable(
+    Expression_ptr identifier_expr,
+    Expression_ptr assigned_expr
 )
 {
-    enter_scope(scope_type);
-
-    auto signature = m.symbol->get_type();
-    auto [return_type, param_types] = get_function_signature(signature);
-    return_type_stack.push_back(return_type);
-
     Doctor::get().assert(
-        m.parameter_symbols.empty(),
+        identifier_expr->is<Identifier>(),
         WaspStage::Semantics,
-        "Expect parameter symbols to be empty at this stage"
+        "Left-hand side of assignment must be an Identifier."
     );
 
-    auto define_param = [&](const std::string& name, Object_ptr type)
-    {
-        auto sym = SymbolFactory::create_variable(
-            name,
-            type,
-            is_mutable,
-            current_scope->get_closure_depth(),
-            current_scope->get_lexical_depth()
-        );
+    auto& identifier_node = identifier_expr->as<Identifier>();
+    std::string symbol_name = identifier_node.name;
 
-        current_scope->define(sym);
-        m.parameter_symbols.push_back(sym);
-    };
+    Symbol_ptr target_symbol = current_scope->lookup(symbol_name);
 
-    if (!receiver_name.empty() && class_or_trait_type_obj)
-    {
-        define_param(receiver_name, class_or_trait_type_obj);
-    }
+    Doctor::get().fatal_if_nullptr(
+        target_symbol,
+        WaspStage::Semantics,
+        "Cannot assign to undefined variable '" + symbol_name + "'"
+    );
 
-    for (size_t i = 0; i < m.parameters.size(); ++i)
-    {
-        define_param(m.parameters[i].first, param_types[i]);
-    }
+    Doctor::get().assert(
+        target_symbol->payload_is<VariableData>(),
+        WaspStage::Semantics,
+        "Cannot assign to non-variable symbol '" + symbol_name + "'"
+    );
 
-    if (m.body.size() == 1 && m.body.front()->template is<Native>())
-    {
-        m.symbol->mark_as_native();
-    }
+    auto& var_data = target_symbol->get_payload_as<VariableData>();
 
-    visit(m.body);
+    Doctor::get().assert(
+        var_data.is_mutable,
+        WaspStage::Semantics,
+        "Cannot reassign immutable variable '" + symbol_name + "'"
+    );
 
-    return_type_stack.pop_back();
+    validate_purity_constraints(target_symbol);
 
-    leave_scope();
+    identifier_node.symbol = target_symbol;
+
+    Object_ptr assigned_type = visit(assigned_expr);
+
+    Doctor::get().assert(
+        type_checker->assignable(current_scope, target_symbol->get_type(), assigned_type),
+        WaspStage::Semantics,
+        "Type mismatch in assignment to '" + symbol_name + "'"
+    );
+
+    return target_symbol->get_type();
 }
 
-template <typename T>
-void SemanticAnalyzer::analyze_function(T& def, ScopeType scope_type, bool is_mutable)
+Object_ptr SemanticAnalyzer::mutate_member(Expression_ptr lhs_expr, Expression_ptr rhs_expr)
+{
+    auto& mac = lhs_expr->as<MemberAccess>();
+
+    Object_ptr expected_type = visit(mac);
+
+    if (mac.member_index == -1)
+    {
+        auto symbol = mac.right->as<Identifier>().symbol;
+        if (symbol && symbol->payload_is<VariableData>())
+        {
+            Doctor::get().assert(
+                symbol->get_payload_as<VariableData>().is_mutable,
+                WaspStage::Semantics,
+                "Cannot reassign immutable shared member: " + symbol->name
+            );
+        }
+    }
+
+    Object_ptr actual_type = visit(rhs_expr);
+
+    Doctor::get().assert(
+        type_checker->assignable(current_scope, expected_type, actual_type),
+        WaspStage::Semantics,
+        "Type mismatch in member assignment."
+    );
+
+    return expected_type;
+}
+
+void SemanticAnalyzer::visit(VariableDefinition& statement)
+{
+    define_variable(statement.expression, statement.is_mutable);
+}
+
+Object_ptr SemanticAnalyzer::visit(VariableDefinitionExpression& expr)
+{
+    return define_variable(expr.assignment, expr.is_mutable);
+}
+
+Object_ptr SemanticAnalyzer::visit(UntypedAssignment& expr)
+{
+    if (expr.lhs_expression->is<Identifier>())
+    {
+        return mutate_variable(expr.lhs_expression, expr.rhs_expression);
+    }
+
+    if (expr.lhs_expression->is<MemberAccess>())
+    {
+        return mutate_member(expr.lhs_expression, expr.rhs_expression);
+    }
+
+    Doctor::get().fatal(
+        WaspStage::Semantics,
+        "Left-hand side of assignment must be an Identifier or MemberAccess."
+    );
+}
+
+Object_ptr SemanticAnalyzer::visit(TypedAssignment& expr)
+{
+    Doctor::get().fatal(WaspStage::Semantics, "TypedAssignment cannot be visited directly");
+}
+
+// ---------------------------------------------------------------------------
+// Functions & Methods
+// ---------------------------------------------------------------------------
+
+void SemanticAnalyzer::analyze_function(
+    FunctionDefinition& def,
+    ScopeType scope_type,
+    bool is_mutable
+)
 {
     enter_scope(scope_type);
 
@@ -501,7 +371,7 @@ void SemanticAnalyzer::analyze_function(T& def, ScopeType scope_type, bool is_mu
         def.parameter_symbols.push_back(symbol);
     }
 
-    if (def.body.size() == 1 && def.body.front()->template is<Native>())
+    if (def.body.size() == 1 && def.body.front()->is<Native>())
     {
         def.symbol->mark_as_native();
     }
@@ -514,98 +384,272 @@ void SemanticAnalyzer::analyze_function(T& def, ScopeType scope_type, bool is_mu
 
 void SemanticAnalyzer::visit(FunctionDefinition& def)
 {
-    analyze_function(def, ScopeType::FUNCTION, true);
+    ScopeType scope = def.is_pure ? ScopeType::PURE_FUNCTION : ScopeType::FUNCTION;
+    bool is_mutable = !def.is_pure;
+
+    analyze_function(def, scope, is_mutable);
 }
 
-void SemanticAnalyzer::visit(PureFunctionDefinition& def)
+// ---------------------------------------------------------------------------
+// Classes & Traits
+// ---------------------------------------------------------------------------
+
+void SemanticAnalyzer::analyze_membered_type(ClassDefinition& def, ClassType_ptr class_type)
 {
-    analyze_function(def, ScopeType::PURE_FUNCTION, false);
+    auto type_obj = make_object(class_type);
+
+    // --- Pass 1: Hoisting ---
+    for (auto& stmt : def.members)
+    {
+        std::visit(
+            overloaded{
+                [&](MethodDefinition& m)
+                {
+                    auto [return_type, parameter_types] = get_function_signature(m);
+
+                    Object_ptr signature = make_object(
+                        std::make_shared<Signature>(Signature{parameter_types, return_type})
+                    );
+
+                    // Ensure the symbol factory knows if this is static vs instance
+                    Symbol_ptr symbol = SymbolFactory::create_method(
+                        m.name,
+                        signature,
+                        m.is_static,
+                        current_scope->get_closure_depth(),
+                        current_scope->get_lexical_depth()
+                    );
+
+                    type_checker->validate_new_method_overload(
+                        current_scope,
+                        class_type->get_overloads(m.name),
+                        symbol
+                    );
+
+                    class_type->add_overload(m.name, signature);
+                    m.symbol = symbol;
+                },
+                [](auto&)
+                {
+                }
+            },
+            stmt->data
+        );
+    }
+
+    // --- Pass 2: Analysis ---
+    for (auto& stmt : def.members)
+    {
+        std::visit(
+            overloaded{
+                [&](MethodDefinition& m)
+                {
+                    // 1. Determine the scope and self-reference name
+                    ScopeType scope = m.is_pure ? ScopeType::PURE_METHOD : ScopeType::METHOD;
+
+                    // STATIC uses 'our', INSTANCE uses 'my'
+                    std::string self_name = m.is_static ? "our" : "my";
+
+                    bool is_mutable = !m.is_pure;
+                    Object_ptr receiver_type = m.is_pure ? nullptr : type_obj;
+
+                    enter_scope(scope);
+
+                    auto signature = m.symbol->get_type();
+                    auto [return_type, param_types] = get_function_signature(signature);
+                    return_type_stack.push_back(return_type);
+
+                    auto define_param = [&](const std::string& name, Object_ptr type)
+                    {
+                        auto sym = SymbolFactory::create_variable(
+                            name,
+                            type,
+                            is_mutable,
+                            current_scope->get_closure_depth(),
+                            current_scope->get_lexical_depth()
+                        );
+
+                        current_scope->define(sym);
+                        m.parameter_symbols.push_back(sym);
+                    };
+
+                    // 2. Define the receiver (our/my) if applicable
+                    if (receiver_type)
+                    {
+                        define_param(self_name, receiver_type);
+                    }
+
+                    // 3. Define standard parameters
+                    for (size_t i = 0; i < m.parameters.size(); ++i)
+                    {
+                        define_param(m.parameters[i].first, param_types[i]);
+                    }
+
+                    if (m.body.size() == 1 && m.body.front()->is<Native>())
+                    {
+                        m.symbol->mark_as_native();
+                    }
+
+                    visit(m.body);
+
+                    return_type_stack.pop_back();
+                    leave_scope();
+                },
+                [](auto&)
+                {
+                }
+            },
+            stmt->data
+        );
+    }
 }
 
-void SemanticAnalyzer::visit(TemplateDefinition& statement)
+ClassType_ptr SemanticAnalyzer::initialize_class_type(ClassDefinition& def)
+{
+    ObjectStringMap members;
+    StringVector fields;
+    StringVector methods;
+    StringVector pures;
+    StringVector statics;
+
+    auto add_method = [&](const std::string& name, StringVector& target_vec)
+    {
+        if (std::find(target_vec.begin(), target_vec.end(), name) == target_vec.end())
+        {
+            target_vec.push_back(name);
+            members[name] = make_object(std::make_shared<ObjectOverloadList>());
+        }
+    };
+
+    for (auto& stmt : def.members)
+    {
+        std::visit(
+            overloaded{
+                [&](FieldDefinition& f)
+                {
+                    auto field_type = visit(f.type);
+
+                    Doctor::get().assert(
+                        std::find(fields.begin(), fields.end(), f.name) == fields.end(),
+                        WaspStage::Semantics,
+                        "Duplicate field name " + f.name
+                    );
+
+                    fields.push_back(f.name);
+                    members[f.name] = field_type;
+                },
+                [&](MethodDefinition& m)
+                {
+                    if (m.is_pure)
+                    {
+                        add_method(m.name, pures);
+                    }
+                    else
+                    {
+                        add_method(m.name, methods);
+                    }
+
+                    if (m.is_static)
+                    {
+                        if (std::find(statics.begin(), statics.end(), m.name) == statics.end())
+                        {
+                            statics.push_back(m.name);
+                        }
+                    }
+                },
+                [](auto&)
+                {
+                    Doctor::get().fatal(WaspStage::Semantics, "Invalid statement in body.");
+                }
+            },
+            stmt->data
+        );
+    }
+
+    return std::make_shared<ClassType>(
+        def.name,
+        std::move(members),
+        std::move(fields),
+        std::move(methods),
+        std::move(pures),
+        std::move(statics)
+    );
+}
+
+void SemanticAnalyzer::visit(ClassDefinition& def)
+{
+    auto class_type = initialize_class_type(def);
+    def.symbol->set_type(make_object(class_type));
+    analyze_membered_type(def, class_type);
+}
+
+void SemanticAnalyzer::visit(TraitDefinition& def)
+{
+    Doctor::get().fatal(WaspStage::Semantics, "Trait definitions are not supported for now");
+}
+
+// ---------------------------------------------------------------------------
+// Templates
+// ---------------------------------------------------------------------------
+
+void SemanticAnalyzer::visit(TemplateDefinition& template_def)
 {
     enter_scope(ScopeType::TEMPLATE);
 
-    ObjectStringMap generics;
+    auto template_type = template_def.symbol->get_type()->as<TemplateType_ptr>();
 
-    for (auto& field : statement.members)
+    for (auto& field : template_def.members)
     {
-        auto constraint_type = field.type ? visit(field.type) : workspace->pool->get_any_type();
-        auto generic_type_obj = make_object(
-            std::make_shared<GenericType>(GenericType{field.name, constraint_type})
-        );
-
+        auto generic_type_obj = template_type->generics.at(field.name);
         auto symbol = SymbolFactory::create_generic(field.name, generic_type_obj);
         field.symbol = current_scope->define(symbol);
-
-        generics[field.name] = generic_type_obj;
     }
 
     std::visit(
         overloaded{
             [&](FunctionDefinition& f)
             {
-                analyze_function(f, ScopeType::FUNCTION, true);
-            },
-            [&](PureFunctionDefinition& f)
-            {
-                analyze_function(f, ScopeType::PURE_FUNCTION, false);
+                ScopeType scope = f.is_pure ? ScopeType::PURE_FUNCTION : ScopeType::FUNCTION;
+                analyze_function(f, scope, !f.is_pure);
             },
             [&](ClassDefinition& c)
             {
                 auto class_type = initialize_class_type(c);
-                analyze_membered_type(
-                    c,
-                    make_object(std::make_shared<TemplateType>(generics, make_object(class_type))),
-                    class_type
-                );
+                template_type->underlying_type = make_object(class_type);
+                analyze_membered_type(c, class_type);
             },
             [&](TraitDefinition& t)
             {
-                auto trait_type = initialize_trait_type(t);
-                analyze_membered_type(
-                    t,
-                    make_object(std::make_shared<TemplateType>(generics, make_object(trait_type))),
-                    trait_type
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Trait definitions are not supported for now"
                 );
             },
             [&](TypeAliasDefinition& t)
             {
-                Object_ptr ref_type = visit(t.ref_type);
-                t.symbol->set_type(make_object(std::make_shared<TemplateType>(generics, ref_type)));
+                template_type->underlying_type = visit(t.ref_type);
             },
             [&](auto&)
             {
                 Doctor::get().fatal(WaspStage::Semantics, "Invalid template target");
             }
         },
-        statement.target->data
+        template_def.target->data
     );
 
     leave_scope();
 }
 
-void SemanticAnalyzer::visit(Native& statement)
-{
-    Doctor::get().fatal_if_nullptr(
-        current_module,
-        WaspStage::Semantics,
-        "Current module is nullptr while analyzing native statement"
-    );
-
-    std::string path = current_module->absolute_filepath.generic_string();
-
-    Doctor::get().assert(
-        path.find("/libs/core/") != std::string::npos,
-        WaspStage::Semantics,
-        "The 'native' keyword is strictly reserved for internal core libraries."
-    );
-}
+// ---------------------------------------------------------------------------
+// Others
+// ---------------------------------------------------------------------------
 
 void SemanticAnalyzer::visit(TypeAliasDefinition& def)
 {
-    Object_ptr ref_type = visit(def.ref_type);
-    def.symbol->set_type(make_object(std::make_shared<TypeAlias>(TypeAlias{def.name, ref_type})));
+    Object_ptr aliased_type = visit(def.ref_type);
+    def.symbol->set_type(
+        make_object(std::make_shared<TypeAlias>(TypeAlias{def.name, aliased_type}))
+    );
 }
 
 void SemanticAnalyzer::visit(EnumDefinition& def)
@@ -638,8 +682,61 @@ void SemanticAnalyzer::visit(EnumDefinition& def)
     def.symbol->set_type(make_object(enum_type));
 }
 
+void SemanticAnalyzer::visit(Return& statement)
+{
+    Doctor::get().assert(
+        !return_type_stack.empty(),
+        WaspStage::Semantics,
+        "'return' statement used outside of a function."
+    );
+
+    Object_ptr expected = return_type_stack.back();
+    Object_ptr actual = statement.expression ? visit(statement.expression.value())
+                                             : workspace->pool->get_none_type();
+
+    Doctor::get().assert(
+        type_checker->assignable(current_scope, expected, actual),
+        WaspStage::Semantics,
+        "Return type mismatch"
+    );
+}
+
+void SemanticAnalyzer::visit(Native& statement)
+{
+    Doctor::get().fatal_if_nullptr(
+        current_module,
+        WaspStage::Semantics,
+        "Current module is nullptr while analyzing native statement"
+    );
+
+    std::string path = current_module->absolute_filepath.generic_string();
+
+    Doctor::get().assert(
+        path.find("/libs/core/") != std::string::npos,
+        WaspStage::Semantics,
+        "The 'native' keyword is strictly reserved for internal core libraries."
+    );
+}
+
 void SemanticAnalyzer::visit(AnnotationDefinition& statement)
 {
+}
+
+// ---------------------------------------------------------------------------
+// Cannot Visit
+// ---------------------------------------------------------------------------
+
+void SemanticAnalyzer::visit(FieldDefinition& stat)
+{
+    Doctor::get().fatal(WaspStage::Semantics, "Fields cannot be defined outside of a class.");
+}
+
+void SemanticAnalyzer::visit(MethodDefinition& stat)
+{
+    Doctor::get().fatal(
+        WaspStage::Semantics,
+        "Methods cannot be defined outside of a class or trait."
+    );
 }
 
 } // namespace Wasp

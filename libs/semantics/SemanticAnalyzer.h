@@ -6,7 +6,7 @@
 #include "Statement.h"
 #include "SymbolScope.h"
 #include "TypeAnnotation.h"
-#include "TypeChecker.h"
+#include "TypeSystem.h"
 #include "Workspace.h"
 
 #include <memory>
@@ -21,13 +21,13 @@ class SemanticAnalyzer
 {
 public:
     SemanticAnalyzer(Workspace_ptr workspace)
-        : type_checker(std::make_shared<TypeChecker>(workspace->pool)), workspace(workspace) {};
+        : type_checker(std::make_shared<TypeSystem>(workspace->pool)), workspace(workspace) {};
 
     void run(const std::vector<Module_ptr>& build_order);
 
 private:
     Workspace_ptr workspace;
-    TypeChecker_ptr type_checker;
+    TypeSystem_ptr type_checker;
     Module_ptr current_module = nullptr;
     SymbolScope_ptr current_scope;
     ObjectVector return_type_stack;
@@ -44,54 +44,16 @@ private:
     StringVector setup_ordered_export_names(Module_ptr mod);
 
     // =========================================================================
-    // Hoisting
-    // =========================================================================
-    void hoist_statements(StatementVector& statements);
-    void hoist_class(ClassDefinition& def, std::shared_ptr<SymbolScope> target_scope);
-    void hoist_trait(TraitDefinition& def, std::shared_ptr<SymbolScope> target_scope);
-    void hoist_template_class(
-        ClassDefinition& def,
-        std::shared_ptr<SymbolScope> target_scope,
-        ObjectStringMap generics
-    );
-    void hoist_template_trait(
-        TraitDefinition& def,
-        std::shared_ptr<SymbolScope> target_scope,
-        ObjectStringMap generics
-    );
-    void hoist_template_type_alias(
-        TypeAliasDefinition& def,
-        std::shared_ptr<SymbolScope> target_scope,
-        ObjectStringMap generics
-    );
-    void hoist_template(TemplateDefinition& def, std::shared_ptr<SymbolScope> target_scope);
-
-    template <typename T> void hoist_function(T& def, std::shared_ptr<SymbolScope> target_scope);
-    template <typename T>
-    void hoist_template_function(
-        T& def,
-        std::shared_ptr<SymbolScope> target_scope,
-        ObjectStringMap generics
-    );
-
-    // Unified Method Hoisting
-    template <typename BaseTypePtr, typename MethodDef>
-    void hoist_method(BaseTypePtr base_type, MethodDef& m);
-
-    // =========================================================================
     // Statement Analysis
     // =========================================================================
+
     void visit(const Statement_ptr statement);
     void visit(StatementVector& statements);
+    void hoist_statements(StatementVector& statements);
 
-    // Exhaustive Statement Visitors (Required by std::visit to satisfy the compiler)
     void visit(ExpressionStatement& statement);
     void visit(FunctionDefinition& statement);
-    void visit(PureFunctionDefinition& statement);
     void visit(MethodDefinition& statement);
-    void visit(PureMethodDefinition& statement);
-    void visit(OurMethodDefinition& statement);
-    void visit(OurPureMethodDefinition& statement);
     void visit(TemplateDefinition& statement);
     void visit(ClassDefinition& statement);
     void visit(TraitDefinition& statement);
@@ -112,31 +74,13 @@ private:
     void visit(Return& statement);
 
     ClassType_ptr initialize_class_type(ClassDefinition& def);
-    TraitType_ptr initialize_trait_type(TraitDefinition& def);
-
-    template <typename DefType, typename TypeObjPtr, typename BaseTypePtr>
-    void analyze_membered_type(DefType& def, TypeObjPtr type_obj, BaseTypePtr base_type);
-
-    void verify_trait_compliance(
-        ClassDefinition& def,
-        ClassType_ptr class_type,
-        const std::string& trait_name
-    );
+    void analyze_membered_type(ClassDefinition& def, ClassType_ptr base_type);
 
     bool are_types_compatible(Object_ptr trait_member_type, Object_ptr class_member_type);
     ObjectVector extract_overloads(Object_ptr type_obj);
     bool is_signature_compatible(Object_ptr trait_func, Object_ptr class_func);
 
-    template <typename T> void analyze_function(T& def, ScopeType scope_type, bool is_mutable);
-
-    template <typename T>
-    void analyze_method_base(
-        Object_ptr class_type_obj,
-        T& m,
-        ScopeType scope_type,
-        const std::string& receiver_name,
-        bool is_mutable
-    );
+    void analyze_function(FunctionDefinition& def, ScopeType scope_type, bool is_mutable);
 
     // =========================================================================
     // Expression Analysis
@@ -255,11 +199,6 @@ private:
         const ObjectVector& argument_types,
         const ObjectVector& generic_args,
         Symbol_ptr template_symbol
-    );
-
-    Object_ptr evaluate_type_template_instantiation(
-        Object_ptr base_type_obj,
-        const ObjectVector& resolved_args
     );
 
     Object_ptr evaluate_type_template_instantiation(
