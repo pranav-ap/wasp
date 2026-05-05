@@ -2,7 +2,6 @@
 #include "AST.h"
 #include "Doctor.h"
 #include "Objects.h"
-#include "Statement.h"
 #include "SymbolScope.h"
 #include "Workspace.h"
 
@@ -74,22 +73,10 @@ StringVector SemanticAnalyzer::setup_ordered_export_names(Module_ptr mod)
     for (auto& stmt_ptr : mod->stmts)
     {
         std::visit(
-            overloaded{
-                [&](TemplateDefinition& def)
-                {
-                    std::visit(
-                        [&](auto& inner)
-                        {
-                            add_if_named(inner);
-                        },
-                        def.target->data
-                    );
-                },
-                [&](auto& def)
-                {
-                    add_if_named(def);
-                }
-            },
+            overloaded{[&](auto& def)
+                       {
+                           add_if_named(def);
+                       }},
             stmt_ptr->data
         );
     }

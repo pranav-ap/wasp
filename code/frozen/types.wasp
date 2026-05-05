@@ -1,11 +1,26 @@
+class Int
+    value: native int
+
+
 template
-    T: Any
-
+    T: any
 class List
-    data: T
+    values: [T]
 
-    pure fun get(index: int) => T
-        native
 
-    pure fun length() => int
-        native
+
+template
+    K: str | int
+    V: any
+class MapItem
+    key: K
+    value: V
+
+
+template
+    K: str | int
+    V: any
+class Map
+    items: [MapItem<K, V>]
+
+

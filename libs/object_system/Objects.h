@@ -101,6 +101,27 @@ struct BooleanLiteralType
 };
 
 // ============================================================================
+// Template Base (Constraints & Generics)
+// ============================================================================
+
+struct GenericType
+{
+    std::string name;
+    Object_ptr constraint_type;
+};
+
+using GenericType_ptr = std::shared_ptr<GenericType>;
+
+struct TemplatableType
+{
+    ObjectStringMap generics;
+
+    TemplatableType(ObjectStringMap generics = {}) : generics(std::move(generics))
+    {
+    }
+};
+
+// ============================================================================
 // Composite Types
 // ============================================================================
 
@@ -134,10 +155,21 @@ struct MapType
 // Function Types
 // ============================================================================
 
-struct Signature
+struct Signature : public TemplatableType
 {
     ObjectVector parameter_types;
     Object_ptr return_type;
+
+    Signature(
+        ObjectVector parameter_types,
+        Object_ptr return_type,
+        ObjectStringMap generics = {}
+    )
+        : TemplatableType(std::move(generics)),
+          parameter_types(std::move(parameter_types)),
+          return_type(std::move(return_type))
+    {
+    }
 };
 
 using Signature_ptr = std::shared_ptr<Signature>;
@@ -149,10 +181,10 @@ using Signature_ptr = std::shared_ptr<Signature>;
 struct BaseMemberedType
 {
     std::string name;
-    ObjectStringMap members;
+    ObjectStringMap member_types;
 
-    BaseMemberedType(std::string name, ObjectStringMap members = {})
-        : name(std::move(name)), members(std::move(members))
+    BaseMemberedType(std::string name, ObjectStringMap member_types = {})
+        : name(std::move(name)), member_types(std::move(member_types))
     {
     }
 
@@ -173,7 +205,8 @@ struct ModuleType : public BaseMemberedType
         ObjectStringMap members
     )
         : BaseMemberedType(std::move(name), std::move(members)),
-          absolute_filepath(std::move(absolute_filepath)), ordered_keys(std::move(ordered_keys))
+          absolute_filepath(std::move(absolute_filepath)),
+          ordered_keys(std::move(ordered_keys))
     {
     }
 
@@ -184,7 +217,8 @@ struct ModuleType : public BaseMemberedType
 };
 
 using ModuleType_ptr = std::shared_ptr<ModuleType>;
-struct BaseOOPType : public BaseMemberedType
+
+struct BaseOOPType : public BaseMemberedType, public TemplatableType
 {
     StringVector methods;
     StringVector pures;
@@ -195,9 +229,11 @@ struct BaseOOPType : public BaseMemberedType
         ObjectStringMap members,
         StringVector methods,
         StringVector pures,
-        StringVector statics
+        StringVector statics,
+        ObjectStringMap generics = {}
     )
-        : BaseMemberedType(std::move(name), std::move(members)), methods(std::move(methods)),
+        : BaseMemberedType(std::move(name), std::move(members)),
+          TemplatableType(std::move(generics)), methods(std::move(methods)),
           pures(std::move(pures)), statics(std::move(statics))
     {
     }
@@ -222,14 +258,16 @@ struct ClassType : public BaseOOPType
         StringVector fields,
         StringVector methods,
         StringVector pures,
-        StringVector statics
+        StringVector statics,
+        ObjectStringMap generics = {}
     )
         : BaseOOPType(
               std::move(name),
               std::move(members),
               std::move(methods),
               std::move(pures),
-              std::move(statics)
+              std::move(statics),
+              std::move(generics)
           ),
           fields(std::move(fields))
     {
@@ -270,38 +308,23 @@ struct EnumType
 using EnumType_ptr = std::shared_ptr<EnumType>;
 
 // ============================================================================
-// Template Types
-// ============================================================================
-
-struct GenericType
-{
-    std::string name;
-    Object_ptr constraint_type;
-};
-
-using GenericType_ptr = std::shared_ptr<GenericType>;
-
-struct TemplateType
-{
-    ObjectStringMap generics;
-    Object_ptr underlying_type;
-
-    TemplateType(ObjectStringMap generics, Object_ptr underlying_type = nullptr)
-        : generics(std::move(generics)), underlying_type(std::move(underlying_type))
-    {
-    }
-};
-
-using TemplateType_ptr = std::shared_ptr<TemplateType>;
-
-// ============================================================================
 // Alias
 // ============================================================================
 
-struct TypeAlias
+struct TypeAlias : public TemplatableType
 {
     std::string name;
     Object_ptr underlying_type;
+
+    TypeAlias(
+        std::string name,
+        Object_ptr underlying_type,
+        ObjectStringMap generics = {}
+    )
+        : TemplatableType(std::move(generics)), name(std::move(name)),
+          underlying_type(std::move(underlying_type))
+    {
+    }
 };
 
 using TypeAlias_ptr = std::shared_ptr<TypeAlias>;
@@ -314,10 +337,12 @@ struct IntObject
 {
     int value;
 };
+
 struct FloatObject
 {
     double value;
 };
+
 struct BooleanObject
 {
     bool value;
@@ -338,9 +363,11 @@ struct IteratorObject
 {
     ObjectVector vec;
     size_t index = 0;
+
     IteratorObject(ObjectVector v) : vec(std::move(v))
     {
     }
+
     bool has_next() const;
     std::optional<Object_ptr> get_next();
     void reset_iter();
@@ -349,9 +376,11 @@ struct IteratorObject
 struct BaseArrayObject
 {
     ObjectVector values;
+
     BaseArrayObject(ObjectVector values = {}) : values(std::move(values))
     {
     }
+
     int get_length() const
     {
         return static_cast<int>(values.size());
@@ -391,6 +420,7 @@ struct SetObject : public BaseArrayObject, public IterableAbstractObject
 struct MapObject : public IterableAbstractObject
 {
     std::map<Object_ptr, Object_ptr> pairs;
+
     MapObject(std::map<Object_ptr, Object_ptr> pairs = {}) : pairs(std::move(pairs))
     {
     }
@@ -429,6 +459,7 @@ struct RedoObject
 struct ReturnObject
 {
     std::optional<Object_ptr> value;
+
     ReturnObject(std::optional<Object_ptr> value = std::nullopt) : value(std::move(value))
     {
     }
@@ -437,6 +468,7 @@ struct ReturnObject
 struct ErrorObject
 {
     std::string message;
+
     ErrorObject(std::string message = "") : message(std::move(message))
     {
     }
@@ -450,6 +482,7 @@ struct FunctionBlueprintObject
 {
     CodeObject code;
     std::string name;
+
     FunctionBlueprintObject(CodeObject code, std::string name = "")
         : code(std::move(code)), name(std::move(name))
     {
@@ -463,7 +496,10 @@ struct FunctionRuntimeObject
     FunctionBlueprintObject_ptr blueprint;
     ObjectVector upvalues;
 
-    FunctionRuntimeObject(FunctionBlueprintObject_ptr blueprint, ObjectVector upvalues = {})
+    FunctionRuntimeObject(
+        FunctionBlueprintObject_ptr blueprint,
+        ObjectVector upvalues = {}
+    )
         : blueprint(std::move(blueprint)), upvalues(std::move(upvalues))
     {
     }
@@ -482,6 +518,7 @@ struct NativeFunctionObject
 {
     NativeFnType function;
     std::string name;
+
     NativeFunctionObject(NativeFnType function, std::string name)
         : function(std::move(function)), name(std::move(name))
     {
@@ -513,6 +550,7 @@ using ObjectOverloadList_ptr = std::shared_ptr<ObjectOverloadList>;
 struct MemberedCompositeObject
 {
     ObjectVector members;
+
     MemberedCompositeObject(ObjectVector members = {}) : members(std::move(members))
     {
     }
@@ -535,6 +573,7 @@ struct ModuleObject : public MemberedCompositeObject
 struct ClassBlueprintObject : public MemberedCompositeObject
 {
     int fields_count;
+
     ClassBlueprintObject(ObjectVector members = {}, int fields_count = 0)
         : MemberedCompositeObject(std::move(members)), fields_count(fields_count)
     {
@@ -544,16 +583,6 @@ struct ClassBlueprintObject : public MemberedCompositeObject
 struct InstanceObject : public MemberedCompositeObject
 {
     using MemberedCompositeObject::MemberedCompositeObject;
-};
-
-struct TemplateObject : public MemberedCompositeObject
-{
-    Object_ptr target;
-
-    TemplateObject(ObjectVector members, Object_ptr target)
-        : MemberedCompositeObject(std::move(members)), target(std::move(target))
-    {
-    }
 };
 
 // ============================================================================
@@ -622,8 +651,7 @@ struct Object
         EnumType_ptr,
         TypeAlias_ptr,
 
-        GenericType_ptr,
-        TemplateType_ptr>;
+        GenericType_ptr>;
 
     UnderlyingVariant value;
 

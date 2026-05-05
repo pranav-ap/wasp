@@ -209,14 +209,14 @@ struct Constructor
 
 struct Symbol;
 
-struct TemplateInstantiation : public Resolvable
+struct TemplateCreator : public Resolvable
 {
     Expression_ptr target;
     TypeAnnotationVector arguments;
 
     std::shared_ptr<Symbol> group_symbol = nullptr;
 
-    TemplateInstantiation(Expression_ptr target, TypeAnnotationVector generic_arguments)
+    TemplateCreator(Expression_ptr target, TypeAnnotationVector generic_arguments)
         : target(std::move(target)), arguments(std::move(generic_arguments))
     {
     }
@@ -258,7 +258,7 @@ using ExpressionVariant = std::variant<
 
     Call,
     Constructor,
-    TemplateInstantiation,
+    TemplateCreator,
 
     Prefix,
     Infix,

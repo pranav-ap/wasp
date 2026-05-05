@@ -69,17 +69,8 @@ void Compiler::visit(ClassDefinition& class_definition)
 
     int unique_method_count = 0;
 
-    std::shared_ptr<ClassType> class_type;
     auto type_obj = class_definition.symbol->get_type();
-
-    if (auto template_type = type_obj->try_as<TemplateType_ptr>())
-    {
-        class_type = (*template_type)->underlying_type->as<ClassType_ptr>();
-    }
-    else
-    {
-        class_type = type_obj->as<ClassType_ptr>();
-    }
+    std::shared_ptr<ClassType> class_type = type_obj->as<ClassType_ptr>();
 
     StringVector all_methods = class_type->methods;
     all_methods.insert(all_methods.end(), class_type->pures.begin(), class_type->pures.end());
@@ -187,40 +178,6 @@ void Compiler::compile_function_closure(
     emit(OpCode::LOAD_CONST, const_id, "fun " + name);
 
     emit_closure_upvalues(func_compiler.upvalues);
-}
-
-// TEMPLATES
-
-void Compiler::visit(TemplateDefinition& statement)
-{
-    Doctor::get()
-        .fatal_if_nullptr(statement.target, WaspStage::Compiler, "Template target cannot be null");
-
-    std::visit(
-        overloaded{
-            [&](FunctionDefinition& f)
-            {
-                visit(f);
-            },
-            [&](ClassDefinition& c)
-            {
-                visit(c);
-            },
-            [&](TraitDefinition& t)
-            {
-                visit(t);
-            },
-            [&](TypeAliasDefinition& t)
-            {
-                visit(t);
-            },
-            [&](auto&)
-            {
-                Doctor::get().fatal(WaspStage::Compiler, "Invalid template target");
-            }
-        },
-        statement.target->data
-    );
 }
 
 // OTHERS

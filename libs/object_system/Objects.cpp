@@ -50,7 +50,7 @@ int MemberedCompositeObject::get_member_count() const
 
 bool BaseMemberedType::contains_member(const std::string& member_name) const
 {
-    return members.contains(member_name);
+    return member_types.contains(member_name);
 }
 
 Object_ptr BaseMemberedType::get_member(const std::string& member_name) const
@@ -60,12 +60,12 @@ Object_ptr BaseMemberedType::get_member(const std::string& member_name) const
         WaspStage::Semantics,
         "Type Member '" + member_name + "' not found!"
     );
-    return members.at(member_name);
+    return member_types.at(member_name);
 }
 
 void BaseMemberedType::set_member(const std::string& member_name, Object_ptr value)
 {
-    members[member_name] = std::move(value);
+    member_types[member_name] = std::move(value);
 }
 
 Object_ptr ModuleType::get_member(int member_id) const
@@ -75,7 +75,7 @@ Object_ptr ModuleType::get_member(int member_id) const
         WaspStage::Semantics,
         "Type Member index out of bounds!"
     );
-    return members.at(ordered_keys[member_id]);
+    return member_types.at(ordered_keys[member_id]);
 }
 
 void ModuleType::set_member(int member_id, Object_ptr value)
@@ -85,7 +85,7 @@ void ModuleType::set_member(int member_id, Object_ptr value)
         WaspStage::Semantics,
         "Type Member index out of bounds!"
     );
-    members[ordered_keys[member_id]] = std::move(value);
+    member_types[ordered_keys[member_id]] = std::move(value);
 }
 
 int ModuleType::get_member_index(const std::string& member_name) const
@@ -106,30 +106,33 @@ int ModuleType::get_member_index(const std::string& member_name) const
 
 void BaseOOPType::add_overload(const std::string& member_name, Object_ptr overload)
 {
-    if (!members.contains(member_name))
+    if (!member_types.contains(member_name))
     {
-        members[member_name] = make_object(std::make_shared<ObjectOverloadList>());
+        member_types[member_name] = make_object(
+            std::make_shared<ObjectOverloadList>()
+        );
     }
 
     Doctor::get().assert(
-        members.at(member_name)->is<ObjectOverloadList_ptr>(),
+        member_types.at(member_name)->is<ObjectOverloadList_ptr>(),
         WaspStage::Semantics,
         "Expected an ObjectOverloadList for member '" + member_name + "' in " + name
     );
 
-    auto overload_list = members.at(member_name)->as<ObjectOverloadList_ptr>();
+    auto overload_list = member_types.at(member_name)->as<ObjectOverloadList_ptr>();
     overload_list->add_overload(std::move(overload));
 }
 
 ObjectVector BaseOOPType::get_overloads(const std::string& member_name) const
 {
     Doctor::get().assert(
-        contains_member(member_name) && members.at(member_name)->is<ObjectOverloadList_ptr>(),
+        contains_member(member_name) &&
+            member_types.at(member_name)->is<ObjectOverloadList_ptr>(),
         WaspStage::Semantics,
         "Expected an ObjectOverloadList for member '" + member_name + "' in " + name
     );
 
-    auto overload_list = members.at(member_name)->as<ObjectOverloadList_ptr>();
+    auto overload_list = member_types.at(member_name)->as<ObjectOverloadList_ptr>();
     return overload_list->overloads;
 }
 
@@ -137,7 +140,7 @@ ObjectVector BaseOOPType::get_methods() const
 {
     ObjectVector method_types;
     for (const auto& method_name : methods)
-        method_types.push_back(members.at(method_name));
+        method_types.push_back(member_types.at(method_name));
     return method_types;
 }
 
@@ -145,7 +148,7 @@ ObjectVector BaseOOPType::get_pures() const
 {
     ObjectVector pure_types;
     for (const auto& pure_name : pures)
-        pure_types.push_back(members.at(pure_name));
+        pure_types.push_back(member_types.at(pure_name));
     return pure_types;
 }
 
@@ -153,7 +156,7 @@ ObjectVector BaseOOPType::get_statics() const
 {
     ObjectVector static_types;
     for (const auto& static_name : statics)
-        static_types.push_back(members.at(static_name));
+        static_types.push_back(member_types.at(static_name));
     return static_types;
 }
 
@@ -192,15 +195,15 @@ Object_ptr ClassType::get_member(int member_id) const
 {
     int field_count = static_cast<int>(fields.size());
     if (member_id < field_count)
-        return members.at(fields[member_id]);
+        return member_types.at(fields[member_id]);
 
     int method_index = member_id - field_count;
     if (method_index < static_cast<int>(methods.size()))
-        return members.at(methods[method_index]);
+        return member_types.at(methods[method_index]);
 
     int pure_index = method_index - static_cast<int>(methods.size());
     if (pure_index < static_cast<int>(pures.size()))
-        return members.at(pures[pure_index]);
+        return member_types.at(pures[pure_index]);
 
     Doctor::get().fatal(WaspStage::Semantics, "ClassType member index out of bounds!");
 }
@@ -209,7 +212,7 @@ ObjectVector ClassType::get_fields() const
 {
     ObjectVector field_types;
     for (const auto& field_name : fields)
-        field_types.push_back(members.at(field_name));
+        field_types.push_back(member_types.at(field_name));
     return field_types;
 }
 
@@ -243,11 +246,11 @@ int TraitType::get_member_index(const std::string& member_name) const
 Object_ptr TraitType::get_member(int member_id) const
 {
     if (member_id < static_cast<int>(methods.size()))
-        return members.at(methods[member_id]);
+        return member_types.at(methods[member_id]);
 
     int pure_index = member_id - static_cast<int>(methods.size());
     if (pure_index < static_cast<int>(pures.size()))
-        return members.at(pures[pure_index]);
+        return member_types.at(pures[pure_index]);
 
     Doctor::get().fatal(WaspStage::Semantics, "TraitType member index out of bounds!");
     return nullptr;

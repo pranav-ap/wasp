@@ -35,6 +35,7 @@ private:
     // =========================================================================
     // Scope & Environment Management
     // =========================================================================
+
     void enter_scope(ScopeType scope_type);
     void leave_scope();
     void leave_scope_keep_symbol(Symbol_ptr symbol_to_keep);
@@ -54,7 +55,6 @@ private:
     void visit(ExpressionStatement& statement);
     void visit(FunctionDefinition& statement);
     void visit(MethodDefinition& statement);
-    void visit(TemplateDefinition& statement);
     void visit(ClassDefinition& statement);
     void visit(TraitDefinition& statement);
     void visit(FieldDefinition& statement);
@@ -73,17 +73,12 @@ private:
     void visit(Native& statement);
     void visit(Return& statement);
 
-    ClassType_ptr initialize_class_type(ClassDefinition& def);
-    void analyze_membered_type(ClassDefinition& def, ClassType_ptr base_type);
-    void analyze_function(
-        FunctionDefinition& def,
-        ScopeType scope_type,
-        bool parameters_are_mutable
-    );
+    bool prepare_generic_scope(const ObjectStringMap& generics);
 
     // =========================================================================
     // Expression Analysis
     // =========================================================================
+
     Object_ptr visit(const Expression_ptr expr);
     ObjectVector visit(ExpressionVector expressions);
 
@@ -111,7 +106,7 @@ private:
     Object_ptr visit(ElseTernaryBranch& expr);
     Object_ptr visit(Call& expr);
     Object_ptr visit(Constructor& expr);
-    Object_ptr visit(TemplateInstantiation& template_instantiation);
+    Object_ptr visit(TemplateCreator& template_instantiation);
 
     Object_ptr define_variable(Expression_ptr assignment_expr, bool is_mutable);
     Object_ptr mutate_variable(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
@@ -120,87 +115,33 @@ private:
     // =========================================================================
     // Call & Instantiation Evaluators
     // =========================================================================
-    std::pair<Object_ptr, ObjectVector> get_function_signature(AbstractFunctionDefinition& func);
-    std::pair<Object_ptr, ObjectVector> get_function_signature(Object_ptr type_obj);
-    Object_ptr get_function_return_type(Symbol_ptr symbol);
+
     bool is_native_function(Symbol_ptr symbol);
     void validate_purity_constraints(Symbol_ptr target_symbol) const;
 
     void bind_identifier(Identifier& id, Symbol_ptr symbol);
-    Symbol_ptr resolve_module_export(MemberAccess& access);
-    void validate_implicit_instance_creation(
-        ClassType_ptr class_type,
-        const ObjectVector& arg_types
-    );
+    std::pair<Symbol_ptr, Symbol_ptr> get_module_member_symbol(MemberAccess& access);
 
     Object_ptr evaluate_function_call(
-        Call& call_expr,
-        Identifier& callable_identifier,
-        const ObjectVector& arg_types,
-        Symbol_ptr function_overload_symbol
+        Call& call,
+        Identifier& identifier,
+        const ObjectVector& argument_types,
+        Symbol_ptr overload_symbol,
+        Symbol_ptr module_symbol = nullptr
     );
-    Object_ptr evaluate_module_function_call(
-        Call& call_expr,
-        MemberAccess& mac,
-        const ObjectVector& arg_types
-    );
+
     Object_ptr evaluate_class_method_call(
-        Call& call_expr,
+        Call& call,
         MemberAccess& mac,
-        const ObjectVector& arg_types,
+        const ObjectVector& argument_types,
         ClassType_ptr class_type
     );
 
     Object_ptr evaluate_instance_creation(
         Constructor& constructor,
-        Identifier& callable_identifier,
+        Identifier& identifier,
         Symbol_ptr symbol,
-        const ObjectVector& arg_types
-    );
-    Object_ptr evaluate_module_instance_creation(
-        Constructor& constructor,
-        MemberAccess& access,
-        const ObjectVector& arg_types
-    );
-    Object_ptr evaluate_template_call(
-        Call& call_expr,
-        TemplateInstantiation& template_instantiation,
         const ObjectVector& argument_types
-    );
-    Object_ptr evaluate_template_function_call(
-        Call& call,
-        TemplateInstantiation& template_instantiation,
-        Identifier& target,
-        const ObjectVector& argument_types,
-        Symbol_ptr function_overload_symbol
-    );
-    Object_ptr evaluate_template_module_function_call(
-        Call& call,
-        TemplateInstantiation& template_instantiation,
-        MemberAccess& access,
-        const ObjectVector& argument_types
-    );
-    Object_ptr evaluate_template_method_call(
-        Call& call,
-        TemplateInstantiation& template_instantiation,
-        MemberAccess& member_access,
-        const ObjectVector& argument_types,
-        ClassType_ptr class_type
-    );
-    Object_ptr evaluate_class_template_instantiation(
-        Constructor& constructor,
-        TemplateInstantiation& template_instantiation,
-        Identifier& target,
-        const ObjectVector& argument_types,
-        const ObjectVector& generic_args,
-        Symbol_ptr template_symbol
-    );
-
-    Object_ptr evaluate_type_template_instantiation(
-        TemplateInstantiation& template_instantiation,
-        Identifier& target,
-        Symbol_ptr template_symbol,
-        const ObjectVector& generic_args
     );
 
     // =========================================================================
@@ -227,6 +168,6 @@ private:
     Object_ptr visit(VariantTypeNode& expr);
     Object_ptr visit(FunctionTypeNode& expr);
     Object_ptr visit(RecordTypeNode& expr);
-    Object_ptr visit(TemplateTypeNode& node);
+    Object_ptr visit(ConcreteTemplateTypeNode& node);
 };
 } // namespace Wasp

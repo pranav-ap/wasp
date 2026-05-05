@@ -4,10 +4,8 @@
 #include "SemanticAnalyzer.h"
 #include "TypeAnnotation.h"
 
-#include <map>
 #include <memory>
 #include <string>
-#include <utility>
 #include <variant>
 
 template <class... Ts> struct overloaded : Ts...
@@ -43,7 +41,6 @@ Object_ptr SemanticAnalyzer::visit(const TypeAnnotation_ptr type_node)
                     WaspStage::Semantics,
                     "Unhandled TypeAnnotation node in visitor"
                 );
-                return nullptr;
             },
             [&](auto& node) -> Object_ptr
             {
@@ -161,20 +158,12 @@ Object_ptr SemanticAnalyzer::visit(RecordTypeNode& node)
     Doctor::get().fatal(WaspStage::Semantics, "Record types are not yet supported.");
 }
 
-Object_ptr SemanticAnalyzer::visit(TemplateTypeNode& node)
+Object_ptr SemanticAnalyzer::visit(ConcreteTemplateTypeNode& node)
 {
     Object_ptr base = visit(node.base_type);
+    ObjectVector generic_args = visit(node.generic_args);
 
-    Doctor::get()
-        .assert(base->is<TemplateType_ptr>(), WaspStage::Semantics, "Target is not a template.");
-
-    auto template_type = base->as<TemplateType_ptr>();
-
-    return type_checker->substitute_generics(
-        template_type->underlying_type,
-        template_type,
-        visit(node.generic_args)
-    );
+    return type_checker->substitute_generics(base, generic_args);
 }
 
 } // namespace Wasp

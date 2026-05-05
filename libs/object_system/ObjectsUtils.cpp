@@ -166,10 +166,6 @@ bool are_equal_types(Object_ptr left, Object_ptr right)
             {
                 return l->name == r->name;
             },
-            [](const TemplateType_ptr& l, const TemplateType_ptr& r)
-            {
-                return are_equal_types(l->underlying_type, r->underlying_type);
-            },
 
             // Catch-all for identical types that don't need manual value checking
             // e.g., IntObject, FloatType
@@ -336,10 +332,6 @@ std::string stringify_object(Object_ptr value)
             {
                 return "generic type: " + gen->name;
             },
-            [](const TemplateType_ptr&) -> std::string
-            {
-                return "template type";
-            },
 
             // Composite Objects
             [](const std::shared_ptr<IteratorObject>&) -> std::string
@@ -417,10 +409,6 @@ std::string stringify_object(Object_ptr value)
             [](const std::shared_ptr<ClassBlueprintObject>&) -> std::string
             {
                 return "<class blueprint>";
-            },
-            [](const std::shared_ptr<TemplateObject>&) -> std::string
-            {
-                return "<template object>";
             },
 
             // Overload Groups

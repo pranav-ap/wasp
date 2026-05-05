@@ -3,7 +3,6 @@
 #include "AST.h"
 #include "Token.h"
 
-#include <map>
 #include <memory>
 #include <string>
 #include <utility>
@@ -42,7 +41,7 @@ struct MapTypeNode;
 struct VariantTypeNode;
 struct FunctionTypeNode;
 struct RecordTypeNode;
-struct TemplateTypeNode;
+struct ConcreteTemplateTypeNode;
 
 struct ListTypeNode {
     TypeAnnotation_ptr element_type;
@@ -97,13 +96,18 @@ struct RecordTypeNode
     }
 };
 
-struct TemplateTypeNode
+// Foo<T>
+struct ConcreteTemplateTypeNode
 {
     TypeAnnotation_ptr base_type;
     TypeAnnotationVector generic_args;
 
-    explicit TemplateTypeNode() = default;
-    explicit TemplateTypeNode(TypeAnnotation_ptr base_type, TypeAnnotationVector args)
+    explicit ConcreteTemplateTypeNode() = default;
+
+    explicit ConcreteTemplateTypeNode(
+        TypeAnnotation_ptr base_type,
+        TypeAnnotationVector args
+    )
         : base_type(std::move(base_type)), generic_args(std::move(args))
     {
     }
@@ -134,7 +138,7 @@ using TypeAnnotationVariant = std::variant<
     std::shared_ptr<VariantTypeNode>,
     std::shared_ptr<FunctionTypeNode>,
     std::shared_ptr<RecordTypeNode>,
-    std::shared_ptr<TemplateTypeNode>>;
+    std::shared_ptr<ConcreteTemplateTypeNode>>;
 
 struct TypeAnnotation : public AstNode<TypeAnnotationVariant> {
     using AstNode::AstNode;

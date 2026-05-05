@@ -42,6 +42,30 @@ struct Definition : public Resolvable
     }
 };
 
+struct FieldDefinition : public Definition
+{
+    TypeAnnotation_ptr type;
+
+    FieldDefinition() = default;
+
+    FieldDefinition(std::string name, TypeAnnotation_ptr type)
+        : Definition(std::move(name)), type(std::move(type))
+    {
+    }
+};
+
+struct Templatable
+{
+    std::vector<FieldDefinition> generics;
+
+    Templatable() = default;
+
+    explicit Templatable(std::vector<FieldDefinition> generics)
+        : generics(std::move(generics))
+    {
+    }
+};
+
 struct AbstractFunctionDefinition : public Definition
 {
     std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters;
@@ -64,14 +88,35 @@ struct AbstractFunctionDefinition : public Definition
         bool is_pure = false
     )
         : Definition(std::move(name)), parameters(std::move(parameters)),
-          return_type(std::move(return_type)), body(std::move(body)), is_pure(is_pure)
+          return_type(std::move(return_type)), body(std::move(body)),
+          is_pure(is_pure)
     {
     }
 };
 
-struct FunctionDefinition : public AbstractFunctionDefinition
+// Standalone functions remain Templatable
+struct FunctionDefinition : public AbstractFunctionDefinition, public Templatable
 {
-    using AbstractFunctionDefinition::AbstractFunctionDefinition;
+    FunctionDefinition() = default;
+
+    FunctionDefinition(
+        std::string name,
+        std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters,
+        TypeAnnotation_ptr return_type,
+        StatementVector body,
+        bool is_pure = false,
+        std::vector<FieldDefinition> generics = {}
+    )
+        : AbstractFunctionDefinition(
+              std::move(name),
+              std::move(parameters),
+              std::move(return_type),
+              std::move(body),
+              is_pure
+          ),
+          Templatable(std::move(generics))
+    {
+    }
 };
 
 struct MethodDefinition : public AbstractFunctionDefinition
@@ -100,57 +145,60 @@ struct MethodDefinition : public AbstractFunctionDefinition
     }
 };
 
-struct FieldDefinition : public Definition
-{
-    TypeAnnotation_ptr type;
-
-    FieldDefinition() = default;
-
-    FieldDefinition(std::string name, TypeAnnotation_ptr type)
-        : Definition(std::move(name)), type(std::move(type))
-    {
-    }
-};
-
-struct ClassDefinition : public Definition
+struct ClassDefinition : public Definition, public Templatable
 {
     StringVector traits;
     StatementVector members;
 
     ClassDefinition() = default;
 
-    ClassDefinition(std::string name, StringVector traits, StatementVector members)
-        : Definition(std::move(name)), traits(std::move(traits)), members(std::move(members))
+    ClassDefinition(
+        std::string name,
+        StringVector traits,
+        StatementVector members,
+        std::vector<FieldDefinition> generics = {}
+    )
+        : Definition(std::move(name)), Templatable(std::move(generics)),
+          traits(std::move(traits)), members(std::move(members))
     {
     }
 };
 
-struct TraitDefinition : public Definition
+struct TraitDefinition : public Definition, public Templatable
 {
     StringVector traits;
     StatementVector members;
 
     TraitDefinition() = default;
 
-    TraitDefinition(std::string name, StringVector traits, StatementVector members)
-        : Definition(std::move(name)), traits(std::move(traits)), members(std::move(members))
+    TraitDefinition(
+        std::string name,
+        StringVector traits,
+        StatementVector members,
+        std::vector<FieldDefinition> generics = {}
+    )
+        : Definition(std::move(name)), Templatable(std::move(generics)),
+          traits(std::move(traits)), members(std::move(members))
     {
     }
 };
 
-struct TemplateDefinition : public Definition
+struct TypeAliasDefinition : public Definition, public Templatable
 {
-    std::vector<FieldDefinition> members;
-    Statement_ptr target;
+    TypeAnnotation_ptr ref_type;
 
-    TemplateDefinition() = default;
+    TypeAliasDefinition() = default;
 
-    TemplateDefinition(std::string name, std::vector<FieldDefinition> members, Statement_ptr target)
-        : Definition(std::move(name)), members(std::move(members)), target(std::move(target))
+    TypeAliasDefinition(
+        std::string name,
+        TypeAnnotation_ptr ref_type,
+        std::vector<FieldDefinition> generics = {}
+    )
+        : Definition(std::move(name)), Templatable(std::move(generics)),
+          ref_type(std::move(ref_type))
     {
     }
 };
-
 struct VariableDefinition : public Definition
 {
     Expression_ptr expression;
@@ -160,16 +208,6 @@ struct VariableDefinition : public Definition
 
     VariableDefinition(Expression_ptr expression, bool is_mutable)
         : expression(std::move(expression)), is_mutable(is_mutable) {};
-};
-
-struct TypeAliasDefinition : public Definition
-{
-    TypeAnnotation_ptr ref_type;
-
-    TypeAliasDefinition() = default;
-
-    TypeAliasDefinition(std::string name, TypeAnnotation_ptr ref_type)
-        : Definition(name), ref_type(ref_type) {};
 };
 
 struct EnumDefinition : public Definition
@@ -391,8 +429,6 @@ using StatementVariant = std::variant<
     FieldDefinition,
     ClassDefinition,
     TraitDefinition,
-
-    TemplateDefinition,
 
     AnnotationDefinition,
 

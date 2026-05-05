@@ -123,8 +123,6 @@ private:
 
     void visit(FunctionDefinition& statement);
 
-    void visit(TemplateDefinition& statement);
-
     void visit(TypeAliasDefinition& statement);
     void visit(AnnotationDefinition& statement);
 
@@ -177,7 +175,7 @@ private:
     void visit(IfTernaryBranch& expr);
     void visit(ElseTernaryBranch& expr);
 
-    void visit(TemplateInstantiation& expr);
+    void visit(TemplateCreator& expr);
 
     void visit(MethodDefinition& statement);
     void visit(FieldDefinition& statement);

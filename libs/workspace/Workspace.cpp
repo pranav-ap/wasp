@@ -101,11 +101,6 @@ bool Symbol::is_generic() const
     return payload_is<GenericData>();
 }
 
-bool Symbol::is_template() const
-{
-    return payload_is<TemplateData>();
-}
-
 bool Symbol::should_be_captured(int usage_depth) const
 {
     return closure_depth < usage_depth;
@@ -138,10 +133,6 @@ Object_ptr Symbol::get_type()
             [](const ModuleData& d) -> Object_ptr
             {
                 return d.mod->type;
-            },
-            [](const TemplateData& d) -> Object_ptr
-            {
-                return d.type;
             },
             [](const GenericData& d) -> Object_ptr
             {
@@ -201,10 +192,6 @@ void Symbol::set_type(Object_ptr new_type)
                 d.type = new_type;
             },
             [&](TraitData& d)
-            {
-                d.type = new_type;
-            },
-            [&](TemplateData& d)
             {
                 d.type = new_type;
             },
@@ -397,22 +384,6 @@ Symbol_ptr SymbolFactory::create_generic(
         closure_depth,
         lexical_depth,
         GenericData{std::move(type)}
-    );
-}
-
-Symbol_ptr SymbolFactory::create_template(
-    std::string name,
-    Object_ptr type,
-    int closure_depth,
-    int lexical_depth
-)
-{
-    return std::make_shared<Symbol>(
-        symbol_id_counter++,
-        std::move(name),
-        closure_depth,
-        lexical_depth,
-        TemplateData{std::move(type)}
     );
 }
 

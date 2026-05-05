@@ -1,17 +1,14 @@
 from core.io import print
 
-
-template
-    T: int | str
-
 class Foo
-    id: T
+    id: int
 
-    our pure fun new() => Foo<T>
-        return Foo<T>(10)
+    our pure fun new() => Foo
+        return Foo(10)
 
     fun bar()
-        pass
+        print(my.id)
 
-let f = Foo<int>.new()
+
+let f = Foo.new()
 f.bar()

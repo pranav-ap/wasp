@@ -315,7 +315,7 @@ Statement_ptr Parser::parse_template_definition(int indent_level)
     token_pipe.advance_pointer();
     token_pipe.require_in_line(TokenType::EOL);
 
-    std::vector<FieldDefinition> members;
+    std::vector<FieldDefinition> generics;
     const int body_indent = indent_level + 1;
 
     while (true)
@@ -336,44 +336,38 @@ Statement_ptr Parser::parse_template_definition(int indent_level)
 
         token_pipe.require_in_line(TokenType::EOL);
 
-        members.emplace_back(name_token.value, param_type);
+        generics.emplace_back(name_token.value, param_type);
     }
 
     Statement_ptr target = parse_statement(indent_level);
 
-    std::string name;
     std::visit(
         overloaded{
             [&](FunctionDefinition& def)
             {
-                name = def.name;
+                def.generics = std::move(generics);
             },
             [&](ClassDefinition& def)
             {
-                name = def.name;
+                def.generics = std::move(generics);
             },
             [&](TraitDefinition& def)
             {
-                name = def.name;
+                def.generics = std::move(generics);
             },
             [&](TypeAliasDefinition& def)
             {
-                name = def.name;
+                def.generics = std::move(generics);
             },
             [&](auto&)
             {
-                Doctor::get().fatal(
-                    WaspStage::Parser,
-                    "Invalid template target during name retrieval"
-                );
+                Doctor::get().fatal(WaspStage::Parser, "Invalid template target");
             }
         },
         target->data
     );
 
-    return make_statement(
-        TemplateDefinition(std::move(name), std::move(members), std::move(target))
-    );
+    return target;
 }
 
 } // namespace Wasp

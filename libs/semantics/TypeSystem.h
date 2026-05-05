@@ -26,13 +26,17 @@ struct TypeSystem
         const ObjectVector& parameter_types
     );
 
-    std::tuple<Symbol_ptr, int> get_best_function_signature(
+    std::tuple<Symbol_ptr, int> get_best_function_symbol(
         SymbolScope_ptr scope,
         const SymbolVector& candidates,
         const ObjectVector& argument_types
     ) const;
 
-    std::shared_ptr<Signature> get_function_signature(Object_ptr type_obj) const;
+    std::tuple<Object_ptr, int> get_best_function_object(
+        SymbolScope_ptr scope,
+        const ObjectVector& candidates,
+        const ObjectVector& argument_types
+    ) const;
 
     void validate_new_function_overload(
         SymbolScope_ptr scope,
@@ -86,12 +90,6 @@ struct TypeSystem
 
     Object_ptr substitute_generics(
         Object_ptr type,
-        TemplateType_ptr template_type,
-        const ObjectVector& generic_args
-    ) const;
-
-    Object_ptr substitute_generics(
-        TemplateType_ptr template_type,
         const ObjectVector& generic_args
     ) const;
 

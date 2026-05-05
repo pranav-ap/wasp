@@ -93,11 +93,6 @@ struct GenericData : public TypedData
     using TypedData::TypedData;
 };
 
-struct TemplateData : public TypedData
-{
-    using TypedData::TypedData;
-};
-
 struct SymbolAliasData
 {
     Symbol_ptr target;
@@ -127,7 +122,6 @@ using SymbolPayload = std::variant<
     TraitData,
     GenericData,
     EnumData,
-    TemplateData,
     TypeAliasData,
     SymbolAliasData>;
 
@@ -150,7 +144,6 @@ struct Symbol : public std::enable_shared_from_this<Symbol>
     bool is_native() const;
     bool is_native_function_or_method() const;
     bool is_generic() const;
-    bool is_template() const;
 
     Object_ptr get_type();
     void set_type(Object_ptr new_type);
@@ -235,13 +228,6 @@ public:
     );
 
     static Symbol_ptr create_generic(
-        std::string name,
-        Object_ptr type = nullptr,
-        int closure_depth = 0,
-        int lexical_depth = 0
-    );
-
-    static Symbol_ptr create_template(
         std::string name,
         Object_ptr type = nullptr,
         int closure_depth = 0,

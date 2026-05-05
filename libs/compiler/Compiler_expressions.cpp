@@ -156,9 +156,9 @@ void Compiler::visit(Constructor& expr)
     {
         class_symbol = expr.construtable->as<MemberAccess>().right->as<Identifier>().symbol;
     }
-    else if (expr.construtable->is<TemplateInstantiation>())
+    else if (expr.construtable->is<TemplateCreator>())
     {
-        class_symbol = expr.construtable->as<TemplateInstantiation>().symbol;
+        class_symbol = expr.construtable->as<TemplateCreator>().symbol;
     }
     else
     {
@@ -185,7 +185,7 @@ void Compiler::visit(Constructor& expr)
     emit(OpCode::INSTANTIATE, static_cast<int>(expr.values.size()));
 }
 
-void Compiler::visit(TemplateInstantiation& expr)
+void Compiler::visit(TemplateCreator& expr)
 {
     visit(expr.target);
 }
