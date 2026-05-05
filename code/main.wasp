@@ -1,11 +1,10 @@
 from core.io import print
 
-class Foo
-    id: int
+template
+    T: int | str
 
-    fun bar()
-        pass
+fun shout(value: T) => T
+    return value
 
-
-let f = Foo(5)
-f.bar()
+let g = shout<int>(5)
+print(g)

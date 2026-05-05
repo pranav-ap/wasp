@@ -221,9 +221,11 @@ void SemanticAnalyzer::visit(ClassDefinition& def)
                 method_def->parameter_symbols.push_back(symbol);
             };
 
-            define_param("our", class_type_obj);
-
-            if (!method_def->is_static)
+            if (method_def->is_static)
+            {
+                define_param("our", class_type_obj);
+            }
+            else
             {
                 define_param("my", class_type_obj);
             }

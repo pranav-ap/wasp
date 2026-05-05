@@ -21,13 +21,14 @@ class SemanticAnalyzer
 {
 public:
     SemanticAnalyzer(Workspace_ptr workspace)
-        : type_checker(std::make_shared<TypeSystem>(workspace->pool)), workspace(workspace) {};
+        : type_system(std::make_shared<TypeSystem>(workspace->pool)),
+          workspace(workspace) {};
 
     void run(const std::vector<Module_ptr>& build_order);
 
 private:
     Workspace_ptr workspace;
-    TypeSystem_ptr type_checker;
+    TypeSystem_ptr type_system;
     Module_ptr current_module = nullptr;
     SymbolScope_ptr current_scope;
     ObjectVector return_type_stack;
@@ -106,7 +107,7 @@ private:
     Object_ptr visit(ElseTernaryBranch& expr);
     Object_ptr visit(Call& expr);
     Object_ptr visit(Constructor& expr);
-    Object_ptr visit(TemplateCreator& template_instantiation);
+    Object_ptr visit(ConcreteTemplate& template_instantiation);
 
     Object_ptr define_variable(Expression_ptr assignment_expr, bool is_mutable);
     Object_ptr mutate_variable(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
@@ -130,11 +131,19 @@ private:
         Symbol_ptr module_symbol = nullptr
     );
 
-    Object_ptr evaluate_class_method_call(
+    Object_ptr evaluate_method_call(
         Call& call,
         MemberAccess& mac,
         const ObjectVector& argument_types,
         ClassType_ptr class_type
+    );
+
+    Object_ptr evaluate_template_function_call(
+        Call& call,
+        Identifier& identifier,
+        const ObjectVector& concrete_arguments,
+        const ObjectVector& argument_types,
+        Symbol_ptr overload_symbol
     );
 
     Object_ptr evaluate_instance_creation(
@@ -168,6 +177,6 @@ private:
     Object_ptr visit(VariantTypeNode& expr);
     Object_ptr visit(FunctionTypeNode& expr);
     Object_ptr visit(RecordTypeNode& expr);
-    Object_ptr visit(ConcreteTemplateTypeNode& node);
+    Object_ptr visit(GenericTemplateTypeNode& node);
 };
 } // namespace Wasp

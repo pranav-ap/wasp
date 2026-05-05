@@ -6,7 +6,7 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <iterator>
+#include <map>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -233,52 +233,79 @@ void TypeSystem::validate_new_method_overload(
 // Transformations
 // ============================================================================
 
-Object_ptr TypeSystem::substitute_generics(
-    Object_ptr type,
-    const ObjectVector& generic_args
+std::pair<ObjectStringMap, std::string> TypeSystem::extract_generics_and_name(
+    const Object_ptr& base
 ) const
 {
-    if (!type || generic_args.empty())
+    using ReturnType = std::pair<ObjectStringMap, std::string>;
+
+    return std::visit(
+        overloaded{
+            [&](const ClassType_ptr& c) -> ReturnType
+            {
+                return {c->generics, c->name};
+            },
+            [&](const TraitType_ptr& t) -> ReturnType
+            {
+                return {t->generics, t->name};
+            },
+            [&](const TypeAlias_ptr& a) -> ReturnType
+            {
+                return {a->generics, a->name};
+            },
+            [&](const Signature_ptr& s) -> ReturnType
+            {
+                return {s->generics, "fun"};
+            },
+            [&](const GenericType_ptr& g) -> ReturnType
+            {
+                return {{{g->name, g->constraint_type}}, g->name};
+            },
+            [](const auto&) -> ReturnType
+            {
+                return {{}, ""};
+            },
+        },
+        base->value
+    );
+}
+
+Object_ptr TypeSystem::substitute_generics(
+    Object_ptr type,
+    const ObjectVector& concrete_arguments
+) const
+{
+    Doctor::get().fatal_if_nullptr(
+        type,
+        WaspStage::Semantics,
+        "Cannot substitute generics on a null type"
+    );
+
+    if (concrete_arguments.empty())
     {
         return type;
     }
 
-    const ObjectStringMap* generics_map = nullptr;
-    std::visit(
-        overloaded{
-            [&](Signature_ptr s)
-            {
-                generics_map = &s->generics;
-            },
-            [&](ClassType_ptr c)
-            {
-                generics_map = &c->generics;
-            },
-            [&](TraitType_ptr t)
-            {
-                generics_map = &t->generics;
-            },
-            [&](TypeAlias_ptr a)
-            {
-                generics_map = &a->generics;
-            },
-            [](auto&)
-            {
-            }
-        },
-        type->value
-    );
+    auto [generics_map, name] = extract_generics_and_name(type);
 
-    if (!generics_map || generics_map->empty())
+    if (generics_map.empty())
     {
         return type;
     }
 
     Doctor::get().assert(
-        generics_map->size() == generic_args.size(),
+        generics_map.size() == concrete_arguments.size(),
         WaspStage::Semantics,
-        "Generic count mismatch"
+        "Generic argument count mismatch for '" + name + "'."
     );
+
+    std::map<std::string, Object_ptr> substitutions;
+    auto map_it = generics_map.begin();
+
+    for (size_t i = 0; i < concrete_arguments.size(); ++i, ++map_it)
+    {
+        substitutions[map_it->first] = concrete_arguments[i];
+    }
 
     auto substitute_internal = [&](auto& self, Object_ptr t) -> Object_ptr
     {
@@ -286,10 +313,12 @@ Object_ptr TypeSystem::substitute_generics(
         {
             return nullptr;
         }
+
         auto sub = [&](Object_ptr inner)
         {
             return self(self, inner);
         };
+
         auto sub_all = [&](const ObjectVector& types)
         {
             ObjectVector results;
@@ -305,16 +334,12 @@ Object_ptr TypeSystem::substitute_generics(
             overloaded{
                 [&](GenericType_ptr g) -> Object_ptr
                 {
-                    if (auto it = generics_map->find(g->name);
-                        it != generics_map->end())
+                    if (substitutions.contains(g->name))
                     {
-                        return generic_args
-                            [std::distance(generics_map->begin(), it)];
+                        return substitutions.at(g->name);
                     }
-                    Doctor::get().fatal(
-                        WaspStage::Semantics,
-                        "Generic '" + g->name + "' not found"
-                    );
+
+                    return t;
                 },
                 [&](TypeAlias_ptr ta) -> Object_ptr
                 {
@@ -342,11 +367,21 @@ Object_ptr TypeSystem::substitute_generics(
                 },
                 [&](Signature_ptr sig) -> Object_ptr
                 {
+                    ObjectStringMap remaining_generics;
+
+                    for (auto const& [gen_name, gen_type] : sig->generics)
+                    {
+                        if (!substitutions.contains(gen_name))
+                        {
+                            remaining_generics[gen_name] = gen_type;
+                        }
+                    }
+
                     return make_object(
                         std::make_shared<Signature>(
                             sub_all(sig->parameter_types),
                             sub(sig->return_type),
-                            ObjectStringMap{}
+                            remaining_generics
                         )
                     );
                 },
@@ -359,10 +394,22 @@ Object_ptr TypeSystem::substitute_generics(
                 [&](ClassType_ptr cls) -> Object_ptr
                 {
                     ObjectStringMap concrete_members;
-                    for (auto const& [name, member_type] : cls->member_types)
+
+                    for (auto const& [member_name, member_type] : cls->member_types)
                     {
-                        concrete_members[name] = sub(member_type);
+                        concrete_members[member_name] = sub(member_type);
                     }
+
+                    ObjectStringMap remaining_generics;
+
+                    for (auto const& [gen_name, gen_type] : cls->generics)
+                    {
+                        if (!substitutions.contains(gen_name))
+                        {
+                            remaining_generics[gen_name] = gen_type;
+                        }
+                    }
+
                     return make_object(
                         std::make_shared<ClassType>(
                             cls->name,
@@ -371,17 +418,27 @@ Object_ptr TypeSystem::substitute_generics(
                             cls->methods,
                             cls->pures,
                             cls->statics,
-                            ObjectStringMap{}
+                            remaining_generics
                         )
                     );
                 },
                 [&](TraitType_ptr trt) -> Object_ptr
                 {
                     ObjectStringMap concrete_members;
-                    for (auto const& [name, member_type] : trt->member_types)
+                    for (auto const& [member_name, member_type] : trt->member_types)
                     {
-                        concrete_members[name] = sub(member_type);
+                        concrete_members[member_name] = sub(member_type);
                     }
+
+                    ObjectStringMap remaining_generics;
+                    for (auto const& [gen_name, gen_type] : trt->generics)
+                    {
+                        if (!substitutions.contains(gen_name))
+                        {
+                            remaining_generics[gen_name] = gen_type;
+                        }
+                    }
+
                     return make_object(
                         std::make_shared<TraitType>(
                             trt->name,
@@ -389,7 +446,7 @@ Object_ptr TypeSystem::substitute_generics(
                             trt->methods,
                             trt->pures,
                             trt->statics,
-                            ObjectStringMap{}
+                            remaining_generics
                         )
                     );
                 },

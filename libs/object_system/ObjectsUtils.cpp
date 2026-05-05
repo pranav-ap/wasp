@@ -1,4 +1,3 @@
-#include "ConstantPool.h"
 #include "Doctor.h"
 #include "Objects.h"
 #include <algorithm>
@@ -454,4 +453,160 @@ std::string stringify_object(Object_ptr value)
         value->value
     );
 }
+
+std::string mangle_object(const ObjectVector& values)
+{
+    std::string result;
+
+    for (const auto& value : values)
+    {
+        result += mangle_object(value);
+    }
+
+    return result;
+}
+
+std::string mangle_object(Object_ptr value)
+{
+    Doctor::get().fatal_if_nullptr(
+        value,
+        WaspStage::VM,
+        "Attempted to mangle a null object pointer"
+    );
+
+    return std::visit(
+        overloaded{
+            [](const std::monostate&) -> std::string
+            {
+                return "_";
+            },
+
+            [](const AnyType&) -> std::string
+            {
+                return "A";
+            },
+            [](const NamedDefinitionType& obj) -> std::string
+            {
+                return "D" + std::to_string(obj.name.length()) + obj.name;
+            },
+            [](const Signature_ptr&) -> std::string
+            {
+                return "S";
+            },
+            [](const NoneType&) -> std::string
+            {
+                return "N";
+            },
+
+            [](const NoneObject&) -> std::string
+            {
+                return "On";
+            },
+            [](const IntObject& obj) -> std::string
+            {
+                return "Oi" + std::to_string(obj.value);
+            },
+            [](const FloatObject& obj) -> std::string
+            {
+                return "Of" + std::to_string(obj.value);
+            },
+            [](const StringObject& obj) -> std::string
+            {
+                return "Os" + std::to_string(obj.value.length()) + obj.value;
+            },
+            [](const BooleanObject& obj) -> std::string
+            {
+                return obj.value ? "Ob1" : "Ob0";
+            },
+
+            [](const IntLiteralType&) -> std::string
+            {
+                return "li";
+            },
+            [](const FloatLiteralType&) -> std::string
+            {
+                return "lf";
+            },
+            [](const StringLiteralType&) -> std::string
+            {
+                return "ls";
+            },
+            [](const BooleanLiteralType&) -> std::string
+            {
+                return "lb";
+            },
+
+            [](const IntType&) -> std::string
+            {
+                return "i";
+            },
+            [](const FloatType&) -> std::string
+            {
+                return "f";
+            },
+            [](const StringType&) -> std::string
+            {
+                return "s";
+            },
+            [](const BooleanType&) -> std::string
+            {
+                return "b";
+            },
+
+            [](const ListType&) -> std::string
+            {
+                return "l";
+            },
+            [](const TupleType&) -> std::string
+            {
+                return "t";
+            },
+            [](const SetType&) -> std::string
+            {
+                return "e";
+            },
+            [](const MapType&) -> std::string
+            {
+                return "m";
+            },
+            [](const VariantType&) -> std::string
+            {
+                return "v";
+            },
+
+            [](const ModuleType_ptr& mod) -> std::string
+            {
+                return "M" + std::to_string(mod->name.length()) + mod->name;
+            },
+            [](const ClassType_ptr& cls) -> std::string
+            {
+                return "C" + std::to_string(cls->name.length()) + cls->name;
+            },
+            [](const TraitType_ptr& trt) -> std::string
+            {
+                return "T" + std::to_string(trt->name.length()) + trt->name;
+            },
+            [](const EnumType_ptr& enum_type) -> std::string
+            {
+                return "E" + std::to_string(enum_type->name.length()) +
+                       enum_type->name;
+            },
+            [](const TypeAlias_ptr& alias) -> std::string
+            {
+                return "a" + std::to_string(alias->name.length()) + alias->name;
+            },
+            [](const GenericType_ptr& gen) -> std::string
+            {
+                return "G" + std::to_string(gen->name.length()) + gen->name;
+            },
+
+            [](const auto&) -> std::string
+            {
+                return "U";
+            }
+        },
+        value->value
+    );
+}
+
 } // namespace Wasp

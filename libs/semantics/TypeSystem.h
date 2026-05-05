@@ -88,6 +88,10 @@ struct TypeSystem
     Object_ptr spread_type(Object_ptr type);
     Object_ptr extract_iterable_element_type(SymbolScope_ptr scope, const Object_ptr type) const;
 
+    std::pair<ObjectStringMap, std::string> extract_generics_and_name(
+        const Object_ptr& base
+    ) const;
+
     Object_ptr substitute_generics(
         Object_ptr type,
         const ObjectVector& generic_args

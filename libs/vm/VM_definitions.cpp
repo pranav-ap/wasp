@@ -154,8 +154,7 @@ void VM::execute_resolve_function(CallFrame* frame)
     int overload_index = std::to_integer<int>(frame->consume_byte());
     Object_ptr obj = pop_from_stack();
 
-    if (obj->is<std::shared_ptr<NativeFunctionObject>>() ||
-        obj->is<std::shared_ptr<FunctionRuntimeObject>>())
+    if (obj->is<std::shared_ptr<NativeFunctionObject>>())
     {
         push_to_stack(obj);
         return;

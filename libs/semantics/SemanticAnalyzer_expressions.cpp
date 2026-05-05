@@ -150,6 +150,7 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
             [&](Identifier& identifier) -> Object_ptr
             {
                 auto overload_symbol = current_scope->lookup(identifier.name);
+
                 Doctor::get().fatal_if_nullptr(
                     overload_symbol,
                     WaspStage::Semantics
@@ -196,7 +197,7 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                         },
                         [&](ClassType_ptr const& class_type) -> Object_ptr
                         {
-                            return evaluate_class_method_call(
+                            return evaluate_method_call(
                                 call,
                                 access,
                                 argument_types,
@@ -214,9 +215,44 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                     left_type->value
                 );
             },
-            [&](TemplateCreator& template_creator) -> Object_ptr
+            [&](ConcreteTemplate& concrete_template) -> Object_ptr
             {
-                Doctor::get().fatal(WaspStage::Semantics, "Boom!");
+                ObjectVector concrete_arguments;
+
+                for (const auto& concrete_type : concrete_template.concrete_types)
+                {
+                    concrete_arguments.push_back(visit(concrete_type));
+                }
+
+                return std::visit(
+                    overloaded{
+                        [&](Identifier& identifier) -> Object_ptr
+                        {
+                            auto overload_symbol = current_scope->lookup(
+                                identifier.name
+                            );
+
+                            Doctor::get().fatal_if_nullptr(
+                                overload_symbol,
+                                WaspStage::Semantics
+                            );
+
+                            return evaluate_template_function_call(
+                                call,
+                                identifier,
+                                concrete_arguments,
+                                argument_types,
+                                overload_symbol
+                            );
+                        },
+
+                        [&](auto&) -> Object_ptr
+                        {
+                            Doctor::get().fatal(WaspStage::Semantics, "Boom!");
+                        }
+                    },
+                    concrete_template.target->data
+                );
             },
             [&](auto&) -> Object_ptr
             {
@@ -233,17 +269,17 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
 Object_ptr SemanticAnalyzer::evaluate_function_call(
     Call& call,
     Identifier& identifier,
-    const ObjectVector& args,
+    const ObjectVector& argument_types,
     Symbol_ptr overload_symbol,
     Symbol_ptr module_symbol
 )
 {
     bind_identifier(identifier, overload_symbol);
 
-    auto [function_symbol, index] = type_checker->get_best_function_symbol(
+    auto [function_symbol, index] = type_system->get_best_function_symbol(
         current_scope,
         overload_symbol->get_payload_as<OverloadsData>().get_overloads(),
-        args
+        argument_types
     );
 
     call.overload_index = index;
@@ -256,7 +292,7 @@ Object_ptr SemanticAnalyzer::evaluate_function_call(
     return function_symbol->get_type()->as<Signature_ptr>()->return_type;
 }
 
-Object_ptr SemanticAnalyzer::evaluate_class_method_call(
+Object_ptr SemanticAnalyzer::evaluate_method_call(
     Call& call,
     MemberAccess& access,
     const ObjectVector& argument_types,
@@ -282,7 +318,7 @@ Object_ptr SemanticAnalyzer::evaluate_class_method_call(
 
     const auto& overloads = member->as<ObjectOverloadList_ptr>()->overloads;
 
-    auto [signature_obj, overload_index] = type_checker->get_best_function_object(
+    auto [signature_obj, overload_index] = type_system->get_best_function_object(
         current_scope,
         overloads,
         argument_types
@@ -295,6 +331,37 @@ Object_ptr SemanticAnalyzer::evaluate_class_method_call(
     call.is_pure_method_call = class_type->is_pure(method_name);
 
     return signature_obj->as<Signature_ptr>()->return_type;
+}
+
+Object_ptr SemanticAnalyzer::evaluate_template_function_call(
+    Call& call,
+    Identifier& identifier,
+    const ObjectVector& concrete_arguments,
+    const ObjectVector& argument_types,
+    Symbol_ptr overload_symbol
+)
+{
+    bind_identifier(identifier, overload_symbol);
+
+    auto [function_symbol, index] = type_system->get_best_function_symbol(
+        current_scope,
+        overload_symbol->get_payload_as<OverloadsData>().get_overloads(),
+        argument_types
+    );
+
+    call.overload_index = index;
+
+    std::string full_mangled_name = identifier.name + "<" +
+                                    mangle_object(concrete_arguments) + ">";
+
+    auto return_type = function_symbol->get_type()->as<Signature_ptr>()->return_type;
+
+    auto concrete_return_type = type_system->substitute_generics(
+        return_type,
+        concrete_arguments
+    );
+
+    return concrete_return_type;
 }
 
 // ============================================================================
@@ -350,7 +417,7 @@ Object_ptr SemanticAnalyzer::visit(Constructor& constructor)
                     argument_types
                 );
             },
-            [&](TemplateCreator& tc) -> Object_ptr
+            [&](ConcreteTemplate& tc) -> Object_ptr
             {
                 Doctor::get().fatal(WaspStage::Semantics, "Boom!");
             },
@@ -387,7 +454,7 @@ Object_ptr SemanticAnalyzer::evaluate_instance_creation(
         Object_ptr expected = class_type->get_member(class_type->fields[i]);
 
         Doctor::get().assert(
-            type_checker->assignable(current_scope, expected, argument_types[i]),
+            type_system->assignable(current_scope, expected, argument_types[i]),
             WaspStage::Semantics,
             "Constructor Argument Type Mismatch for field " + class_type->fields[i]
         );
@@ -400,11 +467,11 @@ Object_ptr SemanticAnalyzer::evaluate_instance_creation(
 // Template Instantiation & Evaluation
 // ============================================================================
 
-Object_ptr SemanticAnalyzer::visit(TemplateCreator& template_instantiation)
+Object_ptr SemanticAnalyzer::visit(ConcreteTemplate& concrete_template)
 {
     Doctor::get().fatal(
         WaspStage::Semantics,
-        "TemplateCreator is not meant to be visited directly."
+        "ConcreteTemplate is not meant to be visited directly."
     );
 }
 

@@ -697,10 +697,15 @@ template <typename T> inline Object_ptr make_object(T&& val)
 // ============================================================================
 
 std::string stringify_object(Object_ptr value);
+std::string mangle_object(Object_ptr value);
+std::string mangle_object(const ObjectVector& values);
+
 ObjectVector to_vector(std::string text);
+
 bool are_equal_types(Object_ptr left, Object_ptr right);
 bool are_equal_types(ObjectVector left_vector, ObjectVector right_vector);
 bool are_equal_types_unordered(ObjectVector left_vector, ObjectVector right_vector);
+
 Object_ptr convert_type(Object_ptr type, Object_ptr operand);
 
 } // namespace Wasp

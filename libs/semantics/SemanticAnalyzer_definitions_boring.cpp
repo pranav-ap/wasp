@@ -73,7 +73,7 @@ Object_ptr SemanticAnalyzer::define_variable(
     if (declared_type)
     {
         Doctor::get().assert(
-            type_checker->assignable(current_scope, declared_type, initializer_type),
+            type_system->assignable(current_scope, declared_type, initializer_type),
             WaspStage::Semantics,
             "Type mismatch in variable definition for " + symbol_name
         );
@@ -197,7 +197,7 @@ Object_ptr SemanticAnalyzer::mutate_variable(
     Object_ptr assigned_type = visit(assigned_expr);
 
     Doctor::get().assert(
-        type_checker
+        type_system
             ->assignable(current_scope, target_symbol->get_type(), assigned_type),
         WaspStage::Semantics,
         "Type mismatch in assignment to '" + symbol_name + "'"
@@ -231,7 +231,7 @@ Object_ptr SemanticAnalyzer::mutate_member(
     Object_ptr actual_type = visit(rhs_expr);
 
     Doctor::get().assert(
-        type_checker->assignable(current_scope, expected_type, actual_type),
+        type_system->assignable(current_scope, expected_type, actual_type),
         WaspStage::Semantics,
         "Type mismatch in member assignment."
     );
@@ -355,7 +355,7 @@ void SemanticAnalyzer::visit(Return& statement)
                                              : workspace->pool->get_none_type();
 
     Doctor::get().assert(
-        type_checker->assignable(current_scope, expected, actual),
+        type_system->assignable(current_scope, expected, actual),
         WaspStage::Semantics,
         "Return type mismatch"
     );

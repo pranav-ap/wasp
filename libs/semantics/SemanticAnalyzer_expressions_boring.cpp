@@ -102,18 +102,19 @@ Object_ptr SemanticAnalyzer::visit(DotLiteral& expr)
 
 Object_ptr SemanticAnalyzer::visit(Prefix& expr)
 {
-    return type_checker->infer(current_scope, visit(expr.operand), expr.op.type);
+    return type_system->infer(current_scope, visit(expr.operand), expr.op.type);
 }
 
 Object_ptr SemanticAnalyzer::visit(Infix& expr)
 {
-    return type_checker->infer(current_scope, visit(expr.left), expr.op.type, visit(expr.right));
+    return type_system
+        ->infer(current_scope, visit(expr.left), expr.op.type, visit(expr.right));
 }
 
 Object_ptr SemanticAnalyzer::visit(Postfix& expr)
 {
     Object_ptr left_type = visit(expr.operand);
-    type_checker->expect_number_type(left_type);
+    type_system->expect_number_type(left_type);
     return left_type;
 }
 
@@ -130,7 +131,10 @@ Object_ptr SemanticAnalyzer::visit(ListLiteral& expr)
     for (const auto& element : expr.expressions)
         element_types.push_back(visit(element));
 
-    ObjectVector unique_types = type_checker->remove_duplicates(current_scope, element_types);
+    ObjectVector unique_types = type_system->remove_duplicates(
+        current_scope,
+        element_types
+    );
     if (unique_types.size() == 1)
         return make_object(ListType(unique_types[0]));
     return make_object(ListType(make_object(VariantType(unique_types))));
@@ -153,13 +157,13 @@ Object_ptr SemanticAnalyzer::visit(MapLiteral& expr)
     for (const auto& [k_expr, v_expr] : expr.pairs)
     {
         Object_ptr k_type = visit(k_expr);
-        type_checker->expect_key_type(current_scope, k_type);
+        type_system->expect_key_type(current_scope, k_type);
         key_types.push_back(k_type);
         val_types.push_back(visit(v_expr));
     }
 
-    ObjectVector u_keys = type_checker->remove_duplicates(current_scope, key_types);
-    ObjectVector u_vals = type_checker->remove_duplicates(current_scope, val_types);
+    ObjectVector u_keys = type_system->remove_duplicates(current_scope, key_types);
+    ObjectVector u_vals = type_system->remove_duplicates(current_scope, val_types);
 
     Object_ptr fk = u_keys.size() == 1 ? u_keys[0] : make_object(VariantType(u_keys));
     Object_ptr fv = u_vals.size() == 1 ? u_vals[0] : make_object(VariantType(u_vals));
@@ -175,11 +179,14 @@ Object_ptr SemanticAnalyzer::visit(SetLiteral& expr)
     for (const auto& element : expr.expressions)
     {
         Object_ptr el_type = visit(element);
-        type_checker->expect_key_type(current_scope, el_type);
+        type_system->expect_key_type(current_scope, el_type);
         element_types.push_back(el_type);
     }
 
-    ObjectVector unique_types = type_checker->remove_duplicates(current_scope, element_types);
+    ObjectVector unique_types = type_system->remove_duplicates(
+        current_scope,
+        element_types
+    );
     if (unique_types.size() == 1)
         return make_object(SetType(unique_types[0]));
     return make_object(SetType(make_object(VariantType(unique_types))));
@@ -191,12 +198,15 @@ Object_ptr SemanticAnalyzer::visit(RangeLiteral& expr)
     Object_ptr end_type = expr.end ? visit(expr.end) : nullptr;
 
     if (start_type)
-        type_checker->expect_number_type(start_type);
+        type_system->expect_number_type(start_type);
     if (end_type)
-        type_checker->expect_number_type(end_type);
+        type_system->expect_number_type(end_type);
 
-    if (type_checker->is_float_type(start_type) || type_checker->is_float_type(end_type))
+    if (type_system->is_float_type(start_type) ||
+        type_system->is_float_type(end_type))
+    {
         return make_object(ListType(make_object(FloatType())));
+    }
 
     return make_object(ListType(make_object(IntType())));
 }

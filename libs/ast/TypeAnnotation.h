@@ -41,7 +41,7 @@ struct MapTypeNode;
 struct VariantTypeNode;
 struct FunctionTypeNode;
 struct RecordTypeNode;
-struct ConcreteTemplateTypeNode;
+struct GenericTemplateTypeNode;
 
 struct ListTypeNode {
     TypeAnnotation_ptr element_type;
@@ -97,18 +97,18 @@ struct RecordTypeNode
 };
 
 // Foo<T>
-struct ConcreteTemplateTypeNode
+struct GenericTemplateTypeNode
 {
     TypeAnnotation_ptr base_type;
-    TypeAnnotationVector generic_args;
+    TypeAnnotationVector generic_nodes;
 
-    explicit ConcreteTemplateTypeNode() = default;
+    explicit GenericTemplateTypeNode() = default;
 
-    explicit ConcreteTemplateTypeNode(
+    explicit GenericTemplateTypeNode(
         TypeAnnotation_ptr base_type,
-        TypeAnnotationVector args
+        TypeAnnotationVector generic_nodes
     )
-        : base_type(std::move(base_type)), generic_args(std::move(args))
+        : base_type(std::move(base_type)), generic_nodes(std::move(generic_nodes))
     {
     }
 };
@@ -138,7 +138,7 @@ using TypeAnnotationVariant = std::variant<
     std::shared_ptr<VariantTypeNode>,
     std::shared_ptr<FunctionTypeNode>,
     std::shared_ptr<RecordTypeNode>,
-    std::shared_ptr<ConcreteTemplateTypeNode>>;
+    std::shared_ptr<GenericTemplateTypeNode>>;
 
 struct TypeAnnotation : public AstNode<TypeAnnotationVariant> {
     using AstNode::AstNode;

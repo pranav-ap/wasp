@@ -62,7 +62,6 @@ void Compiler::visit(MemberAccess& access)
         return;
     }
 
-    // Standard runtime member access
     visit(access.left);
     emit(OpCode::GET_MEMBER, access.member_index);
 }
@@ -153,9 +152,9 @@ void Compiler::visit(Constructor& expr)
     {
         class_symbol = expr.construtable->as<MemberAccess>().right->as<Identifier>().symbol;
     }
-    else if (expr.construtable->is<TemplateCreator>())
+    else if (expr.construtable->is<ConcreteTemplate>())
     {
-        class_symbol = expr.construtable->as<TemplateCreator>().symbol;
+        class_symbol = expr.construtable->as<ConcreteTemplate>().symbol;
     }
     else
     {
@@ -182,7 +181,7 @@ void Compiler::visit(Constructor& expr)
     emit(OpCode::INSTANTIATE, static_cast<int>(expr.values.size()));
 }
 
-void Compiler::visit(TemplateCreator& expr)
+void Compiler::visit(ConcreteTemplate& expr)
 {
     visit(expr.target);
 }

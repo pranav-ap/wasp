@@ -3,9 +3,11 @@
 #include "Objects.h"
 #include "SemanticAnalyzer.h"
 #include "TypeAnnotation.h"
+#include "Workspace.h"
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <variant>
 
 template <class... Ts> struct overloaded : Ts...
@@ -158,12 +160,44 @@ Object_ptr SemanticAnalyzer::visit(RecordTypeNode& node)
     Doctor::get().fatal(WaspStage::Semantics, "Record types are not yet supported.");
 }
 
-Object_ptr SemanticAnalyzer::visit(ConcreteTemplateTypeNode& node)
+Object_ptr SemanticAnalyzer::visit(GenericTemplateTypeNode& node)
 {
     Object_ptr base = visit(node.base_type);
-    ObjectVector generic_args = visit(node.generic_args);
 
-    return type_checker->substitute_generics(base, generic_args);
+    ObjectVector generic_arguments;
+
+    for (auto& arg_node : node.generic_nodes)
+    {
+        generic_arguments.push_back(visit(arg_node));
+    }
+
+    auto [generics_map, base_name] = type_system->extract_generics_and_name(base);
+
+    Doctor::get().assert(
+        !generics_map.empty(),
+        WaspStage::Semantics,
+        "Expected to extract generics from this type, but couldn't find any"
+    );
+
+    Doctor::get().assert(
+        base_name != "",
+        WaspStage::Semantics,
+        "Expected to extract a name from this type, but got an empty string"
+    );
+
+    Symbol_ptr base_symbol = current_scope->lookup(base_name);
+
+    std::string mangled_suffix = "<";
+
+    for (const auto& t : generic_arguments)
+    {
+        mangled_suffix += mangle_object(t);
+    }
+
+    mangled_suffix += ">";
+    std::string full_mangled_name = base_name + mangled_suffix;
+
+    Doctor::get().fatal(WaspStage::Semantics, "Boom!");
 }
 
 } // namespace Wasp

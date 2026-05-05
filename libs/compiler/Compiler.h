@@ -175,7 +175,7 @@ private:
     void visit(IfTernaryBranch& expr);
     void visit(ElseTernaryBranch& expr);
 
-    void visit(TemplateCreator& expr);
+    void visit(ConcreteTemplate& expr);
 
     void visit(MethodDefinition& statement);
     void visit(FieldDefinition& statement);

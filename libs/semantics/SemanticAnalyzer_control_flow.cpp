@@ -24,7 +24,7 @@ Object_ptr SemanticAnalyzer::visit(IfTernaryBranch& expr)
     enter_scope(ScopeType::BRANCH);
 
     Object_ptr cond_type = visit(expr.test);
-    type_checker->expect_condition_type(current_scope, cond_type);
+    type_system->expect_condition_type(current_scope, cond_type);
 
     Object_ptr then_type = visit(expr.true_expression);
 
@@ -32,7 +32,7 @@ Object_ptr SemanticAnalyzer::visit(IfTernaryBranch& expr)
     {
         Object_ptr else_type = visit(expr.alternative);
 
-        ObjectVector unique_types = type_checker->remove_duplicates(
+        ObjectVector unique_types = type_system->remove_duplicates(
             current_scope,
             {then_type, else_type}
         );
@@ -49,7 +49,7 @@ Object_ptr SemanticAnalyzer::visit(IfTernaryBranch& expr)
 
     Object_ptr none_type = make_object(NoneType());
 
-    ObjectVector unique_types = type_checker->remove_duplicates(
+    ObjectVector unique_types = type_system->remove_duplicates(
         current_scope,
         {then_type, none_type}
     );
@@ -75,7 +75,7 @@ void SemanticAnalyzer::visit(IfBranch& statement)
     enter_scope(ScopeType::BRANCH);
 
     Object_ptr cond_type = visit(statement.test);
-    type_checker->expect_condition_type(current_scope, cond_type);
+    type_system->expect_condition_type(current_scope, cond_type);
 
     visit(statement.body);
     leave_scope();
@@ -112,9 +112,9 @@ void SemanticAnalyzer::visit(SimpleLoop& statement)
 void SemanticAnalyzer::visit(ForInLoop& loop_stmt)
 {
     Object_ptr iterable_type = visit(loop_stmt.iterable_expression);
-    type_checker->expect_iterable_type(current_scope, iterable_type);
+    type_system->expect_iterable_type(current_scope, iterable_type);
 
-    Object_ptr element_type = type_checker->extract_iterable_element_type(
+    Object_ptr element_type = type_system->extract_iterable_element_type(
         current_scope,
         iterable_type
     );

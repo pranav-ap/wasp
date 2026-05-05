@@ -48,6 +48,9 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
                 [&](FunctionDefinition& def)
                 {
                     ObjectStringMap generics = evaluate_generics(def.generics);
+
+                    bool has_generics = prepare_generic_scope(generics);
+
                     Object_ptr return_type = def.return_type
                                                  ? visit(def.return_type)
                                                  : workspace->pool->get_none_type();
@@ -57,6 +60,11 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
                     for (const auto& [name, type_node] : def.parameters)
                     {
                         param_types.push_back(visit(type_node));
+                    }
+
+                    if (has_generics)
+                    {
+                        leave_scope();
                     }
 
                     auto signature = make_object(
@@ -75,7 +83,7 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
                         current_scope->get_lexical_depth()
                     );
 
-                    type_checker->validate_new_function_overload(
+                    type_system->validate_new_function_overload(
                         current_scope,
                         def.name,
                         symbol
