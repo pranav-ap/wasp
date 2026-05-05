@@ -75,12 +75,11 @@ private:
 
     ClassType_ptr initialize_class_type(ClassDefinition& def);
     void analyze_membered_type(ClassDefinition& def, ClassType_ptr base_type);
-
-    bool are_types_compatible(Object_ptr trait_member_type, Object_ptr class_member_type);
-    ObjectVector extract_overloads(Object_ptr type_obj);
-    bool is_signature_compatible(Object_ptr trait_func, Object_ptr class_func);
-
-    void analyze_function(FunctionDefinition& def, ScopeType scope_type, bool is_mutable);
+    void analyze_function(
+        FunctionDefinition& def,
+        ScopeType scope_type,
+        bool parameters_are_mutable
+    );
 
     // =========================================================================
     // Expression Analysis
@@ -129,7 +128,10 @@ private:
 
     void bind_identifier(Identifier& id, Symbol_ptr symbol);
     Symbol_ptr resolve_module_export(MemberAccess& access);
-    void validate_constructor_args(ClassType_ptr class_type, const ObjectVector& arg_types);
+    void validate_implicit_instance_creation(
+        ClassType_ptr class_type,
+        const ObjectVector& arg_types
+    );
 
     Object_ptr evaluate_function_call(
         Call& call_expr,
@@ -147,13 +149,6 @@ private:
         MemberAccess& mac,
         const ObjectVector& arg_types,
         ClassType_ptr class_type
-    );
-
-    Object_ptr evaluate_trait_method_call(
-        Call& call,
-        MemberAccess& member_access,
-        const ObjectVector& argument_types,
-        TraitType_ptr trait_type
     );
 
     Object_ptr evaluate_instance_creation(

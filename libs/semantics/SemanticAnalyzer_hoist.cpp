@@ -159,8 +159,10 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
                                     target_scope->get_lexical_depth()
                                 );
 
+                                target_scope->define(symbol);
+
                                 template_def.symbol = symbol;
-                                target_def.symbol = target_scope->define(symbol);
+                                target_def.symbol = symbol;
                             },
                             [&](TypeAliasDefinition& target_def)
                             {
@@ -175,8 +177,10 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
                                     target_scope->get_lexical_depth()
                                 );
 
+                                target_scope->define(symbol);
+
                                 template_def.symbol = symbol;
-                                target_def.symbol = target_scope->define(symbol);
+                                target_def.symbol = symbol;
                             },
                             [](auto&)
                             {

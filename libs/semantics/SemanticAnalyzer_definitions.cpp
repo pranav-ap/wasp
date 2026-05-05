@@ -52,75 +52,6 @@ void SemanticAnalyzer::validate_purity_constraints(Symbol_ptr target_symbol) con
     }
 }
 
-ObjectVector SemanticAnalyzer::extract_overloads(Object_ptr type_obj)
-{
-    if (type_obj->is<ObjectOverloadList_ptr>())
-    {
-        return type_obj->as<ObjectOverloadList_ptr>()->overloads;
-    }
-    return {type_obj};
-}
-
-bool SemanticAnalyzer::is_signature_compatible(Object_ptr trait_func, Object_ptr class_func)
-{
-    if (trait_func->is<Signature_ptr>() && class_func->is<Signature_ptr>())
-    {
-        auto trait_sig = trait_func->as<Signature_ptr>();
-        auto class_sig = class_func->as<Signature_ptr>();
-
-        if (trait_sig->parameter_types.size() != class_sig->parameter_types.size())
-        {
-            return false;
-        }
-
-        for (size_t i = 1; i < trait_sig->parameter_types.size(); ++i)
-        {
-            if (!type_checker->assignable(
-                    current_scope,
-                    trait_sig->parameter_types[i],
-                    class_sig->parameter_types[i]
-                ))
-            {
-                return false;
-            }
-        }
-
-        return type_checker
-            ->assignable(current_scope, trait_sig->return_type, class_sig->return_type);
-    }
-
-    return type_checker->assignable(current_scope, trait_func, class_func);
-}
-
-bool SemanticAnalyzer::are_types_compatible(
-    Object_ptr trait_member_type,
-    Object_ptr class_member_type
-)
-{
-    ObjectVector trait_overloads = extract_overloads(trait_member_type);
-    ObjectVector class_overloads = extract_overloads(class_member_type);
-
-    for (const auto& trait_func : trait_overloads)
-    {
-        bool found_match = false;
-        for (const auto& class_func : class_overloads)
-        {
-            if (is_signature_compatible(trait_func, class_func))
-            {
-                found_match = true;
-                break;
-            }
-        }
-
-        if (!found_match)
-        {
-            return false;
-        }
-    }
-
-    return true;
-}
-
 // ---------------------------------------------------------------------------
 // Variable Definitions & Assignments
 // ---------------------------------------------------------------------------
@@ -342,7 +273,7 @@ Object_ptr SemanticAnalyzer::visit(TypedAssignment& expr)
 void SemanticAnalyzer::analyze_function(
     FunctionDefinition& def,
     ScopeType scope_type,
-    bool is_mutable
+    bool parameters_are_mutable
 )
 {
     enter_scope(scope_type);
@@ -362,7 +293,7 @@ void SemanticAnalyzer::analyze_function(
         auto symbol = SymbolFactory::create_variable(
             def.parameters[i].first,
             parameter_types[i],
-            is_mutable,
+            parameters_are_mutable,
             current_scope->get_closure_depth(),
             current_scope->get_lexical_depth()
         );
@@ -385,9 +316,9 @@ void SemanticAnalyzer::analyze_function(
 void SemanticAnalyzer::visit(FunctionDefinition& def)
 {
     ScopeType scope = def.is_pure ? ScopeType::PURE_FUNCTION : ScopeType::FUNCTION;
-    bool is_mutable = !def.is_pure;
+    bool parameters_are_mutable = !def.is_pure;
 
-    analyze_function(def, scope, is_mutable);
+    analyze_function(def, scope, parameters_are_mutable);
 }
 
 // ---------------------------------------------------------------------------
@@ -396,7 +327,7 @@ void SemanticAnalyzer::visit(FunctionDefinition& def)
 
 void SemanticAnalyzer::analyze_membered_type(ClassDefinition& def, ClassType_ptr class_type)
 {
-    auto type_obj = make_object(class_type);
+    auto class_type_obj = make_object(class_type);
 
     // --- Pass 1: Hoisting ---
     for (auto& stmt : def.members)
@@ -411,11 +342,10 @@ void SemanticAnalyzer::analyze_membered_type(ClassDefinition& def, ClassType_ptr
                         std::make_shared<Signature>(Signature{parameter_types, return_type})
                     );
 
-                    // Ensure the symbol factory knows if this is static vs instance
                     Symbol_ptr symbol = SymbolFactory::create_method(
                         m.name,
                         signature,
-                        m.is_static,
+                        false,
                         current_scope->get_closure_depth(),
                         current_scope->get_lexical_depth()
                     );
@@ -444,14 +374,8 @@ void SemanticAnalyzer::analyze_membered_type(ClassDefinition& def, ClassType_ptr
             overloaded{
                 [&](MethodDefinition& m)
                 {
-                    // 1. Determine the scope and self-reference name
                     ScopeType scope = m.is_pure ? ScopeType::PURE_METHOD : ScopeType::METHOD;
-
-                    // STATIC uses 'our', INSTANCE uses 'my'
-                    std::string self_name = m.is_static ? "our" : "my";
-
                     bool is_mutable = !m.is_pure;
-                    Object_ptr receiver_type = m.is_pure ? nullptr : type_obj;
 
                     enter_scope(scope);
 
@@ -473,13 +397,12 @@ void SemanticAnalyzer::analyze_membered_type(ClassDefinition& def, ClassType_ptr
                         m.parameter_symbols.push_back(sym);
                     };
 
-                    // 2. Define the receiver (our/my) if applicable
-                    if (receiver_type)
+                    if (class_type_obj)
                     {
-                        define_param(self_name, receiver_type);
+                        std::string self_name = m.is_static ? "our" : "my";
+                        define_param(self_name, class_type_obj);
                     }
 
-                    // 3. Define standard parameters
                     for (size_t i = 0; i < m.parameters.size(); ++i)
                     {
                         define_param(m.parameters[i].first, param_types[i]);
@@ -607,27 +530,21 @@ void SemanticAnalyzer::visit(TemplateDefinition& template_def)
 
     std::visit(
         overloaded{
-            [&](FunctionDefinition& f)
+            [&](FunctionDefinition& def)
             {
-                ScopeType scope = f.is_pure ? ScopeType::PURE_FUNCTION : ScopeType::FUNCTION;
-                analyze_function(f, scope, !f.is_pure);
+                visit(def);
             },
-            [&](ClassDefinition& c)
+            [&](ClassDefinition& def)
             {
-                auto class_type = initialize_class_type(c);
-                template_type->underlying_type = make_object(class_type);
-                analyze_membered_type(c, class_type);
+                visit(def);
             },
-            [&](TraitDefinition& t)
+            [&](TraitDefinition& def)
             {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "Trait definitions are not supported for now"
-                );
+                visit(def);
             },
-            [&](TypeAliasDefinition& t)
+            [&](TypeAliasDefinition& def)
             {
-                template_type->underlying_type = visit(t.ref_type);
+                visit(def);
             },
             [&](auto&)
             {
@@ -647,6 +564,7 @@ void SemanticAnalyzer::visit(TemplateDefinition& template_def)
 void SemanticAnalyzer::visit(TypeAliasDefinition& def)
 {
     Object_ptr aliased_type = visit(def.ref_type);
+
     def.symbol->set_type(
         make_object(std::make_shared<TypeAlias>(TypeAlias{def.name, aliased_type}))
     );

@@ -1,13 +1,17 @@
 from core.io import print
 
+
 template
     T: int | str
 
 class Foo
     id: T
 
-    fun bar()
-        print(my.id)
+    our pure fun new() => Foo<T>
+        return Foo<T>(10)
 
-let f = Foo<int>(10)
+    fun bar()
+        pass
+
+let f = Foo<int>.new()
 f.bar()
