@@ -40,9 +40,6 @@ void VM::execute_member(OpCode op, CallFrame* frame)
         Doctor::get().fatal_if_nullptr(obj, WaspStage::VM, "Cannot set property on null.");
 
         perform_set_member(obj, member_index, val);
-
-        // Put the value back on the stack so expression cleanups (POP)
-        // work correctly
         push_to_stack(val);
     }
 }
@@ -71,7 +68,6 @@ Object_ptr VM::perform_get_member(Object_ptr obj, int member_index)
                     "Object of this type does not support reading "
                     "properties."
                 );
-                return nullptr;
             }
         },
         obj->value

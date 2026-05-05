@@ -55,11 +55,8 @@ void Compiler::visit(Identifier& expr)
 
 void Compiler::visit(MemberAccess& access)
 {
-    // If it's an enum value (e.g., Animal.Bird.Crow)
     if (access.is_enum_value)
     {
-        // We DO NOT visit access.left!
-        // This prevents the compiler from trying to evaluate 'Animal.Bird' at runtime.
         int const_id = workspace->pool->allocate(access.member_index);
         emit(OpCode::LOAD_CONST, const_id);
         return;
@@ -69,6 +66,10 @@ void Compiler::visit(MemberAccess& access)
     visit(access.left);
     emit(OpCode::GET_MEMBER, access.member_index);
 }
+
+// ===========================================================================
+// ASSIGNMENTS
+// ===========================================================================
 
 void Compiler::compile_member_assignment(MemberAccess& access, const Expression_ptr& value)
 {
@@ -84,10 +85,6 @@ void Compiler::compile_member_assignment(MemberAccess& access, const Expression_
     auto target_name = access.right->as<Identifier>().name;
     emit(OpCode::SET_MEMBER, access.member_index, target_name);
 }
-
-// ===========================================================================
-// ASSIGNMENTS
-// ===========================================================================
 
 void Compiler::compile_identifier_assignment(Identifier& id, const Expression_ptr& rhs)
 {

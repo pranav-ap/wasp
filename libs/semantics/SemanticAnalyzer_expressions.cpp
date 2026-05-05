@@ -268,7 +268,8 @@ Object_ptr SemanticAnalyzer::evaluate_class_method_call(
     Doctor::get().assert(
         class_type->contains_member(method_name),
         WaspStage::Semantics,
-        "Method not found on class."
+        "Method '" + method_name + "()' does not exist on class '" +
+            class_type->name + "'."
     );
 
     auto member = class_type->get_member(method_name);
@@ -276,12 +277,12 @@ Object_ptr SemanticAnalyzer::evaluate_class_method_call(
     Doctor::get().assert(
         member->is<ObjectOverloadList_ptr>(),
         WaspStage::Semantics,
-        "Member must be an overload group."
+        "Member '" + method_name + "' must be an object overload group."
     );
 
     const auto& overloads = member->as<ObjectOverloadList_ptr>()->overloads;
 
-    auto [function_symbol, overload_index] = type_checker->get_best_function_object(
+    auto [signature_obj, overload_index] = type_checker->get_best_function_object(
         current_scope,
         overloads,
         argument_types
@@ -293,7 +294,7 @@ Object_ptr SemanticAnalyzer::evaluate_class_method_call(
     call.is_method_call = true;
     call.is_pure_method_call = class_type->is_pure(method_name);
 
-    return function_symbol->as<Signature_ptr>()->return_type;
+    return signature_obj->as<Signature_ptr>()->return_type;
 }
 
 // ============================================================================

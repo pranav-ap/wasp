@@ -113,12 +113,6 @@ void BaseOOPType::add_overload(const std::string& member_name, Object_ptr overlo
         );
     }
 
-    Doctor::get().assert(
-        member_types.at(member_name)->is<ObjectOverloadList_ptr>(),
-        WaspStage::Semantics,
-        "Expected an ObjectOverloadList for member '" + member_name + "' in " + name
-    );
-
     auto overload_list = member_types.at(member_name)->as<ObjectOverloadList_ptr>();
     overload_list->add_overload(std::move(overload));
 }

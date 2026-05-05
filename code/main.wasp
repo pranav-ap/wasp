@@ -3,12 +3,9 @@ from core.io import print
 class Foo
     id: int
 
-    our pure fun new() => Foo
-        return Foo(10)
-
     fun bar()
-        print(my.id)
+        pass
 
 
-let f = Foo.new()
+let f = Foo(5)
 f.bar()
