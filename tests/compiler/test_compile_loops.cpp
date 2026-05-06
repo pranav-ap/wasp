@@ -263,8 +263,7 @@ while x < 5 do
         B(Wasp::OpCode::POP_SCOPE),
         B(Wasp::OpCode::JUMP),          B(8), B(0),
 
-        B(Wasp::OpCode::GET_LOCAL),     B(0),
-        B(Wasp::OpCode::EXIT_MODULE),   B(1)
+        B(Wasp::OpCode::EXIT_MODULE),   B(0)
     };
     // clang-format on
 

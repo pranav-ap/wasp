@@ -342,10 +342,6 @@ void VM::perform_set_member(Object_ptr obj, int member_index, Object_ptr value)
 // Module
 // ------------------------------------------------
 
-// ------------------------------------------------
-// Module
-// ------------------------------------------------
-
 void VM::execute_import_module(CallFrame* frame)
 {
     int module_index = static_cast<int>(frame->consume_byte());
@@ -358,15 +354,13 @@ void VM::execute_import_module(CallFrame* frame)
         "Module not found at registry index: " + std::to_string(module_index)
     );
 
-    // 1. CHECK THE CACHE FIRST (Using the raw memory address)
     void* blueprint_ptr = target_module->blueprint.get();
     if (evaluated_modules.contains(blueprint_ptr))
     {
         push_to_stack(evaluated_modules.at(blueprint_ptr));
-        return; // Bypass frame creation entirely!
+        return;
     }
 
-    // 2. CACHE MISS: Evaluate the module
     auto module_func = std::make_shared<FunctionRuntimeObject>(
         target_module->blueprint
     );
@@ -392,7 +386,6 @@ void VM::execute_exit_module(CallFrame* frame)
 
     auto module_obj = make_object(exports);
 
-    // 3. SAVE TO CACHE (Using the raw memory address)
     void* blueprint_ptr = frame->function->blueprint.get();
     evaluated_modules[blueprint_ptr] = module_obj;
 

@@ -84,14 +84,21 @@ FunctionBlueprintObject_ptr Compiler::run(
 void Compiler::emit_exports()
 {
     auto mod = workspace->get_module(module_path);
+
+    if (mod == nullptr)
+    {
+        emit(OpCode::EXIT_MODULE, 0);
+        return;
+    }
+
     Doctor::get().fatal_if_nullptr(mod, WaspStage::Compiler);
 
     int export_count = 0;
 
-    // Iterate over the exact exports approved by the Semantic Analyzer
+    // Iterate over the exports approved by the Semantic Analyzer
     for (const auto& exported_symbol : mod->exports)
     {
-        // 3. Find where this specific export lives on the VM's local stack
+        // Find where this export lives on the VM's local stack
         int stack_index = resolve_local(exported_symbol->id);
 
         Doctor::get().assert(
@@ -100,12 +107,12 @@ void Compiler::emit_exports()
             "Failed to find exported symbol on stack: " + exported_symbol->name
         );
 
-        // 4. Push it to the top of the stack for EXIT_MODULE to consume
+        // Push it to the top of the stack for EXIT_MODULE to consume
         emit(OpCode::GET_LOCAL, stack_index, exported_symbol->name);
         export_count++;
     }
 
-    // 5. Exit the module with the correct, synchronized count
+    // Exit the module with the correct, synchronized count
     emit(OpCode::EXIT_MODULE, export_count);
 }
 
