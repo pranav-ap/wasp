@@ -6,6 +6,7 @@
 #include "Token.h"
 #include "Workspace.h"
 
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -97,12 +98,29 @@ struct TypeSystem
         const Object_ptr type
     ) const;
 
-    std::pair<ObjectStringMap, std::string> extract_generics_and_name(
-        const Object_ptr& base
+    std::tuple<ObjectStringMap, StringVector, std::string>
+    extract_generics_and_names(const Object_ptr& base) const;
+
+    StringVector get_generics_declaration_order(const Object_ptr& base) const;
+
+    std::vector<std::pair<Symbol_ptr, int>> filter_by_generic_arity(
+        const SymbolVector& overloads,
+        size_t expected_generic_count
     ) const;
 
     Object_ptr substitute_generics(
         Object_ptr type,
+        const ObjectStringMap& substitutions
+    ) const;
+
+    struct SpecializationResult
+    {
+        ObjectVector signatures;
+        std::vector<int> original_indices;
+    };
+
+    SpecializationResult specialize_candidates(
+        const std::vector<std::pair<Symbol_ptr, int>>& candidates,
         const ObjectVector& generic_args
     ) const;
 

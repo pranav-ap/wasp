@@ -160,7 +160,7 @@ Symbol_ptr SymbolScope::lookup(const std::string& name) const
     {
         if (current->symbols.contains(name))
         {
-            return current->symbols.at(name)->resolve();
+            return current->symbols.at(name);
         }
 
         current = current->enclosing_scope.get();

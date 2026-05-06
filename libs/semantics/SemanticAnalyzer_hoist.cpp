@@ -8,6 +8,7 @@
 #include <ctime>
 #include <memory>
 #include <string>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -22,10 +23,12 @@ namespace Wasp
 
 void SemanticAnalyzer::hoist_statements(StatementVector& statements)
 {
-    auto evaluate_generics =
-        [&](const std::vector<FieldDefinition>& generic_fields) -> ObjectStringMap
+    auto evaluate_generics = [&](
+                                 const std::vector<FieldDefinition>& generic_fields
+                             ) -> std::pair<ObjectStringMap, StringVector>
     {
         ObjectStringMap generics_map;
+        StringVector ordered_names;
 
         for (const auto& field : generic_fields)
         {
@@ -36,9 +39,10 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
             );
 
             generics_map[field.name] = generic_type;
+            ordered_names.push_back(field.name);
         }
 
-        return generics_map;
+        return {generics_map, ordered_names};
     };
 
     for (auto& stmt_ptr : statements)
@@ -47,7 +51,7 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
             overloaded{
                 [&](FunctionDefinition& def)
                 {
-                    ObjectStringMap generics = evaluate_generics(def.generics);
+                    auto [generics, ordered_names] = evaluate_generics(def.generics);
 
                     bool has_generics = prepare_generic_scope(generics);
 
@@ -56,7 +60,6 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
                                                  : workspace->pool->get_none_type();
 
                     ObjectVector param_types;
-
                     for (const auto& [name, type_node] : def.parameters)
                     {
                         param_types.push_back(visit(type_node));
@@ -71,7 +74,8 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
                         std::make_shared<Signature>(
                             param_types,
                             return_type,
-                            generics
+                            generics,
+                            ordered_names
                         )
                     );
 
@@ -94,7 +98,7 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
                 },
                 [&](ClassDefinition& def)
                 {
-                    ObjectStringMap generics = evaluate_generics(def.generics);
+                    auto [generics, ordered_names] = evaluate_generics(def.generics);
 
                     auto type = make_object(
                         std::make_shared<ClassType>(
@@ -104,7 +108,8 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
                             StringVector{},
                             StringVector{},
                             StringVector{},
-                            generics
+                            generics,
+                            ordered_names
                         )
                     );
 
@@ -119,7 +124,7 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
                 },
                 [&](TraitDefinition& def)
                 {
-                    ObjectStringMap generics = evaluate_generics(def.generics);
+                    auto [generics, ordered_names] = evaluate_generics(def.generics);
 
                     auto type = make_object(
                         std::make_shared<TraitType>(
@@ -128,7 +133,8 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
                             StringVector{},
                             StringVector{},
                             StringVector{},
-                            generics
+                            generics,
+                            ordered_names
                         )
                     );
 
@@ -143,12 +149,13 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
                 },
                 [&](TypeAliasDefinition& def)
                 {
-                    ObjectStringMap generics = evaluate_generics(def.generics);
+                    auto [generics, ordered_names] = evaluate_generics(def.generics);
 
                     auto type_alias_type = std::make_shared<TypeAlias>(
                         def.name,
                         nullptr,
-                        generics
+                        generics,
+                        ordered_names
                     );
 
                     auto symbol = SymbolFactory::create_type_alias(

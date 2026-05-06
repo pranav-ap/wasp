@@ -20,7 +20,7 @@ namespace Wasp
 
 void Compiler::visit(Identifier& expr)
 {
-    auto symbol = expr.symbol->resolve();
+    auto symbol = expr.symbol; //->resolve();
     Doctor::get().fatal_if_nullptr(symbol, WaspStage::Compiler);
 
     if (symbol->is_native())

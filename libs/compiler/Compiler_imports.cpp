@@ -21,19 +21,23 @@ void Compiler::visit(SimpleImport& import_stmt)
     Doctor::get().fatal_if_nullptr(
         import_stmt.symbol,
         WaspStage::Compiler,
-        "Simple Import must have a resolved symbol"
+        "Simple Import must have a symbol"
     );
 
-    auto target_symbol = import_stmt.symbol->resolve();
-    auto module_payload = target_symbol->get_payload_as<ModuleData>();
+    auto unresolved_symbol = import_stmt.symbol;
+
+    auto resolved_symbol = unresolved_symbol->resolve();
+    Doctor::get().fatal_if_nullptr(resolved_symbol, WaspStage::Compiler);
+
+    auto module_payload = resolved_symbol->get_payload_as<ModuleData>();
 
     int module_index = workspace->get_module_index(
         module_payload.mod->absolute_filepath
     );
 
-    emit(OpCode::IMPORT_MODULE, module_index, "module " + target_symbol->name);
+    emit(OpCode::IMPORT_MODULE, module_index, "module " + unresolved_symbol->name);
 
-    stack.push_back(import_stmt.symbol);
+    stack.push_back(unresolved_symbol);
 }
 
 void Compiler::visit(FromImport& from_import)

@@ -36,7 +36,6 @@ void SemanticAnalyzer::visit(SimpleImport& import_stmt)
     }
     else
     {
-
         import_stmt.symbol = current_scope->define(module_symbol);
     }
 }

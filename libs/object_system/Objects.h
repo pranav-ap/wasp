@@ -115,10 +115,7 @@ using GenericType_ptr = std::shared_ptr<GenericType>;
 struct TemplatableType
 {
     ObjectStringMap generics;
-
-    TemplatableType(ObjectStringMap generics = {}) : generics(std::move(generics))
-    {
-    }
+    StringVector expected_generic_names_order;
 };
 
 // ============================================================================
@@ -163,9 +160,10 @@ struct Signature : public TemplatableType
     Signature(
         ObjectVector parameter_types,
         Object_ptr return_type,
-        ObjectStringMap generics = {}
+        ObjectStringMap generics,
+        StringVector ordered_generic_names
     )
-        : TemplatableType(std::move(generics)),
+        : TemplatableType(std::move(generics), std::move(ordered_generic_names)),
           parameter_types(std::move(parameter_types)),
           return_type(std::move(return_type))
     {
@@ -230,11 +228,13 @@ struct BaseOOPType : public BaseMemberedType, public TemplatableType
         StringVector methods,
         StringVector pures,
         StringVector statics,
-        ObjectStringMap generics = {}
+        ObjectStringMap generics,
+        StringVector ordered_generic_names
     )
         : BaseMemberedType(std::move(name), std::move(members)),
-          TemplatableType(std::move(generics)), methods(std::move(methods)),
-          pures(std::move(pures)), statics(std::move(statics))
+          TemplatableType(std::move(generics), std::move(ordered_generic_names)),
+          methods(std::move(methods)), pures(std::move(pures)),
+          statics(std::move(statics))
     {
     }
 
@@ -259,7 +259,8 @@ struct ClassType : public BaseOOPType
         StringVector methods,
         StringVector pures,
         StringVector statics,
-        ObjectStringMap generics = {}
+        ObjectStringMap generics,
+        StringVector ordered_generic_names
     )
         : BaseOOPType(
               std::move(name),
@@ -267,7 +268,8 @@ struct ClassType : public BaseOOPType
               std::move(methods),
               std::move(pures),
               std::move(statics),
-              std::move(generics)
+              std::move(generics),
+              std::move(ordered_generic_names)
           ),
           fields(std::move(fields))
     {
@@ -319,10 +321,11 @@ struct TypeAlias : public TemplatableType
     TypeAlias(
         std::string name,
         Object_ptr underlying_type,
-        ObjectStringMap generics = {}
+        ObjectStringMap generics,
+        StringVector ordered_generic_names
     )
-        : TemplatableType(std::move(generics)), name(std::move(name)),
-          underlying_type(std::move(underlying_type))
+        : TemplatableType(std::move(generics), std::move(ordered_generic_names)),
+          name(std::move(name)), underlying_type(std::move(underlying_type))
     {
     }
 };

@@ -1,5 +1,7 @@
 from my.house import shout
+# import my.house as h
 from core.io import print
 
-let x = shout<int>(5)
-print(x)
+
+let g = shout<int, str>(2, 'bye')
+print(g)

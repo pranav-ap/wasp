@@ -177,7 +177,8 @@ void SemanticAnalyzer::visit(ClassDefinition& def)
                 std::make_shared<Signature>(
                     param_types,
                     return_type,
-                    class_type->generics
+                    class_type->generics,
+                    class_type->expected_generic_names_order
                 )
             );
 

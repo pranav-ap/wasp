@@ -114,7 +114,7 @@ private:
     Object_ptr mutate_member(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
 
     // =========================================================================
-    // Call & Instantiation Evaluators
+    // Call Evaluators
     // =========================================================================
 
     bool is_native_function(Symbol_ptr symbol);
@@ -123,37 +123,57 @@ private:
     void bind_identifier(Identifier& id, Symbol_ptr symbol);
     std::pair<Symbol_ptr, Symbol_ptr> get_module_member_symbol(MemberAccess& access);
 
-    Object_ptr evaluate_call(
+    Object_ptr call_function(
         Call& call,
         Identifier& identifier,
         const ObjectVector& argument_types
     );
 
-    Object_ptr evaluate_call(
-        Call& call,
-        MemberAccess& access,
-        const ObjectVector& argument_types
-    );
-
-    Object_ptr evaluate_call(
-        Call& call,
-        ConcreteTemplate& concrete_template,
-        const ObjectVector& argument_types
-    );
-
-    Object_ptr evaluate_call_method(
+    Object_ptr call_method(
         Call& call,
         MemberAccess& mac,
         const ObjectVector& argument_types,
         ClassType_ptr class_type
     );
 
-    Object_ptr evaluate_call_function(
+    Object_ptr call_module_function(
         Call& call,
         MemberAccess& access,
         const ObjectVector& argument_types,
         ModuleType_ptr module_type
     );
+
+    Object_ptr call_concrete_template(
+        Call& call,
+        ConcreteTemplate& concrete_template,
+        const ObjectVector& argument_types
+    );
+
+    Object_ptr resolve_concrete_template_overload(
+        Call& call,
+        Symbol_ptr overload_symbol,
+        const ObjectVector& argument_types,
+        const ObjectVector& concrete_arguments
+    );
+
+    Object_ptr call_concrete_template_function(
+        Call& call,
+        Identifier& identifier,
+        const ObjectVector& argument_types,
+        const ObjectVector concrete_arguments
+    );
+
+    Object_ptr call_concrete_template_module_function(
+        Call& call,
+        MemberAccess& access,
+        const ObjectVector& argument_types,
+        const ObjectVector concrete_arguments,
+        ModuleType_ptr module_type
+    );
+
+    // =========================================================================
+    // Instantiation Evaluators
+    // =========================================================================
 
     Object_ptr evaluate_instance_creation(
         Constructor& constructor,
@@ -165,6 +185,7 @@ private:
     // =========================================================================
     // Type Annotation Visitors
     // =========================================================================
+
     Object_ptr visit(const TypeAnnotation_ptr type_node);
     ObjectVector visit(TypeAnnotationVector& type_nodes);
 
