@@ -10,7 +10,6 @@
 #include <ctime>
 #include <memory>
 #include <string>
-#include <utility>
 #include <variant>
 #include <vector>
 
@@ -37,9 +36,7 @@ void SemanticAnalyzer::bind_identifier(Identifier& id, Symbol_ptr symbol)
     }
 }
 
-std::pair<Symbol_ptr, Symbol_ptr> SemanticAnalyzer::get_module_member_symbol(
-    MemberAccess& access
-)
+Symbol_ptr SemanticAnalyzer::get_module_member_symbol(MemberAccess& access)
 {
     Doctor::get().assert(
         access.left->is<Identifier>() && access.right->is<Identifier>(),
@@ -53,7 +50,6 @@ std::pair<Symbol_ptr, Symbol_ptr> SemanticAnalyzer::get_module_member_symbol(
     Symbol_ptr unresolved_module_symbol = current_scope->lookup(
         module_identifier.name
     );
-
     Doctor::get().fatal_if_nullptr(unresolved_module_symbol, WaspStage::Semantics);
 
     bind_identifier(module_identifier, unresolved_module_symbol);
@@ -71,7 +67,7 @@ std::pair<Symbol_ptr, Symbol_ptr> SemanticAnalyzer::get_module_member_symbol(
 
     access.member_index = module_data.mod->get_member_index(member_identifier.name);
 
-    return {unresolved_module_symbol, member_symbol};
+    return member_symbol; // Now just returns the single pointer
 }
 
 // ============================================================================
@@ -143,10 +139,6 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
     );
 }
 
-// ============================================================================
-// Function Calls & Method Evaluation
-// ============================================================================
-
 Object_ptr SemanticAnalyzer::visit(Call& call)
 {
     ObjectVector argument_types = visit(call.arguments);
@@ -155,7 +147,11 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
         overloaded{
             [&](Identifier& identifier) -> Object_ptr
             {
-                return call_function(call, identifier, argument_types);
+                auto symbol = current_scope->lookup(identifier.name);
+                Doctor::get().fatal_if_nullptr(symbol, WaspStage::Semantics);
+                bind_identifier(identifier, symbol);
+
+                return resolve_standard_overload(call, symbol, argument_types);
             },
             [&](TemplateAngular& concrete_template) -> Object_ptr
             {
@@ -183,11 +179,13 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
 
                         [&](ModuleType_ptr const& module_type) -> Object_ptr
                         {
-                            return call_module_function(
+                            auto member_symbol = get_module_member_symbol(access);
+                            access.right->as<Identifier>().symbol = member_symbol;
+
+                            return resolve_standard_overload(
                                 call,
-                                access,
-                                argument_types,
-                                module_type
+                                member_symbol,
+                                argument_types
                             );
                         },
 
@@ -214,16 +212,17 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
     );
 }
 
-Object_ptr SemanticAnalyzer::call_function(
+Object_ptr SemanticAnalyzer::resolve_standard_overload(
     Call& call,
-    Identifier& identifier,
+    Symbol_ptr overload_symbol,
     const ObjectVector& argument_types
 )
 {
-    auto overload_symbol = current_scope->lookup(identifier.name);
-    Doctor::get().fatal_if_nullptr(overload_symbol, WaspStage::Semantics);
-
-    bind_identifier(identifier, overload_symbol);
+    Doctor::get().assert(
+        overload_symbol->payload_is<OverloadsData>(),
+        WaspStage::Semantics,
+        "Symbol must hold function overloads."
+    );
 
     auto [function_symbol, overload_index] = type_system->get_best_function_symbol(
         current_scope,
@@ -232,7 +231,6 @@ Object_ptr SemanticAnalyzer::call_function(
     );
 
     call.overload_index = overload_index;
-
     return function_symbol->get_type()->as<Signature_ptr>()->return_type;
 }
 
@@ -277,115 +275,54 @@ Object_ptr SemanticAnalyzer::call_method(
     return signature_obj->as<Signature_ptr>()->return_type;
 }
 
-Object_ptr SemanticAnalyzer::call_module_function(
-    Call& call,
-    MemberAccess& access,
-    const ObjectVector& argument_types,
-    ModuleType_ptr module_type
-)
+Symbol_ptr SemanticAnalyzer::resolve_target_symbol(Expression_ptr target)
 {
-    Doctor::get().assert(
-        access.right->is<Identifier>(),
-        WaspStage::Semantics,
-        "Expected an identifier on the RHS"
+    Symbol_ptr target_symbol = nullptr;
+
+    std::visit(
+        overloaded{
+            [&](Identifier& id)
+            {
+                target_symbol = current_scope->lookup(id.name);
+                Doctor::get().fatal_if_nullptr(target_symbol, WaspStage::Semantics);
+                bind_identifier(id, target_symbol);
+            },
+            [&](MemberAccess& access)
+            {
+                auto member_symbol = get_module_member_symbol(access);
+                target_symbol = member_symbol;
+                access.right->as<Identifier>().symbol = target_symbol;
+            },
+            [&](auto&)
+            {
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Invalid target expression."
+                );
+            }
+        },
+        target->data
     );
 
-    auto identifier = access.right->as<Identifier>();
-
-    auto [module_symbol, overload_symbol] = get_module_member_symbol(access);
-
-    Doctor::get().fatal_if_nullptr(
-        overload_symbol,
-        WaspStage::Semantics,
-        "Module member overload symbol not found."
-    );
-
-    Doctor::get().assert(
-        overload_symbol->payload_is<OverloadsData>(),
-        WaspStage::Semantics,
-        "Module member symbol must hold function overloads."
-    );
-
-    auto [function_symbol, overload_index] = type_system->get_best_function_symbol(
-        current_scope,
-        overload_symbol->get_payload_as<OverloadsData>().get_overloads(),
-        argument_types
-    );
-
-    call.overload_index = overload_index;
-    identifier.symbol = module_symbol;
-
-    return function_symbol->get_type()->as<Signature_ptr>()->return_type;
+    return target_symbol;
 }
 
 Object_ptr SemanticAnalyzer::call_concrete_template(
     Call& call,
-    TemplateAngular& concrete_template,
+    TemplateAngular& template_angular,
     const ObjectVector& argument_types
 )
 {
     ObjectVector concrete_arguments;
 
-    for (const auto& concrete_type : concrete_template.angular_nodes)
+    for (const auto& node : template_angular.angular_nodes)
     {
-        concrete_arguments.push_back(visit(concrete_type));
+        concrete_arguments.push_back(visit(node));
     }
 
-    return std::visit(
-        overloaded{
-            [&](Identifier& identifier) -> Object_ptr
-            {
-                return call_concrete_template_function(
-                    call,
-                    identifier,
-                    argument_types,
-                    concrete_arguments
-                );
-            },
-            [&](MemberAccess& access) -> Object_ptr
-            {
-                Object_ptr left_type = visit(access.left);
+    Symbol_ptr overload_symbol = resolve_target_symbol(template_angular.target);
+    template_angular.symbol = overload_symbol;
 
-                return std::visit(
-                    overloaded{
-                        [&](ModuleType_ptr const& module_type) -> Object_ptr
-                        {
-                            return call_concrete_template_module_function(
-                                call,
-                                access,
-                                argument_types,
-                                concrete_arguments,
-                                module_type
-                            );
-                        },
-
-                        [&](const auto&) -> Object_ptr
-                        {
-                            Doctor::get().fatal(
-                                WaspStage::Semantics,
-                                "LHS of concrete template call must be a module."
-                            );
-                        }
-                    },
-                    left_type->value
-                );
-            },
-            [&](auto&) -> Object_ptr
-            {
-                Doctor::get().fatal(WaspStage::Semantics, "Boom!");
-            }
-        },
-        concrete_template.target->data
-    );
-}
-
-Object_ptr SemanticAnalyzer::resolve_concrete_template_overload(
-    Call& call,
-    Symbol_ptr overload_symbol,
-    const ObjectVector& argument_types,
-    const ObjectVector& concrete_arguments
-)
-{
     Doctor::get().assert(
         overload_symbol->payload_is<OverloadsData>(),
         WaspStage::Semantics,
@@ -424,77 +361,22 @@ Object_ptr SemanticAnalyzer::resolve_concrete_template_overload(
     return function_object->as<Signature_ptr>()->return_type;
 }
 
-Object_ptr SemanticAnalyzer::call_concrete_template_function(
-    Call& call,
-    Identifier& identifier,
-    const ObjectVector& argument_types,
-    const ObjectVector concrete_arguments
-)
-{
-    auto overload_symbol = current_scope->lookup(identifier.name);
-    Doctor::get().fatal_if_nullptr(overload_symbol, WaspStage::Semantics);
-
-    bind_identifier(identifier, overload_symbol);
-
-    return resolve_concrete_template_overload(
-        call,
-        overload_symbol,
-        argument_types,
-        concrete_arguments
-    );
-}
-
-Object_ptr SemanticAnalyzer::call_concrete_template_module_function(
-    Call& call,
-    MemberAccess& access,
-    const ObjectVector& argument_types,
-    const ObjectVector concrete_arguments,
-    ModuleType_ptr module_type
-)
-{
-    Doctor::get().assert(
-        access.right->is<Identifier>(),
-        WaspStage::Semantics,
-        "Expected an identifier on the RHS"
-    );
-
-    auto [module_symbol, overload_symbol] = get_module_member_symbol(access);
-
-    Doctor::get().fatal_if_nullptr(
-        overload_symbol,
-        WaspStage::Semantics,
-        "Module member overload symbol not found."
-    );
-
-    access.right->as<Identifier>().symbol = overload_symbol;
-
-    return resolve_concrete_template_overload(
-        call,
-        overload_symbol,
-        argument_types,
-        concrete_arguments
-    );
-}
-
-// ============================================================================
-// Constructor & Instance Creation
-// ============================================================================
-
 Object_ptr SemanticAnalyzer::visit(Constructor& constructor)
 {
     ObjectVector argument_types = visit(constructor.values);
 
-    return std::visit(
+    Object_ptr target_type = nullptr;
+    std::visit(
         overloaded{
-            [&](Identifier& target) -> Object_ptr
+            [&](Identifier& target)
             {
-                return create_instance(target, argument_types);
+                target_type = visit(target);
             },
-            [&](TemplateAngular& tc) -> Object_ptr
+            [&](TemplateAngular& tc)
             {
-                return create_concrete_template_instance(tc, argument_types);
+                target_type = visit(tc);
             },
-            [&](auto&) -> Object_ptr
+            [&](auto&)
             {
                 Doctor::get().fatal(
                     WaspStage::Semantics,
@@ -504,53 +386,14 @@ Object_ptr SemanticAnalyzer::visit(Constructor& constructor)
         },
         constructor.construtable->data
     );
-}
-
-Object_ptr SemanticAnalyzer::create_instance(
-    Identifier& identifier,
-    const ObjectVector& argument_types
-)
-{
-    auto class_symbol = current_scope->lookup(identifier.name);
-    Doctor::get().fatal_if_nullptr(class_symbol, WaspStage::Semantics);
 
     Doctor::get().assert(
-        class_symbol->payload_is<ClassData>(),
+        target_type && target_type->is<ClassType_ptr>(),
         WaspStage::Semantics,
-        "Target must be a class."
+        "Constructor target must resolve to a class."
     );
 
-    bind_identifier(identifier, class_symbol);
-    auto class_type = class_symbol->get_type()->as<ClassType_ptr>();
-
-    Doctor::get().assert(
-        argument_types.size() == class_type->fields.size(),
-        WaspStage::Semantics,
-        "Constructor Arguments Count Mismatch."
-    );
-
-    for (size_t i = 0; i < class_type->fields.size(); ++i)
-    {
-        Object_ptr expected = class_type->get_member(class_type->fields[i]);
-
-        Doctor::get().assert(
-            type_system->assignable(current_scope, expected, argument_types[i]),
-            WaspStage::Semantics,
-            "Constructor Argument Type Mismatch for field " + class_type->fields[i]
-        );
-    }
-
-    return class_symbol->get_type();
-}
-
-Object_ptr SemanticAnalyzer::create_concrete_template_instance(
-    TemplateAngular& tc,
-    const ObjectVector& argument_types
-)
-{
-    Object_ptr specialized_type = visit(tc);
-
-    auto class_type = specialized_type->as<ClassType_ptr>();
+    auto class_type = target_type->as<ClassType_ptr>();
 
     Doctor::get().assert(
         argument_types.size() == class_type->fields.size(),
@@ -569,7 +412,7 @@ Object_ptr SemanticAnalyzer::create_concrete_template_instance(
         );
     }
 
-    return specialized_type;
+    return target_type;
 }
 
 Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
@@ -580,37 +423,7 @@ Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
         angular_arguments.push_back(visit(arg_node));
     }
 
-    Symbol_ptr target_symbol = nullptr;
-
-    std::visit(
-        overloaded{
-            [&](Identifier& id)
-            {
-                target_symbol = current_scope->lookup(id.name);
-                Doctor::get().fatal_if_nullptr(
-                    target_symbol,
-                    WaspStage::Semantics,
-                    "Unresolved symbol '" + id.name + "' in template target."
-                );
-                bind_identifier(id, target_symbol);
-            },
-            [&](MemberAccess& access)
-            {
-                auto [mod_symbol, member_symbol] = get_module_member_symbol(access);
-                target_symbol = member_symbol;
-                access.right->as<Identifier>().symbol = target_symbol;
-            },
-            [&](auto&)
-            {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "Invalid target for template specialization."
-                );
-            }
-        },
-        node.target->data
-    );
-
+    Symbol_ptr target_symbol = resolve_target_symbol(node.target);
     node.symbol = target_symbol;
 
     if (target_symbol->payload_is<ClassData>())
@@ -659,8 +472,6 @@ Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
         WaspStage::Semantics,
         "Target '" + target_symbol->name + "' does not support template angulars."
     );
-
-    return nullptr; // Added to satisfy compiler return-type checks
 }
 
 } // namespace Wasp

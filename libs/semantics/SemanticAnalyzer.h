@@ -121,13 +121,15 @@ private:
     void validate_purity_constraints(Symbol_ptr target_symbol) const;
 
     void bind_identifier(Identifier& id, Symbol_ptr symbol);
-    std::pair<Symbol_ptr, Symbol_ptr> get_module_member_symbol(MemberAccess& access);
+    Symbol_ptr get_module_member_symbol(MemberAccess& access);
 
-    Object_ptr call_function(
+    Object_ptr resolve_standard_overload(
         Call& call,
-        Identifier& identifier,
+        Symbol_ptr overload_symbol,
         const ObjectVector& argument_types
     );
+
+    Symbol_ptr resolve_target_symbol(Expression_ptr target);
 
     Object_ptr call_method(
         Call& call,
@@ -136,52 +138,9 @@ private:
         ClassType_ptr class_type
     );
 
-    Object_ptr call_module_function(
-        Call& call,
-        MemberAccess& access,
-        const ObjectVector& argument_types,
-        ModuleType_ptr module_type
-    );
-
     Object_ptr call_concrete_template(
         Call& call,
         TemplateAngular& concrete_template,
-        const ObjectVector& argument_types
-    );
-
-    Object_ptr resolve_concrete_template_overload(
-        Call& call,
-        Symbol_ptr overload_symbol,
-        const ObjectVector& argument_types,
-        const ObjectVector& concrete_arguments
-    );
-
-    Object_ptr call_concrete_template_function(
-        Call& call,
-        Identifier& identifier,
-        const ObjectVector& argument_types,
-        const ObjectVector concrete_arguments
-    );
-
-    Object_ptr call_concrete_template_module_function(
-        Call& call,
-        MemberAccess& access,
-        const ObjectVector& argument_types,
-        const ObjectVector concrete_arguments,
-        ModuleType_ptr module_type
-    );
-
-    // =========================================================================
-    // Call Constructors
-    // =========================================================================
-
-    Object_ptr create_instance(
-        Identifier& identifier,
-        const ObjectVector& argument_types
-    );
-
-    Object_ptr create_concrete_template_instance(
-        TemplateAngular& tc,
         const ObjectVector& argument_types
     );
 
