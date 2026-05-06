@@ -1,7 +1,2 @@
 from core.io import print
-import my.room as r
-
-
-let s = r.Speaker<int>(50)
-s.say()
 

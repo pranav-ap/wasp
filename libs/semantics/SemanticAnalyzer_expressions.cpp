@@ -139,6 +139,69 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
     );
 }
 
+Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
+{
+    ObjectVector angular_arguments;
+    for (const auto& arg_node : node.angular_nodes)
+    {
+        angular_arguments.push_back(visit(arg_node));
+    }
+
+    Symbol_ptr target_symbol = resolve_target_symbol(node.target);
+    node.symbol = target_symbol;
+
+    if (target_symbol->payload_is<ClassData>())
+    {
+        Object_ptr base = target_symbol->get_type();
+        auto names = type_system->get_generics_declaration_order(base);
+
+        Doctor::get().assert(
+            names.size() == angular_arguments.size(),
+            WaspStage::Semantics,
+            "Generic argument count mismatch. Expected " +
+                std::to_string(names.size()) + ", got " +
+                std::to_string(angular_arguments.size()) + "."
+        );
+
+        ObjectStringMap substitutions;
+        for (size_t i = 0; i < angular_arguments.size(); ++i)
+        {
+            substitutions[names[i]] = angular_arguments[i];
+        }
+
+        return type_system->substitute_generics(base, substitutions);
+    }
+
+    if (target_symbol->payload_is<OverloadsData>())
+    {
+        auto candidates = target_symbol->get_payload_as<OverloadsData>()
+                              .get_overloads_with_indices();
+
+        auto result = type_system->specialize_candidates(
+            candidates,
+            angular_arguments
+        );
+
+        Doctor::get().assert(
+            result.signatures.size() == 1,
+            WaspStage::Semantics,
+            "Ambiguous generic reference for '" + target_symbol->name + "'."
+        );
+
+        node.overload_index = result.original_indices[0];
+        return result.signatures[0];
+    }
+
+    Doctor::get().fatal(
+        WaspStage::Semantics,
+        "Target '" + target_symbol->name + "' does not support template angulars."
+    );
+}
+
+// ============================================================================
+// Calls & Constructors
+// ============================================================================
+
 Object_ptr SemanticAnalyzer::visit(Call& call)
 {
     ObjectVector argument_types = visit(call.arguments);
@@ -413,65 +476,6 @@ Object_ptr SemanticAnalyzer::visit(Constructor& constructor)
     }
 
     return target_type;
-}
-
-Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
-{
-    ObjectVector angular_arguments;
-    for (const auto& arg_node : node.angular_nodes)
-    {
-        angular_arguments.push_back(visit(arg_node));
-    }
-
-    Symbol_ptr target_symbol = resolve_target_symbol(node.target);
-    node.symbol = target_symbol;
-
-    if (target_symbol->payload_is<ClassData>())
-    {
-        Object_ptr base = target_symbol->get_type();
-        auto names = type_system->get_generics_declaration_order(base);
-
-        Doctor::get().assert(
-            names.size() == angular_arguments.size(),
-            WaspStage::Semantics,
-            "Generic argument count mismatch. Expected " +
-                std::to_string(names.size()) + ", got " +
-                std::to_string(angular_arguments.size()) + "."
-        );
-
-        ObjectStringMap substitutions;
-        for (size_t i = 0; i < angular_arguments.size(); ++i)
-        {
-            substitutions[names[i]] = angular_arguments[i];
-        }
-
-        return type_system->substitute_generics(base, substitutions);
-    }
-
-    if (target_symbol->payload_is<OverloadsData>())
-    {
-        auto candidates = target_symbol->get_payload_as<OverloadsData>()
-                              .get_overloads_with_indices();
-
-        auto result = type_system->specialize_candidates(
-            candidates,
-            angular_arguments
-        );
-
-        Doctor::get().assert(
-            result.signatures.size() == 1,
-            WaspStage::Semantics,
-            "Ambiguous generic reference for '" + target_symbol->name + "'."
-        );
-
-        node.overload_index = result.original_indices[0];
-        return result.signatures[0];
-    }
-
-    Doctor::get().fatal(
-        WaspStage::Semantics,
-        "Target '" + target_symbol->name + "' does not support template angulars."
-    );
 }
 
 } // namespace Wasp
