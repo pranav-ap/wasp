@@ -129,7 +129,7 @@ void Compiler::visit(const Expression_ptr expr)
             {
                 visit(e);
             },
-            [&](ConcreteTemplate& t)
+            [&](TemplateAngular& t)
             {
                 visit(t);
             },

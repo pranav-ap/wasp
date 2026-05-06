@@ -10,6 +10,7 @@
 #include <memory>
 #include <string>
 #include <tuple>
+#include <unordered_map>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -233,192 +234,6 @@ void TypeSystem::validate_new_method_overload(
 // Transformations
 // ============================================================================
 
-Object_ptr TypeSystem::substitute_generics(
-    Object_ptr type,
-    const ObjectStringMap& substitutions
-) const
-{
-    if (!type || substitutions.empty())
-    {
-        return type;
-    }
-
-    auto substitute_internal = [&](auto& self, Object_ptr t) -> Object_ptr
-    {
-        if (!t)
-        {
-            return nullptr;
-        }
-
-        auto sub = [&](Object_ptr inner)
-        {
-            return self(self, inner);
-        };
-
-        auto sub_all = [&](const ObjectVector& types)
-        {
-            ObjectVector results;
-            results.reserve(types.size());
-            for (const auto& i : types)
-            {
-                results.push_back(sub(i));
-            }
-            return results;
-        };
-
-        return std::visit(
-            overloaded{
-                [&](GenericType_ptr g) -> Object_ptr
-                {
-                    // Core Replacement Logic
-                    if (substitutions.contains(g->name))
-                    {
-                        return substitutions.at(g->name);
-                    }
-                    return t;
-                },
-                [&](TypeAlias_ptr ta) -> Object_ptr
-                {
-                    ObjectStringMap rem_gen;
-                    StringVector rem_names;
-                    for (const auto& gn : ta->expected_generic_names_order)
-                    {
-                        if (!substitutions.contains(gn))
-                        {
-                            rem_gen[gn] = ta->generics.at(gn);
-                            rem_names.push_back(gn);
-                        }
-                    }
-                    return make_object(
-                        std::make_shared<TypeAlias>(
-                            ta->name,
-                            sub(ta->underlying_type),
-                            rem_gen,
-                            rem_names
-                        )
-                    );
-                },
-                [&](Signature_ptr sig) -> Object_ptr
-                {
-                    ObjectStringMap rem_gen;
-                    StringVector rem_names;
-                    for (const auto& gn : sig->expected_generic_names_order)
-                    {
-                        if (!substitutions.contains(gn))
-                        {
-                            rem_gen[gn] = sig->generics.at(gn);
-                            rem_names.push_back(gn);
-                        }
-                    }
-                    return make_object(
-                        std::make_shared<Signature>(
-                            sub_all(sig->parameter_types),
-                            sub(sig->return_type),
-                            rem_gen,
-                            rem_names
-                        )
-                    );
-                },
-                [&](ClassType_ptr cls) -> Object_ptr
-                {
-                    ObjectStringMap concrete_members;
-                    for (auto const& [m_name, m_type] : cls->member_types)
-                    {
-                        concrete_members[m_name] = sub(m_type);
-                    }
-
-                    ObjectStringMap rem_gen;
-                    StringVector rem_names;
-                    for (const auto& gn : cls->expected_generic_names_order)
-                    {
-                        if (!substitutions.contains(gn))
-                        {
-                            rem_gen[gn] = cls->generics.at(gn);
-                            rem_names.push_back(gn);
-                        }
-                    }
-                    return make_object(
-                        std::make_shared<ClassType>(
-                            cls->name,
-                            std::move(concrete_members),
-                            cls->fields,
-                            cls->methods,
-                            cls->pures,
-                            cls->statics,
-                            rem_gen,
-                            rem_names
-                        )
-                    );
-                },
-                [&](TraitType_ptr trt) -> Object_ptr
-                {
-                    ObjectStringMap concrete_members;
-                    for (auto const& [m_name, m_type] : trt->member_types)
-                    {
-                        concrete_members[m_name] = sub(m_type);
-                    }
-
-                    ObjectStringMap rem_gen;
-                    StringVector rem_names;
-                    for (const auto& gn : trt->expected_generic_names_order)
-                    {
-                        if (!substitutions.contains(gn))
-                        {
-                            rem_gen[gn] = trt->generics.at(gn);
-                            rem_names.push_back(gn);
-                        }
-                    }
-                    return make_object(
-                        std::make_shared<TraitType>(
-                            trt->name,
-                            std::move(concrete_members),
-                            trt->methods,
-                            trt->pures,
-                            trt->statics,
-                            rem_gen,
-                            rem_names
-                        )
-                    );
-                },
-                [&](ListType& l) -> Object_ptr
-                {
-                    return make_object(ListType{sub(l.element_type)});
-                },
-                [&](SetType& s) -> Object_ptr
-                {
-                    return make_object(SetType{sub(s.element_type)});
-                },
-                [&](MapType& m) -> Object_ptr
-                {
-                    return make_object(MapType{sub(m.key_type), sub(m.value_type)});
-                },
-                [&](TupleType& tu) -> Object_ptr
-                {
-                    return make_object(TupleType{sub_all(tu.element_types)});
-                },
-                [&](VariantType& v) -> Object_ptr
-                {
-                    return make_object(VariantType{sub_all(v.types)});
-                },
-                [&](ObjectOverloadList_ptr list) -> Object_ptr
-                {
-                    auto new_list = std::make_shared<ObjectOverloadList>();
-                    new_list->overloads = sub_all(list->overloads);
-                    return make_object(new_list);
-                },
-                [](auto&) -> Object_ptr
-                {
-                    return nullptr;
-                }
-            },
-            t->value
-        );
-    };
-
-    auto result = substitute_internal(substitute_internal, type);
-    return result ? result : type;
-}
-
 std::vector<std::pair<Symbol_ptr, int>> TypeSystem::filter_by_generic_arity(
     const SymbolVector& overloads,
     size_t expected_generic_count
@@ -442,42 +257,6 @@ std::vector<std::pair<Symbol_ptr, int>> TypeSystem::filter_by_generic_arity(
     }
 
     return candidates;
-}
-
-std::tuple<ObjectStringMap, StringVector, std::string> TypeSystem::
-    extract_generics_and_names(const Object_ptr& base) const
-{
-    using ReturnType = std::tuple<ObjectStringMap, StringVector, std::string>;
-
-    return std::visit(
-        overloaded{
-            [&](const ClassType_ptr& c) -> ReturnType
-            {
-                return {c->generics, c->expected_generic_names_order, c->name};
-            },
-            [&](const TraitType_ptr& t) -> ReturnType
-            {
-                return {t->generics, t->expected_generic_names_order, t->name};
-            },
-            [&](const TypeAlias_ptr& a) -> ReturnType
-            {
-                return {a->generics, a->expected_generic_names_order, a->name};
-            },
-            [&](const Signature_ptr& s) -> ReturnType
-            {
-                return {s->generics, s->expected_generic_names_order, "fun"};
-            },
-            [&](const GenericType_ptr& g) -> ReturnType
-            {
-                return {{{g->name, g->constraint_type}}, {g->name}, g->name};
-            },
-            [](const auto&) -> ReturnType
-            {
-                return {{}, {}, ""};
-            },
-        },
-        base->value
-    );
 }
 
 StringVector TypeSystem::get_generics_declaration_order(const Object_ptr& base) const
@@ -539,4 +318,153 @@ TypeSystem::SpecializationResult TypeSystem::specialize_candidates(
     return result;
 }
 
+Object_ptr TypeSystem::substitute_generics(
+    Object_ptr type,
+    const ObjectStringMap& substitutions
+) const
+{
+    if (!type || substitutions.empty())
+    {
+        return type;
+    }
+
+    // 1. Identity Substitution Short-Circuit (T -> T)
+    bool is_identity = true;
+    for (const auto& [k, v] : substitutions)
+    {
+        if (!v->is<GenericType_ptr>() || v->as<GenericType_ptr>()->name != k)
+        {
+            is_identity = false;
+            break;
+        }
+    }
+    if (is_identity)
+    {
+        return type;
+    }
+
+    // 2. Memoization map to break infinite recursion cycles
+    // Key: Original pointer, Value: Specialized pointer
+    std::unordered_map<Object_ptr, Object_ptr> memo;
+
+    auto substitute_internal = [&](auto& self, Object_ptr t) -> Object_ptr
+    {
+        if (!t)
+        {
+            return nullptr;
+        }
+
+        // Check if we have already started substituting this specific pointer
+        if (memo.contains(t))
+        {
+            return memo.at(t);
+        }
+
+        auto sub = [&](Object_ptr inner)
+        {
+            return self(self, inner);
+        };
+        auto sub_all = [&](const ObjectVector& types)
+        {
+            ObjectVector results;
+            results.reserve(types.size());
+            for (const auto& i : types)
+            {
+                results.push_back(sub(i));
+            }
+            return results;
+        };
+
+        return std::visit(
+            overloaded{
+                [&](GenericType_ptr g) -> Object_ptr
+                {
+                    return substitutions.contains(g->name)
+                               ? substitutions.at(g->name)
+                               : t;
+                },
+                [&](ClassType_ptr cls) -> Object_ptr
+                {
+                    // Create specialized name
+                    std::string spec_name = cls->name + "<";
+                    bool first = true, any_sub = false;
+                    ObjectStringMap rem_gen;
+                    StringVector rem_names;
+                    for (const auto& gn : cls->expected_generic_names_order)
+                    {
+                        if (!substitutions.contains(gn))
+                        {
+                            rem_gen[gn] = cls->generics.at(gn);
+                            rem_names.push_back(gn);
+                        }
+                        else
+                        {
+                            if (!first)
+                            {
+                                spec_name += ", ";
+                            }
+                            spec_name += mangle_object(substitutions.at(gn));
+                            first = false;
+                            any_sub = true;
+                        }
+                    }
+                    spec_name += ">";
+
+                    // CRITICAL: Register the shell object in the memo BEFORE
+                    // recursing into members
+                    auto new_cls = std::make_shared<ClassType>(
+                        any_sub ? spec_name : cls->name,
+                        ObjectStringMap{},
+                        cls->fields,
+                        cls->methods,
+                        cls->pures,
+                        cls->statics,
+                        rem_gen,
+                        rem_names
+                    );
+                    Object_ptr res = make_object(new_cls);
+                    memo[t] = res;
+
+                    // Now fill members. Circular references will hit the memo and
+                    // return 'res'
+                    for (auto const& [m_name, m_type] : cls->member_types)
+                    {
+                        new_cls->member_types[m_name] = sub(m_type);
+                    }
+                    return res;
+                },
+                [&](Signature_ptr sig) -> Object_ptr
+                {
+                    auto new_sig = std::make_shared<Signature>(
+                        ObjectVector{},
+                        nullptr,
+                        ObjectStringMap{},
+                        StringVector{}
+                    );
+                    Object_ptr res = make_object(new_sig);
+                    memo[t] = res;
+                    new_sig->parameter_types = sub_all(sig->parameter_types);
+                    new_sig->return_type = sub(sig->return_type);
+                    return res;
+                },
+                [&](ObjectOverloadList_ptr list) -> Object_ptr
+                {
+                    auto new_list = std::make_shared<ObjectOverloadList>();
+                    Object_ptr res = make_object(new_list);
+                    memo[t] = res;
+                    new_list->overloads = sub_all(list->overloads);
+                    return res;
+                },
+                // Fallback for standard types (int, str, etc.) so they aren't erased
+                [&](auto&) -> Object_ptr
+                {
+                    return t;
+                }
+            },
+            t->value
+        );
+    };
+
+    return substitute_internal(substitute_internal, type);
+}
 } // namespace Wasp

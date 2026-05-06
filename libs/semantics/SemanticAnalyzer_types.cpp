@@ -3,8 +3,8 @@
 #include "Objects.h"
 #include "SemanticAnalyzer.h"
 #include "TypeAnnotation.h"
-#include "Workspace.h"
 
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <utility>
@@ -166,9 +166,44 @@ Object_ptr SemanticAnalyzer::visit(RecordTypeNode& node)
     Doctor::get().fatal(WaspStage::Semantics, "Record types are not yet supported.");
 }
 
-Object_ptr SemanticAnalyzer::visit(GenericTemplateTypeNode& node)
+Object_ptr SemanticAnalyzer::visit(TemplateAngularTypeNode& node)
 {
-    Doctor::get().fatal(WaspStage::Semantics, "Boom!");
+    // Resolve the base type (e.g., the 'Speaker' in 'Speaker<T>')
+    Object_ptr unspecialized_base = visit(node.base_node);
+    Doctor::get().fatal_if_nullptr(unspecialized_base, WaspStage::Semantics);
+
+    // Evaluate the generic arguments (e.g., the 'T' in 'Speaker<T>')
+    ObjectVector concrete_arguments;
+    for (const auto& type_node : node.angular_nodes)
+    {
+        concrete_arguments.push_back(visit(type_node));
+    }
+
+    auto generic_names = type_system->get_generics_declaration_order(
+        unspecialized_base
+    );
+
+    Doctor::get().assert(
+        generic_names.size() == concrete_arguments.size(),
+        WaspStage::Semantics,
+        "Generic argument count mismatch. Expected " +
+            std::to_string(generic_names.size()) + ", but got " +
+            std::to_string(concrete_arguments.size()) + "."
+    );
+
+    // Map names to types (e.g., { "T": GenericType(T) })
+    ObjectStringMap substitutions;
+    for (size_t i = 0; i < concrete_arguments.size(); ++i)
+    {
+        substitutions[generic_names[i]] = concrete_arguments[i];
+    }
+
+    auto specialized_type = type_system->substitute_generics(
+        unspecialized_base,
+        substitutions
+    );
+
+    return specialized_type;
 }
 
 } // namespace Wasp

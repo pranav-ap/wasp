@@ -181,14 +181,16 @@ struct BaseMemberedType
     std::string name;
     ObjectStringMap member_types;
 
-    BaseMemberedType(std::string name, ObjectStringMap member_types = {})
+    explicit BaseMemberedType(std::string name, ObjectStringMap member_types = {})
         : name(std::move(name)), member_types(std::move(member_types))
     {
     }
 
-    bool contains_member(const std::string& member_name) const;
-    Object_ptr get_member(const std::string& member_name) const;
-    void set_member(const std::string& member_name, Object_ptr value);
+    virtual ~BaseMemberedType() = default;
+
+    virtual bool contains_member(const std::string& member_name) const;
+    virtual Object_ptr get_member(const std::string& member_name) const;
+    virtual void set_member(const std::string& member_name, Object_ptr value);
 };
 
 struct ModuleType : public BaseMemberedType
@@ -196,11 +198,11 @@ struct ModuleType : public BaseMemberedType
     std::filesystem::path absolute_filepath;
     StringVector ordered_keys;
 
-    ModuleType(
+    explicit ModuleType(
         std::string name,
         std::filesystem::path absolute_filepath,
         StringVector ordered_keys,
-        ObjectStringMap members
+        ObjectStringMap members = {}
     )
         : BaseMemberedType(std::move(name), std::move(members)),
           absolute_filepath(std::move(absolute_filepath)),
@@ -218,68 +220,54 @@ using ModuleType_ptr = std::shared_ptr<ModuleType>;
 
 struct BaseOOPType : public BaseMemberedType, public TemplatableType
 {
+    StringVector fields;
     StringVector methods;
     StringVector pures;
     StringVector statics;
 
-    BaseOOPType(
-        std::string name,
-        ObjectStringMap members,
-        StringVector methods,
-        StringVector pures,
-        StringVector statics,
-        ObjectStringMap generics,
-        StringVector ordered_generic_names
-    )
-        : BaseMemberedType(std::move(name), std::move(members)),
-          TemplatableType(std::move(generics), std::move(ordered_generic_names)),
-          methods(std::move(methods)), pures(std::move(pures)),
-          statics(std::move(statics))
-    {
-    }
-
-    void add_overload(const std::string& member_name, Object_ptr overload);
-    ObjectVector get_overloads(const std::string& member_name) const;
-    ObjectVector get_methods() const;
-    ObjectVector get_pures() const;
-    ObjectVector get_statics() const;
-
-    bool is_pure(std::string member_name) const;
-    bool is_static(std::string member_name) const;
-};
-
-struct ClassType : public BaseOOPType
-{
-    StringVector fields;
-
-    ClassType(
+    explicit BaseOOPType(
         std::string name,
         ObjectStringMap members,
         StringVector fields,
         StringVector methods,
         StringVector pures,
         StringVector statics,
-        ObjectStringMap generics,
-        StringVector ordered_generic_names
+        ObjectStringMap generics = {},
+        StringVector ordered_generic_names = {}
     )
-        : BaseOOPType(
-              std::move(name),
-              std::move(members),
-              std::move(methods),
-              std::move(pures),
-              std::move(statics),
-              std::move(generics),
-              std::move(ordered_generic_names)
-          ),
-          fields(std::move(fields))
+        : BaseMemberedType(std::move(name), std::move(members)),
+          TemplatableType(std::move(generics), std::move(ordered_generic_names)),
+          fields(std::move(fields)), methods(std::move(methods)),
+          pures(std::move(pures)), statics(std::move(statics))
     {
     }
 
-    using BaseMemberedType::get_member;
+    void add_overload(const std::string& member_name, Object_ptr overload);
+    ObjectVector get_overloads(const std::string& member_name) const;
+
+    ObjectVector get_fields() const;
+    ObjectVector get_methods() const;
+    ObjectVector get_pures() const;
+    ObjectVector get_statics() const;
+    ObjectVector get_members() const;
+
+    bool is_pure(const std::string& member_name) const;
+    bool is_static(const std::string& member_name) const;
+
     int get_member_index(const std::string& member_name) const;
     Object_ptr get_member(int member_id) const;
-    ObjectVector get_fields() const;
-    ObjectVector get_members() const;
+
+    Object_ptr get_member(const std::string& member_name) const override;
+    void set_member(const std::string& member_name, Object_ptr value) override;
+
+    bool contains_member(const std::string& member_name) const override;
+};
+
+using BaseOOPType_ptr = std::shared_ptr<BaseOOPType>;
+
+struct ClassType : public BaseOOPType
+{
+    using BaseOOPType::BaseOOPType;
 };
 
 using ClassType_ptr = std::shared_ptr<ClassType>;
@@ -287,14 +275,13 @@ using ClassType_ptr = std::shared_ptr<ClassType>;
 struct TraitType : public BaseOOPType
 {
     using BaseOOPType::BaseOOPType;
-
-    using BaseMemberedType::get_member;
-    int get_member_index(const std::string& member_name) const;
-    Object_ptr get_member(int member_id) const;
-    ObjectVector get_members() const;
 };
 
 using TraitType_ptr = std::shared_ptr<TraitType>;
+
+// ============================================================================
+// Enum
+// ============================================================================
 
 struct EnumType
 {

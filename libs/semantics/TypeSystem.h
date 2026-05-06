@@ -98,9 +98,6 @@ struct TypeSystem
         const Object_ptr type
     ) const;
 
-    std::tuple<ObjectStringMap, StringVector, std::string>
-    extract_generics_and_names(const Object_ptr& base) const;
-
     StringVector get_generics_declaration_order(const Object_ptr& base) const;
 
     std::vector<std::pair<Symbol_ptr, int>> filter_by_generic_arity(

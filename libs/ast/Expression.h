@@ -210,15 +210,15 @@ struct Constructor
 struct Symbol;
 
 // Foo<int>
-struct ConcreteTemplate : public Resolvable
+struct TemplateAngular : public Resolvable
 {
     Expression_ptr target;
-    TypeAnnotationVector concrete_types;
+    TypeAnnotationVector angular_nodes;
 
     std::shared_ptr<Symbol> group_symbol = nullptr;
 
-    ConcreteTemplate(Expression_ptr target, TypeAnnotationVector concrete_types)
-        : target(std::move(target)), concrete_types(std::move(concrete_types))
+    TemplateAngular(Expression_ptr target, TypeAnnotationVector angular_nodes)
+        : target(std::move(target)), angular_nodes(std::move(angular_nodes))
     {
     }
 };
@@ -259,7 +259,7 @@ using ExpressionVariant = std::variant<
 
     Call,
     Constructor,
-    ConcreteTemplate,
+    TemplateAngular,
 
     Prefix,
     Infix,

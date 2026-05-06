@@ -133,6 +133,7 @@ void SemanticAnalyzer::hoist_statements(StatementVector& statements)
                             StringVector{},
                             StringVector{},
                             StringVector{},
+                            StringVector{},
                             generics,
                             ordered_names
                         )

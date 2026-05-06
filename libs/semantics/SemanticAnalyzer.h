@@ -107,7 +107,7 @@ private:
     Object_ptr visit(ElseTernaryBranch& expr);
     Object_ptr visit(Call& expr);
     Object_ptr visit(Constructor& expr);
-    Object_ptr visit(ConcreteTemplate& template_instantiation);
+    Object_ptr visit(TemplateAngular& template_instantiation);
 
     Object_ptr define_variable(Expression_ptr assignment_expr, bool is_mutable);
     Object_ptr mutate_variable(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
@@ -145,7 +145,7 @@ private:
 
     Object_ptr call_concrete_template(
         Call& call,
-        ConcreteTemplate& concrete_template,
+        TemplateAngular& concrete_template,
         const ObjectVector& argument_types
     );
 
@@ -172,13 +172,16 @@ private:
     );
 
     // =========================================================================
-    // Instantiation Evaluators
+    // Call Constructors
     // =========================================================================
 
-    Object_ptr evaluate_instance_creation(
-        Constructor& constructor,
+    Object_ptr create_instance(
         Identifier& identifier,
-        Symbol_ptr symbol,
+        const ObjectVector& argument_types
+    );
+
+    Object_ptr create_concrete_template_instance(
+        TemplateAngular& tc,
         const ObjectVector& argument_types
     );
 
@@ -207,6 +210,6 @@ private:
     Object_ptr visit(VariantTypeNode& expr);
     Object_ptr visit(FunctionTypeNode& expr);
     Object_ptr visit(RecordTypeNode& expr);
-    Object_ptr visit(GenericTemplateTypeNode& node);
+    Object_ptr visit(TemplateAngularTypeNode& node);
 };
 } // namespace Wasp

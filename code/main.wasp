@@ -1,7 +1,32 @@
-from my.house import shout
-# import my.house as h
 from core.io import print
 
 
-let g = shout<int, str>(2, 'bye')
-print(g)
+template
+    T: int | str
+
+class Speaker
+    value: T
+
+    our pure fun new(v: T) => Speaker<T>
+        return Speaker<T>(v)
+
+    fun say()
+        print(my.value)
+
+
+let s = Speaker<int>.new(5)
+s.say()
+
+# class Speaker
+#     value: int
+
+#     our pure fun new(v: int) => Speaker
+#         return Speaker(v)
+
+#     fun say()
+#         print(my.value)
+
+
+# let s = Speaker.new(5)
+# s.say()
+

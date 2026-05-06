@@ -363,7 +363,7 @@ Expression_ptr LesserThanParselet::parse(Parser& parser, Expression_ptr left, co
 
         parser.token_pipe.require(TokenType::GREATER_THAN);
 
-        return make_expression(ConcreteTemplate(left, generic_args));
+        return make_expression(TemplateAngular(left, generic_args));
     }
 
     Expression_ptr right = parser.parse_expression(get_precedence());
@@ -383,9 +383,9 @@ static bool is_target_capitalized(const Expression_ptr& expr)
         return is_target_capitalized(expr->as<MemberAccess>().right);
     }
 
-    if (expr->is<ConcreteTemplate>())
+    if (expr->is<TemplateAngular>())
     {
-        return is_target_capitalized(expr->as<ConcreteTemplate>().target);
+        return is_target_capitalized(expr->as<TemplateAngular>().target);
     }
 
     return false;
@@ -395,7 +395,7 @@ Expression_ptr CallParselet::parse(Parser& parser, const Expression_ptr left, co
 {
     Doctor::get().assert(
         left->is<Identifier>() || left->is<MemberAccess>() || left->is<Call>() ||
-            left->is<Constructor>() || left->is<ConcreteTemplate>(),
+            left->is<Constructor>() || left->is<TemplateAngular>(),
         WaspStage::Parser,
         "Expected identifier, member access, call, constructor, or generic "
         "instantiation on the "

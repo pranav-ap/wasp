@@ -2,7 +2,6 @@
 #include "Compiler.h"
 #include "Doctor.h"
 #include "Expression.h"
-#include "Objects.h"
 #include "OpCode.h"
 #include "Workspace.h"
 
@@ -125,7 +124,7 @@ void Compiler::visit(Call& expr)
 
     int total_arguments = static_cast<int>(expr.arguments.size());
 
-    if (expr.is_method_call && !expr.is_pure_method_call)
+    if (expr.is_method_call)
     {
         auto& mac = expr.callable->as<MemberAccess>();
         visit(mac.left);
@@ -142,36 +141,6 @@ void Compiler::visit(Call& expr)
 
 void Compiler::visit(Constructor& expr)
 {
-    Symbol_ptr class_symbol;
-
-    if (expr.construtable->is<Identifier>())
-    {
-        class_symbol = expr.construtable->as<Identifier>().symbol;
-    }
-    else if (expr.construtable->is<MemberAccess>())
-    {
-        class_symbol = expr.construtable->as<MemberAccess>().right->as<Identifier>().symbol;
-    }
-    else if (expr.construtable->is<ConcreteTemplate>())
-    {
-        class_symbol = expr.construtable->as<ConcreteTemplate>().symbol;
-    }
-    else
-    {
-        Doctor::get().fatal(
-            WaspStage::Compiler,
-            "Construtable must be an identifier, member access, or template instantiation."
-        );
-    }
-
-    auto class_type = class_symbol->get_type()->as<std::shared_ptr<ClassType>>();
-
-    Doctor::get().assert(
-        expr.values.size() == class_type->fields.size(),
-        WaspStage::Compiler,
-        "Compiler error: Argument count does not match instance field count."
-    );
-
     for (const auto& arg : expr.values)
     {
         visit(arg);
@@ -181,7 +150,7 @@ void Compiler::visit(Constructor& expr)
     emit(OpCode::INSTANTIATE, static_cast<int>(expr.values.size()));
 }
 
-void Compiler::visit(ConcreteTemplate& expr)
+void Compiler::visit(TemplateAngular& expr)
 {
     visit(expr.target);
 }

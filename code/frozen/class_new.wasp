@@ -1,0 +1,15 @@
+from core.io import print
+
+class Speaker
+    value: int
+
+    our pure fun new() => Speaker
+        return Speaker(5)
+
+    fun say()
+        print(my.value)
+
+let s = Speaker.new()
+s.say()
+
+

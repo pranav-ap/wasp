@@ -5,6 +5,7 @@
 #include "SemanticAnalyzer.h"
 #include "Statement.h"
 #include "SymbolScope.h"
+#include "Workspace.h"
 
 #include <cctype>
 #include <ctime>
@@ -198,9 +199,14 @@ Object_ptr SemanticAnalyzer::visit(RangeLiteral& expr)
     Object_ptr end_type = expr.end ? visit(expr.end) : nullptr;
 
     if (start_type)
+    {
         type_system->expect_number_type(start_type);
+    }
+
     if (end_type)
+    {
         type_system->expect_number_type(end_type);
+    }
 
     if (type_system->is_float_type(start_type) ||
         type_system->is_float_type(end_type))
