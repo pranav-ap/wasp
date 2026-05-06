@@ -143,70 +143,6 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
     );
 }
 
-Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
-{
-    ObjectVector angular_arguments;
-
-    for (const auto& arg_node : node.angular_nodes)
-    {
-        angular_arguments.push_back(visit(arg_node));
-    }
-
-    Symbol_ptr target_symbol = nullptr;
-
-    std::visit(
-        overloaded{
-            [&](Identifier& id)
-            {
-                target_symbol = current_scope->lookup(id.name);
-                Doctor::get().fatal_if_nullptr(
-                    target_symbol,
-                    WaspStage::Semantics,
-                    "Unresolved symbol '" + id.name + "' in template target."
-                );
-                bind_identifier(id, target_symbol);
-            },
-            [&](MemberAccess& access)
-            {
-                auto [mod_symbol, member_symbol] = get_module_member_symbol(access);
-                target_symbol = member_symbol;
-                access.right->as<Identifier>().symbol = target_symbol;
-            },
-            [&](auto&)
-            {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "Invalid target for template specialization."
-                );
-            }
-        },
-        node.target->data
-    );
-
-    node.symbol = target_symbol;
-
-    if (target_symbol->payload_is<ClassData>())
-    {
-        Object_ptr base = target_symbol->get_type();
-        auto names = type_system->get_generics_declaration_order(base);
-
-        ObjectStringMap substitutions;
-
-        for (size_t i = 0; i < angular_arguments.size(); ++i)
-        {
-            substitutions[names[i]] = angular_arguments[i];
-        }
-
-        auto type = type_system->substitute_generics(base, substitutions);
-        return type;
-    }
-
-    Doctor::get().fatal(
-        WaspStage::Semantics,
-        "Target '" + target_symbol->name + "' does not support template angulars."
-    );
-}
-
 // ============================================================================
 // Function Calls & Method Evaluation
 // ============================================================================
@@ -612,71 +548,7 @@ Object_ptr SemanticAnalyzer::create_concrete_template_instance(
     const ObjectVector& argument_types
 )
 {
-    ObjectVector concrete_arguments;
-    for (const auto& node : tc.angular_nodes)
-    {
-        concrete_arguments.push_back(visit(node));
-    }
-
-    Object_ptr unspecialized_base = nullptr;
-
-    std::visit(
-        overloaded{
-            [&](Identifier& id)
-            {
-                auto class_symbol = current_scope->lookup(id.name);
-                Doctor::get().fatal_if_nullptr(class_symbol, WaspStage::Semantics);
-                Doctor::get().assert(
-                    class_symbol->payload_is<ClassData>(),
-                    WaspStage::Semantics,
-                    "Target must be a class."
-                );
-                bind_identifier(id, class_symbol);
-                unspecialized_base = class_symbol->get_type();
-            },
-            [&](MemberAccess& access)
-            {
-                auto [mod_symbol, class_symbol] = get_module_member_symbol(access);
-                Doctor::get().assert(
-                    class_symbol->payload_is<ClassData>(),
-                    WaspStage::Semantics,
-                    "Module member is not a class."
-                );
-                access.right->as<Identifier>().symbol = class_symbol;
-                unspecialized_base = class_symbol->get_type();
-            },
-            [&](auto&)
-            {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "Invalid generic class target."
-                );
-            }
-        },
-        tc.target->data
-    );
-
-    auto names = type_system->get_generics_declaration_order(unspecialized_base);
-
-    Doctor::get().assert(
-        names.size() == concrete_arguments.size(),
-        WaspStage::Semantics,
-        "Generic argument count mismatch for class instantiation. Expected " +
-            std::to_string(names.size()) + ", got " +
-            std::to_string(concrete_arguments.size()) + "."
-    );
-
-    ObjectStringMap substitutions;
-
-    for (size_t i = 0; i < concrete_arguments.size(); ++i)
-    {
-        substitutions[names[i]] = concrete_arguments[i];
-    }
-
-    Object_ptr specialized_type = type_system->substitute_generics(
-        unspecialized_base,
-        substitutions
-    );
+    Object_ptr specialized_type = visit(tc);
 
     auto class_type = specialized_type->as<ClassType_ptr>();
 
@@ -698,6 +570,97 @@ Object_ptr SemanticAnalyzer::create_concrete_template_instance(
     }
 
     return specialized_type;
+}
+
+Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
+{
+    ObjectVector angular_arguments;
+    for (const auto& arg_node : node.angular_nodes)
+    {
+        angular_arguments.push_back(visit(arg_node));
+    }
+
+    Symbol_ptr target_symbol = nullptr;
+
+    std::visit(
+        overloaded{
+            [&](Identifier& id)
+            {
+                target_symbol = current_scope->lookup(id.name);
+                Doctor::get().fatal_if_nullptr(
+                    target_symbol,
+                    WaspStage::Semantics,
+                    "Unresolved symbol '" + id.name + "' in template target."
+                );
+                bind_identifier(id, target_symbol);
+            },
+            [&](MemberAccess& access)
+            {
+                auto [mod_symbol, member_symbol] = get_module_member_symbol(access);
+                target_symbol = member_symbol;
+                access.right->as<Identifier>().symbol = target_symbol;
+            },
+            [&](auto&)
+            {
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Invalid target for template specialization."
+                );
+            }
+        },
+        node.target->data
+    );
+
+    node.symbol = target_symbol;
+
+    if (target_symbol->payload_is<ClassData>())
+    {
+        Object_ptr base = target_symbol->get_type();
+        auto names = type_system->get_generics_declaration_order(base);
+
+        Doctor::get().assert(
+            names.size() == angular_arguments.size(),
+            WaspStage::Semantics,
+            "Generic argument count mismatch. Expected " +
+                std::to_string(names.size()) + ", got " +
+                std::to_string(angular_arguments.size()) + "."
+        );
+
+        ObjectStringMap substitutions;
+        for (size_t i = 0; i < angular_arguments.size(); ++i)
+        {
+            substitutions[names[i]] = angular_arguments[i];
+        }
+
+        return type_system->substitute_generics(base, substitutions);
+    }
+
+    if (target_symbol->payload_is<OverloadsData>())
+    {
+        auto candidates = target_symbol->get_payload_as<OverloadsData>()
+                              .get_overloads_with_indices();
+
+        auto result = type_system->specialize_candidates(
+            candidates,
+            angular_arguments
+        );
+
+        Doctor::get().assert(
+            result.signatures.size() == 1,
+            WaspStage::Semantics,
+            "Ambiguous generic reference for '" + target_symbol->name + "'."
+        );
+
+        node.overload_index = result.original_indices[0];
+        return result.signatures[0];
+    }
+
+    Doctor::get().fatal(
+        WaspStage::Semantics,
+        "Target '" + target_symbol->name + "' does not support template angulars."
+    );
+
+    return nullptr; // Added to satisfy compiler return-type checks
 }
 
 } // namespace Wasp

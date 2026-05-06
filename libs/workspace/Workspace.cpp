@@ -12,6 +12,7 @@
 #include <string>
 #include <utility>
 #include <variant>
+#include <vector>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -104,6 +105,20 @@ bool Symbol::is_generic() const
 bool Symbol::should_be_captured(int usage_depth) const
 {
     return closure_depth < usage_depth;
+}
+
+std::vector<std::pair<std::shared_ptr<Symbol>, int>> OverloadsData::
+    get_overloads_with_indices() const
+{
+    std::vector<std::pair<std::shared_ptr<Symbol>, int>> result;
+    result.reserve(overloads.size());
+
+    for (size_t i = 0; i < overloads.size(); ++i)
+    {
+        result.emplace_back(overloads[i], static_cast<int>(i));
+    }
+
+    return result;
 }
 
 Object_ptr Symbol::get_type()

@@ -216,6 +216,7 @@ struct TemplateAngular : public Resolvable
     TypeAnnotationVector angular_nodes;
 
     std::shared_ptr<Symbol> group_symbol = nullptr;
+    int overload_index = -1;
 
     TemplateAngular(Expression_ptr target, TypeAnnotationVector angular_nodes)
         : target(std::move(target)), angular_nodes(std::move(angular_nodes))

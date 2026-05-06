@@ -67,6 +67,8 @@ struct OverloadsData : public TypedData
     OverloadsData() = default;
 
     const SymbolVector& get_overloads() const;
+
+    std::vector<std::pair<Symbol_ptr, int>> get_overloads_with_indices() const;
 };
 
 struct VariableData : public TypedData
