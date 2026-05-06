@@ -123,27 +123,36 @@ private:
     void bind_identifier(Identifier& id, Symbol_ptr symbol);
     std::pair<Symbol_ptr, Symbol_ptr> get_module_member_symbol(MemberAccess& access);
 
-    Object_ptr evaluate_function_call(
+    Object_ptr evaluate_call(
         Call& call,
         Identifier& identifier,
-        const ObjectVector& argument_types,
-        Symbol_ptr overload_symbol,
-        Symbol_ptr module_symbol = nullptr
+        const ObjectVector& argument_types
     );
 
-    Object_ptr evaluate_method_call(
+    Object_ptr evaluate_call(
+        Call& call,
+        MemberAccess& access,
+        const ObjectVector& argument_types
+    );
+
+    Object_ptr evaluate_call(
+        Call& call,
+        ConcreteTemplate& concrete_template,
+        const ObjectVector& argument_types
+    );
+
+    Object_ptr evaluate_call_method(
         Call& call,
         MemberAccess& mac,
         const ObjectVector& argument_types,
         ClassType_ptr class_type
     );
 
-    Object_ptr evaluate_template_function_call(
+    Object_ptr evaluate_call_function(
         Call& call,
-        Identifier& identifier,
-        const ObjectVector& concrete_arguments,
+        MemberAccess& access,
         const ObjectVector& argument_types,
-        Symbol_ptr overload_symbol
+        ModuleType_ptr module_type
     );
 
     Object_ptr evaluate_instance_creation(

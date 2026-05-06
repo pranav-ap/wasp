@@ -59,9 +59,9 @@ TEST(ParseImports, FromImportSingleSymbol) {
     ASSERT_EQ(stmt.path.size(), 1);
     EXPECT_EQ(stmt.path[0], "fuel");
 
-    ASSERT_EQ(stmt.symbols.size(), 1);
-    EXPECT_EQ(stmt.symbols[0].name, "Tank");
-    EXPECT_FALSE(stmt.symbols[0].alias.has_value());
+    ASSERT_EQ(stmt.import_as_pairs.size(), 1);
+    EXPECT_EQ(stmt.import_as_pairs[0].name, "Tank");
+    EXPECT_FALSE(stmt.import_as_pairs[0].alias.has_value());
 }
 
 TEST(ParseImports, FromImportGroupedSymbols) {
@@ -76,14 +76,14 @@ TEST(ParseImports, FromImportGroupedSymbols) {
     EXPECT_EQ(stmt.path[0], "3");
     EXPECT_EQ(stmt.path[1], "engine");
 
-    ASSERT_EQ(stmt.symbols.size(), 2);
+    ASSERT_EQ(stmt.import_as_pairs.size(), 2);
 
     // First symbol
-    EXPECT_EQ(stmt.symbols[0].name, "Tank");
-    ASSERT_TRUE(stmt.symbols[0].alias.has_value());
-    EXPECT_EQ(stmt.symbols[0].alias.value(), "FuelTank");
+    EXPECT_EQ(stmt.import_as_pairs[0].name, "Tank");
+    ASSERT_TRUE(stmt.import_as_pairs[0].alias.has_value());
+    EXPECT_EQ(stmt.import_as_pairs[0].alias.value(), "FuelTank");
 
     // Second symbol
-    EXPECT_EQ(stmt.symbols[1].name, "Pump");
-    EXPECT_FALSE(stmt.symbols[1].alias.has_value());
+    EXPECT_EQ(stmt.import_as_pairs[1].name, "Pump");
+    EXPECT_FALSE(stmt.import_as_pairs[1].alias.has_value());
 }

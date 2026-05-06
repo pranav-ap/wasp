@@ -1,10 +1,5 @@
+from my.house import shout
 from core.io import print
 
-template
-    T: int | str
-
-fun shout(value: T) => T
-    return value
-
-let g = shout<int>(5)
-print(g)
+let x = shout<int>(5)
+print(x)

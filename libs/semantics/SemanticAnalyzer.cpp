@@ -86,9 +86,6 @@ StringVector SemanticAnalyzer::setup_ordered_export_names(Module_ptr mod)
 
 void SemanticAnalyzer::setup_exports(Module_ptr mod, StringVector ordered_export_names)
 {
-    SymbolVector result;
-    result.reserve(ordered_export_names.size());
-
     for (const auto& name : ordered_export_names)
     {
         auto symbol = current_scope->lookup(name);

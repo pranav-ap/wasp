@@ -251,7 +251,8 @@ Statement_ptr Parser::parse_import() {
     return make_statement(SimpleImport(access_token, std::move(path), std::move(alias)));
 }
 
-ImportedSymbol Parser::parse_imported_symbol() {
+ImportAsPair Parser::parse_imported_symbol()
+{
     auto sym_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
     std::optional<std::string> alias = std::nullopt;
 
@@ -269,7 +270,7 @@ Statement_ptr Parser::parse_from_import() {
 
     token_pipe.require_in_line(TokenType::IMPORT);
 
-    std::vector<ImportedSymbol> symbols;
+    std::vector<ImportAsPair> symbols;
 
     //  from top.engine import (Tank, Pump as FuelPump)
     if (token_pipe.consume_optional_in_line(TokenType::OPEN_PARENTHESIS)) {

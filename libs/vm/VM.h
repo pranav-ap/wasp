@@ -6,6 +6,7 @@
 #include "Workspace.h"
 
 #include <cstddef>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -38,6 +39,7 @@ class VM
 
     ObjectVector stack;
     std::vector<CallFrame> frames;
+    std::unordered_map<void*, Object_ptr> evaluated_modules;
 
     // --- Stack Management ---
     void push_to_stack(Object_ptr value);

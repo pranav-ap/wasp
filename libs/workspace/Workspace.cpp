@@ -254,6 +254,7 @@ Symbol_ptr Symbol::resolve()
     {
         return get_payload_as<SymbolAliasData>().target->resolve();
     }
+
     return shared_from_this();
 }
 

@@ -1,0 +1,8 @@
+from core.io import print
+
+template
+    T: int | str
+
+fun shout(value: T) => T
+    return value
+

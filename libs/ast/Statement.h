@@ -381,16 +381,14 @@ struct SimpleImport : public AbstractImport
 };
 
 // Tank as FuelTank
-struct ImportedSymbol
+struct ImportAsPair : public Resolvable
 {
     std::string name;
     std::optional<std::string> alias;
 
-    std::vector<std::shared_ptr<Symbol>> resolved_symbols;
+    ImportAsPair() = default;
 
-    ImportedSymbol() = default;
-
-    ImportedSymbol(std::string name, std::optional<std::string> alias = std::nullopt)
+    ImportAsPair(std::string name, std::optional<std::string> alias = std::nullopt)
         : name(std::move(name)), alias(std::move(alias))
     {
     }
@@ -399,16 +397,17 @@ struct ImportedSymbol
 // from top.engine import Tank, Pump
 struct FromImport : public AbstractImport
 {
-    std::vector<ImportedSymbol> symbols;
+    std::vector<ImportAsPair> import_as_pairs;
 
     FromImport() = default;
 
     FromImport(
         std::optional<TokenType> access_token_type,
         StringVector path,
-        std::vector<ImportedSymbol> symbols
+        std::vector<ImportAsPair> symbols
     )
-        : AbstractImport(access_token_type, std::move(path)), symbols(std::move(symbols))
+        : AbstractImport(access_token_type, std::move(path)),
+          import_as_pairs(std::move(symbols))
     {
     }
 };

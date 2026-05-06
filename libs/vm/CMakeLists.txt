@@ -5,8 +5,6 @@ add_library(
     VM_math.cpp
     VM_execute.cpp
     VM_definitions.cpp
-    VM_members.cpp
-    VM_modules.cpp
     )
 
 target_link_libraries(VMLib PUBLIC ObjectSystemLib BytecodeSystemLib DoctorLib WorkspaceLib)

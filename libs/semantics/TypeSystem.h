@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 namespace Wasp
@@ -50,7 +51,11 @@ struct TypeSystem
         const Symbol_ptr new_method_symbol
     );
 
-    bool equal(SymbolScope_ptr scope, const Object_ptr type_1, const Object_ptr type_2) const;
+    bool equal(
+        SymbolScope_ptr scope,
+        const Object_ptr type_1,
+        const Object_ptr type_2
+    ) const;
 
     bool equal(
         SymbolScope_ptr scope,
@@ -86,7 +91,11 @@ struct TypeSystem
     Object_ptr infer(SymbolScope_ptr scope, Object_ptr left_type, TokenType op);
 
     Object_ptr spread_type(Object_ptr type);
-    Object_ptr extract_iterable_element_type(SymbolScope_ptr scope, const Object_ptr type) const;
+
+    Object_ptr extract_iterable_element_type(
+        SymbolScope_ptr scope,
+        const Object_ptr type
+    ) const;
 
     std::pair<ObjectStringMap, std::string> extract_generics_and_name(
         const Object_ptr& base
