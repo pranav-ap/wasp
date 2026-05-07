@@ -61,7 +61,7 @@ class VM
     void execute_build_collection(OpCode op, CallFrame* frame);
 
     void execute_make_function(CallFrame* frame);
-    void execute_overload_function(CallFrame* frame);
+    void execute_store_function_overload(CallFrame* frame);
     void execute_resolve_function(CallFrame* frame);
 
     void execute_call(CallFrame* frame);

@@ -112,7 +112,7 @@ void VM::execute_make_function(CallFrame* frame)
     push_to_stack(make_object(runtime_closure));
 }
 
-void VM::execute_overload_function(CallFrame* frame)
+void VM::execute_store_function_overload(CallFrame* frame)
 {
     int slot_index = std::to_integer<int>(frame->consume_byte());
     Object_ptr new_func = pop_from_stack();

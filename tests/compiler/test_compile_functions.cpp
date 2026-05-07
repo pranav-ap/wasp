@@ -26,13 +26,16 @@ fun add(a: int, b: int) => int
     std::vector<std::byte> expected_bytes = {
         B(Wasp::OpCode::ENTER_MODULE),
 
-        B(Wasp::OpCode::LOAD_CONST),        B(func_id),
-        B(Wasp::OpCode::MAKE_FUNCTION),     B(0),
+        B(Wasp::OpCode::PUSH_EMPTY_OVERLOAD_GROUP),
+        B(Wasp::OpCode::SET_LOCAL),               B(var_add),
+
+        B(Wasp::OpCode::LOAD_CONST),              B(func_id),
+        B(Wasp::OpCode::MAKE_FUNCTION),           B(0),
         B(Wasp::OpCode::STORE_FUNCTION_OVERLOAD), B(var_add),
 
-        B(Wasp::OpCode::JUMP),              B(10), B(0),
+        B(Wasp::OpCode::JUMP),                    B(13), B(0),
 
-        B(Wasp::OpCode::EXIT_MODULE),       B(0)
+        B(Wasp::OpCode::EXIT_MODULE),             B(0)
     };
     // clang-format on
 
@@ -81,11 +84,14 @@ fun max(a: int, b: int) => int
     std::vector<std::byte> expected_bytes = {
         B(Wasp::OpCode::ENTER_MODULE),
 
+        B(Wasp::OpCode::PUSH_EMPTY_OVERLOAD_GROUP),
+        B(Wasp::OpCode::SET_LOCAL),               B(max_func_var_id),
+
         B(Wasp::OpCode::LOAD_CONST),              B(max_func_pool_id),
         B(Wasp::OpCode::MAKE_FUNCTION),           B(0),
         B(Wasp::OpCode::STORE_FUNCTION_OVERLOAD), B(max_func_var_id),
 
-        B(Wasp::OpCode::JUMP),                    B(10), B(0),
+        B(Wasp::OpCode::JUMP),                    B(13), B(0),
 
         B(Wasp::OpCode::EXIT_MODULE),             B(0)
     };
@@ -154,11 +160,14 @@ fun outer(a: int) => any
     std::vector<std::byte> expected_bytes = {
         B(Wasp::OpCode::ENTER_MODULE),
 
+        B(Wasp::OpCode::PUSH_EMPTY_OVERLOAD_GROUP),
+        B(Wasp::OpCode::SET_LOCAL),               B(outer_func_var_id),
+
         B(Wasp::OpCode::LOAD_CONST),              B(outer_func_pool_id),
         B(Wasp::OpCode::MAKE_FUNCTION),           B(0),
         B(Wasp::OpCode::STORE_FUNCTION_OVERLOAD), B(outer_func_var_id),
 
-        B(Wasp::OpCode::JUMP),                    B(10), B(0),
+        B(Wasp::OpCode::JUMP),                    B(13), B(0),
 
         B(Wasp::OpCode::EXIT_MODULE),             B(0)
     };
@@ -183,6 +192,10 @@ fun outer(a: int) => any
     // clang-format off
     std::vector<std::byte> expected_outer_bytes = {
         B(Wasp::OpCode::PUSH_SCOPE),
+
+        B(Wasp::OpCode::PUSH_EMPTY_OVERLOAD_GROUP),
+        B(Wasp::OpCode::SET_LOCAL),     B(1),
+
         B(Wasp::OpCode::LOAD_CONST),    B(inner_func_pool_id),
 
         // 1 upval

@@ -163,7 +163,7 @@ void VM::run(FunctionBlueprintObject_ptr function_object)
         }
 
         case OpCode::STORE_FUNCTION_OVERLOAD: {
-            execute_overload_function(frame);
+            execute_store_function_overload(frame);
             break;
         }
 
@@ -190,6 +190,14 @@ void VM::run(FunctionBlueprintObject_ptr function_object)
 
         case OpCode::BUILD_OVERLOAD_GROUP: {
             execute_build_overload_group(frame);
+            break;
+        }
+
+        case OpCode::PUSH_EMPTY_OVERLOAD_GROUP: {
+            push_to_stack(
+                make_object(std::make_shared<ObjectOverloadList>(ObjectVector{}))
+            );
+
             break;
         }
 

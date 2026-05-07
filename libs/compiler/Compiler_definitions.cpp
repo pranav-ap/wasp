@@ -43,6 +43,15 @@ void Compiler::visit(TraitDefinition& trait_definition)
 
 void Compiler::visit(FunctionDefinition& def)
 {
+    bool is_new_declaration = (resolve_local(def.group_symbol->id) == -1);
+    int physical_index = get_or_add_local_index(def.group_symbol);
+
+    if (is_new_declaration)
+    {
+        emit(OpCode::PUSH_EMPTY_OVERLOAD_GROUP);
+        emit(OpCode::SET_LOCAL, physical_index, "reserve slot for fun " + def.name);
+    }
+
     if (def.symbol->is_native())
     {
         std::string mangled = mangle_name(def.name, "", def.symbol->module_path);
@@ -55,7 +64,6 @@ void Compiler::visit(FunctionDefinition& def)
         compile_function_closure(def.name, def.parameter_symbols, def.body);
     }
 
-    int physical_index = get_or_add_local_index(def.group_symbol);
     std::string debug_prefix = def.is_pure ? "pure fun " : "fun ";
     emit(OpCode::STORE_FUNCTION_OVERLOAD, physical_index, debug_prefix + def.name);
 }
