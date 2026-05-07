@@ -382,10 +382,6 @@ void SemanticAnalyzer::visit(AnnotationDefinition& statement)
 {
 }
 
-// ---------------------------------------------------------------------------
-// Cannot Visit
-// ---------------------------------------------------------------------------
-
 void SemanticAnalyzer::visit(FieldDefinition& stat)
 {
     Doctor::get().fatal(

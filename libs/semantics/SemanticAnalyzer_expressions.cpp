@@ -199,7 +199,7 @@ Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
 }
 
 // ============================================================================
-// Calls & Constructors
+// Calls
 // ============================================================================
 
 Object_ptr SemanticAnalyzer::visit(Call& call)
@@ -423,6 +423,10 @@ Object_ptr SemanticAnalyzer::call_concrete_template(
 
     return function_object->as<Signature_ptr>()->return_type;
 }
+
+// ============================================================================
+// Constructors
+// ============================================================================
 
 Object_ptr SemanticAnalyzer::visit(Constructor& constructor)
 {
