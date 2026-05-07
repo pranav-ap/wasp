@@ -59,27 +59,16 @@ struct MethodData : public PossibleNativeData
     }
 };
 
-struct FunctionOverloadsData : public TypedData
-{
-    SymbolVector siblings;
-    SymbolVector parents;
-
-    FunctionOverloadsData()
-    {
-    }
-
-    SymbolVector get_overloads() const;
-};
-
-struct MethodOverloadsData : public TypedData
+struct OverloadsData : public TypedData
 {
     SymbolVector overloads;
+    SymbolVector parents;
 
-    MethodOverloadsData()
-    {
-    }
+    OverloadsData() = default;
 
-    SymbolVector get_overloads() const;
+    const SymbolVector& get_overloads() const;
+
+    std::vector<std::pair<Symbol_ptr, int>> get_overloads_with_indices() const;
 };
 
 struct VariableData : public TypedData
@@ -106,11 +95,6 @@ struct GenericData : public TypedData
     using TypedData::TypedData;
 };
 
-struct TemplateData : public TypedData
-{
-    using TypedData::TypedData;
-};
-
 struct SymbolAliasData
 {
     Symbol_ptr target;
@@ -132,8 +116,7 @@ struct EnumData : public TypedData
 
 using SymbolPayload = std::variant<
     VariableData,
-    FunctionOverloadsData,
-    MethodOverloadsData,
+    OverloadsData,
     FunctionData,
     MethodData,
     ModuleData,
@@ -141,7 +124,6 @@ using SymbolPayload = std::variant<
     TraitData,
     GenericData,
     EnumData,
-    TemplateData,
     TypeAliasData,
     SymbolAliasData>;
 
@@ -164,7 +146,6 @@ struct Symbol : public std::enable_shared_from_this<Symbol>
     bool is_native() const;
     bool is_native_function_or_method() const;
     bool is_generic() const;
-    bool is_template() const;
 
     Object_ptr get_type();
     void set_type(Object_ptr new_type);
@@ -228,13 +209,7 @@ public:
         int lexical_depth = 0
     );
 
-    static Symbol_ptr create_function_overloads(
-        std::string name,
-        int closure_depth = 0,
-        int lexical_depth = 0
-    );
-
-    static Symbol_ptr create_method_overloads(
+    static Symbol_ptr create_overloads(
         std::string name,
         int closure_depth = 0,
         int lexical_depth = 0
@@ -255,13 +230,6 @@ public:
     );
 
     static Symbol_ptr create_generic(
-        std::string name,
-        Object_ptr type = nullptr,
-        int closure_depth = 0,
-        int lexical_depth = 0
-    );
-
-    static Symbol_ptr create_template(
         std::string name,
         Object_ptr type = nullptr,
         int closure_depth = 0,
@@ -299,7 +267,11 @@ struct Module
     Object_ptr type;
 
     Module() = default;
-    Module(std::filesystem::path file_path, StatementVector stmts);
+
+    Module(std::filesystem::path file_path, StatementVector stmts)
+        : absolute_filepath(std::move(file_path)), stmts(std::move(stmts))
+    {
+    }
 
     std::string get_name() const;
     std::string get_path() const;

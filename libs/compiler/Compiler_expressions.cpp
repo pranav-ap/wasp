@@ -2,7 +2,6 @@
 #include "Compiler.h"
 #include "Doctor.h"
 #include "Expression.h"
-#include "Objects.h"
 #include "OpCode.h"
 #include "Workspace.h"
 
@@ -20,7 +19,7 @@ namespace Wasp
 
 void Compiler::visit(Identifier& expr)
 {
-    auto symbol = expr.symbol;
+    auto symbol = expr.symbol; //->resolve();
     Doctor::get().fatal_if_nullptr(symbol, WaspStage::Compiler);
 
     if (symbol->is_native())
@@ -55,20 +54,20 @@ void Compiler::visit(Identifier& expr)
 
 void Compiler::visit(MemberAccess& access)
 {
-    // If it's an enum value (e.g., Animal.Bird.Crow)
     if (access.is_enum_value)
     {
-        // We DO NOT visit access.left!
-        // This prevents the compiler from trying to evaluate 'Animal.Bird' at runtime.
         int const_id = workspace->pool->allocate(access.member_index);
         emit(OpCode::LOAD_CONST, const_id);
         return;
     }
 
-    // Standard runtime member access
     visit(access.left);
     emit(OpCode::GET_MEMBER, access.member_index);
 }
+
+// ===========================================================================
+// ASSIGNMENTS
+// ===========================================================================
 
 void Compiler::compile_member_assignment(MemberAccess& access, const Expression_ptr& value)
 {
@@ -84,10 +83,6 @@ void Compiler::compile_member_assignment(MemberAccess& access, const Expression_
     auto target_name = access.right->as<Identifier>().name;
     emit(OpCode::SET_MEMBER, access.member_index, target_name);
 }
-
-// ===========================================================================
-// ASSIGNMENTS
-// ===========================================================================
 
 void Compiler::compile_identifier_assignment(Identifier& id, const Expression_ptr& rhs)
 {
@@ -129,7 +124,7 @@ void Compiler::visit(Call& expr)
 
     int total_arguments = static_cast<int>(expr.arguments.size());
 
-    if (expr.is_method_call && !expr.is_pure_method_call)
+    if (expr.is_method_call)
     {
         auto& mac = expr.callable->as<MemberAccess>();
         visit(mac.left);
@@ -146,36 +141,6 @@ void Compiler::visit(Call& expr)
 
 void Compiler::visit(Constructor& expr)
 {
-    Symbol_ptr class_symbol;
-
-    if (expr.construtable->is<Identifier>())
-    {
-        class_symbol = expr.construtable->as<Identifier>().symbol;
-    }
-    else if (expr.construtable->is<MemberAccess>())
-    {
-        class_symbol = expr.construtable->as<MemberAccess>().right->as<Identifier>().symbol;
-    }
-    else if (expr.construtable->is<TemplateInstantiation>())
-    {
-        class_symbol = expr.construtable->as<TemplateInstantiation>().symbol;
-    }
-    else
-    {
-        Doctor::get().fatal(
-            WaspStage::Compiler,
-            "Construtable must be an identifier, member access, or template instantiation."
-        );
-    }
-
-    auto class_type = class_symbol->get_type()->as<std::shared_ptr<ClassType>>();
-
-    Doctor::get().assert(
-        expr.values.size() == class_type->fields.size(),
-        WaspStage::Compiler,
-        "Compiler error: Argument count does not match instance field count."
-    );
-
     for (const auto& arg : expr.values)
     {
         visit(arg);
@@ -185,7 +150,7 @@ void Compiler::visit(Constructor& expr)
     emit(OpCode::INSTANTIATE, static_cast<int>(expr.values.size()));
 }
 
-void Compiler::visit(TemplateInstantiation& expr)
+void Compiler::visit(TemplateAngular& expr)
 {
     visit(expr.target);
 }

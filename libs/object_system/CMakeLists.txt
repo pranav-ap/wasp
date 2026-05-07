@@ -1,6 +1,8 @@
 add_library(
     ObjectSystemLib
     Objects.cpp
+    Objects_oops_object.cpp
+    Objects_oops_type.cpp
     ConstantPool.cpp
     ObjectsUtils.cpp
     NativeRegistry.cpp

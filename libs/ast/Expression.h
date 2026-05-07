@@ -209,15 +209,17 @@ struct Constructor
 
 struct Symbol;
 
-struct TemplateInstantiation : public Resolvable
+// Foo<int>
+struct TemplateAngular : public Resolvable
 {
     Expression_ptr target;
-    TypeAnnotationVector arguments;
+    TypeAnnotationVector angular_nodes;
 
     std::shared_ptr<Symbol> group_symbol = nullptr;
+    int overload_index = -1;
 
-    TemplateInstantiation(Expression_ptr target, TypeAnnotationVector generic_arguments)
-        : target(std::move(target)), arguments(std::move(generic_arguments))
+    TemplateAngular(Expression_ptr target, TypeAnnotationVector angular_nodes)
+        : target(std::move(target)), angular_nodes(std::move(angular_nodes))
     {
     }
 };
@@ -258,7 +260,7 @@ using ExpressionVariant = std::variant<
 
     Call,
     Constructor,
-    TemplateInstantiation,
+    TemplateAngular,
 
     Prefix,
     Infix,

@@ -80,7 +80,7 @@ private:
     Statement_ptr parse_import();
     Statement_ptr parse_from_import();
     std::pair<std::optional<TokenType>, StringVector> parse_module_path();
-    ImportedSymbol parse_imported_symbol();
+    ImportAsPair parse_imported_symbol();
 
     // Type Annotation Helpers
     TypeAnnotation_ptr consume_datatype_word();

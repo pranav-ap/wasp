@@ -67,17 +67,52 @@ FunctionBlueprintObject_ptr Compiler::run(
     return std::make_shared<FunctionBlueprintObject>(flatten(), module_path);
 }
 
+// void Compiler::emit_exports()
+// {
+//     int export_count = 0;
+//     for (const auto& sym : stack)
+//     {
+//         if (sym->is_exportable())
+//         {
+//             emit(OpCode::GET_LOCAL, resolve_local(sym->id), sym->name);
+//             export_count++;
+//         }
+//     }
+//     emit(OpCode::EXIT_MODULE, export_count);
+// }
+
 void Compiler::emit_exports()
 {
-    int export_count = 0;
-    for (const auto& sym : stack)
+    auto mod = workspace->get_module(module_path);
+
+    if (mod == nullptr)
     {
-        if (sym->is_exportable())
-        {
-            emit(OpCode::GET_LOCAL, resolve_local(sym->id), sym->name);
-            export_count++;
-        }
+        emit(OpCode::EXIT_MODULE, 0);
+        return;
     }
+
+    Doctor::get().fatal_if_nullptr(mod, WaspStage::Compiler);
+
+    int export_count = 0;
+
+    // Iterate over the exports approved by the Semantic Analyzer
+    for (const auto& exported_symbol : mod->exports)
+    {
+        // Find where this export lives on the VM's local stack
+        int stack_index = resolve_local(exported_symbol->id);
+
+        Doctor::get().assert(
+            stack_index != -1,
+            WaspStage::Compiler,
+            "Failed to find exported symbol on stack: " + exported_symbol->name
+        );
+
+        // Push it to the top of the stack for EXIT_MODULE to consume
+        emit(OpCode::GET_LOCAL, stack_index, exported_symbol->name);
+        export_count++;
+    }
+
+    // Exit the module with the correct, synchronized count
     emit(OpCode::EXIT_MODULE, export_count);
 }
 
@@ -89,7 +124,7 @@ void Compiler::visit(std::vector<Statement_ptr>& statements)
 {
     auto is_func = [](const Statement_ptr& s)
     {
-        return s->is<FunctionDefinition>() || s->is<PureFunctionDefinition>();
+        return s->is<FunctionDefinition>();
     };
 
     for (auto& stmt : statements)

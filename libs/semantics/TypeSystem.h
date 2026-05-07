@@ -6,19 +6,21 @@
 #include "Token.h"
 #include "Workspace.h"
 
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 namespace Wasp
 {
 
-struct TypeChecker
+struct TypeSystem
 {
     ConstantPool_ptr pool;
 
-    TypeChecker(ConstantPool_ptr pool) : pool(pool) {};
+    TypeSystem(ConstantPool_ptr pool) : pool(pool) {};
 
     SymbolVector::iterator find_matching_signature(
         SymbolScope_ptr scope,
@@ -26,13 +28,17 @@ struct TypeChecker
         const ObjectVector& parameter_types
     );
 
-    std::tuple<Symbol_ptr, int> get_best_function_signature(
+    std::tuple<Symbol_ptr, int> get_best_function_symbol(
         SymbolScope_ptr scope,
         const SymbolVector& candidates,
         const ObjectVector& argument_types
     ) const;
 
-    std::shared_ptr<Signature> get_function_signature(Object_ptr type_obj) const;
+    std::tuple<Object_ptr, int> get_best_function_object(
+        SymbolScope_ptr scope,
+        const ObjectVector& candidates,
+        const ObjectVector& argument_types
+    ) const;
 
     void validate_new_function_overload(
         SymbolScope_ptr scope,
@@ -46,7 +52,11 @@ struct TypeChecker
         const Symbol_ptr new_method_symbol
     );
 
-    bool equal(SymbolScope_ptr scope, const Object_ptr type_1, const Object_ptr type_2) const;
+    bool equal(
+        SymbolScope_ptr scope,
+        const Object_ptr type_1,
+        const Object_ptr type_2
+    ) const;
 
     bool equal(
         SymbolScope_ptr scope,
@@ -82,16 +92,32 @@ struct TypeChecker
     Object_ptr infer(SymbolScope_ptr scope, Object_ptr left_type, TokenType op);
 
     Object_ptr spread_type(Object_ptr type);
-    Object_ptr extract_iterable_element_type(SymbolScope_ptr scope, const Object_ptr type) const;
 
-    Object_ptr substitute_generics(
-        Object_ptr type,
-        TemplateType_ptr templ,
-        const ObjectVector& generic_args
+    Object_ptr extract_iterable_element_type(
+        SymbolScope_ptr scope,
+        const Object_ptr type
+    ) const;
+
+    StringVector get_generics_declaration_order(const Object_ptr& base) const;
+
+    std::vector<std::pair<Symbol_ptr, int>> filter_by_generic_arity(
+        const SymbolVector& overloads,
+        size_t expected_generic_count
     ) const;
 
     Object_ptr substitute_generics(
-        FunctionTemplateType_ptr templ,
+        Object_ptr type,
+        const ObjectStringMap& substitutions
+    ) const;
+
+    struct SpecializationResult
+    {
+        ObjectVector signatures;
+        std::vector<int> original_indices;
+    };
+
+    SpecializationResult specialize_candidates(
+        const std::vector<std::pair<Symbol_ptr, int>>& candidates,
         const ObjectVector& generic_args
     ) const;
 
@@ -127,5 +153,5 @@ struct TypeChecker
     ObjectVector remove_duplicates(SymbolScope_ptr scope, const ObjectVector& vec) const;
 };
 
-using TypeChecker_ptr = std::shared_ptr<TypeChecker>;
+using TypeSystem_ptr = std::shared_ptr<TypeSystem>;
 } // namespace Wasp

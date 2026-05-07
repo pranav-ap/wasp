@@ -18,14 +18,9 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-// =========================================================================
-// CLASS
-// ======================================================================
-
 void VM::execute_build_overload_group(CallFrame* frame)
 {
-    // How many method overloads are in this group?
-    int count = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
+    int count = std::to_integer<int>(frame->consume_byte());
     ObjectVector overloads = pop_n_from_stack(count);
 
     auto group = make_object(std::make_shared<ObjectOverloadList>(std::move(overloads)));
@@ -34,8 +29,8 @@ void VM::execute_build_overload_group(CallFrame* frame)
 
 void VM::execute_build_class(CallFrame* frame)
 {
-    int num_methods = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
-    int num_fields = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
+    int num_methods = std::to_integer<int>(frame->consume_byte());
+    int num_fields = std::to_integer<int>(frame->consume_byte());
 
     Object_ptr preallocated_obj = pop_from_stack();
     ObjectVector methods = pop_n_from_stack(num_methods);
@@ -49,7 +44,7 @@ void VM::execute_build_class(CallFrame* frame)
 
 void VM::execute_instantiate(CallFrame* frame)
 {
-    int num_fields = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
+    int num_fields = std::to_integer<int>(frame->consume_byte());
 
     Object_ptr blueprint_obj = pop_from_stack();
     ObjectVector fields = pop_n_from_stack(num_fields);
@@ -61,27 +56,18 @@ void VM::execute_instantiate(CallFrame* frame)
     );
 
     auto blueprint = blueprint_obj->as<std::shared_ptr<ClassBlueprintObject>>();
-
     ObjectVector instance_memory = std::move(fields);
 
     instance_memory
         .insert(instance_memory.end(), blueprint->members.begin(), blueprint->members.end());
 
     auto instance = make_object(std::make_shared<InstanceObject>(std::move(instance_memory)));
-
     push_to_stack(instance);
 }
 
-// --------------------------------------
-// FUNCTIONS & METHODS
-// --------------------------------------
-
 void VM::execute_make_function(CallFrame* frame)
 {
-    // How many upvalues to capture?
-    int upvalue_count = static_cast<int>(frame->consume_byte());
-
-    // FunctionBlueprintObject is on the stack
+    int upvalue_count = std::to_integer<int>(frame->consume_byte());
     Object_ptr blueprint_obj = pop_from_stack();
 
     Doctor::get().assert(
@@ -91,16 +77,13 @@ void VM::execute_make_function(CallFrame* frame)
     );
 
     auto blueprint = blueprint_obj->as<std::shared_ptr<FunctionBlueprintObject>>();
-
-    // Capture the variables
-
     ObjectVector captured_upvalues;
     captured_upvalues.reserve(upvalue_count);
 
     for (int i = 0; i < upvalue_count; i++)
     {
         bool is_local_to_parent = (frame->consume_byte() == std::byte{1});
-        int slot_or_index = static_cast<int>(frame->consume_byte());
+        int slot_or_index = std::to_integer<int>(frame->consume_byte());
 
         if (is_local_to_parent)
         {
@@ -131,11 +114,8 @@ void VM::execute_make_function(CallFrame* frame)
 
 void VM::execute_overload_function(CallFrame* frame)
 {
-    // The operand is now the physical slot index (0, 1, 2...)
-    int slot_index = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
-
+    int slot_index = std::to_integer<int>(frame->consume_byte());
     Object_ptr new_func = pop_from_stack();
-
     size_t absolute_idx = frame->base_pointer + slot_index;
 
     if (absolute_idx >= stack.size())
@@ -147,7 +127,6 @@ void VM::execute_overload_function(CallFrame* frame)
 
     if (existing_obj == nullptr)
     {
-        // First version of this function: Create the Overload Group container
         ObjectVector initial_overloads;
         initial_overloads.push_back(new_func);
 
@@ -155,7 +134,6 @@ void VM::execute_overload_function(CallFrame* frame)
             std::make_shared<ObjectOverloadList>(std::move(initial_overloads))
         );
 
-        // Store the group container directly in its assigned slot
         stack[absolute_idx] = group;
     }
     else
@@ -167,19 +145,16 @@ void VM::execute_overload_function(CallFrame* frame)
         );
 
         auto group = existing_obj->as<std::shared_ptr<ObjectOverloadList>>();
-
-        // Simply append the new version to the existing set
         group->overloads.push_back(new_func);
     }
 }
 
 void VM::execute_resolve_function(CallFrame* frame)
 {
-    int overload_index = static_cast<int>(frame->consume_byte());
+    int overload_index = std::to_integer<int>(frame->consume_byte());
     Object_ptr obj = pop_from_stack();
 
-    if (obj->is<std::shared_ptr<NativeFunctionObject>>() ||
-        obj->is<std::shared_ptr<FunctionRuntimeObject>>())
+    if (obj->is<std::shared_ptr<NativeFunctionObject>>())
     {
         push_to_stack(obj);
         return;
@@ -204,31 +179,20 @@ void VM::execute_resolve_function(CallFrame* frame)
 
 void VM::execute_call(CallFrame* frame)
 {
-    int arg_count = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
-
-    // The callable sits just below the arguments on the stack
+    int arg_count = std::to_integer<int>(frame->consume_byte());
     Object_ptr callable = peek_tos(arg_count);
 
     std::visit(
         overloaded{
             [&](std::shared_ptr<FunctionRuntimeObject>& func)
             {
-                // The new base pointer points to the first argument.
-                // Slot 0 in the new function will now physically point to Argument 0.
                 size_t new_base_pointer = stack.size() - arg_count;
-
-                // Create the new frame. No symbol mapping required!
                 frames.emplace_back(func, new_base_pointer);
             },
             [&](std::shared_ptr<NativeFunctionObject>& native)
             {
-                // Extract arguments from the stack
                 ObjectVector args = pop_n_from_stack(arg_count);
-
-                // Remove the native function object itself
                 pop_from_stack();
-
-                // Execute the C++ lambda and push the result immediately
                 push_to_stack(native->function(args));
             },
             [](auto&)
@@ -243,7 +207,6 @@ void VM::execute_call(CallFrame* frame)
 void VM::execute_return(CallFrame* frame)
 {
     Object_ptr result = pop_from_stack();
-
     size_t bp = frame->base_pointer;
 
     frames.pop_back();

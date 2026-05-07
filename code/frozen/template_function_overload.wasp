@@ -1,0 +1,16 @@
+from core.io import print
+
+template
+    T: int | str
+
+fun shout(value: T) => T
+    return value
+
+template
+    T: int | str
+    U: int | str
+
+fun shout(value: T, another: U) => T
+    print(another)
+    return value
+

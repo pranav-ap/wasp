@@ -1,17 +1,61 @@
 from core.io import print
 
-template
-    T: any
 
-class Option
-    value: T
+fun shout() => int
+    # a is prime by default
+    let a = 5
 
-    our pure fun new(val: T) => Option<T>
-        return Option<T>(val)
+    # b can be read
+    # a can still be updated
+    # only the current scope can change prime
+    let b = a'
 
-    fun talk() => T
-        return my.value
+    return b
 
 
-let a = Option<int>(42)
-print(a.talk())
+fun walk(a: int)
+    print(a)
+
+
+fun shout() => int
+    # a holds 5
+    let a = 5
+    # b holds 5, a is deleted from scope
+    let b := a
+
+    walk(b)
+
+    return b
+
+
+
+fun walk(a: Animal)
+    print(a)
+
+
+fun shout() => int
+    # a is open to writes
+    let a = Animal.new()
+    # b is a mutable reference to a
+    let b = a
+    # b is a read only view
+    let b := a
+    # b is a copy of a
+    const b = a
+
+    walk(b)
+
+    return b
+
+
+
+class Account
+    balance: float
+
+    trigger LowBalance
+        return my.balance < 100
+
+    when LowBalance
+        pass
+
+

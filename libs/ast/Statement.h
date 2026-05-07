@@ -35,94 +35,11 @@ struct Definition : public Resolvable
     std::string name;
 
     Definition() = default;
+    virtual ~Definition() = default;
 
     explicit Definition(std::string name) : name(std::move(name))
     {
     }
-};
-
-struct AbstractFunctionDefinition : public Definition
-{
-    std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters;
-    std::vector<std::shared_ptr<Symbol>> parameter_symbols;
-
-    TypeAnnotation_ptr return_type;
-    StatementVector body;
-
-    std::shared_ptr<Symbol> group_symbol;
-
-    AbstractFunctionDefinition() = default;
-
-    AbstractFunctionDefinition(
-        std::string name,
-        std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters,
-        TypeAnnotation_ptr return_type,
-        StatementVector body
-    )
-        : Definition(std::move(name)), parameters(std::move(parameters)),
-          return_type(std::move(return_type)), body(std::move(body))
-    {
-    }
-};
-
-struct FunctionDefinition : public AbstractFunctionDefinition
-{
-
-    FunctionDefinition() = default;
-
-    FunctionDefinition(
-        std::string name,
-        std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters,
-        TypeAnnotation_ptr return_type,
-        StatementVector body
-    )
-        : AbstractFunctionDefinition(
-              std::move(name),
-              std::move(parameters),
-              std::move(return_type),
-              std::move(body)
-          )
-    {
-    }
-};
-
-struct PureFunctionDefinition : public AbstractFunctionDefinition
-{
-
-    PureFunctionDefinition() = default;
-
-    PureFunctionDefinition(
-        std::string name,
-        std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters,
-        TypeAnnotation_ptr return_type,
-        StatementVector body
-    )
-        : AbstractFunctionDefinition(
-              std::move(name),
-              std::move(parameters),
-              std::move(return_type),
-              std::move(body)
-          ) {};
-};
-
-struct MethodDefinition : public AbstractFunctionDefinition
-{
-    using AbstractFunctionDefinition::AbstractFunctionDefinition;
-};
-
-struct PureMethodDefinition : public AbstractFunctionDefinition
-{
-    using AbstractFunctionDefinition::AbstractFunctionDefinition;
-};
-
-struct OurMethodDefinition : public AbstractFunctionDefinition
-{
-    using AbstractFunctionDefinition::AbstractFunctionDefinition;
-};
-
-struct OurPureMethodDefinition : public AbstractFunctionDefinition
-{
-    using AbstractFunctionDefinition::AbstractFunctionDefinition;
 };
 
 struct FieldDefinition : public Definition
@@ -137,40 +54,151 @@ struct FieldDefinition : public Definition
     }
 };
 
-struct ClassDefinition : public Definition
+struct Templatable
+{
+    std::vector<FieldDefinition> generics;
+
+    Templatable() = default;
+
+    explicit Templatable(std::vector<FieldDefinition> generics)
+        : generics(std::move(generics))
+    {
+    }
+};
+
+struct AbstractFunctionDefinition : public Definition
+{
+    std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters;
+    std::vector<std::shared_ptr<Symbol>> parameter_symbols;
+
+    TypeAnnotation_ptr return_type;
+    StatementVector body;
+
+    std::shared_ptr<Symbol> group_symbol;
+
+    bool is_pure = false;
+
+    AbstractFunctionDefinition() = default;
+
+    AbstractFunctionDefinition(
+        std::string name,
+        std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters,
+        TypeAnnotation_ptr return_type,
+        StatementVector body,
+        bool is_pure = false
+    )
+        : Definition(std::move(name)), parameters(std::move(parameters)),
+          return_type(std::move(return_type)), body(std::move(body)),
+          is_pure(is_pure)
+    {
+    }
+};
+
+// Standalone functions remain Templatable
+struct FunctionDefinition : public AbstractFunctionDefinition, public Templatable
+{
+    FunctionDefinition() = default;
+
+    FunctionDefinition(
+        std::string name,
+        std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters,
+        TypeAnnotation_ptr return_type,
+        StatementVector body,
+        bool is_pure = false,
+        std::vector<FieldDefinition> generics = {}
+    )
+        : AbstractFunctionDefinition(
+              std::move(name),
+              std::move(parameters),
+              std::move(return_type),
+              std::move(body),
+              is_pure
+          ),
+          Templatable(std::move(generics))
+    {
+    }
+};
+
+struct MethodDefinition : public AbstractFunctionDefinition
+{
+    bool is_static = false;
+
+    MethodDefinition() = default;
+
+    MethodDefinition(
+        std::string name,
+        std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters,
+        TypeAnnotation_ptr return_type,
+        StatementVector body,
+        bool is_pure = false,
+        bool is_static = false
+    )
+        : AbstractFunctionDefinition(
+              std::move(name),
+              std::move(parameters),
+              std::move(return_type),
+              std::move(body),
+              is_pure
+          ),
+          is_static(is_static)
+    {
+    }
+};
+
+struct ClassDefinition : public Definition, public Templatable
 {
     StringVector traits;
     StatementVector members;
 
     ClassDefinition() = default;
 
-    ClassDefinition(std::string name, StringVector traits, StatementVector members)
-        : Definition(std::move(name)), traits(std::move(traits)), members(std::move(members))
+    ClassDefinition(
+        std::string name,
+        StringVector traits,
+        StatementVector members,
+        std::vector<FieldDefinition> generics = {}
+    )
+        : Definition(std::move(name)), Templatable(std::move(generics)),
+          traits(std::move(traits)), members(std::move(members))
     {
     }
 };
 
-struct TraitDefinition : public Definition
+struct TraitDefinition : public Definition, public Templatable
 {
     StringVector traits;
     StatementVector members;
 
     TraitDefinition() = default;
 
-    TraitDefinition(std::string name, StringVector traits, StatementVector members)
-        : Definition(std::move(name)), traits(std::move(traits)), members(std::move(members))
+    TraitDefinition(
+        std::string name,
+        StringVector traits,
+        StatementVector members,
+        std::vector<FieldDefinition> generics = {}
+    )
+        : Definition(std::move(name)), Templatable(std::move(generics)),
+          traits(std::move(traits)), members(std::move(members))
     {
     }
 };
 
-struct TemplateDefinition
+struct TypeAliasDefinition : public Definition, public Templatable
 {
-    std::vector<FieldDefinition> members;
+    TypeAnnotation_ptr ref_type;
 
-    // function or class or trait
-    Statement_ptr target;
+    TypeAliasDefinition() = default;
+
+    TypeAliasDefinition(
+        std::string name,
+        TypeAnnotation_ptr ref_type,
+        std::vector<FieldDefinition> generics = {}
+    )
+        : Definition(std::move(name)), Templatable(std::move(generics)),
+          ref_type(std::move(ref_type))
+    {
+    }
 };
-
 struct VariableDefinition : public Definition
 {
     Expression_ptr expression;
@@ -180,16 +208,6 @@ struct VariableDefinition : public Definition
 
     VariableDefinition(Expression_ptr expression, bool is_mutable)
         : expression(std::move(expression)), is_mutable(is_mutable) {};
-};
-
-struct TypeAliasDefinition : public Definition
-{
-    TypeAnnotation_ptr ref_type;
-
-    TypeAliasDefinition() = default;
-
-    TypeAliasDefinition(std::string name, TypeAnnotation_ptr ref_type)
-        : Definition(name), ref_type(ref_type) {};
 };
 
 struct EnumDefinition : public Definition
@@ -363,16 +381,14 @@ struct SimpleImport : public AbstractImport
 };
 
 // Tank as FuelTank
-struct ImportedSymbol
+struct ImportAsPair : public Resolvable
 {
     std::string name;
     std::optional<std::string> alias;
 
-    std::vector<std::shared_ptr<Symbol>> resolved_symbols;
+    ImportAsPair() = default;
 
-    ImportedSymbol() = default;
-
-    ImportedSymbol(std::string name, std::optional<std::string> alias = std::nullopt)
+    ImportAsPair(std::string name, std::optional<std::string> alias = std::nullopt)
         : name(std::move(name)), alias(std::move(alias))
     {
     }
@@ -381,16 +397,17 @@ struct ImportedSymbol
 // from top.engine import Tank, Pump
 struct FromImport : public AbstractImport
 {
-    std::vector<ImportedSymbol> symbols;
+    std::vector<ImportAsPair> import_as_pairs;
 
     FromImport() = default;
 
     FromImport(
         std::optional<TokenType> access_token_type,
         StringVector path,
-        std::vector<ImportedSymbol> symbols
+        std::vector<ImportAsPair> symbols
     )
-        : AbstractImport(access_token_type, std::move(path)), symbols(std::move(symbols))
+        : AbstractImport(access_token_type, std::move(path)),
+          import_as_pairs(std::move(symbols))
     {
     }
 };
@@ -406,17 +423,11 @@ using StatementVariant = std::variant<
     EnumDefinition,
 
     FunctionDefinition,
-    PureFunctionDefinition,
     MethodDefinition,
-    PureMethodDefinition,
-    OurMethodDefinition,
-    OurPureMethodDefinition,
 
     FieldDefinition,
     ClassDefinition,
     TraitDefinition,
-
-    TemplateDefinition,
 
     AnnotationDefinition,
 

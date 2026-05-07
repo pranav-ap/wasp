@@ -5,15 +5,13 @@
 #include "SemanticAnalyzer.h"
 #include "Statement.h"
 #include "SymbolScope.h"
-#include "Token.h"
+#include "Workspace.h"
 
+#include <cctype>
 #include <ctime>
-#include <map>
 #include <memory>
 #include <string>
 #include <variant>
-
-#define make_object(x) std::make_shared<Object>(x)
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -23,152 +21,54 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
-void SemanticAnalyzer::visit(ExpressionStatement& statement) { visit(statement.expression); }
 
-ObjectVector SemanticAnalyzer::visit(ExpressionVector expressions)
-{
-    ObjectVector computed_types;
-    computed_types.reserve(expressions.size());
 
-    for (const auto& expr : expressions)
-    {
-        computed_types.push_back(visit(expr));
-    }
-
-    return computed_types;
-}
+// ============================================================================
+// Main Visitor Dispatcher
+// ============================================================================
 
 Object_ptr SemanticAnalyzer::visit(const Expression_ptr expr)
 {
     Doctor::get().fatal_if_nullptr(expr, WaspStage::Semantics);
 
     return std::visit(
-        overloaded{
-            // Primitives
-            [&](int& node) -> Object_ptr
+        [&](auto& node) -> Object_ptr
+        {
+            if constexpr (requires { this->visit(node); })
             {
-                return visit(node);
-            },
-            [&](double& node) -> Object_ptr
+                return this->visit(node);
+            }
+            else
             {
-                return visit(node);
-            },
-            [&](std::string& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-            [&](bool& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-            [&](NoneLiteral& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-
-            [&](DotLiteral& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-
-            // Identifiers & Access
-            [&](Identifier& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-            [&](MemberAccess& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-
-            [&](Call& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-            [&](Constructor& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-
-            // Operators
-            [&](Prefix& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-            [&](Infix& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-            [&](Postfix& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-
-            // Collections
-            [&](ListLiteral& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-            [&](TupleLiteral& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-            [&](MapLiteral& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-            [&](SetLiteral& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-            [&](RangeLiteral& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-
-            // Variables & Assignments
-            [&](VariableDefinitionExpression& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-            [&](UntypedAssignment& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-            [&](TypedAssignment& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-            [&](TypePattern& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-
-            // Control Flow
-            [&](IfTernaryBranch& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-            [&](ElseTernaryBranch& node) -> Object_ptr
-            {
-                return visit(node);
-            },
-
-            // Fallback
-            [](auto&) -> Object_ptr
-            {
-                Doctor::get().Doctor::get().fatal(
+                Doctor::get().fatal(
                     WaspStage::Semantics,
-                    "Unhandled Expression in Semantic Analyzer!");
+                    "Unhandled Expression in Semantic Analyzer"
+                );
             }
         },
         expr->data
     );
 }
 
-// -----------------------------------------------
-// Simple Boring Expressions
-// -----------------------------------------------
+void SemanticAnalyzer::visit(ExpressionStatement& statement)
+{
+    visit(statement.expression);
+}
+
+ObjectVector SemanticAnalyzer::visit(ExpressionVector expressions)
+{
+    ObjectVector computed_types;
+    computed_types.reserve(expressions.size());
+    for (const auto& expr : expressions)
+    {
+        computed_types.push_back(visit(expr));
+    }
+    return computed_types;
+}
+
+// ============================================================================
+// Primitives & Operators
+// ============================================================================
 
 Object_ptr SemanticAnalyzer::visit(int expr)
 {
@@ -187,14 +87,8 @@ Object_ptr SemanticAnalyzer::visit(std::string expr)
 
 Object_ptr SemanticAnalyzer::visit(bool expr)
 {
-    if (expr)
-    {
-        return workspace->pool->get_true_literal_type();
-    }
-    else
-    {
-        return workspace->pool->get_false_literal_type();
-    }
+    return expr ? workspace->pool->get_true_literal_type()
+                : workspace->pool->get_false_literal_type();
 }
 
 Object_ptr SemanticAnalyzer::visit(NoneLiteral& expr)
@@ -202,27 +96,32 @@ Object_ptr SemanticAnalyzer::visit(NoneLiteral& expr)
     return workspace->pool->get_none_type();
 }
 
-Object_ptr SemanticAnalyzer::visit(DotLiteral& expr) { return nullptr; }
+Object_ptr SemanticAnalyzer::visit(DotLiteral& expr)
+{
+    Doctor::get().fatal(WaspStage::Semantics, "Dot Literals are not supported yet");
+}
 
 Object_ptr SemanticAnalyzer::visit(Prefix& expr)
 {
-    Object_ptr right_type = visit(expr.operand);
-    return type_checker->infer(current_scope, right_type, expr.op.type);
+    return type_system->infer(current_scope, visit(expr.operand), expr.op.type);
 }
 
 Object_ptr SemanticAnalyzer::visit(Infix& expr)
 {
-    Object_ptr left_type = visit(expr.left);
-    Object_ptr right_type = visit(expr.right);
-    return type_checker->infer(current_scope, left_type, expr.op.type, right_type);
+    return type_system
+        ->infer(current_scope, visit(expr.left), expr.op.type, visit(expr.right));
 }
 
 Object_ptr SemanticAnalyzer::visit(Postfix& expr)
 {
     Object_ptr left_type = visit(expr.operand);
-    type_checker->expect_number_type(left_type);
+    type_system->expect_number_type(left_type);
     return left_type;
 }
+
+// ============================================================================
+// Collections
+// ============================================================================
 
 Object_ptr SemanticAnalyzer::visit(ListLiteral& expr)
 {
@@ -233,8 +132,10 @@ Object_ptr SemanticAnalyzer::visit(ListLiteral& expr)
     for (const auto& element : expr.expressions)
         element_types.push_back(visit(element));
 
-    ObjectVector unique_types = type_checker->remove_duplicates(current_scope, element_types);
-
+    ObjectVector unique_types = type_system->remove_duplicates(
+        current_scope,
+        element_types
+    );
     if (unique_types.size() == 1)
         return make_object(ListType(unique_types[0]));
     return make_object(ListType(make_object(VariantType(unique_types))));
@@ -253,26 +154,21 @@ Object_ptr SemanticAnalyzer::visit(MapLiteral& expr)
     if (expr.pairs.empty())
         return make_object(MapType(make_object(AnyType()), make_object(AnyType())));
 
-    ObjectVector key_types;
-    ObjectVector val_types;
-
-    for (const auto& [key_expr, val_expr] : expr.pairs)
+    ObjectVector key_types, val_types;
+    for (const auto& [k_expr, v_expr] : expr.pairs)
     {
-        Object_ptr k_type = visit(key_expr);
-        type_checker->expect_key_type(current_scope, k_type);
+        Object_ptr k_type = visit(k_expr);
+        type_system->expect_key_type(current_scope, k_type);
         key_types.push_back(k_type);
-        val_types.push_back(visit(val_expr));
+        val_types.push_back(visit(v_expr));
     }
 
-    ObjectVector unique_keys = type_checker->remove_duplicates(current_scope, key_types);
-    ObjectVector unique_vals = type_checker->remove_duplicates(current_scope, val_types);
+    ObjectVector u_keys = type_system->remove_duplicates(current_scope, key_types);
+    ObjectVector u_vals = type_system->remove_duplicates(current_scope, val_types);
 
-    Object_ptr final_key_type = unique_keys.size() == 1 ? unique_keys[0]
-                                                        : make_object(VariantType(unique_keys));
-    Object_ptr final_val_type = unique_vals.size() == 1 ? unique_vals[0]
-                                                        : make_object(VariantType(unique_vals));
-
-    return make_object(MapType(final_key_type, final_val_type));
+    Object_ptr fk = u_keys.size() == 1 ? u_keys[0] : make_object(VariantType(u_keys));
+    Object_ptr fv = u_vals.size() == 1 ? u_vals[0] : make_object(VariantType(u_vals));
+    return make_object(MapType(fk, fv));
 }
 
 Object_ptr SemanticAnalyzer::visit(SetLiteral& expr)
@@ -284,12 +180,14 @@ Object_ptr SemanticAnalyzer::visit(SetLiteral& expr)
     for (const auto& element : expr.expressions)
     {
         Object_ptr el_type = visit(element);
-        type_checker->expect_key_type(current_scope, el_type);
+        type_system->expect_key_type(current_scope, el_type);
         element_types.push_back(el_type);
     }
 
-    ObjectVector unique_types = type_checker->remove_duplicates(current_scope, element_types);
-
+    ObjectVector unique_types = type_system->remove_duplicates(
+        current_scope,
+        element_types
+    );
     if (unique_types.size() == 1)
         return make_object(SetType(unique_types[0]));
     return make_object(SetType(make_object(VariantType(unique_types))));
@@ -297,22 +195,21 @@ Object_ptr SemanticAnalyzer::visit(SetLiteral& expr)
 
 Object_ptr SemanticAnalyzer::visit(RangeLiteral& expr)
 {
-    Object_ptr start_type = nullptr;
-    Object_ptr end_type = nullptr;
+    Object_ptr start_type = expr.start ? visit(expr.start) : nullptr;
+    Object_ptr end_type = expr.end ? visit(expr.end) : nullptr;
 
-    if (expr.start)
+    if (start_type)
     {
-        start_type = visit(expr.start);
-        type_checker->expect_number_type(start_type);
+        type_system->expect_number_type(start_type);
     }
 
-    if (expr.end)
+    if (end_type)
     {
-        end_type = visit(expr.end);
-        type_checker->expect_number_type(end_type);
+        type_system->expect_number_type(end_type);
     }
 
-    if (type_checker->is_float_type(start_type) || type_checker->is_float_type(end_type))
+    if (type_system->is_float_type(start_type) ||
+        type_system->is_float_type(end_type))
     {
         return make_object(ListType(make_object(FloatType())));
     }
@@ -322,10 +219,7 @@ Object_ptr SemanticAnalyzer::visit(RangeLiteral& expr)
 
 Object_ptr SemanticAnalyzer::visit(TypePattern& expr)
 {
-    Doctor::get().fatal(
-        WaspStage::Semantics,
-        "Type patterns are not supported in expressions. They can only be used in match patterns."
-    );
+    Doctor::get().fatal(WaspStage::Semantics, "Type patterns can only be used in match patterns.");
 }
 
 } // namespace Wasp

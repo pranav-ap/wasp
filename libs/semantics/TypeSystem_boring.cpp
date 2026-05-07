@@ -1,7 +1,7 @@
 #include "Doctor.h"
 #include "Objects.h"
 #include "SymbolScope.h"
-#include "TypeChecker.h"
+#include "TypeSystem.h"
 
 #include <algorithm>
 #include <memory>
@@ -17,32 +17,7 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-std::shared_ptr<Signature> TypeChecker::get_function_signature(Object_ptr type_obj) const
-{
-    if (!type_obj)
-    {
-        return nullptr;
-    }
-
-    if (auto p = type_obj->try_as<std::shared_ptr<FunctionType>>())
-    {
-        return *p;
-    }
-
-    if (auto p = type_obj->try_as<std::shared_ptr<MethodType>>())
-    {
-        return *p;
-    }
-
-    if (auto p = type_obj->try_as<std::shared_ptr<FunctionTemplateType>>())
-    {
-        return (*p)->signature;
-    }
-
-    return nullptr;
-}
-
-Object_ptr TypeChecker::spread_type(Object_ptr type)
+Object_ptr TypeSystem::spread_type(Object_ptr type)
 {
     if (!type)
         return nullptr;
@@ -59,11 +34,16 @@ Object_ptr TypeChecker::spread_type(Object_ptr type)
             },
             [&](MapType const& t)
             {
-                return make_object(TupleType({t.key_type, t.value_type}));
+                return make_object(
+                    TupleType(ObjectVector{t.key_type, t.value_type})
+                );
             },
             [&](const auto&) -> Object_ptr
             {
-                Doctor::get().fatal(WaspStage::Semantics, "Cannot spread a non-iterable type");
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Cannot spread a non-iterable type"
+                );
                 return pool->get_none_type();
             }
         },
@@ -71,7 +51,7 @@ Object_ptr TypeChecker::spread_type(Object_ptr type)
     );
 }
 
-Object_ptr TypeChecker::extract_iterable_element_type(
+Object_ptr TypeSystem::extract_iterable_element_type(
     SymbolScope_ptr scope,
     const Object_ptr type
 ) const
@@ -87,8 +67,9 @@ Object_ptr TypeChecker::extract_iterable_element_type(
             extracted_elements.push_back(extract_iterable_element_type(scope, t));
 
         ObjectVector unique_elements = remove_duplicates(scope, extracted_elements);
-        return unique_elements.size() == 1 ? unique_elements[0]
-                                           : make_object(VariantType(unique_elements));
+        return unique_elements.size() == 1
+                   ? unique_elements[0]
+                   : make_object(VariantType(unique_elements));
     }
 
     return std::visit(
@@ -103,12 +84,15 @@ Object_ptr TypeChecker::extract_iterable_element_type(
             },
             [](MapType const& t) -> Object_ptr
             {
-                return make_object(TupleType({t.key_type, t.value_type}));
+                return make_object(
+                    TupleType(ObjectVector{t.key_type, t.value_type})
+                );
             },
             [&](TupleType const& t) -> Object_ptr
             {
                 ObjectVector unique = remove_duplicates(scope, t.element_types);
-                return unique.size() == 1 ? unique[0] : make_object(VariantType(unique));
+                return unique.size() == 1 ? unique[0]
+                                          : make_object(VariantType(unique));
             },
             [&](StringType const&) -> Object_ptr
             {
@@ -123,37 +107,40 @@ Object_ptr TypeChecker::extract_iterable_element_type(
     );
 }
 
-bool TypeChecker::is_int_type(Object_ptr obj) const
+bool TypeSystem::is_int_type(Object_ptr obj) const
 {
     return obj->is<IntType>() || obj->is<IntLiteralType>();
 }
 
-bool TypeChecker::is_float_type(Object_ptr obj) const
+bool TypeSystem::is_float_type(Object_ptr obj) const
 {
     return obj->is<FloatType>() || obj->is<FloatLiteralType>();
 }
 
-bool TypeChecker::is_number_type(Object_ptr obj) const
+bool TypeSystem::is_number_type(Object_ptr obj) const
 {
     return is_int_type(obj) || is_float_type(obj);
 }
 
-bool TypeChecker::is_string_type(Object_ptr obj) const
+bool TypeSystem::is_string_type(Object_ptr obj) const
 {
     return obj->is<StringType>() || obj->is<StringLiteralType>();
 }
 
-bool TypeChecker::is_boolean_type(Object_ptr obj) const
+bool TypeSystem::is_boolean_type(Object_ptr obj) const
 {
     return obj->is<BooleanType>() || obj->is<BooleanLiteralType>();
 }
 
-bool TypeChecker::is_none_type(const Object_ptr type) const
+bool TypeSystem::is_none_type(const Object_ptr type) const
 {
-    return type && holds_alternative<NoneType>(type->value);
+    return type && std::holds_alternative<NoneType>(type->value);
 }
 
-bool TypeChecker::is_condition_type(SymbolScope_ptr scope, const Object_ptr condition_type) const
+bool TypeSystem::is_condition_type(
+    SymbolScope_ptr scope,
+    const Object_ptr condition_type
+) const
 {
     if (!condition_type)
         return false;
@@ -212,7 +199,10 @@ bool TypeChecker::is_condition_type(SymbolScope_ptr scope, const Object_ptr cond
     );
 }
 
-bool TypeChecker::is_spreadable_type(SymbolScope_ptr scope, const Object_ptr candidate_type) const
+bool TypeSystem::is_spreadable_type(
+    SymbolScope_ptr scope,
+    const Object_ptr candidate_type
+) const
 {
     if (!candidate_type)
         return false;
@@ -250,48 +240,70 @@ bool TypeChecker::is_spreadable_type(SymbolScope_ptr scope, const Object_ptr can
     );
 }
 
-bool TypeChecker::is_iterable_type(SymbolScope_ptr scope, const Object_ptr candidate_type) const
+bool TypeSystem::is_iterable_type(
+    SymbolScope_ptr scope,
+    const Object_ptr candidate_type
+) const
 {
-    return is_string_type(candidate_type) || is_spreadable_type(scope, candidate_type);
+    return is_string_type(candidate_type) ||
+           is_spreadable_type(scope, candidate_type);
 }
 
-bool TypeChecker::is_key_type(SymbolScope_ptr scope, const Object_ptr key_type) const
+bool TypeSystem::is_key_type(SymbolScope_ptr scope, const Object_ptr key_type) const
 {
-    return is_int_type(key_type) || is_float_type(key_type) || is_string_type(key_type) ||
-           is_boolean_type(key_type);
+    return is_int_type(key_type) || is_float_type(key_type) ||
+           is_string_type(key_type) || is_boolean_type(key_type);
 }
 
-void TypeChecker::expect_boolean_type(const Object_ptr type) const
+void TypeSystem::expect_boolean_type(const Object_ptr type) const
 {
-    Doctor::get().assert(is_boolean_type(type), WaspStage::Semantics, "Expected a boolean type");
+    Doctor::get().assert(
+        is_boolean_type(type),
+        WaspStage::Semantics,
+        "Expected a boolean type"
+    );
 }
 
-void TypeChecker::expect_number_type(const Object_ptr type) const
+void TypeSystem::expect_number_type(const Object_ptr type) const
 {
-    Doctor::get().assert(is_number_type(type), WaspStage::Semantics, "Expected a number type");
+    Doctor::get().assert(
+        is_number_type(type),
+        WaspStage::Semantics,
+        "Expected a number type"
+    );
 }
 
-void TypeChecker::expect_int_type(const Object_ptr type) const
+void TypeSystem::expect_int_type(const Object_ptr type) const
 {
-    Doctor::get().assert(is_int_type(type), WaspStage::Semantics, "Expected a integer type");
+    Doctor::get()
+        .assert(is_int_type(type), WaspStage::Semantics, "Expected an integer type");
 }
 
-void TypeChecker::expect_float_type(const Object_ptr type) const
+void TypeSystem::expect_float_type(const Object_ptr type) const
 {
-    Doctor::get().assert(is_float_type(type), WaspStage::Semantics, "Expected a float type");
+    Doctor::get()
+        .assert(is_float_type(type), WaspStage::Semantics, "Expected a float type");
 }
 
-void TypeChecker::expect_string_type(const Object_ptr type) const
+void TypeSystem::expect_string_type(const Object_ptr type) const
 {
-    Doctor::get().assert(is_string_type(type), WaspStage::Semantics, "Expected a string type");
+    Doctor::get().assert(
+        is_string_type(type),
+        WaspStage::Semantics,
+        "Expected a string type"
+    );
 }
 
-void TypeChecker::expect_none_type(const Object_ptr type) const
+void TypeSystem::expect_none_type(const Object_ptr type) const
 {
-    Doctor::get().assert(is_none_type(type), WaspStage::Semantics, "Expected a None type");
+    Doctor::get()
+        .assert(is_none_type(type), WaspStage::Semantics, "Expected a None type");
 }
 
-void TypeChecker::expect_condition_type(SymbolScope_ptr scope, const Object_ptr type) const
+void TypeSystem::expect_condition_type(
+    SymbolScope_ptr scope,
+    const Object_ptr type
+) const
 {
     Doctor::get().assert(
         is_condition_type(scope, type),
@@ -300,7 +312,10 @@ void TypeChecker::expect_condition_type(SymbolScope_ptr scope, const Object_ptr 
     );
 }
 
-void TypeChecker::expect_spreadable_type(SymbolScope_ptr scope, const Object_ptr type) const
+void TypeSystem::expect_spreadable_type(
+    SymbolScope_ptr scope,
+    const Object_ptr type
+) const
 {
     Doctor::get().assert(
         is_spreadable_type(scope, type),
@@ -309,13 +324,19 @@ void TypeChecker::expect_spreadable_type(SymbolScope_ptr scope, const Object_ptr
     );
 }
 
-void TypeChecker::expect_iterable_type(SymbolScope_ptr scope, const Object_ptr type) const
+void TypeSystem::expect_iterable_type(
+    SymbolScope_ptr scope,
+    const Object_ptr type
+) const
 {
-    Doctor::get()
-        .assert(is_iterable_type(scope, type), WaspStage::Semantics, "Expected an iterable type");
+    Doctor::get().assert(
+        is_iterable_type(scope, type),
+        WaspStage::Semantics,
+        "Expected an iterable type"
+    );
 }
 
-void TypeChecker::expect_key_type(SymbolScope_ptr scope, const Object_ptr type) const
+void TypeSystem::expect_key_type(SymbolScope_ptr scope, const Object_ptr type) const
 {
     Doctor::get().assert(
         is_key_type(scope, type),
@@ -324,7 +345,11 @@ void TypeChecker::expect_key_type(SymbolScope_ptr scope, const Object_ptr type) 
     );
 }
 
-bool TypeChecker::any_eq(SymbolScope_ptr scope, const ObjectVector& vec, const Object_ptr x) const
+bool TypeSystem::any_eq(
+    SymbolScope_ptr scope,
+    const ObjectVector& vec,
+    const Object_ptr x
+) const
 {
     return std::any_of(
         vec.begin(),
@@ -336,7 +361,10 @@ bool TypeChecker::any_eq(SymbolScope_ptr scope, const ObjectVector& vec, const O
     );
 }
 
-ObjectVector TypeChecker::remove_duplicates(SymbolScope_ptr scope, const ObjectVector& vec) const
+ObjectVector TypeSystem::remove_duplicates(
+    SymbolScope_ptr scope,
+    const ObjectVector& vec
+) const
 {
     ObjectVector unique_types;
     unique_types.reserve(vec.size());

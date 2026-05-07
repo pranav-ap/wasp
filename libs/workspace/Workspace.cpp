@@ -1,5 +1,4 @@
 #include "Workspace.h"
-#include "AST.h"
 #include "ConstantPool.h"
 #include "Doctor.h"
 #include "NativeRegistry.h"
@@ -13,6 +12,7 @@
 #include <string>
 #include <utility>
 #include <variant>
+#include <vector>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -23,17 +23,7 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-SymbolVector FunctionOverloadsData::get_overloads() const
-{
-    SymbolVector overloads = siblings;
-    for (const auto& parent : parents)
-    {
-        overloads.push_back(parent);
-    }
-    return overloads;
-}
-
-SymbolVector MethodOverloadsData::get_overloads() const
+const SymbolVector& OverloadsData::get_overloads() const
 {
     return overloads;
 }
@@ -76,34 +66,18 @@ bool Symbol::is_native() const
     if (payload_is<MethodData>())
         return get_payload_as<MethodData>().is_native;
 
-    if (payload_is<FunctionOverloadsData>())
+    if (payload_is<OverloadsData>())
     {
-        for (const auto& overload : get_payload_as<FunctionOverloadsData>().get_overloads())
+        for (const auto& overload : get_payload_as<OverloadsData>().get_overloads())
         {
             if (overload->is_native_function_or_method())
             {
                 Doctor::get().assert(
-                    get_payload_as<FunctionOverloadsData>().get_overloads().size() == 1,
+                    get_payload_as<OverloadsData>().get_overloads().size() == 1,
                     WaspStage::Semantics,
                     "Native function overload lists must have exactly one overload"
                 );
 
-                return true;
-            }
-        }
-    }
-
-    if (payload_is<MethodOverloadsData>())
-    {
-        for (const auto& overload : get_payload_as<MethodOverloadsData>().get_overloads())
-        {
-            if (overload->is_native_function_or_method())
-            {
-                Doctor::get().assert(
-                    get_payload_as<MethodOverloadsData>().get_overloads().size() == 1,
-                    WaspStage::Semantics,
-                    "Native function overload lists must have exactly one overload"
-                );
                 return true;
             }
         }
@@ -128,14 +102,23 @@ bool Symbol::is_generic() const
     return payload_is<GenericData>();
 }
 
-bool Symbol::is_template() const
-{
-    return payload_is<TemplateData>();
-}
-
 bool Symbol::should_be_captured(int usage_depth) const
 {
     return closure_depth < usage_depth;
+}
+
+std::vector<std::pair<std::shared_ptr<Symbol>, int>> OverloadsData::
+    get_overloads_with_indices() const
+{
+    std::vector<std::pair<std::shared_ptr<Symbol>, int>> result;
+    result.reserve(overloads.size());
+
+    for (size_t i = 0; i < overloads.size(); ++i)
+    {
+        result.emplace_back(overloads[i], static_cast<int>(i));
+    }
+
+    return result;
 }
 
 Object_ptr Symbol::get_type()
@@ -166,10 +149,6 @@ Object_ptr Symbol::get_type()
             {
                 return d.mod->type;
             },
-            [](const TemplateData& d) -> Object_ptr
-            {
-                return d.type;
-            },
             [](const GenericData& d) -> Object_ptr
             {
                 return d.type;
@@ -186,7 +165,7 @@ Object_ptr Symbol::get_type()
             {
                 return d.type;
             },
-            [this](FunctionOverloadsData& d) -> Object_ptr
+            [this](OverloadsData& d) -> Object_ptr
             {
                 if (d.type)
                     return d.type;
@@ -198,25 +177,8 @@ Object_ptr Symbol::get_type()
                 }
 
                 d.type = make_object(
-                    std::make_shared<ObjectOverloadList>(this->name, std::move(overload_types))
+                    std::make_shared<ObjectOverloadList>(std::move(overload_types))
                 );
-                return d.type;
-            },
-            [this](MethodOverloadsData& d) -> Object_ptr
-            {
-                if (d.type)
-                    return d.type;
-
-                ObjectVector overload_types;
-                for (const auto& overload : d.get_overloads())
-                {
-                    overload_types.push_back(overload->get_type());
-                }
-
-                d.type = make_object(
-                    std::make_shared<ObjectOverloadList>(this->name, std::move(overload_types))
-                );
-
                 return d.type;
             }
         },
@@ -248,10 +210,6 @@ void Symbol::set_type(Object_ptr new_type)
             {
                 d.type = new_type;
             },
-            [&](TemplateData& d)
-            {
-                d.type = new_type;
-            },
             [&](GenericData& d)
             {
                 d.type = new_type;
@@ -260,11 +218,7 @@ void Symbol::set_type(Object_ptr new_type)
             {
                 d.type = new_type;
             },
-            [&](FunctionOverloadsData& d)
-            {
-                d.type = new_type;
-            },
-            [&](MethodOverloadsData& d)
+            [&](OverloadsData& d)
             {
                 d.type = new_type;
             },
@@ -315,6 +269,7 @@ Symbol_ptr Symbol::resolve()
     {
         return get_payload_as<SymbolAliasData>().target->resolve();
     }
+
     return shared_from_this();
 }
 
@@ -389,33 +344,14 @@ Symbol_ptr SymbolFactory::create_method(
     return symbol;
 }
 
-Symbol_ptr SymbolFactory::create_function_overloads(
-    std::string name,
-    int closure_depth,
-    int lexical_depth
-)
+Symbol_ptr SymbolFactory::create_overloads(std::string name, int closure_depth, int lexical_depth)
 {
     return std::make_shared<Symbol>(
         symbol_id_counter++,
         std::move(name),
         closure_depth,
         lexical_depth,
-        FunctionOverloadsData{}
-    );
-}
-
-Symbol_ptr SymbolFactory::create_method_overloads(
-    std::string name,
-    int closure_depth,
-    int lexical_depth
-)
-{
-    return std::make_shared<Symbol>(
-        symbol_id_counter++,
-        std::move(name),
-        closure_depth,
-        lexical_depth,
-        MethodOverloadsData{}
+        OverloadsData{}
     );
 }
 
@@ -463,27 +399,7 @@ Symbol_ptr SymbolFactory::create_generic(
         std::move(name),
         closure_depth,
         lexical_depth,
-        GenericData{
-            std::move(type),
-        }
-    );
-}
-
-Symbol_ptr SymbolFactory::create_template(
-    std::string name,
-    Object_ptr type,
-    int closure_depth,
-    int lexical_depth
-)
-{
-    return std::make_shared<Symbol>(
-        symbol_id_counter++,
-        std::move(name),
-        closure_depth,
-        lexical_depth,
-        TemplateData{
-            std::move(type),
-        }
+        GenericData{std::move(type)}
     );
 }
 
@@ -539,11 +455,6 @@ Symbol_ptr SymbolFactory::create_alias(std::string name, Symbol_ptr target)
         0,
         SymbolAliasData{std::move(target)}
     );
-}
-
-Module::Module(std::filesystem::path file_path, StatementVector stmts)
-    : absolute_filepath(std::move(file_path)), stmts(std::move(stmts))
-{
 }
 
 std::string Module::get_name() const

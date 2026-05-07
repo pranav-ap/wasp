@@ -32,9 +32,7 @@ fun add(a: int, b: int) => int
 
         B(Wasp::OpCode::JUMP),              B(10), B(0),
 
-        // Export Builder
-        B(Wasp::OpCode::GET_LOCAL),         B(var_add),
-        B(Wasp::OpCode::EXIT_MODULE),       B(1)
+        B(Wasp::OpCode::EXIT_MODULE),       B(0)
     };
     // clang-format on
 
@@ -89,8 +87,7 @@ fun max(a: int, b: int) => int
 
         B(Wasp::OpCode::JUMP),                    B(10), B(0),
 
-        B(Wasp::OpCode::GET_LOCAL),               B(max_func_var_id),
-        B(Wasp::OpCode::EXIT_MODULE),             B(1)
+        B(Wasp::OpCode::EXIT_MODULE),             B(0)
     };
     // clang-format on
 
@@ -157,24 +154,26 @@ fun outer(a: int) => any
     std::vector<std::byte> expected_bytes = {
         B(Wasp::OpCode::ENTER_MODULE),
 
-        B(Wasp::OpCode::LOAD_CONST),        B(outer_func_pool_id),
-        B(Wasp::OpCode::MAKE_FUNCTION),     B(0),
+        B(Wasp::OpCode::LOAD_CONST),              B(outer_func_pool_id),
+        B(Wasp::OpCode::MAKE_FUNCTION),           B(0),
         B(Wasp::OpCode::STORE_FUNCTION_OVERLOAD), B(outer_func_var_id),
 
-        B(Wasp::OpCode::JUMP),              B(10), B(0),
+        B(Wasp::OpCode::JUMP),                    B(10), B(0),
 
-        // Export Builder
-        B(Wasp::OpCode::GET_LOCAL),         B(outer_func_var_id),
-        B(Wasp::OpCode::EXIT_MODULE),       B(1)
+        B(Wasp::OpCode::EXIT_MODULE),             B(0)
     };
     // clang-format on
 
     EXPECT_EQ(actual_bytes, expected_bytes);
 
     auto outer_pool_obj = pool->get(outer_func_pool_id);
-    ASSERT_TRUE(outer_pool_obj->is<std::shared_ptr<Wasp::FunctionBlueprintObject>>());
+    ASSERT_TRUE(
+        outer_pool_obj->is<std::shared_ptr<Wasp::FunctionBlueprintObject>>()
+    );
     const Wasp::CodeObject&
-        outer_code = outer_pool_obj->as<std::shared_ptr<Wasp::FunctionBlueprintObject>>()->code;
+        outer_code = outer_pool_obj
+                         ->as<std::shared_ptr<Wasp::FunctionBlueprintObject>>()
+                         ->code;
 
     std::vector<std::byte> actual_outer_bytes(
         outer_code.data(),

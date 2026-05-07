@@ -1,4 +1,5 @@
 #include "AST.h"
+#include "Doctor.h"
 #include "Parser.h"
 #include "Statement.h"
 #include "Token.h"
@@ -8,6 +9,7 @@
 #include <string>
 #include <tuple>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #define CASE(token_type, call)                                                                     \
@@ -20,6 +22,12 @@
     std::make_shared<TypeAnnotation>(std::make_shared<T>(__VA_ARGS__))
 
 using std::make_pair;
+
+template <class... Ts> struct overloaded : Ts...
+{
+    using Ts::operator()...;
+};
+template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
@@ -166,28 +174,23 @@ Statement_ptr Parser::parse_function_definition(
 
     if (in_class_block)
     {
-        if (!is_our && is_pure)
-        {
-            return make_statement(PureMethodDefinition(name, parameters, return_type, body));
-        }
-        if (is_our && !is_pure)
-        {
-            return make_statement(OurMethodDefinition(name, parameters, return_type, body));
-        }
-        if (is_our && is_pure)
-        {
-            return make_statement(OurPureMethodDefinition(name, parameters, return_type, body));
-        }
-
-        return make_statement(MethodDefinition(name, parameters, return_type, body));
+        return make_statement(MethodDefinition(
+            std::move(name),
+            std::move(parameters),
+            std::move(return_type),
+            std::move(body),
+            is_pure,
+            is_our
+        ));
     }
 
-    if (is_pure)
-    {
-        return make_statement(PureFunctionDefinition(name, parameters, return_type, body));
-    }
-
-    return make_statement(FunctionDefinition(name, parameters, return_type, body));
+    return make_statement(FunctionDefinition(
+        std::move(name),
+        std::move(parameters),
+        std::move(return_type),
+        std::move(body),
+        is_pure
+    ));
 }
 
 std::tuple<std::string, std::vector<std::string>, StatementVector> Parser::
@@ -312,7 +315,7 @@ Statement_ptr Parser::parse_template_definition(int indent_level)
     token_pipe.advance_pointer();
     token_pipe.require_in_line(TokenType::EOL);
 
-    std::vector<FieldDefinition> members;
+    std::vector<FieldDefinition> generics;
     const int body_indent = indent_level + 1;
 
     while (true)
@@ -333,12 +336,38 @@ Statement_ptr Parser::parse_template_definition(int indent_level)
 
         token_pipe.require_in_line(TokenType::EOL);
 
-        members.emplace_back(name_token.value, param_type);
+        generics.emplace_back(name_token.value, param_type);
     }
 
     Statement_ptr target = parse_statement(indent_level);
 
-    return make_statement(TemplateDefinition{std::move(members), std::move(target)});
+    std::visit(
+        overloaded{
+            [&](FunctionDefinition& def)
+            {
+                def.generics = std::move(generics);
+            },
+            [&](ClassDefinition& def)
+            {
+                def.generics = std::move(generics);
+            },
+            [&](TraitDefinition& def)
+            {
+                def.generics = std::move(generics);
+            },
+            [&](TypeAliasDefinition& def)
+            {
+                def.generics = std::move(generics);
+            },
+            [&](auto&)
+            {
+                Doctor::get().fatal(WaspStage::Parser, "Invalid template target");
+            }
+        },
+        target->data
+    );
+
+    return target;
 }
 
 } // namespace Wasp

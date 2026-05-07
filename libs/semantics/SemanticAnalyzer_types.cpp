@@ -2,10 +2,9 @@
 #include "Doctor.h"
 #include "Objects.h"
 #include "SemanticAnalyzer.h"
-#include "Statement.h"
 #include "TypeAnnotation.h"
 
-#include <map>
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <utility>
@@ -149,144 +148,62 @@ Object_ptr SemanticAnalyzer::visit(VariantTypeNode& expr)
 Object_ptr SemanticAnalyzer::visit(FunctionTypeNode& expr)
 {
     ObjectVector params = visit(expr.input_types);
+    Object_ptr ret_type = expr.return_type ? visit(expr.return_type)
+                                           : workspace->pool->get_none_type();
 
-    if (expr.return_type)
-        return make_object(std::make_shared<FunctionType>(params, visit(expr.return_type)));
-
-    return make_object(std::make_shared<FunctionType>(params, make_object(NoneType())));
+    return make_object(
+        std::make_shared<Signature>(
+            std::move(params),
+            std::move(ret_type),
+            ObjectStringMap{},
+            StringVector{}
+        )
+    );
 }
 
 Object_ptr SemanticAnalyzer::visit(RecordTypeNode& node)
 {
-    ObjectStringMap record_members;
-
-    for (const auto& stmt_ptr : node.fields)
-    {
-        std::visit(
-            overloaded{
-                [&](FieldDefinition& field)
-                {
-                    record_members[field.name] = visit(field.type);
-                },
-                [](auto&)
-                {
-                    Doctor::get().fatal(
-                        WaspStage::Semantics,
-                        "RecordTypeNode contains a non-field statement."
-                    );
-                }
-            },
-            stmt_ptr->data
-        );
-    }
-
-    return make_object(std::make_shared<RecordType>());
+    Doctor::get().fatal(WaspStage::Semantics, "Record types are not yet supported.");
 }
 
-Object_ptr SemanticAnalyzer::evaluate_type_template_instantiation(
-    Object_ptr base_type_obj,
-    const ObjectVector& resolved_args
-)
+Object_ptr SemanticAnalyzer::visit(TemplateAngularTypeNode& node)
 {
-    if (base_type_obj->is<ClassTemplateType_ptr>())
+    // Resolve the base type (e.g., the 'Speaker' in 'Speaker<T>')
+    Object_ptr unspecialized_base = visit(node.base_node);
+    Doctor::get().fatal_if_nullptr(unspecialized_base, WaspStage::Semantics);
+
+    // Evaluate the generic arguments (e.g., the 'T' in 'Speaker<T>')
+    ObjectVector concrete_arguments;
+    for (const auto& type_node : node.angular_nodes)
     {
-        auto tmpl = base_type_obj->as<ClassTemplateType_ptr>();
-        auto base_class = tmpl->underlying_type;
-
-        ObjectStringMap concrete_members;
-        for (const auto& [name, type] : base_class->members)
-        {
-            concrete_members[name] = type_checker->substitute_generics(type, tmpl, resolved_args);
-        }
-
-        return make_object(
-            std::make_shared<ClassType>(
-                base_class->name,
-                std::move(concrete_members),
-                base_class->fields,
-                base_class->methods,
-                base_class->pures,
-                base_class->statics
-            )
-        );
-    }
-    else if (base_type_obj->is<TypeAliasTemplateType_ptr>())
-    {
-        auto tmpl = base_type_obj->as<TypeAliasTemplateType_ptr>();
-        return type_checker->substitute_generics(tmpl->underlying_type, tmpl, resolved_args);
-    }
-    else if (base_type_obj->is<TraitTemplateType_ptr>())
-    {
-        auto tmpl = base_type_obj->as<TraitTemplateType_ptr>();
-        auto base_trait = tmpl->underlying_type;
-
-        ObjectStringMap concrete_members;
-        for (const auto& [name, type] : base_trait->members)
-        {
-            concrete_members[name] = type_checker->substitute_generics(type, tmpl, resolved_args);
-        }
-
-        return make_object(
-            std::make_shared<TraitType>(
-                base_trait->name,
-                std::move(concrete_members),
-                base_trait->methods,
-                base_trait->pures,
-                base_trait->statics
-            )
-        );
+        concrete_arguments.push_back(visit(type_node));
     }
 
-    Doctor::get().fatal(WaspStage::Semantics, "Failed to instantiate template type.");
-}
+    auto generic_names = type_system->get_generics_declaration_order(
+        unspecialized_base
+    );
 
-Object_ptr SemanticAnalyzer::visit(TemplateTypeNode& node)
-{
-    Object_ptr base_type_obj = visit(node.base_type);
+    Doctor::get().assert(
+        generic_names.size() == concrete_arguments.size(),
+        WaspStage::Semantics,
+        "Generic argument count mismatch. Expected " +
+            std::to_string(generic_names.size()) + ", but got " +
+            std::to_string(concrete_arguments.size()) + "."
+    );
 
-    ObjectVector resolved_args;
-    resolved_args.reserve(node.generic_args.size());
-
-    for (const auto& arg : node.generic_args)
+    // Map names to types (e.g., { "T": GenericType(T) })
+    ObjectStringMap substitutions;
+    for (size_t i = 0; i < concrete_arguments.size(); ++i)
     {
-        resolved_args.push_back(visit(arg));
+        substitutions[generic_names[i]] = concrete_arguments[i];
     }
 
-    if (base_type_obj->is<ClassTemplateType_ptr>())
-    {
-        auto tmpl = base_type_obj->as<ClassTemplateType_ptr>();
-        Doctor::get().assert(
-            tmpl->generics.size() == resolved_args.size(),
-            WaspStage::Semantics,
-            "Argument count mismatch for class template."
-        );
-    }
-    else if (base_type_obj->is<TypeAliasTemplateType_ptr>())
-    {
-        auto tmpl = base_type_obj->as<TypeAliasTemplateType_ptr>();
-        Doctor::get().assert(
-            tmpl->generics.size() == resolved_args.size(),
-            WaspStage::Semantics,
-            "Argument count mismatch for type alias template."
-        );
-    }
-    else if (base_type_obj->is<TraitTemplateType_ptr>())
-    {
-        auto tmpl = base_type_obj->as<TraitTemplateType_ptr>();
-        Doctor::get().assert(
-            tmpl->generics.size() == resolved_args.size(),
-            WaspStage::Semantics,
-            "Argument count mismatch for trait template."
-        );
-    }
-    else
-    {
-        Doctor::get().fatal(WaspStage::Semantics, "Target type is not a generic template.");
-    }
+    auto specialized_type = type_system->substitute_generics(
+        unspecialized_base,
+        substitutions
+    );
 
-    // Call your internal instantiation helper to bind the resolved_args
-    // to the template's generic parameters and return the concrete type.
-    return evaluate_type_template_instantiation(base_type_obj, resolved_args);
+    return specialized_type;
 }
 
 } // namespace Wasp

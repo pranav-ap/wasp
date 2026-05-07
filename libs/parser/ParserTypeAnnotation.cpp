@@ -50,9 +50,12 @@ TypeAnnotation_ptr Parser::parse_type()
 
                 token_pipe.require(TokenType::GREATER_THAN);
 
-                type = std::make_shared<TypeAnnotation>(TypeAnnotation{
-                    std::make_shared<TemplateTypeNode>(type, std::move(generic_args))
-                });
+                type = std::make_shared<TypeAnnotation>(
+                    TypeAnnotation{std::make_shared<TemplateAngularTypeNode>(
+                        type,
+                        std::move(generic_args)
+                    )}
+                );
             }
         }
 

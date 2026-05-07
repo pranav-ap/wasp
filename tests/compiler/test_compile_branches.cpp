@@ -86,8 +86,7 @@ if let x = true then 3 else 1
         B(Wasp::OpCode::POP),
         B(Wasp::OpCode::JUMP),          B(36), B(0),
 
-        B(Wasp::OpCode::GET_LOCAL),     B(0),
-        B(Wasp::OpCode::EXIT_MODULE),   B(1)
+        B(Wasp::OpCode::EXIT_MODULE),   B(0)
     };
     // clang-format on
 
