@@ -9,3 +9,17 @@ fun shout(i: int)
         shout(i)
 
 shout(1)
+
+
+class Animal
+    fun say(i: int)
+        print('hi')
+
+        i += 1
+        if i < 5 then
+            my.say(i)
+
+
+let a = Animal()
+a.say(0)
+

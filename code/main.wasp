@@ -1,11 +1,14 @@
 from core.io import print
 
 
-fun shout(i: int)
-    print('shout')
+class Animal
+    fun say(i: int)
+        print('hi')
 
-    i += 1
-    if i < 5 then
-        shout(i)
+        i += 1
+        if i < 5 then
+            my.say(i)
 
-shout(1)
+
+let a = Animal()
+a.say(0)
