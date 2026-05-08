@@ -84,15 +84,15 @@ Object_ptr SemanticAnalyzer::define_variable(
     {
         if (initializer_type->is<IntLiteralType>())
         {
-            resolved_type = workspace->pool->get_int_type();
+            resolved_type = workspace->pool->get_native_int_type();
         }
         else if (initializer_type->is<FloatLiteralType>())
         {
-            resolved_type = workspace->pool->get_float_type();
+            resolved_type = workspace->pool->get_native_float_type();
         }
         else if (initializer_type->is<StringLiteralType>())
         {
-            resolved_type = workspace->pool->get_string_type();
+            resolved_type = workspace->pool->get_native_string_type();
         }
         else if (initializer_type->is<BooleanLiteralType>())
         {

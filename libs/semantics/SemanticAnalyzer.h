@@ -150,12 +150,7 @@ private:
     Object_ptr visit(const TypeAnnotation_ptr type_node);
     ObjectVector visit(TypeAnnotationVector& type_nodes);
 
-    Object_ptr visit(AnyTypeNode& expr);
     Object_ptr visit(NoneTypeNode& expr);
-    Object_ptr visit(IntTypeNode& expr);
-    Object_ptr visit(FloatTypeNode& expr);
-    Object_ptr visit(StringTypeNode& expr);
-    Object_ptr visit(BoolTypeNode& expr);
     Object_ptr visit(IntLiteralTypeNode& expr);
     Object_ptr visit(FloatLiteralTypeNode& expr);
     Object_ptr visit(StringLiteralTypeNode& expr);

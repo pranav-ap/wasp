@@ -13,8 +13,16 @@ TEST(ParseDefinitions, AliasDefinition)
     auto& alias_def = check<Wasp::TypeAliasDefinition>(block[0]);
     EXPECT_EQ(alias_def.name, "int_list");
 
-    auto& list_type_ptr = check<std::shared_ptr<Wasp::ListTypeNode>>(alias_def.ref_type);
-    check<Wasp::IntTypeNode>(list_type_ptr->element_type);
+    auto& list_type_ptr = check<std::shared_ptr<Wasp::ListTypeNode>>(
+        alias_def.ref_type
+    );
+
+    auto& element_type = check<Wasp::TypeIdentifierNode>(
+        list_type_ptr->element_type
+    );
+
+    EXPECT_EQ(element_type.name, "int");
+    EXPECT_FALSE(element_type.is_native);
 }
 
 TEST(ParseDefinitions, EnumNestedDefinition)
@@ -149,11 +157,13 @@ class Person
 
     auto& years_field = check<Wasp::FieldDefinition>(exp_record->fields[0]);
     EXPECT_EQ(years_field.name, "years");
-    check<Wasp::IntTypeNode>(years_field.type);
+    auto& years_type = check<Wasp::TypeIdentifierNode>(years_field.type);
+    EXPECT_EQ(years_type.name, "int");
 
     auto& field_field = check<Wasp::FieldDefinition>(exp_record->fields[1]);
     EXPECT_EQ(field_field.name, "field");
-    check<Wasp::StringTypeNode>(field_field.type);
+    auto& field_type = check<Wasp::TypeIdentifierNode>(field_field.type);
+    EXPECT_EQ(field_type.name, "str");
 }
 
 TEST(ParseDefinitions, ClassDefinitionWithManyTraits)
@@ -204,5 +214,8 @@ class Person
     ASSERT_EQ(func_def2.parameters.size(), 1);
     EXPECT_EQ(func_def2.parameters[0].first, "damage");
 
-    check<Wasp::IntTypeNode>(func_def2.parameters[0].second);
+    auto& param_type = check<Wasp::TypeIdentifierNode>(
+        func_def2.parameters[0].second
+    );
+    EXPECT_EQ(param_type.name, "int");
 }

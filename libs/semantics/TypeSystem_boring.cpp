@@ -57,7 +57,7 @@ Object_ptr TypeSystem::extract_iterable_element_type(
 ) const
 {
     if (!type)
-        return make_object(AnyType());
+        return make_object(NativeAnyType());
 
     if (type->is<VariantType>())
     {
@@ -94,13 +94,13 @@ Object_ptr TypeSystem::extract_iterable_element_type(
                 return unique.size() == 1 ? unique[0]
                                           : make_object(VariantType(unique));
             },
-            [&](StringType const&) -> Object_ptr
+            [&](NativeStringType const&) -> Object_ptr
             {
-                return pool->get_string_type();
+                return pool->get_native_string_type();
             },
             [&](const auto&) -> Object_ptr
             {
-                return pool->get_any_type();
+                return pool->get_native_any_type();
             }
         },
         type->value
@@ -109,12 +109,12 @@ Object_ptr TypeSystem::extract_iterable_element_type(
 
 bool TypeSystem::is_int_type(Object_ptr obj) const
 {
-    return obj->is<IntType>() || obj->is<IntLiteralType>();
+    return obj->is<NativeIntType>() || obj->is<IntLiteralType>();
 }
 
 bool TypeSystem::is_float_type(Object_ptr obj) const
 {
-    return obj->is<FloatType>() || obj->is<FloatLiteralType>();
+    return obj->is<NativeFloatType>() || obj->is<FloatLiteralType>();
 }
 
 bool TypeSystem::is_number_type(Object_ptr obj) const
@@ -124,12 +124,12 @@ bool TypeSystem::is_number_type(Object_ptr obj) const
 
 bool TypeSystem::is_string_type(Object_ptr obj) const
 {
-    return obj->is<StringType>() || obj->is<StringLiteralType>();
+    return obj->is<NativeStringType>() || obj->is<StringLiteralType>();
 }
 
 bool TypeSystem::is_boolean_type(Object_ptr obj) const
 {
-    return obj->is<BooleanType>() || obj->is<BooleanLiteralType>();
+    return obj->is<NativeBooleanType>() || obj->is<BooleanLiteralType>();
 }
 
 bool TypeSystem::is_none_type(const Object_ptr type) const
@@ -147,7 +147,7 @@ bool TypeSystem::is_condition_type(
 
     return std::visit(
         ::overloaded{
-            [](BooleanType const&)
+            [](NativeBooleanType const&)
             {
                 return true;
             },
@@ -155,7 +155,7 @@ bool TypeSystem::is_condition_type(
             {
                 return true;
             },
-            [](StringType const&)
+            [](NativeStringType const&)
             {
                 return true;
             },

@@ -199,6 +199,7 @@ struct TypeAliasDefinition : public Definition, public Templatable
     {
     }
 };
+
 struct VariableDefinition : public Definition
 {
     Expression_ptr expression;

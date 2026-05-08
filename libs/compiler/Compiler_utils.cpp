@@ -270,19 +270,19 @@ Object_ptr Compiler::get_default_value_for_type(Object_ptr type)
 {
     return std::visit(
         overloaded{
-            [&](const IntType&) -> Object_ptr
+            [&](const NativeIntType&) -> Object_ptr
             {
                 return workspace->pool->get_int_default();
             },
-            [&](const FloatType&) -> Object_ptr
+            [&](const NativeFloatType&) -> Object_ptr
             {
                 return workspace->pool->get_float_default();
             },
-            [&](const StringType&) -> Object_ptr
+            [&](const NativeStringType&) -> Object_ptr
             {
                 return workspace->pool->get_string_default();
             },
-            [&](const BooleanType&) -> Object_ptr
+            [&](const NativeBooleanType&) -> Object_ptr
             {
                 return workspace->pool->get_boolean_default();
             },

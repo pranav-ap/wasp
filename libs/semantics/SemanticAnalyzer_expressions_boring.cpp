@@ -126,7 +126,7 @@ Object_ptr SemanticAnalyzer::visit(Postfix& expr)
 Object_ptr SemanticAnalyzer::visit(ListLiteral& expr)
 {
     if (expr.expressions.empty())
-        return make_object(ListType(make_object(AnyType())));
+        return make_object(ListType(make_object(NativeAnyType())));
 
     ObjectVector element_types;
     for (const auto& element : expr.expressions)
@@ -152,7 +152,9 @@ Object_ptr SemanticAnalyzer::visit(TupleLiteral& expr)
 Object_ptr SemanticAnalyzer::visit(MapLiteral& expr)
 {
     if (expr.pairs.empty())
-        return make_object(MapType(make_object(AnyType()), make_object(AnyType())));
+        return make_object(
+            MapType(make_object(NativeAnyType()), make_object(NativeAnyType()))
+        );
 
     ObjectVector key_types, val_types;
     for (const auto& [k_expr, v_expr] : expr.pairs)
@@ -174,7 +176,7 @@ Object_ptr SemanticAnalyzer::visit(MapLiteral& expr)
 Object_ptr SemanticAnalyzer::visit(SetLiteral& expr)
 {
     if (expr.expressions.empty())
-        return make_object(SetType(make_object(AnyType())));
+        return make_object(SetType(make_object(NativeAnyType())));
 
     ObjectVector element_types;
     for (const auto& element : expr.expressions)
@@ -211,10 +213,10 @@ Object_ptr SemanticAnalyzer::visit(RangeLiteral& expr)
     if (type_system->is_float_type(start_type) ||
         type_system->is_float_type(end_type))
     {
-        return make_object(ListType(make_object(FloatType())));
+        return make_object(ListType(make_object(NativeFloatType())));
     }
 
-    return make_object(ListType(make_object(IntType())));
+    return make_object(ListType(make_object(NativeIntType())));
 }
 
 Object_ptr SemanticAnalyzer::visit(TypePattern& expr)

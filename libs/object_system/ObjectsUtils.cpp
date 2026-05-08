@@ -209,7 +209,7 @@ std::string stringify_object(Object_ptr value)
             },
 
             // Base Types
-            [](const AnyType&) -> std::string
+            [](const NativeAnyType&) -> std::string
             {
                 return "any type";
             },
@@ -267,19 +267,19 @@ std::string stringify_object(Object_ptr value)
             },
 
             // Scalar Types
-            [](const IntType&) -> std::string
+            [](const NativeIntType&) -> std::string
             {
                 return "int type";
             },
-            [](const FloatType&) -> std::string
+            [](const NativeFloatType&) -> std::string
             {
                 return "float type";
             },
-            [](const StringType&) -> std::string
+            [](const NativeStringType&) -> std::string
             {
                 return "string type";
             },
-            [](const BooleanType&) -> std::string
+            [](const NativeBooleanType&) -> std::string
             {
                 return "bool type";
             },
@@ -481,7 +481,7 @@ std::string mangle_object(Object_ptr value)
                 return "_";
             },
 
-            [](const AnyType&) -> std::string
+            [](const NativeAnyType&) -> std::string
             {
                 return "A";
             },
@@ -536,19 +536,19 @@ std::string mangle_object(Object_ptr value)
                 return "lb";
             },
 
-            [](const IntType&) -> std::string
+            [](const NativeIntType&) -> std::string
             {
                 return "i";
             },
-            [](const FloatType&) -> std::string
+            [](const NativeFloatType&) -> std::string
             {
                 return "f";
             },
-            [](const StringType&) -> std::string
+            [](const NativeStringType&) -> std::string
             {
                 return "s";
             },
-            [](const BooleanType&) -> std::string
+            [](const NativeBooleanType&) -> std::string
             {
                 return "b";
             },

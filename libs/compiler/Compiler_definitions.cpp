@@ -196,6 +196,14 @@ void Compiler::visit(EnumDefinition& def)
 
 void Compiler::visit(TypeAliasDefinition& def)
 {
+    int physical_index = get_or_add_local_index(def.symbol);
+
+    if (physical_index != -1)
+    {
+        // Fill the slot with a dummy value so the VM stack stays synchronized
+        emit(OpCode::LOAD_NONE);
+        emit(OpCode::SET_LOCAL, physical_index, "compile-time alias: " + def.name);
+    }
 }
 
 void Compiler::visit(AnnotationDefinition& statement)

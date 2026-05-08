@@ -46,7 +46,7 @@ struct TypeType
 {
 };
 
-struct AnyType
+struct NativeAnyType
 {
 };
 
@@ -64,19 +64,19 @@ struct NamedDefinitionType
 // Scalar & Literal Types
 // ============================================================================
 
-struct IntType
+struct NativeIntType
 {
 };
 
-struct FloatType
+struct NativeFloatType
 {
 };
 
-struct StringType
+struct NativeStringType
 {
 };
 
-struct BooleanType
+struct NativeBooleanType
 {
 };
 
@@ -615,13 +615,16 @@ struct Object
         std::shared_ptr<ErrorObject>,
 
         TypeType,
-        AnyType,
+
         NoneType,
         NamedDefinitionType,
-        IntType,
-        FloatType,
-        StringType,
-        BooleanType,
+
+        NativeAnyType,
+        NativeIntType,
+        NativeFloatType,
+        NativeStringType,
+        NativeBooleanType,
+
         IntLiteralType,
         FloatLiteralType,
         StringLiteralType,

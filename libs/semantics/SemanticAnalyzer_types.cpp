@@ -60,34 +60,9 @@ Object_ptr SemanticAnalyzer::visit(const TypeAnnotation_ptr type_node)
     );
 }
 
-Object_ptr SemanticAnalyzer::visit(AnyTypeNode& expr)
-{
-    return workspace->pool->get_any_type();
-}
-
 Object_ptr SemanticAnalyzer::visit(NoneTypeNode& expr)
 {
     return workspace->pool->get_none_type();
-}
-
-Object_ptr SemanticAnalyzer::visit(IntTypeNode& expr)
-{
-    return workspace->pool->get_int_type();
-}
-
-Object_ptr SemanticAnalyzer::visit(FloatTypeNode& expr)
-{
-    return workspace->pool->get_float_type();
-}
-
-Object_ptr SemanticAnalyzer::visit(StringTypeNode& expr)
-{
-    return workspace->pool->get_string_type();
-}
-
-Object_ptr SemanticAnalyzer::visit(BoolTypeNode& expr)
-{
-    return workspace->pool->get_boolean_type();
 }
 
 Object_ptr SemanticAnalyzer::visit(IntLiteralTypeNode& expr)
@@ -115,8 +90,35 @@ Object_ptr SemanticAnalyzer::visit(BoolLiteralTypeNode& expr)
 
 Object_ptr SemanticAnalyzer::visit(TypeIdentifierNode& expr)
 {
+    if (expr.name == "int")
+    {
+        return workspace->pool->get_native_int_type();
+    }
+    if (expr.name == "float")
+    {
+        return workspace->pool->get_native_float_type();
+    }
+    if (expr.name == "str")
+    {
+        return workspace->pool->get_native_string_type();
+    }
+    if (expr.name == "bool")
+    {
+        return workspace->pool->get_boolean_type();
+    }
+    if (expr.name == "any")
+    {
+        return workspace->pool->get_native_any_type();
+    }
+
     auto symbol = current_scope->lookup(expr.name);
-    Doctor::get().fatal_if_nullptr(symbol, WaspStage::Semantics);
+
+    Doctor::get().fatal_if_nullptr(
+        symbol,
+        WaspStage::Semantics,
+        "Unknown type identifier: '" + expr.name + "'"
+    );
+
     return symbol->get_type();
 }
 

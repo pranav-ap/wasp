@@ -1,14 +1,17 @@
 from core.io import print
 
+class Int
+    value: native int
 
-class Animal
-    fun say(i: int)
-        print('hi')
-
-        i += 1
-        if i < 5 then
-            my.say(i)
+type int = Int
 
 
-let a = Animal()
-a.say(0)
+# operator + (left: Int, right: Int) => Int
+#     return Int(left.value + right.value)
+
+
+# let x: int = 1
+# let y: int = 2
+
+# let z: int = x + y
+# print(z)

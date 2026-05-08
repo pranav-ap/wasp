@@ -306,19 +306,23 @@ bool LesserThanParselet::looks_like_generic_args(Parser& parser) const
     {
         const Token* t = parser.token_pipe.peek(offset++);
 
-        // If we hit the end of the line or file before closing '>', it's not a generic.
         if (!t || t->type == TokenType::EOL || t->type == TokenType::END_OF_FILE)
+        {
             return false;
+        }
 
-        // Skip whitespace
         if (t->type == TokenType::SPACE || t->type == TokenType::TAB)
+        {
             continue;
+        }
 
         if (t->type == TokenType::GREATER_THAN)
         {
             depth--;
             if (depth == 0)
+            {
                 return true;
+            }
         }
         else if (t->type == TokenType::LESSER_THAN)
         {
@@ -328,20 +332,18 @@ bool LesserThanParselet::looks_like_generic_args(Parser& parser) const
             t->type == TokenType::IDENTIFIER || t->type == TokenType::COMMA ||
             t->type == TokenType::VERTICAL_BAR || t->type == TokenType::AMPERSAND ||
             t->type == TokenType::OPEN_SQUARE_BRACKET ||
-            t->type == TokenType::CLOSE_SQUARE_BRACKET || t->type == TokenType::OPEN_PARENTHESIS ||
-            t->type == TokenType::CLOSE_PARENTHESIS || t->type == TokenType::OPEN_CURLY_BRACE ||
+            t->type == TokenType::CLOSE_SQUARE_BRACKET ||
+            t->type == TokenType::OPEN_PARENTHESIS ||
+            t->type == TokenType::CLOSE_PARENTHESIS ||
+            t->type == TokenType::OPEN_CURLY_BRACE ||
             t->type == TokenType::CLOSE_CURLY_BRACE || t->type == TokenType::DOT ||
-            // Base types
-            t->type == TokenType::INT || t->type == TokenType::FLOAT || t->type == TokenType::STR ||
-            t->type == TokenType::BOOL || t->type == TokenType::ANY || t->type == TokenType::NONE
+            t->type == TokenType::NONE || t->type == TokenType::NATIVE
         )
         {
             continue;
         }
         else
         {
-            // We hit a token that doesn't belong in a type signature (e.g., +, -, =, literals)
-            // It must be a comparison operation instead.
             return false;
         }
     }

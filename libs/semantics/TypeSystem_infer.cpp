@@ -76,23 +76,23 @@ bool TypeSystem::equal(
 
     return std::visit(
         ::overloaded{
-            [&](AnyType const&, AnyType const&)
+            [&](NativeAnyType const&, NativeAnyType const&)
             {
                 return true;
             },
-            [&](IntType const&, IntType const&)
+            [&](NativeIntType const&, NativeIntType const&)
             {
                 return true;
             },
-            [&](FloatType const&, FloatType const&)
+            [&](NativeFloatType const&, NativeFloatType const&)
             {
                 return true;
             },
-            [&](BooleanType const&, BooleanType const&)
+            [&](NativeBooleanType const&, NativeBooleanType const&)
             {
                 return true;
             },
-            [&](StringType const&, StringType const&)
+            [&](NativeStringType const&, NativeStringType const&)
             {
                 return true;
             },
@@ -306,23 +306,23 @@ bool TypeSystem::assignable(
 
     return std::visit(
         overloaded{
-            [](AnyType const&, const auto&)
+            [](NativeAnyType const&, const auto&)
             {
                 return true;
             },
-            [](IntType const&, IntType const&)
+            [](NativeIntType const&, NativeIntType const&)
             {
                 return true;
             },
-            [](FloatType const&, FloatType const&)
+            [](NativeFloatType const&, NativeFloatType const&)
             {
                 return true;
             },
-            [](BooleanType const&, BooleanType const&)
+            [](NativeBooleanType const&, NativeBooleanType const&)
             {
                 return true;
             },
-            [](StringType const&, StringType const&)
+            [](NativeStringType const&, NativeStringType const&)
             {
                 return true;
             },
@@ -344,19 +344,19 @@ bool TypeSystem::assignable(
                 return l.value == r.value;
             },
 
-            [](IntType const&, IntLiteralType const&)
+            [](NativeIntType const&, IntLiteralType const&)
             {
                 return true;
             },
-            [](FloatType const&, FloatLiteralType const&)
+            [](NativeFloatType const&, FloatLiteralType const&)
             {
                 return true;
             },
-            [](BooleanType const&, BooleanLiteralType const&)
+            [](NativeBooleanType const&, BooleanLiteralType const&)
             {
                 return true;
             },
-            [](StringType const&, StringLiteralType const&)
+            [](NativeStringType const&, StringLiteralType const&)
             {
                 return true;
             },
@@ -482,7 +482,7 @@ Object_ptr TypeSystem::infer(
                         stringify_object(right_type) + "'"
                 );
             }
-            return pool->get_string_type();
+            return pool->get_native_string_type();
         }
         [[fallthrough]];
     case TokenType::STAR:
@@ -493,8 +493,8 @@ Object_ptr TypeSystem::infer(
         expect_number_type(left_type);
         expect_number_type(right_type);
         return (is_float_type(left_type) || is_float_type(right_type))
-                   ? pool->get_float_type()
-                   : pool->get_int_type();
+                   ? pool->get_native_float_type()
+                   : pool->get_native_int_type();
 
     case TokenType::LESSER_THAN:
     case TokenType::LESSER_THAN_EQUAL:
@@ -582,8 +582,8 @@ Object_ptr TypeSystem::infer(
     case TokenType::PLUS:
     case TokenType::MINUS:
         expect_number_type(operand_type);
-        return is_int_type(operand_type) ? pool->get_int_type()
-                                         : pool->get_float_type();
+        return is_int_type(operand_type) ? pool->get_native_int_type()
+                                         : pool->get_native_float_type();
     case TokenType::NOT:
         expect_boolean_type(operand_type);
         return pool->get_boolean_type();

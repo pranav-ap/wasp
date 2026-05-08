@@ -8,30 +8,37 @@
 #include <utility>
 #include <variant>
 
-namespace Wasp {
+namespace Wasp
+{
 
-struct AnyTypeNode {};
-struct NoneTypeNode {};
-struct IntTypeNode {};
-struct FloatTypeNode {};
-struct StringTypeNode {};
-struct BoolTypeNode {};
+struct NoneTypeNode
+{
+};
 
-struct IntLiteralTypeNode {
+struct IntLiteralTypeNode
+{
     int value;
 };
-struct FloatLiteralTypeNode {
+
+struct FloatLiteralTypeNode
+{
     double value;
 };
-struct StringLiteralTypeNode {
+
+struct StringLiteralTypeNode
+{
     std::string value;
 };
-struct BoolLiteralTypeNode {
+
+struct BoolLiteralTypeNode
+{
     bool value;
 };
 
-struct TypeIdentifierNode {
+struct TypeIdentifierNode
+{
     std::string name;
+    bool is_native = false;
 };
 
 struct ListTypeNode;
@@ -43,46 +50,71 @@ struct FunctionTypeNode;
 struct RecordTypeNode;
 struct TemplateAngularTypeNode;
 
-struct ListTypeNode {
+struct ListTypeNode
+{
     TypeAnnotation_ptr element_type;
     explicit ListTypeNode() = default;
-    explicit ListTypeNode(TypeAnnotation_ptr type) : element_type(std::move(type)) {}
+
+    explicit ListTypeNode(TypeAnnotation_ptr type) : element_type(std::move(type))
+    {
+    }
 };
 
-struct TupleTypeNode {
+struct TupleTypeNode
+{
     TypeAnnotationVector element_types;
     explicit TupleTypeNode() = default;
-    explicit TupleTypeNode(TypeAnnotationVector types) : element_types(std::move(types)) {}
+
+    explicit TupleTypeNode(TypeAnnotationVector types)
+        : element_types(std::move(types))
+    {
+    }
 };
 
-struct SetTypeNode {
+struct SetTypeNode
+{
     TypeAnnotation_ptr element_type;
     explicit SetTypeNode() = default;
-    explicit SetTypeNode(TypeAnnotation_ptr type) : element_type(std::move(type)) {}
+
+    explicit SetTypeNode(TypeAnnotation_ptr type) : element_type(std::move(type))
+    {
+    }
 };
 
-struct MapTypeNode {
+struct MapTypeNode
+{
     TypeAnnotation_ptr key_type;
     TypeAnnotation_ptr value_type;
 
     explicit MapTypeNode() = default;
+
     explicit MapTypeNode(TypeAnnotation_ptr key, TypeAnnotation_ptr value)
-        : key_type(std::move(key)), value_type(std::move(value)) {}
+        : key_type(std::move(key)), value_type(std::move(value))
+    {
+    }
 };
 
-struct VariantTypeNode {
+struct VariantTypeNode
+{
     TypeAnnotationVector types;
     explicit VariantTypeNode() = default;
-    explicit VariantTypeNode(TypeAnnotationVector types) : types(std::move(types)) {}
+
+    explicit VariantTypeNode(TypeAnnotationVector types) : types(std::move(types))
+    {
+    }
 };
 
-struct FunctionTypeNode {
+struct FunctionTypeNode
+{
     TypeAnnotationVector input_types;
     TypeAnnotation_ptr return_type;
 
     explicit FunctionTypeNode() = default;
+
     explicit FunctionTypeNode(TypeAnnotationVector inputs, TypeAnnotation_ptr ret)
-        : input_types(std::move(inputs)), return_type(std::move(ret)) {}
+        : input_types(std::move(inputs)), return_type(std::move(ret))
+    {
+    }
 };
 
 struct RecordTypeNode
@@ -116,13 +148,7 @@ struct TemplateAngularTypeNode
 using TypeAnnotationVariant = std::variant<
     std::monostate,
 
-    AnyTypeNode,
     NoneTypeNode,
-
-    IntTypeNode,
-    FloatTypeNode,
-    StringTypeNode,
-    BoolTypeNode,
 
     IntLiteralTypeNode,
     FloatLiteralTypeNode,
@@ -140,19 +166,26 @@ using TypeAnnotationVariant = std::variant<
     std::shared_ptr<RecordTypeNode>,
     std::shared_ptr<TemplateAngularTypeNode>>;
 
-struct TypeAnnotation : public AstNode<TypeAnnotationVariant> {
+struct TypeAnnotation : public AstNode<TypeAnnotationVariant>
+{
     using AstNode::AstNode;
 
     Token start_token;
     Token end_token;
 };
 
-template <typename T> inline TypeAnnotation_ptr make_type_annotation(T&& data) {
+template <typename T> inline TypeAnnotation_ptr make_type_annotation(T&& data)
+{
     return std::make_shared<TypeAnnotation>(std::forward<T>(data));
 }
 
 template <typename T>
-inline TypeAnnotation_ptr make_type_annotation(T&& data, Token start_token, Token end_token) {
+inline TypeAnnotation_ptr make_type_annotation(
+    T&& data,
+    Token start_token,
+    Token end_token
+)
+{
     auto type_node = std::make_shared<TypeAnnotation>(std::forward<T>(data));
     type_node->start_token = std::move(start_token);
     type_node->end_token = std::move(end_token);
