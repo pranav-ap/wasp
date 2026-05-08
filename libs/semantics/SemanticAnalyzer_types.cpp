@@ -90,25 +90,33 @@ Object_ptr SemanticAnalyzer::visit(BoolLiteralTypeNode& expr)
 
 Object_ptr SemanticAnalyzer::visit(TypeIdentifierNode& expr)
 {
-    if (expr.name == "int")
+    if (expr.is_native)
     {
-        return workspace->pool->get_native_int_type();
-    }
-    if (expr.name == "float")
-    {
-        return workspace->pool->get_native_float_type();
-    }
-    if (expr.name == "str")
-    {
-        return workspace->pool->get_native_string_type();
-    }
-    if (expr.name == "bool")
-    {
-        return workspace->pool->get_boolean_type();
-    }
-    if (expr.name == "any")
-    {
-        return workspace->pool->get_native_any_type();
+        if (expr.name == "int")
+        {
+            return workspace->pool->get_native_int_type();
+        }
+        if (expr.name == "float")
+        {
+            return workspace->pool->get_native_float_type();
+        }
+        if (expr.name == "str")
+        {
+            return workspace->pool->get_native_string_type();
+        }
+        if (expr.name == "bool")
+        {
+            return workspace->pool->get_boolean_type();
+        }
+        if (expr.name == "any")
+        {
+            return workspace->pool->get_native_any_type();
+        }
+
+        Doctor::get().fatal(
+            WaspStage::Semantics,
+            "Unknown native type identifier: '" + expr.name + "'"
+        );
     }
 
     auto symbol = current_scope->lookup(expr.name);
@@ -119,7 +127,14 @@ Object_ptr SemanticAnalyzer::visit(TypeIdentifierNode& expr)
         "Unknown type identifier: '" + expr.name + "'"
     );
 
-    return symbol->get_type();
+    Object_ptr resolved_type = symbol->get_type();
+
+    while (resolved_type->is<TypeAlias_ptr>())
+    {
+        resolved_type = resolved_type->as<TypeAlias_ptr>()->underlying_type;
+    }
+
+    return resolved_type;
 }
 
 Object_ptr SemanticAnalyzer::visit(ListTypeNode& expr)

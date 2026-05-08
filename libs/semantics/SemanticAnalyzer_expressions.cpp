@@ -210,7 +210,7 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
         overloaded{
             [&](Identifier& identifier) -> Object_ptr
             {
-                auto symbol = current_scope->lookup(identifier.name);
+                auto symbol = current_scope->lookup(identifier.name)->resolve();
                 Doctor::get().fatal_if_nullptr(symbol, WaspStage::Semantics);
                 bind_identifier(identifier, symbol);
 
@@ -346,7 +346,7 @@ Symbol_ptr SemanticAnalyzer::resolve_target_symbol(Expression_ptr target)
         overloaded{
             [&](Identifier& id)
             {
-                target_symbol = current_scope->lookup(id.name);
+                target_symbol = current_scope->lookup(id.name)->resolve();
                 Doctor::get().fatal_if_nullptr(target_symbol, WaspStage::Semantics);
                 bind_identifier(id, target_symbol);
             },

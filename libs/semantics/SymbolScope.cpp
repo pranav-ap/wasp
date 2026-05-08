@@ -34,11 +34,13 @@ SymbolScope::SymbolScope(ScopeType type, SymbolScope_ptr enclosing)
 
 Symbol_ptr SymbolScope::define(Symbol_ptr symbol)
 {
-    Doctor::get().fatal_if_nullptr(symbol, WaspStage::Semantics, "Cannot define a null symbol");
+    Doctor::get().fatal_if_nullptr(
+        symbol,
+        WaspStage::Semantics,
+        "Cannot define a null symbol"
+    );
 
-    bool is_func = symbol->payload_is<FunctionData>();
-
-    if (is_func)
+    if (symbol->payload_is<FunctionData>())
     {
         return define_function(symbol);
     }
@@ -46,7 +48,45 @@ Symbol_ptr SymbolScope::define(Symbol_ptr symbol)
     {
         return define_method(symbol);
     }
+    else if (symbol->payload_is<OverloadsData>())
+    {
+        // Handle imported overload groups merging with local overload groups!
+        if (contains_in_current_scope(symbol->name))
+        {
+            Symbol_ptr existing = symbols[symbol->name];
 
+            Doctor::get().assert(
+                existing->payload_is<OverloadsData>(),
+                WaspStage::Semantics,
+                symbol->name + " is already declared in this scope and is not "
+                               "an overload set"
+            );
+
+            auto& existing_data = existing->get_payload_as<OverloadsData>();
+            const auto& incoming_data = symbol->get_payload_as<OverloadsData>();
+
+            // Merge the imported overloads into the existing group
+            existing_data.overloads.insert(
+                existing_data.overloads.end(),
+                incoming_data.overloads.begin(),
+                incoming_data.overloads.end()
+            );
+
+            // Merge any parent overloads
+            existing_data.parents.insert(
+                existing_data.parents.end(),
+                incoming_data.parents.begin(),
+                incoming_data.parents.end()
+            );
+
+            return existing;
+        }
+
+        symbols[symbol->name] = symbol;
+        return symbol;
+    }
+
+    // Generic variables, aliases, classes, etc.
     Doctor::get().assert(
         !contains_in_current_scope(symbol->name),
         WaspStage::Semantics,

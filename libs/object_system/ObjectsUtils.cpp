@@ -609,4 +609,34 @@ std::string mangle_object(Object_ptr value)
     );
 }
 
+bool is_native_type(Object_ptr type)
+{
+    if (type == nullptr)
+    {
+        return false;
+    }
+
+    return type->is<NativeIntType>() || type->is<NativeFloatType>() ||
+           type->is<NativeStringType>() || type->is<NativeBooleanType>() ||
+           type->is<NativeAnyType>() || type->is<IntLiteralType>() ||
+           type->is<FloatLiteralType>() || type->is<StringLiteralType>() ||
+           type->is<BooleanLiteralType>();
+}
+
+Object_ptr unwrap_type(Object_ptr type)
+{
+    Doctor::get().fatal_if_nullptr(
+        type,
+        WaspStage::Semantics,
+        "Attempted to unwrap a null type pointer"
+    );
+
+    while (type->is<TypeAlias_ptr>())
+    {
+        type = type->as<TypeAlias_ptr>()->underlying_type;
+    }
+
+    return type;
+}
+
 } // namespace Wasp

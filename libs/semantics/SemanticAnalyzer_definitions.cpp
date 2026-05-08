@@ -41,7 +41,7 @@ bool SemanticAnalyzer::prepare_generic_scope(const ObjectStringMap& generics)
 }
 
 // ---------------------------------------------------------------------------
-// Functions & Methods
+// Function
 // ---------------------------------------------------------------------------
 
 void SemanticAnalyzer::visit(FunctionDefinition& def)
@@ -88,6 +88,55 @@ void SemanticAnalyzer::visit(FunctionDefinition& def)
     if (has_generics)
     {
         leave_scope(); // Template Scope
+    }
+}
+
+// ============================================================================
+// Operator Definition
+// ============================================================================
+
+void SemanticAnalyzer::visit(OperatorDefinition& def)
+{
+    auto signature = def.symbol->get_type()->as<Signature_ptr>();
+    bool has_generics = prepare_generic_scope(signature->generics);
+
+    ScopeType scope_type = def.is_pure ? ScopeType::PURE_FUNCTION
+                                       : ScopeType::FUNCTION;
+
+    enter_scope(scope_type);
+    return_type_stack.push_back(signature->return_type);
+
+    def.parameter_symbols.clear();
+    for (size_t i = 0; i < def.parameters.size(); ++i)
+    {
+        auto param_symbol = SymbolFactory::create_variable(
+            def.parameters[i].first,
+            signature->parameter_types[i],
+            // TODO : Operators shouldn't mutate their parameters or should they?
+            false,
+            current_scope->get_closure_depth(),
+            current_scope->get_lexical_depth()
+        );
+
+        def.parameter_symbols.push_back(current_scope->define(param_symbol));
+    }
+
+    if (def.body.size() == 1 && def.body.front()->is<Native>())
+    {
+        def.symbol->mark_as_native();
+    }
+
+    for (auto& stmt : def.body)
+    {
+        visit(stmt);
+    }
+
+    return_type_stack.pop_back();
+    leave_scope(); // Close FUNCTION scope
+
+    if (has_generics)
+    {
+        leave_scope(); // Close TEMPLATE scope
     }
 }
 

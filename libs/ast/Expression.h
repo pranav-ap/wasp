@@ -12,20 +12,59 @@
 
 namespace Wasp {
 
+struct IntegerLiteral
+{
+    int value;
+    std::shared_ptr<Symbol> wrapper_symbol = nullptr;
+};
+
+struct FloatLiteral
+{
+    double value;
+    std::shared_ptr<Symbol> wrapper_symbol = nullptr;
+};
+
+struct StringLiteral
+{
+    std::string value;
+    std::shared_ptr<Symbol> wrapper_symbol = nullptr;
+};
+
+struct BooleanLiteral
+{
+    bool value;
+    std::shared_ptr<Symbol> wrapper_symbol = nullptr;
+};
+
 struct NoneLiteral
 {
 };
 
 struct DotLiteral {};
 
-struct Prefix {
-    Token op;
-    Expression_ptr operand;
-    Prefix() = default;
-    Prefix(Token op, Expression_ptr operand) : op(std::move(op)), operand(std::move(operand)) {}
+struct OperatorExpression
+{
+    std::shared_ptr<Symbol> operator_symbol = nullptr;
+    int overload_index = -1;
+
+    OperatorExpression() = default;
 };
 
-struct Infix {
+struct Prefix : public OperatorExpression
+{
+    Token op;
+    Expression_ptr operand;
+
+    Prefix() = default;
+
+    Prefix(Token op, Expression_ptr operand)
+        : op(std::move(op)), operand(std::move(operand))
+    {
+    }
+};
+
+struct Infix : public OperatorExpression
+{
     Expression_ptr left;
     Token op;
     Expression_ptr right;
@@ -33,15 +72,22 @@ struct Infix {
     Infix() = default;
 
     Infix(Expression_ptr left, Token op, Expression_ptr right)
-        : left(std::move(left)), op(std::move(op)), right(std::move(right)) {}
+        : left(std::move(left)), op(std::move(op)), right(std::move(right))
+    {
+    }
 };
 
-struct Postfix {
+struct Postfix : public OperatorExpression
+{
     Expression_ptr operand;
     Token op;
 
     Postfix() = default;
-    Postfix(Expression_ptr operand, Token op) : operand(std::move(operand)), op(std::move(op)) {}
+
+    Postfix(Expression_ptr operand, Token op)
+        : operand(std::move(operand)), op(std::move(op))
+    {
+    }
 };
 
 struct SequenceLiteral {
@@ -249,10 +295,11 @@ struct InterpolatedString
 using ExpressionVariant = std::variant<
     std::monostate,
 
-    int,
-    double,
-    std::string,
-    bool,
+    IntegerLiteral,
+    FloatLiteral,
+    StringLiteral,
+    BooleanLiteral,
+
     NoneLiteral,
     DotLiteral,
     Identifier,

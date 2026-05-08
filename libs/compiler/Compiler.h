@@ -122,6 +122,7 @@ private:
     void visit(FromImport& statement);
 
     void visit(FunctionDefinition& statement);
+    void visit(OperatorDefinition& statement);
 
     void visit(TypeAliasDefinition& statement);
     void visit(AnnotationDefinition& statement);

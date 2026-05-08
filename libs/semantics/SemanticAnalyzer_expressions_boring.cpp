@@ -5,6 +5,7 @@
 #include "SemanticAnalyzer.h"
 #include "Statement.h"
 #include "SymbolScope.h"
+#include "Token.h"
 #include "Workspace.h"
 
 #include <cctype>
@@ -72,21 +73,59 @@ ObjectVector SemanticAnalyzer::visit(ExpressionVector expressions)
 
 Object_ptr SemanticAnalyzer::visit(int expr)
 {
-    return make_object(IntLiteralType(expr));
+    if (Symbol_ptr symbol = current_scope->lookup("int"))
+    {
+        Object_ptr type = symbol->get_type();
+        while (type->is<TypeAlias_ptr>())
+        {
+            type = type->as<TypeAlias_ptr>()->underlying_type;
+        }
+        return type;
+    }
+    return workspace->pool->get_native_int_type();
 }
 
 Object_ptr SemanticAnalyzer::visit(double expr)
 {
-    return make_object(FloatLiteralType(expr));
+    if (Symbol_ptr symbol = current_scope->lookup("float"))
+    {
+        Object_ptr type = symbol->get_type();
+        while (type->is<TypeAlias_ptr>())
+        {
+            type = type->as<TypeAlias_ptr>()->underlying_type;
+        }
+        return type;
+    }
+    return workspace->pool->get_native_float_type();
 }
 
 Object_ptr SemanticAnalyzer::visit(std::string expr)
 {
-    return make_object(StringLiteralType(expr));
+    if (Symbol_ptr symbol = current_scope->lookup("str"))
+    {
+        Object_ptr type = symbol->get_type();
+        while (type->is<TypeAlias_ptr>())
+        {
+            type = type->as<TypeAlias_ptr>()->underlying_type;
+        }
+        return type;
+    }
+    return workspace->pool->get_native_string_type();
 }
 
 Object_ptr SemanticAnalyzer::visit(bool expr)
 {
+    if (Symbol_ptr symbol = current_scope->lookup("bool"))
+    {
+        Object_ptr type = symbol->get_type();
+        while (type->is<TypeAlias_ptr>())
+        {
+            type = type->as<TypeAlias_ptr>()->underlying_type;
+        }
+        return type;
+    }
+
+    // Fallback if core library isn't loaded
     return expr ? workspace->pool->get_true_literal_type()
                 : workspace->pool->get_false_literal_type();
 }
@@ -103,20 +142,125 @@ Object_ptr SemanticAnalyzer::visit(DotLiteral& expr)
 
 Object_ptr SemanticAnalyzer::visit(Prefix& expr)
 {
-    return type_system->infer(current_scope, visit(expr.operand), expr.op.type);
+    Object_ptr operand_type = visit(expr.operand);
+
+    if (is_native_type(operand_type))
+    {
+        return type_system->infer(current_scope, operand_type, expr.op.type);
+    }
+
+    std::string op_name = to_string(expr.op.type);
+    Symbol_ptr operator_symbol = current_scope->lookup(op_name);
+
+    Doctor::get().fatal_if_nullptr(
+        operator_symbol,
+        WaspStage::Semantics,
+        "Undefined operator '" + op_name + "'"
+    );
+
+    Doctor::get().assert(
+        operator_symbol->payload_is<OverloadsData>(),
+        WaspStage::Semantics,
+        "Operator '" + op_name + "' is not overloaded but used as an operator."
+    );
+
+    auto overloads = operator_symbol->get_payload_as<OverloadsData>()
+                         .get_overloads();
+
+    auto [function_symbol, overload_index] = type_system
+                                                 ->get_best_function_symbol(
+                                                     current_scope,
+                                                     overloads,
+                                                     {operand_type}
+                                                 );
+
+    expr.operator_symbol = operator_symbol;
+    expr.overload_index = overload_index;
+
+    return function_symbol->get_type()->as<Signature_ptr>()->return_type;
 }
 
 Object_ptr SemanticAnalyzer::visit(Infix& expr)
 {
-    return type_system
-        ->infer(current_scope, visit(expr.left), expr.op.type, visit(expr.right));
+    Object_ptr left_type = visit(expr.left);
+    Object_ptr right_type = visit(expr.right);
+
+    if (is_native_type(left_type) && is_native_type(right_type))
+    {
+        return type_system
+            ->infer(current_scope, left_type, expr.op.type, right_type);
+    }
+
+    std::string op_name = to_string(expr.op.type);
+    Symbol_ptr operator_symbol = current_scope->lookup(op_name)->resolve();
+
+    Doctor::get().fatal_if_nullptr(
+        operator_symbol,
+        WaspStage::Semantics,
+        "Undefined operator '" + op_name + "' for non-native types."
+    );
+
+    Doctor::get().assert(
+        operator_symbol->payload_is<OverloadsData>(),
+        WaspStage::Semantics,
+        "Operator '" + op_name + "' is not overloaded but used as an operator."
+    );
+
+    auto overloads = operator_symbol->get_payload_as<OverloadsData>()
+                         .get_overloads();
+
+    auto [function_symbol, overload_index] = type_system
+                                                 ->get_best_function_symbol(
+                                                     current_scope,
+                                                     overloads,
+                                                     {left_type, right_type}
+                                                 );
+
+    expr.operator_symbol = operator_symbol;
+    expr.overload_index = overload_index;
+
+    return function_symbol->get_type()->as<Signature_ptr>()->return_type;
 }
 
 Object_ptr SemanticAnalyzer::visit(Postfix& expr)
 {
-    Object_ptr left_type = visit(expr.operand);
-    type_system->expect_number_type(left_type);
-    return left_type;
+    Object_ptr operand_type = visit(expr.operand);
+
+    if (is_native_type(operand_type))
+    {
+        type_system->expect_number_type(operand_type);
+        return operand_type;
+    }
+
+    std::string op_name = to_string(expr.op.type);
+    Symbol_ptr operator_symbol = current_scope->lookup(op_name);
+
+    Doctor::get().fatal_if_nullptr(
+        operator_symbol,
+        WaspStage::Semantics,
+        "Undefined operator '" + op_name + "' for non-native types."
+    );
+
+    Doctor::get().assert(
+        operator_symbol->payload_is<OverloadsData>(),
+        WaspStage::Semantics,
+        "Operator '" + op_name + "' is not overloaded but used as an operator."
+    );
+
+    auto overloads = operator_symbol->get_payload_as<OverloadsData>()
+                         .get_overloads();
+
+    auto [function_symbol, overload_index] = type_system
+                                                 ->get_best_function_symbol(
+                                                     current_scope,
+                                                     overloads,
+                                                     {operand_type}
+                                                 );
+
+    expr.operator_symbol = operator_symbol;
+    expr.overload_index = overload_index;
+
+    return function_symbol->get_type()->as<Signature_ptr>()->return_type;
 }
 
 // ============================================================================

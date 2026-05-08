@@ -700,5 +700,7 @@ bool are_equal_types(ObjectVector left_vector, ObjectVector right_vector);
 bool are_equal_types_unordered(ObjectVector left_vector, ObjectVector right_vector);
 
 Object_ptr convert_type(Object_ptr type, Object_ptr operand);
+bool is_native_type(Object_ptr type);
 
+Object_ptr unwrap_type(Object_ptr type);
 } // namespace Wasp

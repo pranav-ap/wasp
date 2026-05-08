@@ -66,23 +66,6 @@ bool Symbol::is_native() const
     if (payload_is<MethodData>())
         return get_payload_as<MethodData>().is_native;
 
-    if (payload_is<OverloadsData>())
-    {
-        for (const auto& overload : get_payload_as<OverloadsData>().get_overloads())
-        {
-            if (overload->is_native_function_or_method())
-            {
-                Doctor::get().assert(
-                    get_payload_as<OverloadsData>().get_overloads().size() == 1,
-                    WaspStage::Semantics,
-                    "Native function overload lists must have exactly one overload"
-                );
-
-                return true;
-            }
-        }
-    }
-
     return false;
 }
 

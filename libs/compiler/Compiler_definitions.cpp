@@ -68,6 +68,39 @@ void Compiler::visit(FunctionDefinition& def)
     emit(OpCode::STORE_FUNCTION_OVERLOAD, physical_index, debug_prefix + def.name);
 }
 
+void Compiler::visit(OperatorDefinition& def)
+{
+    bool is_new_declaration = (resolve_local(def.group_symbol->id) == -1);
+
+    int physical_index = get_or_add_local_index(def.group_symbol);
+
+    if (is_new_declaration)
+    {
+        emit(OpCode::PUSH_EMPTY_OVERLOAD_GROUP);
+        emit(
+            OpCode::SET_LOCAL,
+            physical_index,
+            "reserve slot for operator " + def.name
+        );
+    }
+
+    if (def.symbol->is_native())
+    {
+        std::string mangled = mangle_name(def.name, "", def.symbol->module_path);
+
+        int registry_id = workspace->native_registry->get_native_index(mangled);
+        emit(OpCode::GET_NATIVE, registry_id, mangled);
+    }
+    else
+    {
+        // Compile the actual operator body
+        compile_function_closure(def.name, def.parameter_symbols, def.body);
+    }
+
+    std::string debug_prefix = "operator " + def.name;
+    emit(OpCode::STORE_FUNCTION_OVERLOAD, physical_index, debug_prefix + def.name);
+}
+
 void Compiler::visit(ClassDefinition& class_definition)
 {
     int class_blueprint_physical_index = get_or_add_local_index(class_definition.symbol);

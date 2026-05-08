@@ -1,16 +1,30 @@
 from core.io import print
 
+
 class Int
     value: native int
+
+    fun repr()
+        print(my.value)
+
 
 type int = Int
 
 
-# operator + (left: Int, right: Int) => Int
-#     return Int(left.value + right.value)
+operator + (left: Int, right: Int) => Int
+    return Int(left.value + right.value)
 
 
-# let x: int = 1
+fun print(item: Int)
+    print('inside overload')
+    print(item.value)
+
+
+let x: int = 1
+print(x)
+# x.repr()
+
+
 # let y: int = 2
 
 # let z: int = x + y

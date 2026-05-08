@@ -145,6 +145,31 @@ struct MethodDefinition : public AbstractFunctionDefinition
     }
 };
 
+struct OperatorDefinition : public AbstractFunctionDefinition, public Templatable
+{
+    TokenType operator_token_type;
+
+    OperatorDefinition() = default;
+
+    OperatorDefinition(
+        TokenType operator_token_type,
+        std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters,
+        TypeAnnotation_ptr return_type,
+        StatementVector body,
+        std::vector<FieldDefinition> generics = {}
+    )
+        : AbstractFunctionDefinition(
+              std::move(to_string(operator_token_type)),
+              std::move(parameters),
+              std::move(return_type),
+              std::move(body),
+              true // Operators are always pure
+          ),
+          Templatable(std::move(generics)), operator_token_type(operator_token_type)
+    {
+    }
+};
+
 struct ClassDefinition : public Definition, public Templatable
 {
     StringVector traits;
@@ -425,6 +450,7 @@ using StatementVariant = std::variant<
 
     FunctionDefinition,
     MethodDefinition,
+    OperatorDefinition,
 
     FieldDefinition,
     ClassDefinition,

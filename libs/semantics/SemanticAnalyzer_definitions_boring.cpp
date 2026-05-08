@@ -68,36 +68,62 @@ Object_ptr SemanticAnalyzer::define_variable(
     std::string symbol_name = identifier_expr->as<Identifier>().name;
 
     Object_ptr initializer_type = visit(rhs_expr);
+
+    auto promote = [&](Object_ptr native_type, const std::string& alias_name)
+    {
+        if (declared_type && declared_type == native_type)
+        {
+            return native_type;
+        }
+
+        // 2. Otherwise, look up the global class wrapper (e.g., `int` -> `Int`)
+        if (auto wrapper_sym = current_scope->lookup(alias_name)->resolve())
+        {
+            return unwrap_type(wrapper_sym->get_type());
+        }
+
+        // Fallback if the standard library isn't loaded
+        return native_type;
+    };
+
+    if (initializer_type->is<IntLiteralType>())
+    {
+        initializer_type = promote(
+            workspace->pool->get_native_int_type(),
+            "int"
+        );
+    }
+    else if (initializer_type->is<FloatLiteralType>())
+    {
+        initializer_type = promote(
+            workspace->pool->get_native_float_type(),
+            "float"
+        );
+    }
+    else if (initializer_type->is<StringLiteralType>())
+    {
+        initializer_type = promote(
+            workspace->pool->get_native_string_type(),
+            "str"
+        );
+    }
+    else if (initializer_type->is<BooleanLiteralType>())
+    {
+        initializer_type = promote(workspace->pool->get_boolean_type(), "bool");
+    }
+
     Object_ptr resolved_type = initializer_type;
 
     if (declared_type)
     {
         Doctor::get().assert(
-            type_system->assignable(current_scope, declared_type, initializer_type),
+            type_system
+                ->assignable(current_scope, declared_type, initializer_type),
             WaspStage::Semantics,
             "Type mismatch in variable definition for " + symbol_name
         );
 
         resolved_type = declared_type;
-    }
-    else
-    {
-        if (initializer_type->is<IntLiteralType>())
-        {
-            resolved_type = workspace->pool->get_native_int_type();
-        }
-        else if (initializer_type->is<FloatLiteralType>())
-        {
-            resolved_type = workspace->pool->get_native_float_type();
-        }
-        else if (initializer_type->is<StringLiteralType>())
-        {
-            resolved_type = workspace->pool->get_native_string_type();
-        }
-        else if (initializer_type->is<BooleanLiteralType>())
-        {
-            resolved_type = workspace->pool->get_boolean_type();
-        }
     }
 
     if (Symbol_ptr hoisted_symbol = current_scope->lookup(symbol_name))

@@ -74,6 +74,11 @@ Statement_ptr Parser::parse_statement(int expected_indent_level)
         token_pipe.require_in_line(TokenType::FUN);
         return parse_function_definition(expected_indent_level, false, false, true);
     }
+    case TokenType::OPERATOR: {
+        token_pipe.advance_pointer();
+        return parse_operator_definition(expected_indent_level);
+    }
+
     case TokenType::RETURN_KEYWORD:
         return parse_return_statement();
 
