@@ -80,19 +80,19 @@ bool TypeSystem::equal(
             {
                 return true;
             },
-            [&](NativeIntType const&, NativeIntType const&)
+            [&](IntType const&, IntType const&)
             {
                 return true;
             },
-            [&](NativeFloatType const&, NativeFloatType const&)
+            [&](FloatType const&, FloatType const&)
             {
                 return true;
             },
-            [&](NativeBooleanType const&, NativeBooleanType const&)
+            [&](BooleanType const&, BooleanType const&)
             {
                 return true;
             },
-            [&](NativeStringType const&, NativeStringType const&)
+            [&](StringType const&, StringType const&)
             {
                 return true;
             },
@@ -310,19 +310,19 @@ bool TypeSystem::assignable(
             {
                 return true;
             },
-            [](NativeIntType const&, NativeIntType const&)
+            [](IntType const&, IntType const&)
             {
                 return true;
             },
-            [](NativeFloatType const&, NativeFloatType const&)
+            [](FloatType const&, FloatType const&)
             {
                 return true;
             },
-            [](NativeBooleanType const&, NativeBooleanType const&)
+            [](BooleanType const&, BooleanType const&)
             {
                 return true;
             },
-            [](NativeStringType const&, NativeStringType const&)
+            [](StringType const&, StringType const&)
             {
                 return true;
             },
@@ -344,19 +344,19 @@ bool TypeSystem::assignable(
                 return l.value == r.value;
             },
 
-            [](NativeIntType const&, IntLiteralType const&)
+            [](IntType const&, IntLiteralType const&)
             {
                 return true;
             },
-            [](NativeFloatType const&, FloatLiteralType const&)
+            [](FloatType const&, FloatLiteralType const&)
             {
                 return true;
             },
-            [](NativeBooleanType const&, BooleanLiteralType const&)
+            [](BooleanType const&, BooleanLiteralType const&)
             {
                 return true;
             },
-            [](NativeStringType const&, StringLiteralType const&)
+            [](StringType const&, StringLiteralType const&)
             {
                 return true;
             },

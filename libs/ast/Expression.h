@@ -12,28 +12,48 @@
 
 namespace Wasp {
 
-struct IntegerLiteral
+struct IntegerLiteral : public Resolvable
 {
     int value;
-    std::shared_ptr<Symbol> wrapper_symbol = nullptr;
+
+    IntegerLiteral() = default;
+
+    explicit IntegerLiteral(int value) : value(value)
+    {
+    }
 };
 
-struct FloatLiteral
+struct FloatLiteral : public Resolvable
 {
     double value;
-    std::shared_ptr<Symbol> wrapper_symbol = nullptr;
+
+    FloatLiteral() = default;
+
+    explicit FloatLiteral(double value) : value(value)
+    {
+    }
 };
 
-struct StringLiteral
+struct StringLiteral : public Resolvable
 {
     std::string value;
-    std::shared_ptr<Symbol> wrapper_symbol = nullptr;
+
+    StringLiteral() = default;
+
+    explicit StringLiteral(std::string value) : value(std::move(value))
+    {
+    }
 };
 
-struct BooleanLiteral
+struct BooleanLiteral : public Resolvable
 {
     bool value;
-    std::shared_ptr<Symbol> wrapper_symbol = nullptr;
+
+    BooleanLiteral() = default;
+
+    explicit BooleanLiteral(bool value) : value(value)
+    {
+    }
 };
 
 struct NoneLiteral
@@ -42,9 +62,8 @@ struct NoneLiteral
 
 struct DotLiteral {};
 
-struct OperatorExpression
+struct OperatorExpression : public Resolvable
 {
-    std::shared_ptr<Symbol> operator_symbol = nullptr;
     int overload_index = -1;
 
     OperatorExpression() = default;
@@ -90,26 +109,31 @@ struct Postfix : public OperatorExpression
     }
 };
 
-struct SequenceLiteral {
+struct SequenceLiteral : public Resolvable
+{
     ExpressionVector expressions;
 
     explicit SequenceLiteral() = default;
     explicit SequenceLiteral(ExpressionVector expressions) : expressions(std::move(expressions)) {};
 };
 
-struct ListLiteral : public SequenceLiteral {
+struct ListLiteral : public SequenceLiteral
+{
     using SequenceLiteral::SequenceLiteral;
 };
 
-struct TupleLiteral : public SequenceLiteral {
+struct TupleLiteral : public SequenceLiteral
+{
     using SequenceLiteral::SequenceLiteral;
 };
 
-struct SetLiteral : public SequenceLiteral {
+struct SetLiteral : public SequenceLiteral
+{
     using SequenceLiteral::SequenceLiteral;
 };
 
-struct MapLiteral {
+struct MapLiteral : public Resolvable
+{
     std::map<Expression_ptr, Expression_ptr> pairs;
 
     explicit MapLiteral() = default;
@@ -117,7 +141,8 @@ struct MapLiteral {
         : pairs(std::move(pairs)) {};
 };
 
-struct TypePattern {
+struct TypePattern
+{
     Expression_ptr expression;
     TypeAnnotation_ptr type_node;
 
@@ -126,7 +151,8 @@ struct TypePattern {
         : expression(std::move(expression)), type_node(std::move(type_node)) {};
 };
 
-struct VariableDefinitionExpression : public Resolvable {
+struct VariableDefinitionExpression : public Resolvable
+{
     Expression_ptr assignment;
     bool is_mutable;
 
@@ -135,7 +161,8 @@ struct VariableDefinitionExpression : public Resolvable {
         : assignment(assignment), is_mutable(is_mutable) {};
 };
 
-struct Assignment {
+struct Assignment
+{
     Expression_ptr lhs_expression;
     Expression_ptr rhs_expression;
 
@@ -144,11 +171,13 @@ struct Assignment {
         : lhs_expression(std::move(lhs_expression)), rhs_expression(std::move(rhs_expression)) {}
 };
 
-struct UntypedAssignment : public Assignment {
+struct UntypedAssignment : public Assignment
+{
     using Assignment::Assignment;
 };
 
-struct TypedAssignment : public Assignment {
+struct TypedAssignment : public Assignment
+{
     TypeAnnotation_ptr type_node;
 
     TypedAssignment() : Assignment(), type_node(nullptr) {}
@@ -164,7 +193,8 @@ struct TypedAssignment : public Assignment {
 
 struct TernaryBranch {};
 
-struct IfTernaryBranch : public TernaryBranch {
+struct IfTernaryBranch : public TernaryBranch
+{
     Expression_ptr test;
     Expression_ptr true_expression;
     Expression_ptr alternative; // IfTernaryBranch or ElseTernaryBranch
@@ -175,7 +205,8 @@ struct IfTernaryBranch : public TernaryBranch {
         : true_expression(true_expression), test(test), alternative(alternative) {};
 };
 
-struct ElseTernaryBranch : public TernaryBranch {
+struct ElseTernaryBranch : public TernaryBranch
+{
     Expression_ptr expression;
 
     ElseTernaryBranch() = default;
@@ -272,7 +303,8 @@ struct TemplateAngular : public Resolvable
 
 // Others
 
-struct RangeLiteral {
+struct RangeLiteral
+{
     Expression_ptr start;
     Expression_ptr end;
     Expression_ptr step;

@@ -64,19 +64,19 @@ struct NamedDefinitionType
 // Scalar & Literal Types
 // ============================================================================
 
-struct NativeIntType
+struct IntType
 {
 };
 
-struct NativeFloatType
+struct FloatType
 {
 };
 
-struct NativeStringType
+struct StringType
 {
 };
 
-struct NativeBooleanType
+struct BooleanType
 {
 };
 
@@ -620,10 +620,10 @@ struct Object
         NamedDefinitionType,
 
         NativeAnyType,
-        NativeIntType,
-        NativeFloatType,
-        NativeStringType,
-        NativeBooleanType,
+        IntType,
+        FloatType,
+        StringType,
+        BooleanType,
 
         IntLiteralType,
         FloatLiteralType,

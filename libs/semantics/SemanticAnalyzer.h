@@ -83,31 +83,37 @@ private:
     Object_ptr visit(const Expression_ptr expr);
     ObjectVector visit(ExpressionVector expressions);
 
-    Object_ptr visit(int expr);
-    Object_ptr visit(double expr);
-    Object_ptr visit(std::string expr);
-    Object_ptr visit(bool expr);
+    Object_ptr visit(IntegerLiteral& expr);
+    Object_ptr visit(FloatLiteral& expr);
+    Object_ptr visit(StringLiteral& expr);
+    Object_ptr visit(BooleanLiteral& expr);
     Object_ptr visit(NoneLiteral& expr);
+
     Object_ptr visit(DotLiteral& expr);
+
     Object_ptr visit(ListLiteral& expr);
     Object_ptr visit(TupleLiteral& expr);
     Object_ptr visit(MapLiteral& expr);
     Object_ptr visit(SetLiteral& expr);
     Object_ptr visit(RangeLiteral& expr);
+
     Object_ptr visit(Prefix& expr);
     Object_ptr visit(Infix& expr);
     Object_ptr visit(Postfix& expr);
+
     Object_ptr visit(Identifier& expr);
     Object_ptr visit(MemberAccess& expr);
+    Object_ptr visit(TemplateAngular& template_instantiation);
+
     Object_ptr visit(VariableDefinitionExpression& expr);
     Object_ptr visit(UntypedAssignment& expr);
     Object_ptr visit(TypedAssignment& expr);
     Object_ptr visit(TypePattern& expr);
     Object_ptr visit(IfTernaryBranch& expr);
     Object_ptr visit(ElseTernaryBranch& expr);
+
     Object_ptr visit(Call& expr);
     Object_ptr visit(Constructor& expr);
-    Object_ptr visit(TemplateAngular& template_instantiation);
 
     Object_ptr define_variable(Expression_ptr assignment_expr, bool is_mutable);
     Object_ptr mutate_variable(Expression_ptr lhs_expr, Expression_ptr rhs_expr);

@@ -4,10 +4,8 @@ add_library(
     SemanticAnalyzer_types.cpp
     SemanticAnalyzer_hoist.cpp
     SemanticAnalyzer_expressions.cpp
-    SemanticAnalyzer_expressions_boring.cpp
     SemanticAnalyzer_control_flow.cpp
     SemanticAnalyzer_definitions.cpp
-    SemanticAnalyzer_definitions_boring.cpp
     SemanticAnalyzer_imports.cpp
     SemanticAnalyzer_utils.cpp
     SymbolScope.cpp

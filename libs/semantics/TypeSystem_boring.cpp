@@ -94,7 +94,7 @@ Object_ptr TypeSystem::extract_iterable_element_type(
                 return unique.size() == 1 ? unique[0]
                                           : make_object(VariantType(unique));
             },
-            [&](NativeStringType const&) -> Object_ptr
+            [&](StringType const&) -> Object_ptr
             {
                 return pool->get_native_string_type();
             },
@@ -109,12 +109,12 @@ Object_ptr TypeSystem::extract_iterable_element_type(
 
 bool TypeSystem::is_int_type(Object_ptr obj) const
 {
-    return obj->is<NativeIntType>() || obj->is<IntLiteralType>();
+    return obj->is<IntType>() || obj->is<IntLiteralType>();
 }
 
 bool TypeSystem::is_float_type(Object_ptr obj) const
 {
-    return obj->is<NativeFloatType>() || obj->is<FloatLiteralType>();
+    return obj->is<FloatType>() || obj->is<FloatLiteralType>();
 }
 
 bool TypeSystem::is_number_type(Object_ptr obj) const
@@ -124,12 +124,12 @@ bool TypeSystem::is_number_type(Object_ptr obj) const
 
 bool TypeSystem::is_string_type(Object_ptr obj) const
 {
-    return obj->is<NativeStringType>() || obj->is<StringLiteralType>();
+    return obj->is<StringType>() || obj->is<StringLiteralType>();
 }
 
 bool TypeSystem::is_boolean_type(Object_ptr obj) const
 {
-    return obj->is<NativeBooleanType>() || obj->is<BooleanLiteralType>();
+    return obj->is<BooleanType>() || obj->is<BooleanLiteralType>();
 }
 
 bool TypeSystem::is_none_type(const Object_ptr type) const
@@ -147,7 +147,7 @@ bool TypeSystem::is_condition_type(
 
     return std::visit(
         ::overloaded{
-            [](NativeBooleanType const&)
+            [](BooleanType const&)
             {
                 return true;
             },
@@ -155,7 +155,7 @@ bool TypeSystem::is_condition_type(
             {
                 return true;
             },
-            [](NativeStringType const&)
+            [](StringType const&)
             {
                 return true;
             },

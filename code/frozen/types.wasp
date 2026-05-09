@@ -6,7 +6,7 @@ template
     T: any
 
 class List
-    values: [T]
+    values: native [T]
 
 
 

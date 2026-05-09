@@ -35,18 +35,18 @@ Expression_ptr LiteralParselet::parse(Parser& parser, const Token& token)
     switch (token.type)
     {
     case TokenType::TRUE_KEYWORD:
-        return make_expression(true);
+        return make_expression(BooleanLiteral(true));
     case TokenType::FALSE_KEYWORD:
-        return make_expression(false);
+        return make_expression(BooleanLiteral(false));
     case TokenType::STRING_LITERAL:
-        return make_expression(token.value);
+        return make_expression(StringLiteral(token.value));
     case TokenType::NUMBER_LITERAL: {
         double value = std::stod(token.value);
         if (std::fmod(value, 1.0) == 0.0)
         {
-            return make_expression(static_cast<int>(value));
+            return make_expression(IntegerLiteral(static_cast<int>(value)));
         }
-        return make_expression(value);
+        return make_expression(FloatLiteral(value));
     }
     case TokenType::NONE: {
         return make_expression(NoneLiteral{});
@@ -54,8 +54,6 @@ Expression_ptr LiteralParselet::parse(Parser& parser, const Token& token)
     default:
         Doctor::get().fatal(WaspStage::Parser, "Expected a literal value");
     }
-
-    return nullptr;
 }
 
 Expression_ptr PrefixOperatorParselet::parse(Parser& parser, const Token& token)

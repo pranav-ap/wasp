@@ -267,19 +267,19 @@ std::string stringify_object(Object_ptr value)
             },
 
             // Scalar Types
-            [](const NativeIntType&) -> std::string
+            [](const IntType&) -> std::string
             {
                 return "int type";
             },
-            [](const NativeFloatType&) -> std::string
+            [](const FloatType&) -> std::string
             {
                 return "float type";
             },
-            [](const NativeStringType&) -> std::string
+            [](const StringType&) -> std::string
             {
                 return "string type";
             },
-            [](const NativeBooleanType&) -> std::string
+            [](const BooleanType&) -> std::string
             {
                 return "bool type";
             },
@@ -389,11 +389,13 @@ std::string stringify_object(Object_ptr value)
             },
 
             // Callables and Modules
-            [](const std::shared_ptr<FunctionBlueprintObject>& func) -> std::string
+            [](const std::shared_ptr<FunctionBlueprintObject>& func)
+                -> std::string
             {
                 return "<Static Function " + func->name + ">";
             },
-            [](const std::shared_ptr<FunctionRuntimeObject>& func) -> std::string
+            [](const std::shared_ptr<FunctionRuntimeObject>& func)
+                -> std::string
             {
                 return "<Runtime function " + func->blueprint->name + ">";
             },
@@ -536,19 +538,19 @@ std::string mangle_object(Object_ptr value)
                 return "lb";
             },
 
-            [](const NativeIntType&) -> std::string
+            [](const IntType&) -> std::string
             {
                 return "i";
             },
-            [](const NativeFloatType&) -> std::string
+            [](const FloatType&) -> std::string
             {
                 return "f";
             },
-            [](const NativeStringType&) -> std::string
+            [](const StringType&) -> std::string
             {
                 return "s";
             },
-            [](const NativeBooleanType&) -> std::string
+            [](const BooleanType&) -> std::string
             {
                 return "b";
             },
@@ -616,8 +618,8 @@ bool is_native_type(Object_ptr type)
         return false;
     }
 
-    return type->is<NativeIntType>() || type->is<NativeFloatType>() ||
-           type->is<NativeStringType>() || type->is<NativeBooleanType>() ||
+    return type->is<IntType>() || type->is<FloatType>() ||
+           type->is<StringType>() || type->is<BooleanType>() ||
            type->is<NativeAnyType>() || type->is<IntLiteralType>() ||
            type->is<FloatLiteralType>() || type->is<StringLiteralType>() ||
            type->is<BooleanLiteralType>();
