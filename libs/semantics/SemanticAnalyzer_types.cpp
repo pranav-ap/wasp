@@ -20,7 +20,7 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-ObjectVector SemanticAnalyzer::visit(TypeAnnotationVector& type_nodes)
+ObjectVector SemanticAnalyzer::visit(const TypeAnnotationVector& type_nodes)
 {
     ObjectVector resolved_types;
     resolved_types.reserve(type_nodes.size());
@@ -60,6 +60,15 @@ Object_ptr SemanticAnalyzer::visit(const TypeAnnotation_ptr type_node)
     );
 }
 
+Object_ptr SemanticAnalyzer::visit(NativeTypeNode& expr)
+{
+    Object_ptr underlying_type = visit(expr.type);
+
+    return make_object(
+        std::make_shared<NativeType>(NativeType{underlying_type})
+    );
+}
+
 Object_ptr SemanticAnalyzer::visit(NoneTypeNode& expr)
 {
     return workspace->pool->get_none_type();
@@ -90,35 +99,6 @@ Object_ptr SemanticAnalyzer::visit(BoolLiteralTypeNode& expr)
 
 Object_ptr SemanticAnalyzer::visit(TypeIdentifierNode& expr)
 {
-    if (expr.is_native)
-    {
-        if (expr.name == "int")
-        {
-            return workspace->pool->get_native_int_type();
-        }
-        if (expr.name == "float")
-        {
-            return workspace->pool->get_native_float_type();
-        }
-        if (expr.name == "str")
-        {
-            return workspace->pool->get_native_string_type();
-        }
-        if (expr.name == "bool")
-        {
-            return workspace->pool->get_boolean_type();
-        }
-        if (expr.name == "any")
-        {
-            return workspace->pool->get_native_any_type();
-        }
-
-        Doctor::get().fatal(
-            WaspStage::Semantics,
-            "Unknown native type identifier: '" + expr.name + "'"
-        );
-    }
-
     auto symbol = current_scope->lookup(expr.name);
 
     Doctor::get().fatal_if_nullptr(
@@ -127,14 +107,7 @@ Object_ptr SemanticAnalyzer::visit(TypeIdentifierNode& expr)
         "Unknown type identifier: '" + expr.name + "'"
     );
 
-    Object_ptr resolved_type = symbol->get_type();
-
-    while (resolved_type->is<TypeAlias_ptr>())
-    {
-        resolved_type = resolved_type->as<TypeAlias_ptr>()->underlying_type;
-    }
-
-    return resolved_type;
+    return unwrap_type_alias(symbol->get_type());
 }
 
 Object_ptr SemanticAnalyzer::visit(ListTypeNode& expr)

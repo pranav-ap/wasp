@@ -10,8 +10,8 @@ TEST(ParseLiterals, Number) {
     ASSERT_EQ(block.size(), 1);
 
     auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
-    auto& value = check<int>(stmt.expression);
-    EXPECT_EQ(value, 2);
+    auto& value = check<Wasp::IntegerLiteral>(stmt.expression);
+    EXPECT_EQ(value.value, 2);
 }
 
 TEST(ParseLiterals, NegativeNumber)
@@ -23,8 +23,8 @@ TEST(ParseLiterals, NegativeNumber)
     auto& prefix = check<Wasp::Prefix>(stmt.expression);
     EXPECT_EQ(prefix.op.type, Wasp::TokenType::MINUS);
 
-    auto& value = check<int>(prefix.operand);
-    EXPECT_EQ(value, 2);
+    auto& value = check<Wasp::IntegerLiteral>(prefix.operand);
+    EXPECT_EQ(value.value, 2);
 }
 
 TEST(ParseLiterals, Addition) {
@@ -34,20 +34,30 @@ TEST(ParseLiterals, Addition) {
     auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
     auto& op = check<Wasp::Infix>(stmt.expression);
 
-    EXPECT_EQ(check<int>(op.left), 1);
-    EXPECT_EQ(check<int>(op.right), 2);
+    EXPECT_EQ(check<Wasp::IntegerLiteral>(op.left).value, 1);
+    EXPECT_EQ(check<Wasp::IntegerLiteral>(op.right).value, 2);
 }
 
-TEST(ParseLiterals, List) {
+TEST(ParseLiterals, List)
+{
     auto block = parse("[1, 2, 3]");
     auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
-    check_sequence<Wasp::ListLiteral>(stmt.expression, {1, 2, 3});
+
+    auto& list = check<Wasp::ListLiteral>(stmt.expression);
+    ASSERT_EQ(list.expressions.size(), 3);
+
+    EXPECT_EQ(check<Wasp::IntegerLiteral>(list.expressions[0]).value, 1);
+    EXPECT_EQ(check<Wasp::IntegerLiteral>(list.expressions[1]).value, 2);
+    EXPECT_EQ(check<Wasp::IntegerLiteral>(list.expressions[2]).value, 3);
 }
 
-TEST(ParseLiterals, EmptyList) {
+TEST(ParseLiterals, EmptyList)
+{
     auto block = parse("[]");
     auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
-    check_sequence<Wasp::ListLiteral>(stmt.expression);
+
+    auto& list = check<Wasp::ListLiteral>(stmt.expression);
+    ASSERT_EQ(list.expressions.size(), 0);
 }
 
 TEST(ParseLiterals, MapLiteral) {

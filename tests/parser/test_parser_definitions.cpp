@@ -22,7 +22,6 @@ TEST(ParseDefinitions, AliasDefinition)
     );
 
     EXPECT_EQ(element_type.name, "int");
-    EXPECT_FALSE(element_type.is_native);
 }
 
 TEST(ParseDefinitions, EnumNestedDefinition)

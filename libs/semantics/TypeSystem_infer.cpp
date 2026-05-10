@@ -76,7 +76,7 @@ bool TypeSystem::equal(
 
     return std::visit(
         ::overloaded{
-            [&](NativeAnyType const&, NativeAnyType const&)
+            [&](AnyType const&, AnyType const&)
             {
                 return true;
             },
@@ -306,7 +306,7 @@ bool TypeSystem::assignable(
 
     return std::visit(
         overloaded{
-            [](NativeAnyType const&, const auto&)
+            [](AnyType const&, const auto&)
             {
                 return true;
             },

@@ -57,7 +57,7 @@ Object_ptr TypeSystem::extract_iterable_element_type(
 ) const
 {
     if (!type)
-        return make_object(NativeAnyType());
+        return make_object(AnyType());
 
     if (type->is<VariantType>())
     {

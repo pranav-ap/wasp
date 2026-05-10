@@ -119,6 +119,9 @@ private:
     Object_ptr mutate_variable(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
     Object_ptr mutate_member(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
 
+    Object_ptr collapse_types(const ObjectVector& types);
+    Object_ptr get_core_type(const std::string& type_name);
+
     // =========================================================================
     // Call Evaluators
     // =========================================================================
@@ -150,12 +153,20 @@ private:
         const ObjectVector& argument_types
     );
 
+    Object_ptr resolve_operator_overload(
+        OperatorExpression& expr,
+        const std::string& operator_name,
+        const ObjectVector& operand_types
+    );
+
     // =========================================================================
     // Type Annotation Visitors
     // =========================================================================
 
     Object_ptr visit(const TypeAnnotation_ptr type_node);
-    ObjectVector visit(TypeAnnotationVector& type_nodes);
+    ObjectVector visit(const TypeAnnotationVector& type_nodes);
+
+    Object_ptr visit(NativeTypeNode& expr);
 
     Object_ptr visit(NoneTypeNode& expr);
     Object_ptr visit(IntLiteralTypeNode& expr);

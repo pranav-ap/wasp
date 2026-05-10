@@ -22,7 +22,7 @@ namespace Wasp
 
     ConstantPool::ConstantPool()
     {
-        objects.push_back(MAKE_OBJECT_VARIANT(NativeAnyType()));           // 0
+        objects.push_back(MAKE_OBJECT_VARIANT(AnyType()));                 // 0
         objects.push_back(MAKE_OBJECT_VARIANT(IntType()));                 // 1
         objects.push_back(MAKE_OBJECT_VARIANT(FloatType()));               // 2
         objects.push_back(MAKE_OBJECT_VARIANT(StringType()));              // 3

@@ -51,10 +51,16 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
   GIT_TAG        v0.7.5 # Stable release
 )
-
-# Force it to use libbacktrace, which is the standard on Linux
 set(CPPTRACE_GET_SYMBOLS_WITH_LIBBACKTRACE ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(cpptrace)
+
+# fmt (Modern string formatting)
+FetchContent_Declare(
+  fmt
+  GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+  GIT_TAG        11.0.2 # Latest stable release
+)
+FetchContent_MakeAvailable(fmt)
 
 # ==========================================
 # Wasp Modules

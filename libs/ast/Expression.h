@@ -60,7 +60,9 @@ struct NoneLiteral
 {
 };
 
-struct DotLiteral {};
+struct DotLiteral : public Resolvable
+{
+};
 
 struct OperatorExpression : public Resolvable
 {

@@ -56,28 +56,11 @@ void Compiler::visit(const Expression_ptr expr)
 
 void Compiler::visit(int expr)
 {
-    int const_index = workspace->pool->allocate(expr);
-
-    if (Symbol_ptr wrapper_symbol = current_scope->lookup("int"))
-    {
-        // 1. Load the callable class using your existing Identifier logic
-        Identifier class_id{"int"};
-        class_id.symbol = wrapper_symbol;
-        visit(class_id);
-
-        // 2. Resolve the constructor overload (default to 0)
-        emit(OpCode::RESOLVE_FUNCTION, 0);
-
-        // 3. Push the primitive argument
-        emit(OpCode::LOAD_CONST, const_index, std::to_string(expr));
-
-        // 4. Call the constructor
-        emit(OpCode::CALL, 1);
-    }
-    else
-    {
-        emit(OpCode::LOAD_CONST, const_index, std::to_string(expr));
-    }
+    emit(
+        OpCode::LOAD_CONST,
+        workspace->pool->allocate(expr),
+        std::to_string(expr)
+    );
 }
 
 void Compiler::visit(double expr)

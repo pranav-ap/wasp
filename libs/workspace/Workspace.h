@@ -156,6 +156,9 @@ struct Symbol : public std::enable_shared_from_this<Symbol>
 
     Symbol_ptr resolve();
 
+    void add_overload(Symbol_ptr overload);
+    std::string to_string() const;
+
     template <typename T> bool payload_is() const
     {
         return std::holds_alternative<T>(payload);

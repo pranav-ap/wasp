@@ -81,7 +81,7 @@ Object_ptr SemanticAnalyzer::define_variable(
         // 2. Otherwise, look up the global class wrapper (e.g., `int` -> `Int`)
         if (auto wrapper_sym = current_scope->lookup(alias_name)->resolve())
         {
-            return unwrap_type(wrapper_sym->get_type());
+            return unwrap_type_alias(wrapper_sym->get_type());
         }
 
         // Fallback if the standard library isn't loaded

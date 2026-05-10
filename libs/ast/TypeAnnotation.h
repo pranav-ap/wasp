@@ -11,6 +11,11 @@
 namespace Wasp
 {
 
+struct NativeTypeNode
+{
+    TypeAnnotation_ptr type;
+};
+
 struct NoneTypeNode
 {
 };
@@ -38,17 +43,7 @@ struct BoolLiteralTypeNode
 struct TypeIdentifierNode
 {
     std::string name;
-    bool is_native = false;
 };
-
-struct ListTypeNode;
-struct TupleTypeNode;
-struct SetTypeNode;
-struct MapTypeNode;
-struct VariantTypeNode;
-struct FunctionTypeNode;
-struct RecordTypeNode;
-struct TemplateAngularTypeNode;
 
 struct ListTypeNode
 {
@@ -148,6 +143,7 @@ struct TemplateAngularTypeNode
 using TypeAnnotationVariant = std::variant<
     std::monostate,
 
+    NativeTypeNode,
     NoneTypeNode,
 
     IntLiteralTypeNode,

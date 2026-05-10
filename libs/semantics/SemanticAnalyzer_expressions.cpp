@@ -66,60 +66,63 @@ ObjectVector SemanticAnalyzer::visit(ExpressionVector expressions)
     return computed_types;
 }
 
+// ===========================================================================
+// Helpers
+// ============================================================================
+
+Object_ptr SemanticAnalyzer::get_core_type(const std::string& type_name)
+{
+    Symbol_ptr symbol = current_scope->lookup(type_name);
+    Doctor::get().fatal_if_nullptr(
+        symbol,
+        WaspStage::Semantics,
+        "Type '" + type_name + "' not found in scope."
+    );
+
+    return symbol->get_type();
+}
+
+Object_ptr SemanticAnalyzer::collapse_types(const ObjectVector& types)
+{
+    if (types.empty())
+    {
+        return make_object(AnyType());
+    }
+
+    ObjectVector unique_types = type_system->remove_duplicates(
+        current_scope,
+        types
+    );
+
+    if (unique_types.size() == 1)
+    {
+        return unique_types[0];
+    }
+    return make_object(VariantType(unique_types));
+}
+
 // ============================================================================
 // Primitives & Operators
 // ============================================================================
 
 Object_ptr SemanticAnalyzer::visit(IntegerLiteral& expr)
 {
-    Symbol_ptr symbol = current_scope->lookup("int");
-
-    Doctor::get().fatal_if_nullptr(
-        symbol,
-        WaspStage::Semantics,
-        "Type 'int' not found in scope."
-    );
-
-    return symbol->get_type();
+    return get_core_type("int");
 }
 
 Object_ptr SemanticAnalyzer::visit(FloatLiteral& expr)
 {
-    Symbol_ptr symbol = current_scope->lookup("float");
-
-    Doctor::get().fatal_if_nullptr(
-        symbol,
-        WaspStage::Semantics,
-        "Type 'float' not found in scope."
-    );
-
-    return symbol->get_type();
+    return get_core_type("float");
 }
 
 Object_ptr SemanticAnalyzer::visit(StringLiteral& expr)
 {
-    Symbol_ptr symbol = current_scope->lookup("str");
-
-    Doctor::get().fatal_if_nullptr(
-        symbol,
-        WaspStage::Semantics,
-        "Type 'string' not found in scope."
-    );
-
-    return symbol->get_type();
+    return get_core_type("str");
 }
 
 Object_ptr SemanticAnalyzer::visit(BooleanLiteral& expr)
 {
-    Symbol_ptr symbol = current_scope->lookup("bool");
-
-    Doctor::get().fatal_if_nullptr(
-        symbol,
-        WaspStage::Semantics,
-        "Type 'bool' not found in scope."
-    );
-
-    return symbol->get_type();
+    return get_core_type("bool");
 }
 
 Object_ptr SemanticAnalyzer::visit(NoneLiteral& expr)
@@ -135,23 +138,21 @@ Object_ptr SemanticAnalyzer::visit(DotLiteral& expr)
     );
 }
 
-Object_ptr SemanticAnalyzer::visit(Prefix& expr)
+Object_ptr SemanticAnalyzer::resolve_operator_overload(
+    OperatorExpression& expr,
+    const std::string& operator_name,
+    const ObjectVector& operand_types
+)
 {
-    Object_ptr operand_type = visit(expr.operand);
-
-    if (is_native_type(operand_type))
-    {
-        return type_system->infer(current_scope, operand_type, expr.op.type);
-    }
-
-    std::string operator_name = to_string(expr.op.type);
     Symbol_ptr operator_symbol = current_scope->lookup(operator_name);
 
     Doctor::get().fatal_if_nullptr(
         operator_symbol,
         WaspStage::Semantics,
-        "Undefined operator '" + operator_name + "'"
+        "Undefined operator '" + operator_name + "'."
     );
+
+    operator_symbol = operator_symbol->resolve();
 
     Doctor::get().assert(
         operator_symbol->payload_is<OverloadsData>(),
@@ -167,13 +168,29 @@ Object_ptr SemanticAnalyzer::visit(Prefix& expr)
                                                  ->get_best_function_symbol(
                                                      current_scope,
                                                      overloads,
-                                                     {operand_type}
+                                                     operand_types
                                                  );
 
     expr.symbol = operator_symbol;
     expr.overload_index = overload_index;
 
     return function_symbol->get_type()->as<Signature_ptr>()->return_type;
+}
+
+Object_ptr SemanticAnalyzer::visit(Prefix& expr)
+{
+    Object_ptr operand_type = visit(expr.operand);
+
+    if (operand_type->is<NativeType_ptr>())
+    {
+        return type_system->infer(current_scope, operand_type, expr.op.type);
+    }
+
+    return resolve_operator_overload(
+        expr,
+        to_string(expr.op.type),
+        {operand_type}
+    );
 }
 
 Object_ptr SemanticAnalyzer::visit(Infix& expr)
@@ -181,85 +198,34 @@ Object_ptr SemanticAnalyzer::visit(Infix& expr)
     Object_ptr left_type = visit(expr.left);
     Object_ptr right_type = visit(expr.right);
 
-    if (is_native_type(left_type) && is_native_type(right_type))
+    if (left_type->is<NativeType_ptr>() && right_type->is<NativeType_ptr>())
     {
         return type_system
             ->infer(current_scope, left_type, expr.op.type, right_type);
     }
 
-    std::string operator_name = to_string(expr.op.type);
-    Symbol_ptr operator_symbol = current_scope->lookup(operator_name)
-                                     ->resolve();
-
-    Doctor::get().fatal_if_nullptr(
-        operator_symbol,
-        WaspStage::Semantics,
-        "Undefined operator '" + operator_name + "' for non-native types."
+    return resolve_operator_overload(
+        expr,
+        to_string(expr.op.type),
+        {left_type, right_type}
     );
-
-    Doctor::get().assert(
-        operator_symbol->payload_is<OverloadsData>(),
-        WaspStage::Semantics,
-        "Operator '" + operator_name +
-            "' is not overloaded but used as an operator."
-    );
-
-    auto overloads = operator_symbol->get_payload_as<OverloadsData>()
-                         .get_overloads();
-
-    auto [function_symbol, overload_index] = type_system
-                                                 ->get_best_function_symbol(
-                                                     current_scope,
-                                                     overloads,
-                                                     {left_type, right_type}
-                                                 );
-
-    expr.symbol = operator_symbol;
-    expr.overload_index = overload_index;
-
-    return function_symbol->get_type()->as<Signature_ptr>()->return_type;
 }
 
 Object_ptr SemanticAnalyzer::visit(Postfix& expr)
 {
     Object_ptr operand_type = visit(expr.operand);
 
-    if (is_native_type(operand_type))
+    if (operand_type->is<NativeType_ptr>())
     {
         type_system->expect_number_type(operand_type);
         return operand_type;
     }
 
-    std::string operator_name = to_string(expr.op.type);
-    Symbol_ptr operator_symbol = current_scope->lookup(operator_name);
-
-    Doctor::get().fatal_if_nullptr(
-        operator_symbol,
-        WaspStage::Semantics,
-        "Undefined operator '" + operator_name + "' for non-native types."
+    return resolve_operator_overload(
+        expr,
+        to_string(expr.op.type),
+        {operand_type}
     );
-
-    Doctor::get().assert(
-        operator_symbol->payload_is<OverloadsData>(),
-        WaspStage::Semantics,
-        "Operator '" + operator_name +
-            "' is not overloaded but used as an operator."
-    );
-
-    auto overloads = operator_symbol->get_payload_as<OverloadsData>()
-                         .get_overloads();
-
-    auto [function_symbol, overload_index] = type_system
-                                                 ->get_best_function_symbol(
-                                                     current_scope,
-                                                     overloads,
-                                                     {operand_type}
-                                                 );
-
-    expr.symbol = operator_symbol;
-    expr.overload_index = overload_index;
-
-    return function_symbol->get_type()->as<Signature_ptr>()->return_type;
 }
 
 // ============================================================================
@@ -268,26 +234,12 @@ Object_ptr SemanticAnalyzer::visit(Postfix& expr)
 
 Object_ptr SemanticAnalyzer::visit(ListLiteral& expr)
 {
-    if (expr.expressions.empty())
-    {
-        return make_object(ListType(make_object(NativeAnyType())));
-    }
-
     ObjectVector element_types;
     for (const auto& element : expr.expressions)
     {
         element_types.push_back(visit(element));
     }
-
-    ObjectVector unique_types = type_system->remove_duplicates(
-        current_scope,
-        element_types
-    );
-    if (unique_types.size() == 1)
-    {
-        return make_object(ListType(unique_types[0]));
-    }
-    return make_object(ListType(make_object(VariantType(unique_types))));
+    return make_object(ListType(collapse_types(element_types)));
 }
 
 Object_ptr SemanticAnalyzer::visit(TupleLiteral& expr)
@@ -302,13 +254,6 @@ Object_ptr SemanticAnalyzer::visit(TupleLiteral& expr)
 
 Object_ptr SemanticAnalyzer::visit(MapLiteral& expr)
 {
-    if (expr.pairs.empty())
-    {
-        return make_object(
-            MapType(make_object(NativeAnyType()), make_object(NativeAnyType()))
-        );
-    }
-
     ObjectVector key_types, val_types;
     for (const auto& [k_expr, v_expr] : expr.pairs)
     {
@@ -318,29 +263,13 @@ Object_ptr SemanticAnalyzer::visit(MapLiteral& expr)
         val_types.push_back(visit(v_expr));
     }
 
-    ObjectVector u_keys = type_system->remove_duplicates(
-        current_scope,
-        key_types
+    return make_object(
+        MapType(collapse_types(key_types), collapse_types(val_types))
     );
-    ObjectVector u_vals = type_system->remove_duplicates(
-        current_scope,
-        val_types
-    );
-
-    Object_ptr fk = u_keys.size() == 1 ? u_keys[0]
-                                       : make_object(VariantType(u_keys));
-    Object_ptr fv = u_vals.size() == 1 ? u_vals[0]
-                                       : make_object(VariantType(u_vals));
-    return make_object(MapType(fk, fv));
 }
 
 Object_ptr SemanticAnalyzer::visit(SetLiteral& expr)
 {
-    if (expr.expressions.empty())
-    {
-        return make_object(SetType(make_object(NativeAnyType())));
-    }
-
     ObjectVector element_types;
     for (const auto& element : expr.expressions)
     {
@@ -348,16 +277,7 @@ Object_ptr SemanticAnalyzer::visit(SetLiteral& expr)
         type_system->expect_key_type(current_scope, el_type);
         element_types.push_back(el_type);
     }
-
-    ObjectVector unique_types = type_system->remove_duplicates(
-        current_scope,
-        element_types
-    );
-    if (unique_types.size() == 1)
-    {
-        return make_object(SetType(unique_types[0]));
-    }
-    return make_object(SetType(make_object(VariantType(unique_types))));
+    return make_object(SetType(collapse_types(element_types)));
 }
 
 Object_ptr SemanticAnalyzer::visit(RangeLiteral& expr)
@@ -369,7 +289,6 @@ Object_ptr SemanticAnalyzer::visit(RangeLiteral& expr)
     {
         type_system->expect_number_type(start_type);
     }
-
     if (end_type)
     {
         type_system->expect_number_type(end_type);
@@ -393,7 +312,7 @@ Object_ptr SemanticAnalyzer::visit(TypePattern& expr)
 }
 
 // ============================================================================
-// Helpers
+// Resolvers
 // ============================================================================
 
 void SemanticAnalyzer::bind_identifier(Identifier& id, Symbol_ptr symbol)
@@ -444,7 +363,42 @@ Symbol_ptr SemanticAnalyzer::get_module_member_symbol(MemberAccess& access)
         member_identifier.name
     );
 
-    return member_symbol; // Now just returns the single pointer
+    return member_symbol;
+}
+
+Symbol_ptr SemanticAnalyzer::resolve_target_symbol(Expression_ptr target)
+{
+    Symbol_ptr target_symbol = nullptr;
+
+    std::visit(
+        overloaded{
+            [&](Identifier& id)
+            {
+                target_symbol = current_scope->lookup(id.name)->resolve();
+                Doctor::get().fatal_if_nullptr(
+                    target_symbol,
+                    WaspStage::Semantics
+                );
+                bind_identifier(id, target_symbol);
+            },
+            [&](MemberAccess& access)
+            {
+                auto member_symbol = get_module_member_symbol(access);
+                target_symbol = member_symbol;
+                access.right->as<Identifier>().symbol = target_symbol;
+            },
+            [&](auto&)
+            {
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Invalid target expression."
+                );
+            }
+        },
+        target->data
+    );
+
+    return target_symbol;
 }
 
 // ============================================================================
@@ -725,41 +679,6 @@ Object_ptr SemanticAnalyzer::call_method(
     return signature_obj->as<Signature_ptr>()->return_type;
 }
 
-Symbol_ptr SemanticAnalyzer::resolve_target_symbol(Expression_ptr target)
-{
-    Symbol_ptr target_symbol = nullptr;
-
-    std::visit(
-        overloaded{
-            [&](Identifier& id)
-            {
-                target_symbol = current_scope->lookup(id.name)->resolve();
-                Doctor::get().fatal_if_nullptr(
-                    target_symbol,
-                    WaspStage::Semantics
-                );
-                bind_identifier(id, target_symbol);
-            },
-            [&](MemberAccess& access)
-            {
-                auto member_symbol = get_module_member_symbol(access);
-                target_symbol = member_symbol;
-                access.right->as<Identifier>().symbol = target_symbol;
-            },
-            [&](auto&)
-            {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "Invalid target expression."
-                );
-            }
-        },
-        target->data
-    );
-
-    return target_symbol;
-}
-
 Object_ptr SemanticAnalyzer::call_concrete_template(
     Call& call,
     TemplateAngular& template_angular,
@@ -846,6 +765,8 @@ Object_ptr SemanticAnalyzer::visit(Constructor& constructor)
         },
         constructor.construtable->data
     );
+
+    target_type = unwrap_type_alias(target_type);
 
     Doctor::get().assert(
         target_type && target_type->is<ClassType_ptr>(),

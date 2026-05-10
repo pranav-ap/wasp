@@ -21,10 +21,9 @@ TEST(ParseDefinitions, IntDefinition)
 
     auto& type_node = check<Wasp::TypeIdentifierNode>(assignment.type_node);
     EXPECT_EQ(type_node.name, "int");
-    EXPECT_FALSE(type_node.is_native);
 
-    auto& rhs = check<int>(assignment.rhs_expression);
-    EXPECT_EQ(rhs, 5);
+    auto& rhs = check<Wasp::IntegerLiteral>(assignment.rhs_expression);
+    EXPECT_EQ(rhs.value, 5);
 }
 
 TEST(ParseDefinitions, ListDefinition)
@@ -71,7 +70,9 @@ TEST(ParseDefinitions, MapDefinition)
     auto& key_type = check<Wasp::TypeIdentifierNode>(map_type_ptr->key_type);
     EXPECT_EQ(key_type.name, "int");
 
-    auto& value_type = check<Wasp::TypeIdentifierNode>(map_type_ptr->value_type);
+    auto& value_type = check<Wasp::TypeIdentifierNode>(
+        map_type_ptr->value_type
+    );
     EXPECT_EQ(value_type.name, "int");
 
     auto& map = check<Wasp::MapLiteral>(assignment.rhs_expression);
@@ -97,7 +98,9 @@ TEST(ParseDefinitions, FunTypeDefinition)
     );
     EXPECT_EQ(input_type.name, "int");
 
-    auto& return_type = check<Wasp::TypeIdentifierNode>(func_type_ptr->return_type);
+    auto& return_type = check<Wasp::TypeIdentifierNode>(
+        func_type_ptr->return_type
+    );
     EXPECT_EQ(return_type.name, "int");
 
     // Check RHS assignment
@@ -126,6 +129,6 @@ TEST(ParseDefinitions, VariantDefinition)
     EXPECT_EQ(type_2.name, "float");
 
     // Check RHS assignment
-    auto& rhs = check<int>(assignment.rhs_expression);
-    EXPECT_EQ(rhs, 5);
+    auto& rhs = check<Wasp::IntegerLiteral>(assignment.rhs_expression);
+    EXPECT_EQ(rhs.value, 5);
 }

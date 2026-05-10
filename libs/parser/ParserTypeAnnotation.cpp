@@ -28,17 +28,22 @@ TypeAnnotation_ptr Parser::parse_type()
         {
             type = parse_list_type();
         }
-        else if (token_pipe.consume_optional_in_line(TokenType::OPEN_CURLY_BRACE))
+        else if (
+            token_pipe.consume_optional_in_line(TokenType::OPEN_CURLY_BRACE)
+        )
         {
             type = parse_set_or_map_type();
         }
-        else if (token_pipe.consume_optional_in_line(TokenType::OPEN_PARENTHESIS))
+        else if (
+            token_pipe.consume_optional_in_line(TokenType::OPEN_PARENTHESIS)
+        )
         {
             type = parse_tuple_or_fun_type();
         }
         else
         {
-            bool is_native = token_pipe.consume_optional_in_line(TokenType::NATIVE)
+            bool is_native = token_pipe
+                                 .consume_optional_in_line(TokenType::NATIVE)
                                  .has_value();
 
             type = consume_datatype_word();
@@ -51,10 +56,11 @@ TypeAnnotation_ptr Parser::parse_type()
                     "Only identifier types can be marked as 'native'."
                 );
 
-                type->as<TypeIdentifierNode>().is_native = true;
+                type = make_type_annotation(NativeTypeNode{type});
             }
-
-            else if (token_pipe.consume_optional_in_line(TokenType::LESSER_THAN))
+            else if (
+                token_pipe.consume_optional_in_line(TokenType::LESSER_THAN)
+            )
             {
                 vector<TypeAnnotation_ptr> generic_args;
 
@@ -66,11 +72,11 @@ TypeAnnotation_ptr Parser::parse_type()
 
                 token_pipe.require(TokenType::GREATER_THAN);
 
-                type = std::make_shared<TypeAnnotation>(
-                    TypeAnnotation{std::make_shared<TemplateAngularTypeNode>(
+                type = make_type_annotation(
+                    std::make_shared<TemplateAngularTypeNode>(
                         type,
                         std::move(generic_args)
-                    )}
+                    )
                 );
             }
         }
@@ -87,9 +93,9 @@ TypeAnnotation_ptr Parser::parse_type()
 
     if (variant_types.size() > 1)
     {
-        return std::make_shared<TypeAnnotation>(TypeAnnotation{
+        return make_type_annotation(
             std::make_shared<VariantTypeNode>(std::move(variant_types))
-        });
+        );
     }
 
     return std::move(variant_types.front());
@@ -121,41 +127,31 @@ TypeAnnotation_ptr Parser::consume_datatype_word()
         auto value = std::stod(token->value);
         if (std::fmod(value, 1.0) == 0.0)
         {
-            return std::make_shared<TypeAnnotation>(
-                TypeAnnotation{IntLiteralTypeNode(static_cast<int>(value))}
+            return make_type_annotation(
+                IntLiteralTypeNode{static_cast<int>(value)}
             );
         }
-        return std::make_shared<TypeAnnotation>(
-            TypeAnnotation{FloatLiteralTypeNode(value)}
-        );
+        return make_type_annotation(FloatLiteralTypeNode{value});
     }
     case TokenType::STRING_LITERAL: {
         token_pipe.advance_pointer();
-        return std::make_shared<TypeAnnotation>(
-            TypeAnnotation{StringLiteralTypeNode(token->value)}
-        );
+        return make_type_annotation(StringLiteralTypeNode{token->value});
     }
     case TokenType::TRUE_KEYWORD: {
         token_pipe.advance_pointer();
-        return std::make_shared<TypeAnnotation>(
-            TypeAnnotation{BoolLiteralTypeNode(true)}
-        );
+        return make_type_annotation(BoolLiteralTypeNode{true});
     }
     case TokenType::FALSE_KEYWORD: {
         token_pipe.advance_pointer();
-        return std::make_shared<TypeAnnotation>(
-            TypeAnnotation{BoolLiteralTypeNode(false)}
-        );
+        return make_type_annotation(BoolLiteralTypeNode{false});
     }
     case TokenType::IDENTIFIER: {
         token_pipe.advance_pointer();
-        return std::make_shared<TypeAnnotation>(
-            TypeAnnotation{TypeIdentifierNode{token->value, false}}
-        );
+        return make_type_annotation(TypeIdentifierNode{token->value});
     }
     case TokenType::NONE: {
         token_pipe.advance_pointer();
-        return std::make_shared<TypeAnnotation>(TypeAnnotation{NoneTypeNode()});
+        return make_type_annotation(NoneTypeNode{});
     }
     default: {
         Doctor::get().fatal(
@@ -172,9 +168,7 @@ TypeAnnotation_ptr Parser::parse_list_type()
 {
     auto type = parse_type();
     token_pipe.require_later(TokenType::CLOSE_SQUARE_BRACKET);
-    return std::make_shared<TypeAnnotation>(
-        TypeAnnotation{std::make_shared<ListTypeNode>(type)}
-    );
+    return make_type_annotation(std::make_shared<ListTypeNode>(type));
 }
 
 TypeAnnotation_ptr Parser::parse_tuple_or_fun_type()
@@ -185,14 +179,12 @@ TypeAnnotation_ptr Parser::parse_tuple_or_fun_type()
     if (token_pipe.consume_optional_in_line(TokenType::ARROW))
     {
         auto return_type = parse_type();
-        return std::make_shared<TypeAnnotation>(
-            TypeAnnotation{std::make_shared<FunctionTypeNode>(types, return_type)}
+        return make_type_annotation(
+            std::make_shared<FunctionTypeNode>(types, return_type)
         );
     }
 
-    return std::make_shared<TypeAnnotation>(
-        TypeAnnotation{std::make_shared<TupleTypeNode>(types)}
-    );
+    return make_type_annotation(std::make_shared<TupleTypeNode>(types));
 }
 
 TypeAnnotation_ptr Parser::parse_set_or_map_type()
@@ -203,15 +195,13 @@ TypeAnnotation_ptr Parser::parse_set_or_map_type()
     {
         auto value_type = parse_type();
         token_pipe.require_later(TokenType::CLOSE_CURLY_BRACE);
-        return std::make_shared<TypeAnnotation>(
-            TypeAnnotation{std::make_shared<MapTypeNode>(key_type, value_type)}
+        return make_type_annotation(
+            std::make_shared<MapTypeNode>(key_type, value_type)
         );
     }
 
     token_pipe.require_later(TokenType::CLOSE_CURLY_BRACE);
-    return std::make_shared<TypeAnnotation>(
-        TypeAnnotation{std::make_shared<SetTypeNode>(key_type)}
-    );
+    return make_type_annotation(std::make_shared<SetTypeNode>(key_type));
 }
 
 } // namespace Wasp

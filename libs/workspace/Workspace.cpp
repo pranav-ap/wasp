@@ -263,6 +263,74 @@ Symbol_ptr Symbol::resolve()
     return shared_from_this();
 }
 
+void Symbol::add_overload(Symbol_ptr overload)
+{
+    Doctor::get().assert(
+        payload_is<OverloadsData>(),
+        WaspStage::Semantics, // Or WaspStage::SymbolResolution, depending on
+                              // your enums
+        "Cannot add overload to symbol '" + name +
+            "': it is not an overloads group."
+    );
+
+    get_payload_as<OverloadsData>().overloads.push_back(std::move(overload));
+}
+
+std::string Symbol::to_string() const
+{
+    std::string payload_type = "Unknown";
+
+    if (payload_is<VariableData>())
+    {
+        payload_type = "Variable";
+    }
+    else if (payload_is<OverloadsData>())
+    {
+        payload_type = "OverloadsGroup";
+    }
+    else if (payload_is<FunctionData>())
+    {
+        payload_type = "Function";
+    }
+    else if (payload_is<MethodData>())
+    {
+        payload_type = "Method";
+    }
+    else if (payload_is<ModuleData>())
+    {
+        payload_type = "Module";
+    }
+    else if (payload_is<ClassData>())
+    {
+        payload_type = "Class";
+    }
+    else if (payload_is<TraitData>())
+    {
+        payload_type = "Trait";
+    }
+    else if (payload_is<GenericData>())
+    {
+        payload_type = "Generic";
+    }
+    else if (payload_is<EnumData>())
+    {
+        payload_type = "Enum";
+    }
+    else if (payload_is<TypeAliasData>())
+    {
+        payload_type = "TypeAlias";
+    }
+    else if (payload_is<SymbolAliasData>())
+    {
+        payload_type = "SymbolAlias";
+    }
+
+    return "Symbol(id: " + std::to_string(id) + ", name: '" + name + "'" +
+           ", depth: [" + std::to_string(closure_depth) + ", " +
+           std::to_string(lexical_depth) + "]" + ", type: " + payload_type +
+           ")";
+}
+
 Symbol_ptr SymbolFactory::create_dummy(
     std::string name,
     Object_ptr type,

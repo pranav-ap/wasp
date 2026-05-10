@@ -25,6 +25,17 @@ using ObjectIntMap = std::map<int, Object_ptr>;
 using StringVector = std::vector<std::string>;
 
 // ============================================================================
+// Native
+// ============================================================================
+
+struct NativeType
+{
+    Object_ptr type;
+};
+
+using NativeType_ptr = std::shared_ptr<NativeType>;
+
+// ============================================================================
 // Other
 // ============================================================================
 
@@ -46,7 +57,7 @@ struct TypeType
 {
 };
 
-struct NativeAnyType
+struct AnyType
 {
 };
 
@@ -101,7 +112,7 @@ struct BooleanLiteralType
 };
 
 // ============================================================================
-// Template Base (Constraints & Generics)
+// Template
 // ============================================================================
 
 struct GenericType
@@ -149,7 +160,7 @@ struct MapType
 };
 
 // ============================================================================
-// Function Types
+// Signature
 // ============================================================================
 
 struct Signature : public TemplatableType
@@ -309,9 +320,12 @@ struct TypeAlias : public TemplatableType
         std::string name,
         Object_ptr underlying_type,
         ObjectStringMap generics,
-        StringVector ordered_generic_names
+        StringVector expected_generic_names_order
     )
-        : TemplatableType(std::move(generics), std::move(ordered_generic_names)),
+        : TemplatableType(
+              std::move(generics),
+              std::move(expected_generic_names_order)
+          ),
           name(std::move(name)), underlying_type(std::move(underlying_type))
     {
     }
@@ -619,7 +633,7 @@ struct Object
         NoneType,
         NamedDefinitionType,
 
-        NativeAnyType,
+        AnyType,
         IntType,
         FloatType,
         StringType,
@@ -643,6 +657,7 @@ struct Object
         TraitType_ptr,
         EnumType_ptr,
         TypeAlias_ptr,
+        NativeType_ptr,
 
         GenericType_ptr>;
 
@@ -700,7 +715,5 @@ bool are_equal_types(ObjectVector left_vector, ObjectVector right_vector);
 bool are_equal_types_unordered(ObjectVector left_vector, ObjectVector right_vector);
 
 Object_ptr convert_type(Object_ptr type, Object_ptr operand);
-bool is_native_type(Object_ptr type);
-
-Object_ptr unwrap_type(Object_ptr type);
+Object_ptr unwrap_type_alias(Object_ptr type);
 } // namespace Wasp

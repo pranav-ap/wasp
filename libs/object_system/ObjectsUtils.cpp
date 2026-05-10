@@ -209,7 +209,7 @@ std::string stringify_object(Object_ptr value)
             },
 
             // Base Types
-            [](const NativeAnyType&) -> std::string
+            [](const AnyType&) -> std::string
             {
                 return "any type";
             },
@@ -483,7 +483,7 @@ std::string mangle_object(Object_ptr value)
                 return "_";
             },
 
-            [](const NativeAnyType&) -> std::string
+            [](const AnyType&) -> std::string
             {
                 return "A";
             },
@@ -620,12 +620,12 @@ bool is_native_type(Object_ptr type)
 
     return type->is<IntType>() || type->is<FloatType>() ||
            type->is<StringType>() || type->is<BooleanType>() ||
-           type->is<NativeAnyType>() || type->is<IntLiteralType>() ||
+           type->is<AnyType>() || type->is<IntLiteralType>() ||
            type->is<FloatLiteralType>() || type->is<StringLiteralType>() ||
            type->is<BooleanLiteralType>();
 }
 
-Object_ptr unwrap_type(Object_ptr type)
+Object_ptr unwrap_type_alias(Object_ptr type)
 {
     Doctor::get().fatal_if_nullptr(
         type,
