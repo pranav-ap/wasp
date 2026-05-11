@@ -12,7 +12,14 @@
 
 namespace Wasp {
 
-struct IntegerLiteral : public Resolvable
+struct BoxableLiteral : public Resolvable
+{
+    Expression_ptr construtable = nullptr;
+
+    BoxableLiteral() = default;
+};
+
+struct IntegerLiteral : public BoxableLiteral
 {
     int value;
 
@@ -23,7 +30,7 @@ struct IntegerLiteral : public Resolvable
     }
 };
 
-struct FloatLiteral : public Resolvable
+struct FloatLiteral : public BoxableLiteral
 {
     double value;
 
@@ -34,7 +41,7 @@ struct FloatLiteral : public Resolvable
     }
 };
 
-struct StringLiteral : public Resolvable
+struct StringLiteral : public BoxableLiteral
 {
     std::string value;
 
@@ -45,7 +52,7 @@ struct StringLiteral : public Resolvable
     }
 };
 
-struct BooleanLiteral : public Resolvable
+struct BooleanLiteral : public BoxableLiteral
 {
     bool value;
 
@@ -111,12 +118,13 @@ struct Postfix : public OperatorExpression
     }
 };
 
-struct SequenceLiteral : public Resolvable
+struct SequenceLiteral : public BoxableLiteral
 {
     ExpressionVector expressions;
 
     explicit SequenceLiteral() = default;
-    explicit SequenceLiteral(ExpressionVector expressions) : expressions(std::move(expressions)) {};
+    explicit SequenceLiteral(ExpressionVector expressions)
+        : expressions(std::move(expressions)) {};
 };
 
 struct ListLiteral : public SequenceLiteral
@@ -134,7 +142,7 @@ struct SetLiteral : public SequenceLiteral
     using SequenceLiteral::SequenceLiteral;
 };
 
-struct MapLiteral : public Resolvable
+struct MapLiteral : public BoxableLiteral
 {
     std::map<Expression_ptr, Expression_ptr> pairs;
 

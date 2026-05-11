@@ -109,23 +109,6 @@ EnumDefinition Parser::parse_enum_body(std::string name, int indent_level)
 
 // Others
 
-Statement_ptr Parser::parse_annotation_definition()
-{
-    token_pipe.advance_pointer();
-
-    auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
-    auto name = name_token.value;
-
-    if (token_pipe.consume_optional_in_line(TokenType::OPEN_PARENTHESIS))
-    {
-        std::vector<Expression_ptr> args = parse_expressions();
-        token_pipe.require_in_line(TokenType::CLOSE_PARENTHESIS);
-        return make_statement(AnnotationDefinition(name, args));
-    }
-
-    return make_statement(AnnotationDefinition(name, {}));
-}
-
 Statement_ptr Parser::parse_function_definition(
     int indent_level,
     bool in_class_block,

@@ -50,7 +50,10 @@ private:
 
     void visit(const Statement_ptr statement);
     void visit(StatementVector& statements);
+
     void hoist_statements(StatementVector& statements);
+    void hoist_names_and_imports(StatementVector& statements);
+    void hoist_signatures_and_generics(StatementVector& statements);
 
     void visit(ExpressionStatement& statement);
     void visit(FunctionDefinition& statement);
@@ -62,7 +65,6 @@ private:
     void visit(EnumDefinition& statement);
     void visit(VariableDefinition& statement);
     void visit(TypeAliasDefinition& statement);
-    void visit(AnnotationDefinition& statement);
     void visit(IfBranch& statement);
     void visit(ElseBranch& statement);
     void visit(SimpleLoop& statement);
@@ -120,7 +122,19 @@ private:
     Object_ptr mutate_member(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
 
     Object_ptr collapse_types(const ObjectVector& types);
-    Object_ptr get_core_type(const std::string& type_name);
+    Symbol_ptr get_core_symbol(const std::string& type_name);
+
+    void desugar_literal(
+        const Expression_ptr& expr,
+        const std::string& type_alias_name
+    );
+
+    void desugar_overloaded_operator(
+        const Expression_ptr& expr,
+        Symbol_ptr operator_symbol,
+        int overload_index,
+        const std::vector<Expression_ptr>& arguments
+    );
 
     // =========================================================================
     // Call Evaluators

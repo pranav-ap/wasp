@@ -42,19 +42,3 @@ return
     EXPECT_FALSE(stmt.expression.has_value())
         << "Expected no expression in return statement";
 }
-
-TEST(ParseOthers, AnnotationDefinitionSimple)
-{
-    auto block = parse("@tag('smoke', 'unit')");
-    ASSERT_EQ(block.size(), 1);
-
-    auto& stmt = check<Wasp::AnnotationDefinition>(block[0]);
-    EXPECT_EQ(stmt.name, "tag");
-    ASSERT_EQ(stmt.anno_values.size(), 2);
-
-    auto& arg1 = check<Wasp::StringLiteral>(stmt.anno_values[0]);
-    EXPECT_EQ(arg1.value, "smoke");
-
-    auto& arg2 = check<Wasp::StringLiteral>(stmt.anno_values[1]);
-    EXPECT_EQ(arg2.value, "unit");
-}

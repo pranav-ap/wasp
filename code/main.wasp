@@ -1,18 +1,18 @@
 from core.io import print
-from core.types import Int
-from core.types import int
+from core.types import int, Int, str, String
 
-# operator + (left: Int, right: Int) => Int
-#     return Int(left.value + right.value)
 
+operator + (left: Int, right: Int) => Int
+    return Int(left.value + right.value)
 
 
 let x: int = 1
-# print(x)
 x.repr()
 
 
-# let y: int = 2
+let y: int = 2
+y.repr()
 
-# let z: int = x + y
-# print(z)
+let z: int = x + y
+z.repr()
+

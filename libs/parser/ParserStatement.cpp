@@ -82,9 +82,6 @@ Statement_ptr Parser::parse_statement(int expected_indent_level)
     case TokenType::RETURN_KEYWORD:
         return parse_return_statement();
 
-    case TokenType::AT_SIGN:
-        return parse_annotation_definition();
-
     case TokenType::CLASS:
         return parse_class_definition(expected_indent_level);
 
@@ -268,7 +265,8 @@ ImportAsPair Parser::parse_imported_symbol()
     return {sym_token.value, std::move(alias)};
 }
 
-Statement_ptr Parser::parse_from_import() {
+Statement_ptr Parser::parse_from_import()
+{
     token_pipe.advance_pointer();
 
     auto [access_token, path] = parse_module_path();
@@ -277,24 +275,34 @@ Statement_ptr Parser::parse_from_import() {
 
     std::vector<ImportAsPair> symbols;
 
-    //  from top.engine import (Tank, Pump as FuelPump)
-    if (token_pipe.consume_optional_in_line(TokenType::OPEN_PARENTHESIS)) {
-        do {
+    // from top.engine import (Tank, Pump as FuelPump)
+    if (token_pipe.consume_optional_in_line(TokenType::OPEN_PARENTHESIS))
+    {
+        do
+        {
             token_pipe.ignore_spaces_tabs_eols();
             symbols.push_back(parse_imported_symbol());
-
-        } while (token_pipe.consume_optional_in_line(TokenType::COMMA));
+        }
+        while (token_pipe.consume_optional_in_line(TokenType::COMMA));
 
         token_pipe.ignore_empty_lines();
         token_pipe.require(TokenType::CLOSE_PARENTHESIS);
     }
-    // from my.fuel import Tank as T
-    else {
-        symbols.push_back(parse_imported_symbol());
+    // from my.fuel import Tank as T, Car as C
+    else
+    {
+        do
+        {
+            symbols.push_back(parse_imported_symbol());
+        }
+        while (token_pipe.consume_optional_in_line(TokenType::COMMA));
     }
 
     token_pipe.require_in_line(TokenType::EOL);
 
-    return make_statement(FromImport(access_token, std::move(path), std::move(symbols)));
+    return make_statement(
+        FromImport(access_token, std::move(path), std::move(symbols))
+    );
 }
+
 } // namespace Wasp

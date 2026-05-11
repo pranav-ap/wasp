@@ -6,7 +6,6 @@ add_library(
     SemanticAnalyzer_expressions.cpp
     SemanticAnalyzer_control_flow.cpp
     SemanticAnalyzer_definitions.cpp
-    SemanticAnalyzer_imports.cpp
     SemanticAnalyzer_utils.cpp
     SymbolScope.cpp
     DependencyCrawler.cpp

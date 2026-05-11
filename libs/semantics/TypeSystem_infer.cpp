@@ -44,11 +44,11 @@ bool TypeSystem::equal(
     // Resolve Aliases
     if (t1->is<TypeAlias_ptr>())
     {
-        t1 = t1->as<TypeAlias_ptr>()->underlying_type;
+        t1 = unwrap_type_alias(t1);
     }
     if (t2->is<TypeAlias_ptr>())
     {
-        t2 = t2->as<TypeAlias_ptr>()->underlying_type;
+        t2 = unwrap_type_alias(t2);
     }
 
     if (t1 == t2)
@@ -253,19 +253,12 @@ bool TypeSystem::assignable(
     // Resolve Aliases
     if (lhs_type->is<TypeAlias_ptr>())
     {
-        return assignable(
-            scope,
-            lhs_type->as<TypeAlias_ptr>()->underlying_type,
-            rhs_type
-        );
+        return assignable(scope, unwrap_type_alias(lhs_type), rhs_type);
     }
+
     if (rhs_type->is<TypeAlias_ptr>())
     {
-        return assignable(
-            scope,
-            lhs_type,
-            rhs_type->as<TypeAlias_ptr>()->underlying_type
-        );
+        return assignable(scope, lhs_type, unwrap_type_alias(rhs_type));
     }
 
     if (equal(scope, lhs_type, rhs_type))
@@ -341,7 +334,6 @@ bool TypeSystem::assignable(
                 return true;
             },
 
-            // UNIFIED: Base Type vs Literal Type
             [](IntType const&, LiteralType const& r)
             {
                 return r.value->is<IntObject>();

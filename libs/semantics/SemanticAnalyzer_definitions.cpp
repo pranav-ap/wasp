@@ -370,10 +370,6 @@ void SemanticAnalyzer::visit(Native& statement)
     );
 }
 
-void SemanticAnalyzer::visit(AnnotationDefinition& statement)
-{
-}
-
 void SemanticAnalyzer::visit(FieldDefinition& stat)
 {
     Doctor::get().fatal(
@@ -680,6 +676,16 @@ void SemanticAnalyzer::visit(TraitDefinition& def)
         WaspStage::Semantics,
         "Trait definitions are not supported for now"
     );
+}
+
+// Do Nothing
+
+void SemanticAnalyzer::visit(SimpleImport& imp)
+{
+}
+
+void SemanticAnalyzer::visit(FromImport& imp)
+{
 }
 
 } // namespace Wasp

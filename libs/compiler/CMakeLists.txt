@@ -4,8 +4,6 @@ add_library(
     Compiler_imports.cpp
     Compiler_control_flow.cpp
     Compiler_expressions.cpp
-    Compiler_expressions_boring.cpp
-    Compiler_variables.cpp
     Compiler_definitions.cpp
     Compiler_utils.cpp
     InstructionPrinter.cpp

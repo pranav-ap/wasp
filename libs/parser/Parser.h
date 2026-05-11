@@ -42,7 +42,6 @@ private:
 
     Statement_ptr parse_variable_definition(bool is_mutable);
     Statement_ptr parse_alias_definition();
-    Statement_ptr parse_annotation_definition();
 
     Statement_ptr parse_function_definition(
         int indent_level,

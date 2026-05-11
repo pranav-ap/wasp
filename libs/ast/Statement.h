@@ -258,16 +258,6 @@ struct EnumDefinition : public Definition
     }
 };
 
-struct AnnotationDefinition : public Definition
-{
-    ExpressionVector anno_values;
-
-    AnnotationDefinition() = default;
-
-    AnnotationDefinition(std::string name, ExpressionVector anno_values)
-        : Definition(std::move(name)), anno_values(std::move(anno_values)) {};
-};
-
 // Branching
 
 struct Branch
@@ -455,8 +445,6 @@ using StatementVariant = std::variant<
     FieldDefinition,
     ClassDefinition,
     TraitDefinition,
-
-    AnnotationDefinition,
 
     SimpleImport,
     FromImport,

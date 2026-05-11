@@ -125,7 +125,6 @@ private:
     void visit(OperatorDefinition& statement);
 
     void visit(TypeAliasDefinition& statement);
-    void visit(AnnotationDefinition& statement);
 
     void visit(Return& statement);
 
