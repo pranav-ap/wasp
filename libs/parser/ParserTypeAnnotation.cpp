@@ -16,6 +16,20 @@ using std::vector;
 namespace Wasp
 {
 
+TypeAnnotationVector Parser::parse_types()
+{
+    TypeAnnotationVector types;
+
+    do
+    {
+        auto type = parse_type();
+        types.push_back(type);
+    }
+    while (token_pipe.consume_optional_in_line(TokenType::COMMA));
+
+    return types;
+}
+
 TypeAnnotation_ptr Parser::parse_type()
 {
     vector<TypeAnnotation_ptr> variant_types;
@@ -23,6 +37,8 @@ TypeAnnotation_ptr Parser::parse_type()
     while (true)
     {
         TypeAnnotation_ptr type;
+        bool is_native = token_pipe.consume_optional_in_line(TokenType::NATIVE)
+                             .has_value();
 
         if (token_pipe.consume_optional_in_line(TokenType::OPEN_SQUARE_BRACKET))
         {
@@ -42,25 +58,9 @@ TypeAnnotation_ptr Parser::parse_type()
         }
         else
         {
-            bool is_native = token_pipe
-                                 .consume_optional_in_line(TokenType::NATIVE)
-                                 .has_value();
-
             type = consume_datatype_word();
 
-            if (is_native)
-            {
-                Doctor::get().assert(
-                    type->is<TypeIdentifierNode>(),
-                    WaspStage::Parser,
-                    "Only identifier types can be marked as 'native'."
-                );
-
-                type = make_type_annotation(NativeTypeNode{type});
-            }
-            else if (
-                token_pipe.consume_optional_in_line(TokenType::LESSER_THAN)
-            )
+            if (token_pipe.consume_optional_in_line(TokenType::LESSER_THAN))
             {
                 vector<TypeAnnotation_ptr> generic_args;
 
@@ -77,6 +77,47 @@ TypeAnnotation_ptr Parser::parse_type()
                         type,
                         std::move(generic_args)
                     )
+                );
+            }
+        }
+
+        if (is_native)
+        {
+            TypeAnnotation_ptr target = type;
+
+            if (auto* node = target->try_as<TypeIdentifierNode>())
+            {
+                node->is_native = true;
+            }
+            else if (
+                auto* node = target->try_as<std::shared_ptr<ListTypeNode>>()
+            )
+            {
+                (*node)->is_native = true;
+            }
+            else if (
+                auto* node = target->try_as<std::shared_ptr<TupleTypeNode>>()
+            )
+            {
+                (*node)->is_native = true;
+            }
+            else if (
+                auto* node = target->try_as<std::shared_ptr<SetTypeNode>>()
+            )
+            {
+                (*node)->is_native = true;
+            }
+            else if (
+                auto* node = target->try_as<std::shared_ptr<MapTypeNode>>()
+            )
+            {
+                (*node)->is_native = true;
+            }
+            else
+            {
+                Doctor::get().fatal(
+                    WaspStage::Parser,
+                    "The 'native' keyword cannot be applied to this type."
                 );
             }
         }
@@ -99,20 +140,6 @@ TypeAnnotation_ptr Parser::parse_type()
     }
 
     return std::move(variant_types.front());
-}
-
-TypeAnnotationVector Parser::parse_types()
-{
-    TypeAnnotationVector types;
-
-    do
-    {
-        auto type = parse_type();
-        types.push_back(type);
-    }
-    while (token_pipe.consume_optional_in_line(TokenType::COMMA));
-
-    return types;
 }
 
 TypeAnnotation_ptr Parser::consume_datatype_word()
@@ -147,7 +174,7 @@ TypeAnnotation_ptr Parser::consume_datatype_word()
     }
     case TokenType::IDENTIFIER: {
         token_pipe.advance_pointer();
-        return make_type_annotation(TypeIdentifierNode{token->value});
+        return make_type_annotation(TypeIdentifierNode(token->value));
     }
     case TokenType::NONE: {
         token_pipe.advance_pointer();

@@ -1,4 +1,16 @@
-from core.io import print
+fun print(value: native int | native float | native str | native bool)
+    native
+
+fun print(item: Int)
+    print('inside overload')
+    print(item.value)
+
+
+fun input() => native str
+    native
+
+fun input(prompt: native str) => native str
+    native
 
 
 class Int
@@ -13,11 +25,6 @@ type int = Int
 
 operator + (left: Int, right: Int) => Int
     return Int(left.value + right.value)
-
-
-fun print(item: Int)
-    print('inside overload')
-    print(item.value)
 
 
 let x: int = 1

@@ -1,7 +1,0 @@
-import core.io as io
-
-class Greeter
-    name: native str
-
-    fun greet()
-        native

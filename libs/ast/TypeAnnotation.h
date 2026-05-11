@@ -11,9 +11,9 @@
 namespace Wasp
 {
 
-struct NativeTypeNode
+struct PossiblyNative
 {
-    TypeAnnotation_ptr type;
+    bool is_native = false;
 };
 
 struct NoneTypeNode
@@ -40,56 +40,70 @@ struct BoolLiteralTypeNode
     bool value;
 };
 
-struct TypeIdentifierNode
+struct TypeIdentifierNode : public PossiblyNative
 {
     std::string name;
+
+    explicit TypeIdentifierNode() = default;
+
+    explicit TypeIdentifierNode(std::string name, bool is_native = false)
+        : name(std::move(name)), PossiblyNative{is_native}
+    {
+    }
 };
 
-struct ListTypeNode
+struct ListTypeNode : public PossiblyNative
 {
     TypeAnnotation_ptr element_type;
     explicit ListTypeNode() = default;
 
-    explicit ListTypeNode(TypeAnnotation_ptr type) : element_type(std::move(type))
+    explicit ListTypeNode(TypeAnnotation_ptr type, bool is_native = false)
+        : element_type(std::move(type)), PossiblyNative{is_native}
     {
     }
 };
 
-struct TupleTypeNode
+struct TupleTypeNode : public PossiblyNative
 {
     TypeAnnotationVector element_types;
     explicit TupleTypeNode() = default;
 
-    explicit TupleTypeNode(TypeAnnotationVector types)
-        : element_types(std::move(types))
+    explicit TupleTypeNode(TypeAnnotationVector types, bool is_native = false)
+        : element_types(std::move(types)), PossiblyNative{is_native}
     {
     }
 };
 
-struct SetTypeNode
+struct SetTypeNode : public PossiblyNative
 {
     TypeAnnotation_ptr element_type;
     explicit SetTypeNode() = default;
 
-    explicit SetTypeNode(TypeAnnotation_ptr type) : element_type(std::move(type))
+    explicit SetTypeNode(TypeAnnotation_ptr type, bool is_native = false)
+        : element_type(std::move(type)), PossiblyNative{is_native}
     {
     }
 };
 
-struct MapTypeNode
+struct MapTypeNode : public PossiblyNative
 {
     TypeAnnotation_ptr key_type;
     TypeAnnotation_ptr value_type;
 
     explicit MapTypeNode() = default;
 
-    explicit MapTypeNode(TypeAnnotation_ptr key, TypeAnnotation_ptr value)
-        : key_type(std::move(key)), value_type(std::move(value))
+    explicit MapTypeNode(
+        TypeAnnotation_ptr key,
+        TypeAnnotation_ptr value,
+        bool is_native = false
+    )
+        : key_type(std::move(key)), value_type(std::move(value)),
+          PossiblyNative{is_native}
     {
     }
 };
 
-struct VariantTypeNode
+struct VariantTypeNode : public PossiblyNative
 {
     TypeAnnotationVector types;
     explicit VariantTypeNode() = default;
@@ -143,7 +157,6 @@ struct TemplateAngularTypeNode
 using TypeAnnotationVariant = std::variant<
     std::monostate,
 
-    NativeTypeNode,
     NoneTypeNode,
 
     IntLiteralTypeNode,

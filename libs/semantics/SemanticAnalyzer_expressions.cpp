@@ -98,6 +98,7 @@ Object_ptr SemanticAnalyzer::collapse_types(const ObjectVector& types)
     {
         return unique_types[0];
     }
+
     return make_object(VariantType(unique_types));
 }
 

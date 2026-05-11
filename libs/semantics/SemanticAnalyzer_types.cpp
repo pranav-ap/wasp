@@ -26,7 +26,9 @@ ObjectVector SemanticAnalyzer::visit(const TypeAnnotationVector& type_nodes)
     resolved_types.reserve(type_nodes.size());
 
     for (const auto& node : type_nodes)
+    {
         resolved_types.push_back(visit(node));
+    }
 
     return resolved_types;
 }
@@ -43,6 +45,7 @@ Object_ptr SemanticAnalyzer::visit(const TypeAnnotation_ptr type_node)
                     WaspStage::Semantics,
                     "Unhandled TypeAnnotation node in visitor"
                 );
+                return nullptr;
             },
             [&](auto& node) -> Object_ptr
             {
@@ -57,15 +60,6 @@ Object_ptr SemanticAnalyzer::visit(const TypeAnnotation_ptr type_node)
             }
         },
         type_node->data
-    );
-}
-
-Object_ptr SemanticAnalyzer::visit(NativeTypeNode& expr)
-{
-    Object_ptr underlying_type = visit(expr.type);
-
-    return make_object(
-        std::make_shared<NativeType>(NativeType{underlying_type})
     );
 }
 
@@ -92,9 +86,13 @@ Object_ptr SemanticAnalyzer::visit(StringLiteralTypeNode& expr)
 Object_ptr SemanticAnalyzer::visit(BoolLiteralTypeNode& expr)
 {
     if (expr.value)
+    {
         return workspace->pool->get_true_literal_type();
+    }
     else
+    {
         return workspace->pool->get_false_literal_type();
+    }
 }
 
 Object_ptr SemanticAnalyzer::visit(TypeIdentifierNode& expr)
@@ -107,32 +105,90 @@ Object_ptr SemanticAnalyzer::visit(TypeIdentifierNode& expr)
         "Unknown type identifier: '" + expr.name + "'"
     );
 
-    return unwrap_type_alias(symbol->get_type());
+    Object_ptr resolved_type = unwrap_type_alias(symbol->get_type());
+
+    if (expr.is_native)
+    {
+        return make_object(
+            std::make_shared<NativeType>(NativeType{resolved_type})
+        );
+    }
+
+    return resolved_type;
 }
 
 Object_ptr SemanticAnalyzer::visit(ListTypeNode& expr)
 {
-    return make_object(ListType(visit(expr.element_type)));
+    Object_ptr resolved_type = make_object(ListType(visit(expr.element_type)));
+
+    if (expr.is_native)
+    {
+        return make_object(
+            std::make_shared<NativeType>(NativeType{resolved_type})
+        );
+    }
+
+    return resolved_type;
 }
 
 Object_ptr SemanticAnalyzer::visit(TupleTypeNode& expr)
 {
-    return make_object(TupleType(visit(expr.element_types)));
+    Object_ptr resolved_type = make_object(
+        TupleType(visit(expr.element_types))
+    );
+
+    if (expr.is_native)
+    {
+        return make_object(
+            std::make_shared<NativeType>(NativeType{resolved_type})
+        );
+    }
+
+    return resolved_type;
 }
 
 Object_ptr SemanticAnalyzer::visit(SetTypeNode& expr)
 {
-    return make_object(SetType(visit(expr.element_type)));
+    Object_ptr resolved_type = make_object(SetType(visit(expr.element_type)));
+
+    if (expr.is_native)
+    {
+        return make_object(
+            std::make_shared<NativeType>(NativeType{resolved_type})
+        );
+    }
+
+    return resolved_type;
 }
 
 Object_ptr SemanticAnalyzer::visit(MapTypeNode& expr)
 {
-    return make_object(MapType(visit(expr.key_type), visit(expr.value_type)));
+    Object_ptr resolved_type = make_object(
+        MapType(visit(expr.key_type), visit(expr.value_type))
+    );
+
+    if (expr.is_native)
+    {
+        return make_object(
+            std::make_shared<NativeType>(NativeType{resolved_type})
+        );
+    }
+
+    return resolved_type;
 }
 
 Object_ptr SemanticAnalyzer::visit(VariantTypeNode& expr)
 {
-    return make_object(VariantType(visit(expr.types)));
+    Object_ptr resolved_type = make_object(VariantType(visit(expr.types)));
+
+    if (expr.is_native)
+    {
+        return make_object(
+            std::make_shared<NativeType>(NativeType{resolved_type})
+        );
+    }
+
+    return resolved_type;
 }
 
 Object_ptr SemanticAnalyzer::visit(FunctionTypeNode& expr)
@@ -153,7 +209,10 @@ Object_ptr SemanticAnalyzer::visit(FunctionTypeNode& expr)
 
 Object_ptr SemanticAnalyzer::visit(RecordTypeNode& node)
 {
-    Doctor::get().fatal(WaspStage::Semantics, "Record types are not yet supported.");
+    Doctor::get().fatal(
+        WaspStage::Semantics,
+        "Record types are not yet supported."
+    );
 }
 
 Object_ptr SemanticAnalyzer::visit(TemplateAngularTypeNode& node)
