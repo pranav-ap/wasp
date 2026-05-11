@@ -44,11 +44,11 @@ bool TypeSystem::equal(
     // Resolve Aliases
     if (t1->is<TypeAlias_ptr>())
     {
-        t1 = t1->as<TypeAlias_ptr>()->underlying_type;
+        t1 = unwrap_type_alias(t1);
     }
     if (t2->is<TypeAlias_ptr>())
     {
-        t2 = t2->as<TypeAlias_ptr>()->underlying_type;
+        t2 = unwrap_type_alias(t2);
     }
 
     if (t1 == t2)
@@ -101,21 +101,34 @@ bool TypeSystem::equal(
                 return true;
             },
 
-            [&](IntLiteralType const& l1, IntLiteralType const& l2)
+            [&](LiteralType const& l1, LiteralType const& l2)
             {
-                return l1.value == l2.value;
-            },
-            [&](FloatLiteralType const& l1, FloatLiteralType const& l2)
-            {
-                return l1.value == l2.value;
-            },
-            [&](BooleanLiteralType const& l1, BooleanLiteralType const& l2)
-            {
-                return l1.value == l2.value;
-            },
-            [&](StringLiteralType const& l1, StringLiteralType const& l2)
-            {
-                return l1.value == l2.value;
+                return std::visit(
+                    ::overloaded{
+                        [](IntObject const& v1, IntObject const& v2)
+                        {
+                            return v1.value == v2.value;
+                        },
+                        [](FloatObject const& v1, FloatObject const& v2)
+                        {
+                            return v1.value == v2.value;
+                        },
+                        [](BooleanObject const& v1, BooleanObject const& v2)
+                        {
+                            return v1.value == v2.value;
+                        },
+                        [](StringObject const& v1, StringObject const& v2)
+                        {
+                            return v1.value == v2.value;
+                        },
+                        [](const auto&, const auto&)
+                        {
+                            return false; // Mismatched literal types
+                        }
+                    },
+                    l1.value->value,
+                    l2.value->value
+                );
             },
 
             [&](ListType const& l1, ListType const& l2)
@@ -158,7 +171,8 @@ bool TypeSystem::equal(
                 auto get_root = [](const std::string& name)
                 {
                     size_t pos = name.find('.');
-                    return pos == std::string::npos ? name : name.substr(0, pos);
+                    return pos == std::string::npos ? name
+                                                    : name.substr(0, pos);
                 };
                 return get_root(e1->name) == get_root(e2->name);
             },
@@ -239,19 +253,12 @@ bool TypeSystem::assignable(
     // Resolve Aliases
     if (lhs_type->is<TypeAlias_ptr>())
     {
-        return assignable(
-            scope,
-            lhs_type->as<TypeAlias_ptr>()->underlying_type,
-            rhs_type
-        );
+        return assignable(scope, unwrap_type_alias(lhs_type), rhs_type);
     }
+
     if (rhs_type->is<TypeAlias_ptr>())
     {
-        return assignable(
-            scope,
-            lhs_type,
-            rhs_type->as<TypeAlias_ptr>()->underlying_type
-        );
+        return assignable(scope, lhs_type, unwrap_type_alias(rhs_type));
     }
 
     if (equal(scope, lhs_type, rhs_type))
@@ -305,7 +312,7 @@ bool TypeSystem::assignable(
     }
 
     return std::visit(
-        overloaded{
+        ::overloaded{
             [](AnyType const&, const auto&)
             {
                 return true;
@@ -327,38 +334,27 @@ bool TypeSystem::assignable(
                 return true;
             },
 
-            [](IntLiteralType const& l, IntLiteralType const& r)
+            [](IntType const&, LiteralType const& r)
             {
-                return l.value == r.value;
+                return r.value->is<IntObject>();
             },
-            [](FloatLiteralType const& l, FloatLiteralType const& r)
+            [](FloatType const&, LiteralType const& r)
             {
-                return l.value == r.value;
+                return r.value->is<FloatObject>();
             },
-            [](BooleanLiteralType const& l, BooleanLiteralType const& r)
+            [](BooleanType const&, LiteralType const& r)
             {
-                return l.value == r.value;
+                return r.value->is<BooleanObject>();
             },
-            [](StringLiteralType const& l, StringLiteralType const& r)
+            [](StringType const&, LiteralType const& r)
             {
-                return l.value == r.value;
+                return r.value->is<StringObject>();
             },
 
-            [](IntType const&, IntLiteralType const&)
+            [](LiteralType const& l, LiteralType const& r)
             {
-                return true;
-            },
-            [](FloatType const&, FloatLiteralType const&)
-            {
-                return true;
-            },
-            [](BooleanType const&, BooleanLiteralType const&)
-            {
-                return true;
-            },
-            [](StringType const&, StringLiteralType const&)
-            {
-                return true;
+                // equal() would have already returned true
+                return false;
             },
 
             [&](ListType const& t1, ListType const& t2)

@@ -12,20 +12,87 @@
 
 namespace Wasp {
 
+struct BoxableLiteral : public Resolvable
+{
+    Expression_ptr construtable = nullptr;
+
+    BoxableLiteral() = default;
+};
+
+struct IntegerLiteral : public BoxableLiteral
+{
+    int value;
+
+    IntegerLiteral() = default;
+
+    explicit IntegerLiteral(int value) : value(value)
+    {
+    }
+};
+
+struct FloatLiteral : public BoxableLiteral
+{
+    double value;
+
+    FloatLiteral() = default;
+
+    explicit FloatLiteral(double value) : value(value)
+    {
+    }
+};
+
+struct StringLiteral : public BoxableLiteral
+{
+    std::string value;
+
+    StringLiteral() = default;
+
+    explicit StringLiteral(std::string value) : value(std::move(value))
+    {
+    }
+};
+
+struct BooleanLiteral : public BoxableLiteral
+{
+    bool value;
+
+    BooleanLiteral() = default;
+
+    explicit BooleanLiteral(bool value) : value(value)
+    {
+    }
+};
+
 struct NoneLiteral
 {
 };
 
-struct DotLiteral {};
-
-struct Prefix {
-    Token op;
-    Expression_ptr operand;
-    Prefix() = default;
-    Prefix(Token op, Expression_ptr operand) : op(std::move(op)), operand(std::move(operand)) {}
+struct DotLiteral : public Resolvable
+{
 };
 
-struct Infix {
+struct OperatorExpression : public Resolvable
+{
+    int overload_index = -1;
+
+    OperatorExpression() = default;
+};
+
+struct Prefix : public OperatorExpression
+{
+    Token op;
+    Expression_ptr operand;
+
+    Prefix() = default;
+
+    Prefix(Token op, Expression_ptr operand)
+        : op(std::move(op)), operand(std::move(operand))
+    {
+    }
+};
+
+struct Infix : public OperatorExpression
+{
     Expression_ptr left;
     Token op;
     Expression_ptr right;
@@ -33,37 +100,50 @@ struct Infix {
     Infix() = default;
 
     Infix(Expression_ptr left, Token op, Expression_ptr right)
-        : left(std::move(left)), op(std::move(op)), right(std::move(right)) {}
+        : left(std::move(left)), op(std::move(op)), right(std::move(right))
+    {
+    }
 };
 
-struct Postfix {
+struct Postfix : public OperatorExpression
+{
     Expression_ptr operand;
     Token op;
 
     Postfix() = default;
-    Postfix(Expression_ptr operand, Token op) : operand(std::move(operand)), op(std::move(op)) {}
+
+    Postfix(Expression_ptr operand, Token op)
+        : operand(std::move(operand)), op(std::move(op))
+    {
+    }
 };
 
-struct SequenceLiteral {
+struct SequenceLiteral : public BoxableLiteral
+{
     ExpressionVector expressions;
 
     explicit SequenceLiteral() = default;
-    explicit SequenceLiteral(ExpressionVector expressions) : expressions(std::move(expressions)) {};
+    explicit SequenceLiteral(ExpressionVector expressions)
+        : expressions(std::move(expressions)) {};
 };
 
-struct ListLiteral : public SequenceLiteral {
+struct ListLiteral : public SequenceLiteral
+{
     using SequenceLiteral::SequenceLiteral;
 };
 
-struct TupleLiteral : public SequenceLiteral {
+struct TupleLiteral : public SequenceLiteral
+{
     using SequenceLiteral::SequenceLiteral;
 };
 
-struct SetLiteral : public SequenceLiteral {
+struct SetLiteral : public SequenceLiteral
+{
     using SequenceLiteral::SequenceLiteral;
 };
 
-struct MapLiteral {
+struct MapLiteral : public BoxableLiteral
+{
     std::map<Expression_ptr, Expression_ptr> pairs;
 
     explicit MapLiteral() = default;
@@ -71,7 +151,8 @@ struct MapLiteral {
         : pairs(std::move(pairs)) {};
 };
 
-struct TypePattern {
+struct TypePattern
+{
     Expression_ptr expression;
     TypeAnnotation_ptr type_node;
 
@@ -80,7 +161,8 @@ struct TypePattern {
         : expression(std::move(expression)), type_node(std::move(type_node)) {};
 };
 
-struct VariableDefinitionExpression : public Resolvable {
+struct VariableDefinitionExpression : public Resolvable
+{
     Expression_ptr assignment;
     bool is_mutable;
 
@@ -89,7 +171,8 @@ struct VariableDefinitionExpression : public Resolvable {
         : assignment(assignment), is_mutable(is_mutable) {};
 };
 
-struct Assignment {
+struct Assignment
+{
     Expression_ptr lhs_expression;
     Expression_ptr rhs_expression;
 
@@ -98,11 +181,13 @@ struct Assignment {
         : lhs_expression(std::move(lhs_expression)), rhs_expression(std::move(rhs_expression)) {}
 };
 
-struct UntypedAssignment : public Assignment {
+struct UntypedAssignment : public Assignment
+{
     using Assignment::Assignment;
 };
 
-struct TypedAssignment : public Assignment {
+struct TypedAssignment : public Assignment
+{
     TypeAnnotation_ptr type_node;
 
     TypedAssignment() : Assignment(), type_node(nullptr) {}
@@ -118,7 +203,8 @@ struct TypedAssignment : public Assignment {
 
 struct TernaryBranch {};
 
-struct IfTernaryBranch : public TernaryBranch {
+struct IfTernaryBranch : public TernaryBranch
+{
     Expression_ptr test;
     Expression_ptr true_expression;
     Expression_ptr alternative; // IfTernaryBranch or ElseTernaryBranch
@@ -129,7 +215,8 @@ struct IfTernaryBranch : public TernaryBranch {
         : true_expression(true_expression), test(test), alternative(alternative) {};
 };
 
-struct ElseTernaryBranch : public TernaryBranch {
+struct ElseTernaryBranch : public TernaryBranch
+{
     Expression_ptr expression;
 
     ElseTernaryBranch() = default;
@@ -226,7 +313,8 @@ struct TemplateAngular : public Resolvable
 
 // Others
 
-struct RangeLiteral {
+struct RangeLiteral
+{
     Expression_ptr start;
     Expression_ptr end;
     Expression_ptr step;
@@ -249,10 +337,11 @@ struct InterpolatedString
 using ExpressionVariant = std::variant<
     std::monostate,
 
-    int,
-    double,
-    std::string,
-    bool,
+    IntegerLiteral,
+    FloatLiteral,
+    StringLiteral,
+    BooleanLiteral,
+
     NoneLiteral,
     DotLiteral,
     Identifier,

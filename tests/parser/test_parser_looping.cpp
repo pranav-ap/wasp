@@ -1,9 +1,9 @@
+#include "Expression.h"
+#include "Statement.h"
 #include "Token.h"
-#include "Lexer.h"
-#include "Parser.h"
 #include "test_utils.h"
-#include <gtest/gtest.h>
 
+#include <gtest/gtest.h>
 
 TEST(ParseLooping, WhileSingle) {
     auto block = parse(R"(while x < 10 do x = x + 1)");
@@ -14,15 +14,17 @@ TEST(ParseLooping, WhileSingle) {
         auto& condInfix = check<Wasp::Infix>(stmt.condition);
         auto& left = check<Wasp::Identifier>(condInfix.left);
         EXPECT_EQ(left.name, "x");
-        auto& right = check<int>(condInfix.right);
-        EXPECT_EQ(right, 10);
+
+        // UPDATED: Check for IntegerLiteral instead of raw int
+        auto& right = check<Wasp::IntegerLiteral>(condInfix.right);
+        EXPECT_EQ(right.value, 10);
         EXPECT_EQ(condInfix.op.type, Wasp::TokenType::LESSER_THAN);
     }
 
     {
         auto& body = check<Wasp::ExpressionStatement>(stmt.body[0]);
         auto& assign = check<Wasp::UntypedAssignment>(body.expression);
-        
+
         {
             auto& lhs = check<Wasp::Identifier>(assign.lhs_expression);
             EXPECT_EQ(lhs.name, "x");
@@ -36,8 +38,9 @@ TEST(ParseLooping, WhileSingle) {
                 auto& inner_left = check<Wasp::Identifier>(rhs.left);
                 EXPECT_EQ(inner_left.name, "x");
 
-                auto& inner_right = check<int>(rhs.right);
-                EXPECT_EQ(inner_right, 1);
+                // UPDATED: Check for IntegerLiteral instead of raw int
+                auto& inner_right = check<Wasp::IntegerLiteral>(rhs.right);
+                EXPECT_EQ(inner_right.value, 1);
             }
         }
     }
@@ -45,7 +48,7 @@ TEST(ParseLooping, WhileSingle) {
 
 TEST(ParseLooping, WhileBlock) {
     auto block = parse(R"(
-while x < 10 do 
+while x < 10 do
     x = x + 1
     y = 1
 )");
@@ -69,7 +72,7 @@ while x < 10 do
 
 TEST(ParseLooping, Continue) {
     auto block = parse(R"(
-while x < 10 do 
+while x < 10 do
     x = x + 1
     continue
 )");
@@ -87,7 +90,7 @@ while x < 10 do
 
 TEST(ParseLooping, ContinueWithExpression) {
     auto block = parse(R"(
-while x < 10 do 
+while x < 10 do
     x = x + 1
     continue x
 )");
@@ -102,4 +105,3 @@ while x < 10 do
     auto& ctrlStmt = check<Wasp::LoopControl>(body[1]);
     EXPECT_EQ(ctrlStmt.type, Wasp::TokenType::CONTINUE);
 }
-

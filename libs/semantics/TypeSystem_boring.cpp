@@ -109,12 +109,38 @@ Object_ptr TypeSystem::extract_iterable_element_type(
 
 bool TypeSystem::is_int_type(Object_ptr obj) const
 {
-    return obj->is<IntType>() || obj->is<IntLiteralType>();
+    if (!obj)
+    {
+        return false;
+    }
+    if (obj->is<IntType>())
+    {
+        return true;
+    }
+
+    if (auto* lit = obj->try_as<LiteralType>())
+    {
+        return lit->value->is<IntObject>();
+    }
+    return false;
 }
 
 bool TypeSystem::is_float_type(Object_ptr obj) const
 {
-    return obj->is<FloatType>() || obj->is<FloatLiteralType>();
+    if (!obj)
+    {
+        return false;
+    }
+    if (obj->is<FloatType>())
+    {
+        return true;
+    }
+
+    if (auto* lit = obj->try_as<LiteralType>())
+    {
+        return lit->value->is<FloatObject>();
+    }
+    return false;
 }
 
 bool TypeSystem::is_number_type(Object_ptr obj) const
@@ -124,17 +150,45 @@ bool TypeSystem::is_number_type(Object_ptr obj) const
 
 bool TypeSystem::is_string_type(Object_ptr obj) const
 {
-    return obj->is<StringType>() || obj->is<StringLiteralType>();
+    if (!obj)
+    {
+        return false;
+    }
+    if (obj->is<StringType>())
+    {
+        return true;
+    }
+
+    if (auto* lit = obj->try_as<LiteralType>())
+    {
+        return lit->value->is<StringObject>();
+    }
+    return false;
 }
 
 bool TypeSystem::is_boolean_type(Object_ptr obj) const
 {
-    return obj->is<BooleanType>() || obj->is<BooleanLiteralType>();
+    if (!obj)
+    {
+        return false;
+    }
+
+    if (obj->is<BooleanType>())
+    {
+        return true;
+    }
+
+    if (auto* lit = obj->try_as<LiteralType>())
+    {
+        return lit->value->is<BooleanObject>();
+    }
+
+    return false;
 }
 
 bool TypeSystem::is_none_type(const Object_ptr type) const
 {
-    return type && std::holds_alternative<NoneType>(type->value);
+    return type && type->is<NoneType>();
 }
 
 bool TypeSystem::is_condition_type(
@@ -143,7 +197,16 @@ bool TypeSystem::is_condition_type(
 ) const
 {
     if (!condition_type)
+    {
         return false;
+    }
+
+    Object_ptr t = condition_type;
+
+    if (t->is<TypeAlias_ptr>())
+    {
+        t = t->as<TypeAlias_ptr>()->underlying_type;
+    }
 
     return std::visit(
         ::overloaded{
@@ -151,15 +214,7 @@ bool TypeSystem::is_condition_type(
             {
                 return true;
             },
-            [](BooleanLiteralType const&)
-            {
-                return true;
-            },
             [](StringType const&)
-            {
-                return true;
-            },
-            [](StringLiteralType const&)
             {
                 return true;
             },
@@ -179,23 +234,33 @@ bool TypeSystem::is_condition_type(
             {
                 return true;
             },
-            [&](VariantType const& t)
+
+            [](LiteralType const& lit)
             {
+                return lit.value->is<BooleanObject>() ||
+                       lit.value->is<StringObject>();
+            },
+
+            [&](VariantType const& v)
+            {
+                // A variant is only a valid condition if ALL its
+                // possible types are truthy-compatible.
                 return std::all_of(
-                    t.types.begin(),
-                    t.types.end(),
+                    v.types.begin(),
+                    v.types.end(),
                     [&](Object_ptr o)
                     {
                         return is_condition_type(scope, o);
                     }
                 );
             },
+
             [](const auto&)
             {
                 return false;
             }
         },
-        condition_type->value
+        t->value
     );
 }
 

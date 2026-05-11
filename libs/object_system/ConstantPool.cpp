@@ -28,17 +28,9 @@ namespace Wasp
         objects.push_back(MAKE_OBJECT_VARIANT(StringType()));              // 3
         objects.push_back(MAKE_OBJECT_VARIANT(BooleanType()));             // 4
         objects.push_back(MAKE_OBJECT_VARIANT(NoneType()));                // 5
-        objects.push_back(MAKE_OBJECT_VARIANT(BooleanLiteralType(true)));  // 6
-        objects.push_back(MAKE_OBJECT_VARIANT(BooleanLiteralType(false))); // 7
-        objects.push_back(MAKE_OBJECT_VARIANT(BooleanObject(true)));       // 8
-        objects.push_back(MAKE_OBJECT_VARIANT(BooleanObject(false)));      // 9
-        objects.push_back(MAKE_OBJECT_VARIANT(NoneObject()));              // 10
-
-        // default values for types
-
-        objects.push_back(MAKE_OBJECT_VARIANT(IntObject(0)));         // 11
-        objects.push_back(MAKE_OBJECT_VARIANT(FloatObject(0.0)));     // 12
-        objects.push_back(MAKE_OBJECT_VARIANT(StringObject("")));     // 13
+        objects.push_back(MAKE_OBJECT_VARIANT(BooleanObject(true)));       // 6
+        objects.push_back(MAKE_OBJECT_VARIANT(BooleanObject(false)));      // 7
+        objects.push_back(MAKE_OBJECT_VARIANT(NoneObject()));              // 8
     }
 
     Object_ptr ConstantPool::get(int id) const {
@@ -49,18 +41,50 @@ namespace Wasp
         return objects[id];
     }
 
-    Object_ptr ConstantPool::get_any_type() const { return get(0); }
-    Object_ptr ConstantPool::get_int_type() const { return get(1); }
-    Object_ptr ConstantPool::get_float_type() const { return get(2); }
-    Object_ptr ConstantPool::get_string_type() const { return get(3); }
-    Object_ptr ConstantPool::get_boolean_type() const { return get(4); }
-    Object_ptr ConstantPool::get_none_type() const { return get(5); }
-    Object_ptr ConstantPool::get_true_literal_type() const { return get(6); }
-    Object_ptr ConstantPool::get_false_literal_type() const { return get(7); }
-    Object_ptr ConstantPool::get_true_object() const { return get(8); }
-    Object_ptr ConstantPool::get_false_object() const { return get(9); }
+    Object_ptr ConstantPool::get_any_type() const
+    {
+        return get(0);
+    }
 
-    Object_ptr ConstantPool::get_none_object() const { return get(10); }
+    Object_ptr ConstantPool::get_int_type() const
+    {
+        return get(1);
+    }
+
+    Object_ptr ConstantPool::get_float_type() const
+    {
+        return get(2);
+    }
+
+    Object_ptr ConstantPool::get_string_type() const
+    {
+        return get(3);
+    }
+
+    Object_ptr ConstantPool::get_boolean_type() const
+    {
+        return get(4);
+    }
+
+    Object_ptr ConstantPool::get_none_type() const
+    {
+        return get(5);
+    }
+
+    Object_ptr ConstantPool::get_true_object() const
+    {
+        return get(6);
+    }
+
+    Object_ptr ConstantPool::get_false_object() const
+    {
+        return get(7);
+    }
+
+    Object_ptr ConstantPool::get_none_object() const
+    {
+        return get(8);
+    }
 
     Object_ptr ConstantPool::make_object(bool value) const
     {

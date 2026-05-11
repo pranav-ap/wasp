@@ -4,14 +4,16 @@ class Int
 
 template
     T: any
+
 class List
-    values: [T]
+    values: native [T]
 
 
 
 template
     K: str | int
     V: any
+
 class MapItem
     key: K
     value: V
@@ -20,6 +22,7 @@ class MapItem
 template
     K: str | int
     V: any
+
 class Map
     items: [MapItem<K, V>]
 

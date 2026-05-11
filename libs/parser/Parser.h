@@ -42,7 +42,6 @@ private:
 
     Statement_ptr parse_variable_definition(bool is_mutable);
     Statement_ptr parse_alias_definition();
-    Statement_ptr parse_annotation_definition();
 
     Statement_ptr parse_function_definition(
         int indent_level,
@@ -50,6 +49,8 @@ private:
         bool is_our = false,
         bool is_pure = false
     );
+
+    Statement_ptr parse_operator_definition(int indent_level);
 
     Statement_ptr parse_enum_definition(int indent_level = 0);
     EnumDefinition parse_enum_body(std::string name, int indent_level);

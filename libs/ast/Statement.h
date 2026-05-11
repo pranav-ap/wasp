@@ -145,6 +145,31 @@ struct MethodDefinition : public AbstractFunctionDefinition
     }
 };
 
+struct OperatorDefinition : public AbstractFunctionDefinition, public Templatable
+{
+    TokenType operator_token_type;
+
+    OperatorDefinition() = default;
+
+    OperatorDefinition(
+        TokenType operator_token_type,
+        std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters,
+        TypeAnnotation_ptr return_type,
+        StatementVector body,
+        std::vector<FieldDefinition> generics = {}
+    )
+        : AbstractFunctionDefinition(
+              std::move(to_string(operator_token_type)),
+              std::move(parameters),
+              std::move(return_type),
+              std::move(body),
+              true // Operators are always pure
+          ),
+          Templatable(std::move(generics)), operator_token_type(operator_token_type)
+    {
+    }
+};
+
 struct ClassDefinition : public Definition, public Templatable
 {
     StringVector traits;
@@ -199,6 +224,7 @@ struct TypeAliasDefinition : public Definition, public Templatable
     {
     }
 };
+
 struct VariableDefinition : public Definition
 {
     Expression_ptr expression;
@@ -230,16 +256,6 @@ struct EnumDefinition : public Definition
             members.emplace(member, index++);
         }
     }
-};
-
-struct AnnotationDefinition : public Definition
-{
-    ExpressionVector anno_values;
-
-    AnnotationDefinition() = default;
-
-    AnnotationDefinition(std::string name, ExpressionVector anno_values)
-        : Definition(std::move(name)), anno_values(std::move(anno_values)) {};
 };
 
 // Branching
@@ -424,12 +440,11 @@ using StatementVariant = std::variant<
 
     FunctionDefinition,
     MethodDefinition,
+    OperatorDefinition,
 
     FieldDefinition,
     ClassDefinition,
     TraitDefinition,
-
-    AnnotationDefinition,
 
     SimpleImport,
     FromImport,

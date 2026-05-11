@@ -10,22 +10,22 @@ TEST(ParseBranching, TernaryExpression)
 
     auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
 
-    auto &ternary = check<Wasp::IfTernaryBranch>(stmt.expression);
-    ASSERT_NE(ternary.test, nullptr) << "Ternary test condition is null";
-    ASSERT_TRUE(ternary.test->is<bool>());
-    EXPECT_EQ(ternary.test->as<bool>(), true);
+    auto& ternary = check<Wasp::IfTernaryBranch>(stmt.expression);
+    ASSERT_NE(ternary.test, nullptr);
+    ASSERT_TRUE(ternary.test->is<Wasp::BooleanLiteral>());
+    EXPECT_EQ(ternary.test->as<Wasp::BooleanLiteral>().value, true);
 
-    ASSERT_NE(ternary.true_expression, nullptr) << "Ternary true_expression is null";
-    ASSERT_TRUE(ternary.true_expression->is<int>());
-    EXPECT_EQ(ternary.true_expression->as<int>(), 1);
+    ASSERT_NE(ternary.true_expression, nullptr);
+    ASSERT_TRUE(ternary.true_expression->is<Wasp::IntegerLiteral>());
+    EXPECT_EQ(ternary.true_expression->as<Wasp::IntegerLiteral>().value, 1);
 
-    ASSERT_NE(ternary.alternative, nullptr) << "Ternary alternative is null";
+    ASSERT_NE(ternary.alternative, nullptr);
     ASSERT_TRUE(ternary.alternative->is<Wasp::ElseTernaryBranch>());
 
-    auto &elseTernary = ternary.alternative->as<Wasp::ElseTernaryBranch>();
-    ASSERT_NE(elseTernary.expression, nullptr) << "Else branch inner expression is null";
-    ASSERT_TRUE(elseTernary.expression->is<int>());
-    EXPECT_EQ(elseTernary.expression->as<int>(), 2);
+    auto& elseTernary = ternary.alternative->as<Wasp::ElseTernaryBranch>();
+    ASSERT_NE(elseTernary.expression, nullptr);
+    ASSERT_TRUE(elseTernary.expression->is<Wasp::IntegerLiteral>());
+    EXPECT_EQ(elseTernary.expression->as<Wasp::IntegerLiteral>().value, 2);
 }
 
 TEST(ParseBranching, TernaryLetExpression)
@@ -40,36 +40,36 @@ TEST(ParseBranching, TernaryLetExpression)
     auto &assign = check<Wasp::UntypedAssignment>(letExpr.assignment);
     auto &identifier = check<Wasp::Identifier>(assign.lhs_expression);
     EXPECT_EQ(identifier.name, "x");
-    auto &assign_value = check<int>(assign.rhs_expression);
-    EXPECT_EQ(assign_value, 1);
+    auto& assign_value = check<Wasp::IntegerLiteral>(assign.rhs_expression);
+    EXPECT_EQ(assign_value.value, 1);
 
     // TRUE Branch
-    auto &true_val = check<int>(ternary.true_expression);
-    EXPECT_EQ(true_val, 1);
+    auto& true_val = check<Wasp::IntegerLiteral>(ternary.true_expression);
+    EXPECT_EQ(true_val.value, 1);
 
     // ELSE Branch
     auto &else_branch = check<Wasp::ElseTernaryBranch>(ternary.alternative);
-    auto &false_val = check<int>(else_branch.expression);
-    EXPECT_EQ(false_val, 2);
+    auto& false_val = check<Wasp::IntegerLiteral>(else_branch.expression);
+    EXPECT_EQ(false_val.value, 2);
 }
 
 TEST(ParseBranching, IfBlock)
 {
     auto block = parse(R"(
 if true then
-    1 
+    1
 )");
     auto& stmt = check<Wasp::IfBranch>(block[0]);
 
     auto &body = stmt.body;
     ASSERT_EQ(body.size(), 1);
 
-    auto &test = check<bool>(stmt.test);
-    EXPECT_EQ(test, true);
+    auto& test = check<Wasp::BooleanLiteral>(stmt.test);
+    EXPECT_EQ(test.value, true);
 
     auto &innerStmt = check<Wasp::ExpressionStatement>(body[0]);
-    auto &innerValue = check<int>(innerStmt.expression);
-    EXPECT_EQ(innerValue, 1);
+    auto& innerValue = check<Wasp::IntegerLiteral>(innerStmt.expression);
+    EXPECT_EQ(innerValue.value, 1);
 }
 
 TEST(ParseBranching, IfElifElseBlock)
@@ -93,8 +93,8 @@ else
 
         EXPECT_EQ(test.op.type, Wasp::TokenType::EQUAL_EQUAL);
 
-        auto &right = check<int>(test.right);
-        EXPECT_EQ(right, 25);
+        auto& right = check<Wasp::IntegerLiteral>(test.right);
+        EXPECT_EQ(right.value, 25);
     }
 
     {
@@ -114,8 +114,8 @@ else
 
         EXPECT_EQ(elif_test.op.type, Wasp::TokenType::EQUAL_EQUAL);
 
-        auto &right = check<int>(elif_test.right);
-        EXPECT_EQ(right, 30);
+        auto& right = check<Wasp::IntegerLiteral>(elif_test.right);
+        EXPECT_EQ(right.value, 30);
     }
 
     {

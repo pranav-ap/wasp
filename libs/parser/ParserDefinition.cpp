@@ -109,23 +109,6 @@ EnumDefinition Parser::parse_enum_body(std::string name, int indent_level)
 
 // Others
 
-Statement_ptr Parser::parse_annotation_definition()
-{
-    token_pipe.advance_pointer();
-
-    auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
-    auto name = name_token.value;
-
-    if (token_pipe.consume_optional_in_line(TokenType::OPEN_PARENTHESIS))
-    {
-        std::vector<Expression_ptr> args = parse_expressions();
-        token_pipe.require_in_line(TokenType::CLOSE_PARENTHESIS);
-        return make_statement(AnnotationDefinition(name, args));
-    }
-
-    return make_statement(AnnotationDefinition(name, {}));
-}
-
 Statement_ptr Parser::parse_function_definition(
     int indent_level,
     bool in_class_block,
@@ -368,6 +351,57 @@ Statement_ptr Parser::parse_template_definition(int indent_level)
     );
 
     return target;
+}
+
+Statement_ptr Parser::parse_operator_definition(int indent_level)
+{
+    // Peek at the token to see what operator it is (+, -, ==, etc.)
+    auto operator_token = token_pipe.current_in_line();
+    Doctor::get().fatal_if_nullopt(operator_token, WaspStage::Parser);
+    token_pipe.advance_pointer();
+
+    token_pipe.require_in_line(TokenType::OPEN_PARENTHESIS);
+
+    std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters;
+
+    if (!token_pipe.consume_optional(TokenType::CLOSE_PARENTHESIS))
+    {
+        while (true)
+        {
+            auto param_name_token = token_pipe.require_in_line(
+                TokenType::IDENTIFIER
+            );
+
+            token_pipe.require_in_line(TokenType::COLON);
+
+            auto param_type = parse_type();
+            parameters.push_back(make_pair(param_name_token.value, param_type));
+
+            if (token_pipe.consume_optional(TokenType::CLOSE_PARENTHESIS))
+            {
+                break;
+            }
+
+            token_pipe.require_in_line(TokenType::COMMA);
+        }
+    }
+
+    TypeAnnotation_ptr return_type = nullptr;
+    if (token_pipe.consume_optional_in_line(TokenType::ARROW))
+    {
+        return_type = parse_type();
+    }
+
+    token_pipe.require_in_line(TokenType::EOL);
+
+    StatementVector body = parse_statements_block(indent_level + 1);
+
+    return make_statement(OperatorDefinition(
+        operator_token->type,
+        std::move(parameters),
+        std::move(return_type),
+        std::move(body)
+    ));
 }
 
 } // namespace Wasp

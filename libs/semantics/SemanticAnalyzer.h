@@ -50,18 +50,21 @@ private:
 
     void visit(const Statement_ptr statement);
     void visit(StatementVector& statements);
+
     void hoist_statements(StatementVector& statements);
+    void hoist_names_and_imports(StatementVector& statements);
+    void hoist_signatures_and_generics(StatementVector& statements);
 
     void visit(ExpressionStatement& statement);
     void visit(FunctionDefinition& statement);
     void visit(MethodDefinition& statement);
+    void visit(OperatorDefinition& statement);
     void visit(ClassDefinition& statement);
     void visit(TraitDefinition& statement);
     void visit(FieldDefinition& statement);
     void visit(EnumDefinition& statement);
     void visit(VariableDefinition& statement);
     void visit(TypeAliasDefinition& statement);
-    void visit(AnnotationDefinition& statement);
     void visit(IfBranch& statement);
     void visit(ElseBranch& statement);
     void visit(SimpleLoop& statement);
@@ -82,35 +85,56 @@ private:
     Object_ptr visit(const Expression_ptr expr);
     ObjectVector visit(ExpressionVector expressions);
 
-    Object_ptr visit(int expr);
-    Object_ptr visit(double expr);
-    Object_ptr visit(std::string expr);
-    Object_ptr visit(bool expr);
+    Object_ptr visit(IntegerLiteral& expr);
+    Object_ptr visit(FloatLiteral& expr);
+    Object_ptr visit(StringLiteral& expr);
+    Object_ptr visit(BooleanLiteral& expr);
     Object_ptr visit(NoneLiteral& expr);
+
     Object_ptr visit(DotLiteral& expr);
+
     Object_ptr visit(ListLiteral& expr);
     Object_ptr visit(TupleLiteral& expr);
     Object_ptr visit(MapLiteral& expr);
     Object_ptr visit(SetLiteral& expr);
     Object_ptr visit(RangeLiteral& expr);
+
     Object_ptr visit(Prefix& expr);
     Object_ptr visit(Infix& expr);
     Object_ptr visit(Postfix& expr);
+
     Object_ptr visit(Identifier& expr);
     Object_ptr visit(MemberAccess& expr);
+    Object_ptr visit(TemplateAngular& template_instantiation);
+
     Object_ptr visit(VariableDefinitionExpression& expr);
     Object_ptr visit(UntypedAssignment& expr);
     Object_ptr visit(TypedAssignment& expr);
     Object_ptr visit(TypePattern& expr);
     Object_ptr visit(IfTernaryBranch& expr);
     Object_ptr visit(ElseTernaryBranch& expr);
+
     Object_ptr visit(Call& expr);
     Object_ptr visit(Constructor& expr);
-    Object_ptr visit(TemplateAngular& template_instantiation);
 
     Object_ptr define_variable(Expression_ptr assignment_expr, bool is_mutable);
     Object_ptr mutate_variable(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
     Object_ptr mutate_member(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
+
+    Object_ptr collapse_types(const ObjectVector& types);
+    Symbol_ptr get_core_symbol(const std::string& type_name);
+
+    void desugar_literal(
+        const Expression_ptr& expr,
+        const std::string& type_alias_name
+    );
+
+    void desugar_overloaded_operator(
+        const Expression_ptr& expr,
+        Symbol_ptr operator_symbol,
+        int overload_index,
+        const std::vector<Expression_ptr>& arguments
+    );
 
     // =========================================================================
     // Call Evaluators
@@ -143,24 +167,23 @@ private:
         const ObjectVector& argument_types
     );
 
+    Object_ptr resolve_operator_overload(
+        OperatorExpression& expr,
+        const std::string& operator_name,
+        const ObjectVector& operand_types
+    );
+
     // =========================================================================
     // Type Annotation Visitors
     // =========================================================================
 
     Object_ptr visit(const TypeAnnotation_ptr type_node);
-    ObjectVector visit(TypeAnnotationVector& type_nodes);
+    ObjectVector visit(const TypeAnnotationVector& type_nodes);
 
-    Object_ptr visit(AnyTypeNode& expr);
     Object_ptr visit(NoneTypeNode& expr);
-    Object_ptr visit(IntTypeNode& expr);
-    Object_ptr visit(FloatTypeNode& expr);
-    Object_ptr visit(StringTypeNode& expr);
-    Object_ptr visit(BoolTypeNode& expr);
-    Object_ptr visit(IntLiteralTypeNode& expr);
-    Object_ptr visit(FloatLiteralTypeNode& expr);
-    Object_ptr visit(StringLiteralTypeNode& expr);
-    Object_ptr visit(BoolLiteralTypeNode& expr);
+    Object_ptr visit(NativeTypeNode& expr);
     Object_ptr visit(TypeIdentifierNode& expr);
+    Object_ptr visit(LiteralTypeNode& expr);
     Object_ptr visit(ListTypeNode& expr);
     Object_ptr visit(TupleTypeNode& expr);
     Object_ptr visit(SetTypeNode& expr);

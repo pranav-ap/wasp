@@ -165,8 +165,10 @@ TEST(ParseExpressions, PipeOutput) {
             ASSERT_EQ(bar_call.arguments.size(), 2);
 
             auto& bar_arg1 = check<Wasp::DotLiteral>(bar_call.arguments[0]);
-            auto& bar_arg2 = check<int>(bar_call.arguments[1]);
-            EXPECT_EQ(bar_arg2, 35);
+
+            // UPDATED: Use IntegerLiteral here!
+            auto& bar_arg2 = check<Wasp::IntegerLiteral>(bar_call.arguments[1]);
+            EXPECT_EQ(bar_arg2.value, 35);
         }
 
         {

@@ -1,14 +1,18 @@
 from core.io import print
+from core.types import int, Int, str, String
 
 
-class Animal
-    fun say(i: int)
-        print('hi')
-
-        i += 1
-        if i < 5 then
-            my.say(i)
+operator + (left: Int, right: Int) => Int
+    return Int(left.value + right.value)
 
 
-let a = Animal()
-a.say(0)
+let x: int = 1
+x.repr()
+
+
+let y: int = 2
+y.repr()
+
+let z: int = x + y
+z.repr()
+

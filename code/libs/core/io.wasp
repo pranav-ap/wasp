@@ -1,8 +1,4 @@
-fun print(value: int | float | str | bool)
+fun print(value: @int | @float | @str)
     native
 
-fun input() => str
-    native
 
-fun input(prompt: str) => str
-    native

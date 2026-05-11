@@ -67,20 +67,6 @@ FunctionBlueprintObject_ptr Compiler::run(
     return std::make_shared<FunctionBlueprintObject>(flatten(), module_path);
 }
 
-// void Compiler::emit_exports()
-// {
-//     int export_count = 0;
-//     for (const auto& sym : stack)
-//     {
-//         if (sym->is_exportable())
-//         {
-//             emit(OpCode::GET_LOCAL, resolve_local(sym->id), sym->name);
-//             export_count++;
-//         }
-//     }
-//     emit(OpCode::EXIT_MODULE, export_count);
-// }
-
 void Compiler::emit_exports()
 {
     auto mod = workspace->get_module(module_path);

@@ -2,6 +2,7 @@
 #include "CFGraph.h"
 #include "Compiler.h"
 #include "Doctor.h"
+#include "Expression.h"
 #include "Objects.h"
 #include "OpCode.h"
 #include "Statement.h"
@@ -22,6 +23,67 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
+
+void Compiler::visit(VariableDefinition& statement)
+{
+    compile_variable_definition(statement.expression, false);
+}
+
+void Compiler::visit(VariableDefinitionExpression& expr)
+{
+    compile_variable_definition(expr.assignment, true);
+}
+
+void Compiler::compile_variable_definition(
+    const Expression_ptr& assignment,
+    bool as_expression
+)
+{
+    Doctor::get().fatal_if_nullptr(assignment, WaspStage::Compiler);
+
+    Expression_ptr lhs = nullptr;
+    Expression_ptr rhs = nullptr;
+
+    if (assignment->is<UntypedAssignment>())
+    {
+        const auto& assign = assignment->as<UntypedAssignment>();
+        lhs = assign.lhs_expression;
+        rhs = assign.rhs_expression;
+    }
+    else if (assignment->is<TypedAssignment>())
+    {
+        const auto& assign = assignment->as<TypedAssignment>();
+        lhs = assign.lhs_expression;
+        rhs = assign.rhs_expression;
+    }
+    else
+    {
+        Doctor::get().fatal(
+            WaspStage::Compiler,
+            "Invalid definition assignment type"
+        );
+    }
+
+    visit(rhs);
+
+    Doctor::get().assert(
+        lhs->is<Identifier>(),
+        WaspStage::Compiler,
+        "Left-hand side of definition must be an Identifier"
+    );
+
+    auto symbol = lhs->as<Identifier>().symbol;
+    Doctor::get().fatal_if_nullptr(symbol, WaspStage::Compiler);
+
+    int physical_index = get_or_add_local_index(symbol);
+
+    emit(OpCode::SET_LOCAL, physical_index, symbol->name);
+
+    if (as_expression)
+    {
+        emit(OpCode::GET_LOCAL, physical_index, symbol->name);
+    }
+}
 
 void Compiler::visit(Return& statement)
 {
@@ -65,6 +127,39 @@ void Compiler::visit(FunctionDefinition& def)
     }
 
     std::string debug_prefix = def.is_pure ? "pure fun " : "fun ";
+    emit(OpCode::STORE_FUNCTION_OVERLOAD, physical_index, debug_prefix + def.name);
+}
+
+void Compiler::visit(OperatorDefinition& def)
+{
+    bool is_new_declaration = (resolve_local(def.group_symbol->id) == -1);
+
+    int physical_index = get_or_add_local_index(def.group_symbol);
+
+    if (is_new_declaration)
+    {
+        emit(OpCode::PUSH_EMPTY_OVERLOAD_GROUP);
+        emit(
+            OpCode::SET_LOCAL,
+            physical_index,
+            "reserve slot for operator " + def.name
+        );
+    }
+
+    if (def.symbol->is_native())
+    {
+        std::string mangled = mangle_name(def.name, "", def.symbol->module_path);
+
+        int registry_id = workspace->native_registry->get_native_index(mangled);
+        emit(OpCode::GET_NATIVE, registry_id, mangled);
+    }
+    else
+    {
+        // Compile the actual operator body
+        compile_function_closure(def.name, def.parameter_symbols, def.body);
+    }
+
+    std::string debug_prefix = "operator " + def.name;
     emit(OpCode::STORE_FUNCTION_OVERLOAD, physical_index, debug_prefix + def.name);
 }
 
@@ -196,10 +291,14 @@ void Compiler::visit(EnumDefinition& def)
 
 void Compiler::visit(TypeAliasDefinition& def)
 {
-}
+    int physical_index = get_or_add_local_index(def.symbol);
 
-void Compiler::visit(AnnotationDefinition& statement)
-{
+    if (physical_index != -1)
+    {
+        // Fill the slot with a dummy value so the VM stack stays synchronized
+        emit(OpCode::LOAD_NONE);
+        emit(OpCode::SET_LOCAL, physical_index, "compile-time alias: " + def.name);
+    }
 }
 
 void Compiler::visit(MethodDefinition& statement)
