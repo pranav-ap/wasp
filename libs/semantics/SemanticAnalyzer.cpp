@@ -2,13 +2,16 @@
 #include "AST.h"
 #include "Doctor.h"
 #include "Objects.h"
+#include "Statement.h"
 #include "SymbolScope.h"
+#include "Token.h"
 #include "Workspace.h"
 
 #include <algorithm>
 #include <ctime>
 #include <memory>
 #include <string>
+#include <utility>
 #include <variant>
 #include <vector>
 
