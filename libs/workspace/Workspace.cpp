@@ -142,14 +142,7 @@ Object_ptr Symbol::get_type()
             },
             [](const TypeAliasData& d) -> Object_ptr
             {
-                auto t = d.type;
-
-                while (t->is<TypeAlias_ptr>())
-                {
-                    t = t->as<TypeAlias_ptr>()->underlying_type;
-                }
-
-                return t;
+                return d.type;
             },
             [](const EnumData& d) -> Object_ptr
             {

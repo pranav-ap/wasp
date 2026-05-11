@@ -54,28 +54,32 @@ void Compiler::visit(const Expression_ptr expr)
     );
 }
 
-void Compiler::visit(int expr)
+void Compiler::visit(IntegerLiteral& expr)
 {
     emit(
         OpCode::LOAD_CONST,
-        workspace->pool->allocate(expr),
-        std::to_string(expr)
+        workspace->pool->allocate(expr.value),
+        std::to_string(expr.value)
     );
 }
 
-void Compiler::visit(double expr)
+void Compiler::visit(FloatLiteral& expr)
 {
-    emit(OpCode::LOAD_CONST, workspace->pool->allocate(expr), std::to_string(expr));
+    emit(
+        OpCode::LOAD_CONST,
+        workspace->pool->allocate(expr.value),
+        std::to_string(expr.value)
+    );
 }
 
-void Compiler::visit(std::string expr)
+void Compiler::visit(StringLiteral& expr)
 {
-    emit(OpCode::LOAD_CONST, workspace->pool->allocate(expr), expr);
+    emit(OpCode::LOAD_CONST, workspace->pool->allocate(expr.value), expr.value);
 }
 
-void Compiler::visit(bool expr)
+void Compiler::visit(BooleanLiteral& expr)
 {
-    emit(expr ? OpCode::LOAD_TRUE : OpCode::LOAD_FALSE);
+    emit(expr.value ? OpCode::LOAD_TRUE : OpCode::LOAD_FALSE);
 }
 
 void Compiler::visit(UntypedAssignment& expr)

@@ -167,11 +167,9 @@ private:
     ObjectVector visit(const TypeAnnotationVector& type_nodes);
 
     Object_ptr visit(NoneTypeNode& expr);
-    Object_ptr visit(IntLiteralTypeNode& expr);
-    Object_ptr visit(FloatLiteralTypeNode& expr);
-    Object_ptr visit(StringLiteralTypeNode& expr);
-    Object_ptr visit(BoolLiteralTypeNode& expr);
+    Object_ptr visit(NativeTypeNode& expr);
     Object_ptr visit(TypeIdentifierNode& expr);
+    Object_ptr visit(LiteralTypeNode& expr);
     Object_ptr visit(ListTypeNode& expr);
     Object_ptr visit(TupleTypeNode& expr);
     Object_ptr visit(SetTypeNode& expr);

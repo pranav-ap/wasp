@@ -145,10 +145,10 @@ private:
     void visit(const Expression_ptr expr);
     void visit(std::vector<Expression_ptr>& expressions);
 
-    void visit(int expr);
-    void visit(double expr);
-    void visit(std::string expr);
-    void visit(bool expr);
+    void visit(IntegerLiteral& expr);
+    void visit(FloatLiteral& expr);
+    void visit(StringLiteral& expr);
+    void visit(BooleanLiteral& expr);
 
     void visit(DotLiteral& expr);
 

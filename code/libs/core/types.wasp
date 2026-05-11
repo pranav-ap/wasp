@@ -1,0 +1,12 @@
+from my.io import print
+
+
+class Int
+    value: @int
+
+    fun repr()
+        print(my.value)
+
+
+type int = Int
+

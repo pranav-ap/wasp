@@ -69,58 +69,14 @@ Object_ptr SemanticAnalyzer::define_variable(
 
     std::string symbol_name = identifier_expr->as<Identifier>().name;
 
-    Object_ptr initializer_type = visit(rhs_expr);
-
-    auto promote = [&](Object_ptr native_type, const std::string& alias_name)
-    {
-        if (declared_type && declared_type == native_type)
-        {
-            return native_type;
-        }
-
-        // 2. Otherwise, look up the global class wrapper (e.g., `int` -> `Int`)
-        if (auto wrapper_sym = current_scope->lookup(alias_name)->resolve())
-        {
-            return unwrap_type_alias(wrapper_sym->get_type());
-        }
-
-        // Fallback if the standard library isn't loaded
-        return native_type;
-    };
-
-    if (initializer_type->is<IntLiteralType>())
-    {
-        initializer_type = promote(
-            workspace->pool->get_native_int_type(),
-            "int"
-        );
-    }
-    else if (initializer_type->is<FloatLiteralType>())
-    {
-        initializer_type = promote(
-            workspace->pool->get_native_float_type(),
-            "float"
-        );
-    }
-    else if (initializer_type->is<StringLiteralType>())
-    {
-        initializer_type = promote(
-            workspace->pool->get_native_string_type(),
-            "str"
-        );
-    }
-    else if (initializer_type->is<BooleanLiteralType>())
-    {
-        initializer_type = promote(workspace->pool->get_boolean_type(), "bool");
-    }
-
-    Object_ptr resolved_type = initializer_type;
+    Object_ptr resolved_type = visit(rhs_expr);
+    resolved_type = unwrap_type_alias(resolved_type);
 
     if (declared_type)
     {
         Doctor::get().assert(
             type_system
-                ->assignable(current_scope, declared_type, initializer_type),
+                ->assignable(current_scope, declared_type, resolved_type),
             WaspStage::Semantics,
             "Type mismatch in variable definition for " + symbol_name
         );
@@ -321,13 +277,13 @@ void SemanticAnalyzer::visit(TypeAliasDefinition& def)
         "Type alias symbol has no type"
     );
 
-    auto type_alias = type_alias_obj->as<TypeAlias_ptr>();
+    auto type_alias_type = type_alias_obj->as<TypeAlias_ptr>();
     bool has_generics = !def.generics.empty();
 
     if (has_generics)
     {
         enter_scope(ScopeType::TEMPLATE);
-        for (const auto& [name, generic_type] : type_alias->generics)
+        for (const auto& [name, generic_type] : type_alias_type->generics)
         {
             current_scope->define(
                 SymbolFactory::create_generic(name, generic_type)
@@ -336,7 +292,7 @@ void SemanticAnalyzer::visit(TypeAliasDefinition& def)
     }
 
     Object_ptr aliased_type = visit(def.ref_type);
-    type_alias->underlying_type = aliased_type;
+    type_alias_type->underlying_type = aliased_type;
 
     if (has_generics)
     {

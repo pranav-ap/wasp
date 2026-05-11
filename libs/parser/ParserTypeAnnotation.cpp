@@ -1,5 +1,6 @@
 #include "AST.h"
 #include "Doctor.h"
+#include "Expression.h"
 #include "Parser.h"
 #include "Token.h"
 #include "TypeAnnotation.h"
@@ -37,7 +38,8 @@ TypeAnnotation_ptr Parser::parse_type()
     while (true)
     {
         TypeAnnotation_ptr type;
-        bool is_native = token_pipe.consume_optional_in_line(TokenType::NATIVE)
+
+        bool is_native = token_pipe.consume_optional_in_line(TokenType::AT_SIGN)
                              .has_value();
 
         if (token_pipe.consume_optional_in_line(TokenType::OPEN_SQUARE_BRACKET))
@@ -83,43 +85,7 @@ TypeAnnotation_ptr Parser::parse_type()
 
         if (is_native)
         {
-            TypeAnnotation_ptr target = type;
-
-            if (auto* node = target->try_as<TypeIdentifierNode>())
-            {
-                node->is_native = true;
-            }
-            else if (
-                auto* node = target->try_as<std::shared_ptr<ListTypeNode>>()
-            )
-            {
-                (*node)->is_native = true;
-            }
-            else if (
-                auto* node = target->try_as<std::shared_ptr<TupleTypeNode>>()
-            )
-            {
-                (*node)->is_native = true;
-            }
-            else if (
-                auto* node = target->try_as<std::shared_ptr<SetTypeNode>>()
-            )
-            {
-                (*node)->is_native = true;
-            }
-            else if (
-                auto* node = target->try_as<std::shared_ptr<MapTypeNode>>()
-            )
-            {
-                (*node)->is_native = true;
-            }
-            else
-            {
-                Doctor::get().fatal(
-                    WaspStage::Parser,
-                    "The 'native' keyword cannot be applied to this type."
-                );
-            }
+            type = make_type_annotation(NativeTypeNode(type));
         }
 
         variant_types.push_back(type);
@@ -152,25 +118,35 @@ TypeAnnotation_ptr Parser::consume_datatype_word()
     case TokenType::NUMBER_LITERAL: {
         token_pipe.advance_pointer();
         auto value = std::stod(token->value);
+        Expression_ptr literal_expr;
+
         if (std::fmod(value, 1.0) == 0.0)
         {
-            return make_type_annotation(
-                IntLiteralTypeNode{static_cast<int>(value)}
+            literal_expr = make_expression(
+                IntegerLiteral{static_cast<int>(value)}
             );
         }
-        return make_type_annotation(FloatLiteralTypeNode{value});
+        else
+        {
+            literal_expr = make_expression(FloatLiteral{value});
+        }
+
+        return make_type_annotation(LiteralTypeNode{std::move(literal_expr)});
     }
     case TokenType::STRING_LITERAL: {
         token_pipe.advance_pointer();
-        return make_type_annotation(StringLiteralTypeNode{token->value});
+        auto literal_expr = make_expression(StringLiteral{token->value});
+        return make_type_annotation(LiteralTypeNode{std::move(literal_expr)});
     }
     case TokenType::TRUE_KEYWORD: {
         token_pipe.advance_pointer();
-        return make_type_annotation(BoolLiteralTypeNode{true});
+        auto literal_expr = make_expression(BooleanLiteral{true});
+        return make_type_annotation(LiteralTypeNode{std::move(literal_expr)});
     }
     case TokenType::FALSE_KEYWORD: {
         token_pipe.advance_pointer();
-        return make_type_annotation(BoolLiteralTypeNode{false});
+        auto literal_expr = make_expression(BooleanLiteral{false});
+        return make_type_annotation(LiteralTypeNode{std::move(literal_expr)});
     }
     case TokenType::IDENTIFIER: {
         token_pipe.advance_pointer();
@@ -187,6 +163,7 @@ TypeAnnotation_ptr Parser::consume_datatype_word()
             token->line,
             token->column
         );
+        return nullptr;
     }
     }
 }

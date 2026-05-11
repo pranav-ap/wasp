@@ -1,35 +1,15 @@
-fun print(value: native int | native float | native str | native bool)
-    native
+from core.io import print
+from core.types import Int
+from core.types import int
 
-fun print(item: Int)
-    print('inside overload')
-    print(item.value)
+# operator + (left: Int, right: Int) => Int
+#     return Int(left.value + right.value)
 
-
-fun input() => native str
-    native
-
-fun input(prompt: native str) => native str
-    native
-
-
-class Int
-    value: native int
-
-    fun repr()
-        print(my.value)
-
-
-type int = Int
-
-
-operator + (left: Int, right: Int) => Int
-    return Int(left.value + right.value)
 
 
 let x: int = 1
-print(x)
-# x.repr()
+# print(x)
+x.repr()
 
 
 # let y: int = 2

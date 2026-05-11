@@ -30,10 +30,10 @@ namespace Wasp
         Object_ptr get(int id) const;
         size_t get_size() const { return objects.size(); }
 
-        Object_ptr get_native_any_type() const;
-        Object_ptr get_native_int_type() const;
-        Object_ptr get_native_float_type() const;
-        Object_ptr get_native_string_type() const;
+        Object_ptr get_any_type() const;
+        Object_ptr get_int_type() const;
+        Object_ptr get_float_type() const;
+        Object_ptr get_string_type() const;
         Object_ptr get_boolean_type() const;
         Object_ptr get_none_type() const;
 

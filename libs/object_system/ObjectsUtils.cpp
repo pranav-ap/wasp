@@ -82,29 +82,46 @@ bool are_equal_types_unordered(ObjectVector left_vector, ObjectVector right_vect
 bool are_equal_types(Object_ptr left, Object_ptr right)
 {
     if (!left || !right)
+    {
         return false;
+    }
 
-    // Quick exit if they point to the exact same memory
     if (left == right)
+    {
         return true;
+    }
 
     return std::visit(
         overloaded{
-            [](const IntLiteralType& l, const IntLiteralType& r)
+            [](const LiteralType& l, const LiteralType& r)
             {
-                return l.value == r.value;
-            },
-            [](const FloatLiteralType& l, const FloatLiteralType& r)
-            {
-                return l.value == r.value;
-            },
-            [](const BooleanLiteralType& l, const BooleanLiteralType& r)
-            {
-                return l.value == r.value;
-            },
-            [](const StringLiteralType& l, const StringLiteralType& r)
-            {
-                return l.value == r.value;
+                return std::visit(
+                    overloaded{
+                        [](const IntObject& v1, const IntObject& v2)
+                        {
+                            return v1.value == v2.value;
+                        },
+                        [](const FloatObject& v1, const FloatObject& v2)
+                        {
+                            return v1.value == v2.value;
+                        },
+                        [](const BooleanObject& v1, const BooleanObject& v2)
+                        {
+                            return v1.value == v2.value;
+                        },
+                        [](const StringObject& v1, const StringObject& v2)
+                        {
+                            return v1.value == v2.value;
+                        },
+                        // Mismatched literal types
+                        [](const auto&, const auto&)
+                        {
+                            return false;
+                        }
+                    },
+                    l.value->value,
+                    r.value->value
+                );
             },
 
             [](const ListType& l, const ListType& r)
@@ -129,14 +146,15 @@ bool are_equal_types(Object_ptr left, Object_ptr right)
                        are_equal_types(l.value_type, r.value_type);
             },
 
-            // --- Signature replaces Function/Method Type ---
             [](const Signature_ptr& l, const Signature_ptr& r)
             {
-                return are_equal_types(l->parameter_types, r->parameter_types) &&
+                return are_equal_types(
+                           l->parameter_types,
+                           r->parameter_types
+                       ) &&
                        are_equal_types(l->return_type, r->return_type);
             },
 
-            // --- Nominal Types (Equality by Name) ---
             [](const NamedDefinitionType& l, const NamedDefinitionType& r)
             {
                 return l.name == r.name;
@@ -166,8 +184,9 @@ bool are_equal_types(Object_ptr left, Object_ptr right)
                 return l->name == r->name;
             },
 
-            // Catch-all for identical types that don't need manual value checking
-            // e.g., IntObject, FloatType
+            // Catch-all for identical types that don't need manual value
+            // checking
+            // e.g., IntType, FloatType, AnyType
             []<typename T>(const T&, const T&)
             {
                 return true;
@@ -192,14 +211,15 @@ bool are_equal_types(Object_ptr left, Object_ptr right)
 Object_ptr convert_type(Object_ptr type, Object_ptr operand)
 {
     Doctor::get().fatal(WaspStage::VM, "convert_type is not implemented yet");
-
-    return nullptr;
 }
 
 std::string stringify_object(Object_ptr value)
 {
-    Doctor::get()
-        .fatal_if_nullptr(value, WaspStage::VM, "Attempted to stringify a null object pointer");
+    Doctor::get().fatal_if_nullptr(
+        value,
+        WaspStage::VM,
+        "Attempted to stringify a null object pointer"
+    );
 
     return std::visit(
         overloaded{
@@ -248,22 +268,10 @@ std::string stringify_object(Object_ptr value)
                 return obj.value ? "true" : "false";
             },
 
-            // Literal Types
-            [](const IntLiteralType&) -> std::string
+            // Unified Literal Type
+            [](const LiteralType& lit) -> std::string
             {
-                return "int literal type";
-            },
-            [](const FloatLiteralType&) -> std::string
-            {
-                return "float literal type";
-            },
-            [](const StringLiteralType&) -> std::string
-            {
-                return "string literal type";
-            },
-            [](const BooleanLiteralType&) -> std::string
-            {
-                return "boolean literal type";
+                return "literal type: " + stringify_object(lit.value);
             },
 
             // Scalar Types
@@ -344,7 +352,9 @@ std::string stringify_object(Object_ptr value)
                 {
                     res += stringify_object(obj->values[i]);
                     if (i < obj->values.size() - 1)
+                    {
                         res += ", ";
+                    }
                 }
                 return res + "]";
             },
@@ -355,7 +365,9 @@ std::string stringify_object(Object_ptr value)
                 {
                     res += stringify_object(obj->values[i]);
                     if (i < obj->values.size() - 1)
+                    {
                         res += ", ";
+                    }
                 }
                 return res + ")";
             },
@@ -367,7 +379,9 @@ std::string stringify_object(Object_ptr value)
                 {
                     res += stringify_object(*it);
                     if (++it != obj->values.end())
+                    {
                         res += ", ";
+                    }
                 }
                 return res + "}";
             },
@@ -377,9 +391,12 @@ std::string stringify_object(Object_ptr value)
                 auto it = obj->pairs.begin();
                 while (it != obj->pairs.end())
                 {
-                    res += stringify_object(it->first) + ": " + stringify_object(it->second);
+                    res += stringify_object(it->first) + ": " +
+                           stringify_object(it->second);
                     if (++it != obj->pairs.end())
+                    {
                         res += ", ";
+                    }
                 }
                 return res + "}";
             },
@@ -521,21 +538,33 @@ std::string mangle_object(Object_ptr value)
                 return obj.value ? "Ob1" : "Ob0";
             },
 
-            [](const IntLiteralType&) -> std::string
+            [](const LiteralType& lit) -> std::string
             {
-                return "li";
-            },
-            [](const FloatLiteralType&) -> std::string
-            {
-                return "lf";
-            },
-            [](const StringLiteralType&) -> std::string
-            {
-                return "ls";
-            },
-            [](const BooleanLiteralType&) -> std::string
-            {
-                return "lb";
+                return std::visit(
+                    overloaded{
+                        [](const IntObject&) -> std::string
+                        {
+                            return "li";
+                        },
+                        [](const FloatObject&) -> std::string
+                        {
+                            return "lf";
+                        },
+                        [](const StringObject&) -> std::string
+                        {
+                            return "ls";
+                        },
+                        [](const BooleanObject&) -> std::string
+                        {
+                            return "lb";
+                        },
+                        [](const auto&) -> std::string
+                        {
+                            return "lu";
+                        } // Unknown literal
+                    },
+                    lit.value->value
+                );
             },
 
             [](const IntType&) -> std::string
@@ -609,20 +638,6 @@ std::string mangle_object(Object_ptr value)
         },
         value->value
     );
-}
-
-bool is_native_type(Object_ptr type)
-{
-    if (type == nullptr)
-    {
-        return false;
-    }
-
-    return type->is<IntType>() || type->is<FloatType>() ||
-           type->is<StringType>() || type->is<BooleanType>() ||
-           type->is<AnyType>() || type->is<IntLiteralType>() ||
-           type->is<FloatLiteralType>() || type->is<StringLiteralType>() ||
-           type->is<BooleanLiteralType>();
 }
 
 Object_ptr unwrap_type_alias(Object_ptr type)

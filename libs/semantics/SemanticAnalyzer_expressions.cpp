@@ -182,16 +182,16 @@ Object_ptr SemanticAnalyzer::visit(Prefix& expr)
 {
     Object_ptr operand_type = visit(expr.operand);
 
-    if (operand_type->is<NativeType_ptr>())
+    if (operand_type->is<ClassType_ptr>() || operand_type->is<TraitType_ptr>())
     {
-        return type_system->infer(current_scope, operand_type, expr.op.type);
+        return resolve_operator_overload(
+            expr,
+            to_string(expr.op.type),
+            {operand_type}
+        );
     }
 
-    return resolve_operator_overload(
-        expr,
-        to_string(expr.op.type),
-        {operand_type}
-    );
+    return type_system->infer(current_scope, operand_type, expr.op.type);
 }
 
 Object_ptr SemanticAnalyzer::visit(Infix& expr)
@@ -199,34 +199,38 @@ Object_ptr SemanticAnalyzer::visit(Infix& expr)
     Object_ptr left_type = visit(expr.left);
     Object_ptr right_type = visit(expr.right);
 
-    if (left_type->is<NativeType_ptr>() && right_type->is<NativeType_ptr>())
+    bool left_is_oop = left_type->is<ClassType_ptr>() ||
+                       left_type->is<TraitType_ptr>();
+    bool right_is_oop = right_type->is<ClassType_ptr>() ||
+                        right_type->is<TraitType_ptr>();
+
+    if (left_is_oop || right_is_oop)
     {
-        return type_system
-            ->infer(current_scope, left_type, expr.op.type, right_type);
+        return resolve_operator_overload(
+            expr,
+            to_string(expr.op.type),
+            {left_type, right_type}
+        );
     }
 
-    return resolve_operator_overload(
-        expr,
-        to_string(expr.op.type),
-        {left_type, right_type}
-    );
+    return type_system
+        ->infer(current_scope, left_type, expr.op.type, right_type);
 }
 
 Object_ptr SemanticAnalyzer::visit(Postfix& expr)
 {
     Object_ptr operand_type = visit(expr.operand);
 
-    if (operand_type->is<NativeType_ptr>())
+    if (operand_type->is<ClassType_ptr>() || operand_type->is<TraitType_ptr>())
     {
-        type_system->expect_number_type(operand_type);
-        return operand_type;
+        return resolve_operator_overload(
+            expr,
+            to_string(expr.op.type),
+            {operand_type}
+        );
     }
 
-    return resolve_operator_overload(
-        expr,
-        to_string(expr.op.type),
-        {operand_type}
-    );
+    return type_system->infer(current_scope, operand_type, expr.op.type);
 }
 
 // ============================================================================
@@ -290,6 +294,7 @@ Object_ptr SemanticAnalyzer::visit(RangeLiteral& expr)
     {
         type_system->expect_number_type(start_type);
     }
+
     if (end_type)
     {
         type_system->expect_number_type(end_type);
@@ -375,11 +380,14 @@ Symbol_ptr SemanticAnalyzer::resolve_target_symbol(Expression_ptr target)
         overloaded{
             [&](Identifier& id)
             {
-                target_symbol = current_scope->lookup(id.name)->resolve();
+                Symbol_ptr unresolved = current_scope->lookup(id.name);
                 Doctor::get().fatal_if_nullptr(
-                    target_symbol,
-                    WaspStage::Semantics
+                    unresolved,
+                    WaspStage::Semantics,
+                    "Undefined identifier: '" + id.name + "'"
                 );
+
+                target_symbol = unresolved->resolve();
                 bind_identifier(id, target_symbol);
             },
             [&](MemberAccess& access)
@@ -544,8 +552,14 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
         overloaded{
             [&](Identifier& identifier) -> Object_ptr
             {
-                auto symbol = current_scope->lookup(identifier.name)->resolve();
-                Doctor::get().fatal_if_nullptr(symbol, WaspStage::Semantics);
+                auto unresolved = current_scope->lookup(identifier.name);
+                Doctor::get().fatal_if_nullptr(
+                    unresolved,
+                    WaspStage::Semantics,
+                    "Undefined callable: '" + identifier.name + "'"
+                );
+
+                auto symbol = unresolved->resolve();
                 bind_identifier(identifier, symbol);
 
                 return resolve_standard_overload(call, symbol, argument_types);

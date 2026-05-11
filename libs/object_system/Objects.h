@@ -25,17 +25,6 @@ using ObjectIntMap = std::map<int, Object_ptr>;
 using StringVector = std::vector<std::string>;
 
 // ============================================================================
-// Native
-// ============================================================================
-
-struct NativeType
-{
-    Object_ptr type;
-};
-
-using NativeType_ptr = std::shared_ptr<NativeType>;
-
-// ============================================================================
 // Other
 // ============================================================================
 
@@ -72,7 +61,7 @@ struct NamedDefinitionType
 };
 
 // ============================================================================
-// Scalar & Literal Types
+// Scalar Types
 // ============================================================================
 
 struct IntType
@@ -91,24 +80,13 @@ struct BooleanType
 {
 };
 
-struct IntLiteralType
+struct LiteralType
 {
-    int value;
-};
+    Object_ptr value;
 
-struct FloatLiteralType
-{
-    double value;
-};
-
-struct StringLiteralType
-{
-    std::string value;
-};
-
-struct BooleanLiteralType
-{
-    bool value;
+    explicit LiteralType(Object_ptr value) : value(std::move(value))
+    {
+    }
 };
 
 // ============================================================================
@@ -174,7 +152,10 @@ struct Signature : public TemplatableType
         ObjectStringMap generics,
         StringVector ordered_generic_names
     )
-        : TemplatableType(std::move(generics), std::move(ordered_generic_names)),
+        : TemplatableType(
+              std::move(generics),
+              std::move(ordered_generic_names)
+          ),
           parameter_types(std::move(parameter_types)),
           return_type(std::move(return_type))
     {
@@ -192,7 +173,10 @@ struct BaseMemberedType
     std::string name;
     ObjectStringMap member_types;
 
-    explicit BaseMemberedType(std::string name, ObjectStringMap member_types = {})
+    explicit BaseMemberedType(
+        std::string name,
+        ObjectStringMap member_types = {}
+    )
         : name(std::move(name)), member_types(std::move(member_types))
     {
     }
@@ -247,7 +231,10 @@ struct BaseOOPType : public BaseMemberedType, public TemplatableType
         StringVector ordered_generic_names = {}
     )
         : BaseMemberedType(std::move(name), std::move(members)),
-          TemplatableType(std::move(generics), std::move(ordered_generic_names)),
+          TemplatableType(
+              std::move(generics),
+              std::move(ordered_generic_names)
+          ),
           fields(std::move(fields)), methods(std::move(methods)),
           pures(std::move(pures)), statics(std::move(statics))
     {
@@ -425,7 +412,8 @@ struct MapObject : public IterableAbstractObject
 {
     std::map<Object_ptr, Object_ptr> pairs;
 
-    MapObject(std::map<Object_ptr, Object_ptr> pairs = {}) : pairs(std::move(pairs))
+    MapObject(std::map<Object_ptr, Object_ptr> pairs = {})
+        : pairs(std::move(pairs))
     {
     }
 
@@ -464,7 +452,8 @@ struct ReturnObject
 {
     std::optional<Object_ptr> value;
 
-    ReturnObject(std::optional<Object_ptr> value = std::nullopt) : value(std::move(value))
+    ReturnObject(std::optional<Object_ptr> value = std::nullopt)
+        : value(std::move(value))
     {
     }
 };
@@ -555,7 +544,8 @@ struct MemberedCompositeObject
 {
     ObjectVector members;
 
-    MemberedCompositeObject(ObjectVector members = {}) : members(std::move(members))
+    MemberedCompositeObject(ObjectVector members = {})
+        : members(std::move(members))
     {
     }
 
@@ -579,7 +569,8 @@ struct ClassBlueprintObject : public MemberedCompositeObject
     int fields_count;
 
     ClassBlueprintObject(ObjectVector members = {}, int fields_count = 0)
-        : MemberedCompositeObject(std::move(members)), fields_count(fields_count)
+        : MemberedCompositeObject(std::move(members)),
+          fields_count(fields_count)
     {
     }
 };
@@ -631,6 +622,7 @@ struct Object
         TypeType,
 
         NoneType,
+        LiteralType,
         NamedDefinitionType,
 
         AnyType,
@@ -638,11 +630,6 @@ struct Object
         FloatType,
         StringType,
         BooleanType,
-
-        IntLiteralType,
-        FloatLiteralType,
-        StringLiteralType,
-        BooleanLiteralType,
 
         ListType,
         TupleType,
@@ -657,7 +644,6 @@ struct Object
         TraitType_ptr,
         EnumType_ptr,
         TypeAlias_ptr,
-        NativeType_ptr,
 
         GenericType_ptr>;
 
@@ -712,7 +698,10 @@ ObjectVector to_vector(std::string text);
 
 bool are_equal_types(Object_ptr left, Object_ptr right);
 bool are_equal_types(ObjectVector left_vector, ObjectVector right_vector);
-bool are_equal_types_unordered(ObjectVector left_vector, ObjectVector right_vector);
+bool are_equal_types_unordered(
+    ObjectVector left_vector,
+    ObjectVector right_vector
+);
 
 Object_ptr convert_type(Object_ptr type, Object_ptr operand);
 Object_ptr unwrap_type_alias(Object_ptr type);
