@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -89,8 +90,6 @@ Statement_ptr Parser::parse_statement(int expected_indent_level)
 
     case TokenType::IMPORT:
         return parse_import();
-    case TokenType::FROM:
-        return parse_from_import();
 
     default:
         return parse_expression_statement();
@@ -175,130 +174,118 @@ Statement_ptr Parser::parse_return_statement() {
 }
 
 // Imports
-
-std::pair<std::optional<TokenType>, std::vector<std::string>> Parser::parse_module_path() {
-    std::optional<TokenType> access_token = std::nullopt;
-    std::vector<std::string> path;
-
-    auto token = token_pipe.current_in_line();
-    Doctor::get().fatal_if_nullopt(token, WaspStage::Parser);
-
-    bool is_access_modifier = false;
-
-    switch (token->type) {
-    case TokenType::TOP:
-    case TokenType::PKG:
-    case TokenType::MY:
-    case TokenType::OUR:
-    case TokenType::UP:
-        access_token = token->type;
-        is_access_modifier = true;
-        break;
-    default:
-        is_access_modifier = false;
-        break;
-    }
-
-    if (is_access_modifier) {
-        token_pipe.advance_pointer();
-
-        // Handle parameterized jumps like up(2) or pkg(3)
-        if (access_token == TokenType::UP || access_token == TokenType::PKG) {
-            if (token_pipe.consume_optional_in_line(TokenType::OPEN_PARENTHESIS)) {
-                auto num = token_pipe.require_in_line(TokenType::NUMBER_LITERAL);
-                // Store depth as the first path element
-                path.push_back(num.value);
-                token_pipe.require_in_line(TokenType::CLOSE_PARENTHESIS);
-            } else {
-                // Default depth
-                path.push_back("0");
-            }
-        }
-
-        // If a dot follows, consume it and continue.
-        if (!token_pipe.consume_optional_in_line(TokenType::DOT)) {
-            return {access_token, path};
-        }
-    }
-
-    // Parse the rest of the dot-separated path
-    while (true) {
-        auto part = token_pipe.require_in_line(TokenType::IDENTIFIER);
-        path.push_back(part.value);
-
-        if (!token_pipe.consume_optional_in_line(TokenType::DOT)) {
-            break;
-        }
-    }
-
-    return {access_token, path};
-}
-
-Statement_ptr Parser::parse_import() {
-    token_pipe.advance_pointer();
-
-    auto [access_token, path] = parse_module_path();
-    std::optional<std::string> alias = std::nullopt;
-
-    if (token_pipe.consume_optional_in_line(TokenType::AS)) {
-        alias = token_pipe.require_in_line(TokenType::IDENTIFIER).value;
-    }
-
-    token_pipe.require_in_line(TokenType::EOL);
-
-    return make_statement(SimpleImport(access_token, std::move(path), std::move(alias)));
-}
-
 ImportAsPair Parser::parse_imported_symbol()
 {
     auto sym_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
     std::optional<std::string> alias = std::nullopt;
 
-    if (token_pipe.consume_optional_in_line(TokenType::AS)) {
+    if (token_pipe.consume_optional_in_line(TokenType::AS))
+    {
         alias = token_pipe.require_in_line(TokenType::IDENTIFIER).value;
     }
 
     return {sym_token.value, std::move(alias)};
 }
 
-Statement_ptr Parser::parse_from_import()
+std::tuple<std::optional<TokenType>, int, StringVector> Parser::
+    parse_module_path()
 {
+    std::optional<TokenType> access_modifier = std::nullopt;
+    int access_argument = 1; // Defaults to 1 for standard my/our/pkg/top/up
+    StringVector path;
+
+    auto current = token_pipe.current_in_line();
+
+    if (current &&
+        (current->type == TokenType::MY || current->type == TokenType::OUR ||
+         current->type == TokenType::UP || current->type == TokenType::PKG ||
+         current->type == TokenType::TOP))
+    {
+        access_modifier = current->type;
+        token_pipe.advance_pointer();
+
+        // Check for the integer argument, e.g., up(2)
+        if (token_pipe.consume_optional_in_line(TokenType::OPEN_PARENTHESIS))
+        {
+            auto num_token = token_pipe.require_in_line(
+                TokenType::NUMBER_LITERAL
+            );
+            access_argument = std::stoi(num_token.value);
+            token_pipe.require_in_line(TokenType::CLOSE_PARENTHESIS);
+        }
+
+        token_pipe.require_in_line(TokenType::DOT);
+    }
+
+    do
+    {
+        path.push_back(token_pipe.require_in_line(TokenType::IDENTIFIER).value);
+    }
+    while (token_pipe.consume_optional_in_line(TokenType::DOT));
+
+    return {access_modifier, access_argument, path};
+}
+
+Statement_ptr Parser::parse_import()
+{
+    // Consume 'import'
     token_pipe.advance_pointer();
 
-    auto [access_token, path] = parse_module_path();
+    auto [access_modifier, access_arg, path] = parse_module_path();
 
-    token_pipe.require_in_line(TokenType::IMPORT);
+    std::optional<std::string> module_alias = std::nullopt;
+    bool expose_all = false;
+    std::vector<ImportAsPair> exposed_symbols;
+    StringVector excluded_symbols;
 
-    std::vector<ImportAsPair> symbols;
-
-    // from top.engine import (Tank, Pump as FuelPump)
-    if (token_pipe.consume_optional_in_line(TokenType::OPEN_PARENTHESIS))
+    // Check for module alias (import X as x)
+    if (token_pipe.consume_optional_in_line(TokenType::AS))
     {
-        do
-        {
-            token_pipe.ignore_spaces_tabs_eols();
-            symbols.push_back(parse_imported_symbol());
-        }
-        while (token_pipe.consume_optional_in_line(TokenType::COMMA));
-
-        token_pipe.ignore_empty_lines();
-        token_pipe.require(TokenType::CLOSE_PARENTHESIS);
+        module_alias = token_pipe.require_in_line(TokenType::IDENTIFIER).value;
     }
-    // from my.fuel import Tank as T, Car as C
-    else
+
+    // Check for exposed symbols (expose a, b, c)
+    if (token_pipe.consume_optional_in_line(TokenType::EXPOSE))
     {
-        do
+        // Expose everything (*)
+        if (token_pipe.consume_optional_in_line(TokenType::STAR))
         {
-            symbols.push_back(parse_imported_symbol());
+            expose_all = true;
+
+            // Expose everything EXCEPT specific symbols
+            if (token_pipe.consume_optional_in_line(TokenType::EXCEPT))
+            {
+                do
+                {
+                    excluded_symbols.push_back(
+                        token_pipe.require_in_line(TokenType::IDENTIFIER).value
+                    );
+                }
+                while (token_pipe.consume_optional_in_line(TokenType::COMMA));
+            }
         }
-        while (token_pipe.consume_optional_in_line(TokenType::COMMA));
+        // Expose specific symbols explicitly
+        else
+        {
+            do
+            {
+                exposed_symbols.push_back(parse_imported_symbol());
+            }
+            while (token_pipe.consume_optional_in_line(TokenType::COMMA));
+        }
     }
 
     token_pipe.require_in_line(TokenType::EOL);
 
-    return make_statement(
-        FromImport(access_token, std::move(path), std::move(symbols))
-    );
+    return make_statement(Import(
+        access_modifier,
+        access_arg,
+        std::move(path),
+        std::move(module_alias),
+        expose_all,
+        std::move(exposed_symbols),
+        std::move(excluded_symbols)
+    ));
 }
 
 } // namespace Wasp

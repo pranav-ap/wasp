@@ -59,7 +59,8 @@
     X(ZIP, "<>", false)                                                        \
     X(STEP, "step", true)                                                      \
     X(IMPORT, "import", true)                                                  \
-    X(FROM, "from", true)                                                      \
+    X(EXPOSE, "expose", true)                                                  \
+    X(EXCEPT, "except", true)                                                  \
     X(IF, "if", true)                                                          \
     X(ELIF, "elif", true)                                                      \
     X(ELSE, "else", true)                                                      \

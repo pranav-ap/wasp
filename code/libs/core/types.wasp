@@ -1,4 +1,4 @@
-from my.io import print
+import my.io expose *
 
 
 class Int

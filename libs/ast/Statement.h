@@ -359,48 +359,6 @@ struct LoopControl
 
 // Imports
 
-struct AbstractImport : public Resolvable
-{
-    // std::nullopt means it's a 3rd party lib (like 'math3d')
-    // Otherwise it holds the keyword: my, our, pkg, top, or up
-    std::optional<TokenType> access_token_type;
-
-    // ["engine", "fuel"]
-    StringVector path;
-
-    std::filesystem::path absolute_path;
-
-    AbstractImport() = default;
-
-    AbstractImport(
-        std::optional<TokenType> access_token_type,
-        StringVector path
-    )
-        : access_token_type(access_token_type), path(std::move(path))
-    {
-    }
-
-    virtual ~AbstractImport() = default;
-};
-
-// import top.engine.fuel as f
-struct SimpleImport : public AbstractImport
-{
-    std::optional<std::string> alias;
-
-    SimpleImport() = default;
-
-    SimpleImport(
-        std::optional<TokenType> access_token_type,
-        StringVector path,
-        std::optional<std::string> alias = std::nullopt
-    )
-        : AbstractImport(access_token_type, std::move(path)),
-          alias(std::move(alias))
-    {
-    }
-};
-
 // Tank as FuelTank
 struct ImportAsPair : public Resolvable
 {
@@ -418,20 +376,49 @@ struct ImportAsPair : public Resolvable
     }
 };
 
-// from top.engine import Tank, Pump
-struct FromImport : public AbstractImport
+struct Import : public Resolvable
 {
-    std::vector<ImportAsPair> import_as_pairs;
+    // --- Path Resolution ---
+    // std::nullopt means it's a 3rd party lib (like 'math3d')
+    // Otherwise it holds: my, our, pkg, top, or up
+    std::optional<TokenType> access_modifier = std::nullopt;
 
-    FromImport() = default;
+    // Handles the '2' in up(2). Defaults to 1 for standard 'up' or 'pkg'.
+    int access_argument = 1;
 
-    FromImport(
-        std::optional<TokenType> access_token_type,
+    // ["engine", "fuel"]
+    StringVector path;
+    std::filesystem::path absolute_path;
+
+    // --- Module Level ---
+    // import top.engine as e
+    std::optional<std::string> module_alias = std::nullopt;
+
+    // --- Expose Level ---
+    // expose *
+    bool expose_all = false;
+
+    // expose Tank, Pump as P
+    std::vector<ImportAsPair> exposed_symbols;
+
+    // except BrokenPump
+    StringVector excluded_symbols;
+
+    Import() = default;
+
+    Import(
+        std::optional<TokenType> access_modifier,
+        int access_argument,
         StringVector path,
-        std::vector<ImportAsPair> symbols
+        std::optional<std::string> module_alias = std::nullopt,
+        bool expose_all = false,
+        std::vector<ImportAsPair> exposed_symbols = {},
+        StringVector excluded_symbols = {}
     )
-        : AbstractImport(access_token_type, std::move(path)),
-          import_as_pairs(std::move(symbols))
+        : access_modifier(access_modifier), access_argument(access_argument),
+          path(std::move(path)), module_alias(std::move(module_alias)),
+          expose_all(expose_all), exposed_symbols(std::move(exposed_symbols)),
+          excluded_symbols(std::move(excluded_symbols))
     {
     }
 };
@@ -453,8 +440,7 @@ using StatementVariant = std::variant<
     ClassDefinition,
     TraitDefinition,
 
-    SimpleImport,
-    FromImport,
+    Import,
 
     IfBranch,
     ElseBranch,

@@ -222,11 +222,11 @@ struct BaseOOPType : public BaseMemberedType, public TemplatableType
 
     explicit BaseOOPType(
         std::string name,
-        ObjectStringMap members,
-        StringVector fields,
-        StringVector methods,
-        StringVector pures,
-        StringVector statics,
+        ObjectStringMap members = {},
+        StringVector fields = {},
+        StringVector methods = {},
+        StringVector pures = {},
+        StringVector statics = {},
         ObjectStringMap generics = {},
         StringVector ordered_generic_names = {}
     )

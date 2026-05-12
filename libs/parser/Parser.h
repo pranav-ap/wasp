@@ -30,7 +30,10 @@ public:
     Expression_ptr parse_expression();
     Expression_ptr parse_expression(int precedence);
     ExpressionVector parse_expressions();
-    Expression_ptr parse_ternary_condition(TokenType token_type, Expression_ptr prev_condition);
+    Expression_ptr parse_ternary_condition(
+        TokenType token_type,
+        Expression_ptr prev_condition
+    );
 
     TypeAnnotation_ptr parse_type();
     TypeAnnotationVector parse_types();
@@ -60,7 +63,9 @@ private:
     std::tuple<std::string, std::vector<std::string>, StatementVector>
     parse_membered_definition_base(int indent_level);
     StatementVector parse_name_type_block(int expected_indent);
-    std::pair<std::string, TypeAnnotation_ptr> parse_name_type_pair(int member_indent);
+    std::pair<std::string, TypeAnnotation_ptr> parse_name_type_pair(
+        int member_indent
+    );
 
     Statement_ptr parse_template_definition(int indent_level = 0);
 
@@ -68,7 +73,10 @@ private:
     Statement_ptr parse_branching(TokenType token_type, int if_indent_level);
     Statement_ptr parse_else_block(int if_indent_level);
 
-    Statement_ptr parse_simple_loop(TokenType loop_style, int loop_indent_level);
+    Statement_ptr parse_simple_loop(
+        TokenType loop_style,
+        int loop_indent_level
+    );
     Statement_ptr parse_for_in_loop(int loop_indent_level);
 
     Statement_ptr parse_loop_control_statement(TokenType control_type);
@@ -78,8 +86,8 @@ private:
 
     // Modules & Imports
     Statement_ptr parse_import();
-    Statement_ptr parse_from_import();
-    std::pair<std::optional<TokenType>, StringVector> parse_module_path();
+    // parse_module_path now returns <modifier, argument, path>
+    std::tuple<std::optional<TokenType>, int, StringVector> parse_module_path();
     ImportAsPair parse_imported_symbol();
 
     // Type Annotation Helpers

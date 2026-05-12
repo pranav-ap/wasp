@@ -1,5 +1,5 @@
-from core.io import print
-from core.types import int, Int, str, String, bool, Boolean
+import core.io expose *
+import core.types expose *
 
 
 operator + (left: Int, right: Int) => Int

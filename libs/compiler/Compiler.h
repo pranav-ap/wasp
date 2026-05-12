@@ -126,8 +126,7 @@ private:
     void visit(Native& statement);
     void visit(LoopControl& statement);
 
-    void visit(SimpleImport& statement);
-    void visit(FromImport& statement);
+    void visit(Import& statement);
 
     void visit(FunctionDefinition& statement);
     void visit(OperatorDefinition& statement);

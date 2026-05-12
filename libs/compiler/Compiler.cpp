@@ -9,6 +9,7 @@
 #include "Token.h"
 #include "Workspace.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <memory>
 #include <string>
@@ -1068,6 +1069,90 @@ void Compiler::visit(LoopControl& statement)
     {
         emit(OpCode::JUMP, static_cast<int>(body));
         graph.add_edge(current_block_id, body);
+    }
+}
+
+void Compiler::visit(Import& import_stmt)
+{
+    Doctor::get().fatal_if_nullptr(
+        import_stmt.symbol,
+        WaspStage::Compiler,
+        "Import statement must have a resolved symbol"
+    );
+
+    // 1. Resolve the module we are importing from
+    auto unresolved_module_symbol = import_stmt.symbol;
+    auto resolved_module_symbol = unresolved_module_symbol->resolve();
+    Doctor::get().fatal_if_nullptr(resolved_module_symbol, WaspStage::Compiler);
+
+    auto module_payload = resolved_module_symbol->get_payload_as<ModuleData>();
+    int module_index = workspace->get_module_index(
+        module_payload.mod->absolute_filepath
+    );
+
+    // 2. Module-Level Import
+    // (If it was aliased, OR if no specific symbols were exposed, we load the
+    // module itself)
+    if (import_stmt.module_alias.has_value() ||
+        (!import_stmt.expose_all && import_stmt.exposed_symbols.empty()))
+    {
+        emit(
+            OpCode::IMPORT_MODULE,
+            module_index,
+            "module " + unresolved_module_symbol->name
+        );
+        stack.push_back(unresolved_module_symbol);
+    }
+
+    // 3. Explicitly Exposed Symbols (e.g., expose Tank as T, Pump)
+    for (const auto& pair : import_stmt.exposed_symbols)
+    {
+        Doctor::get().fatal_if_nullptr(pair.symbol, WaspStage::Compiler);
+        auto target_symbol = pair.symbol->resolve();
+
+        emit(
+            OpCode::IMPORT_MODULE,
+            module_index,
+            "module " + resolved_module_symbol->name
+        );
+
+        int member_index = module_payload.mod->get_member_index(
+            target_symbol->name
+        );
+        emit(OpCode::GET_MEMBER, member_index, "expose " + target_symbol->name);
+
+        stack.push_back(pair.symbol);
+    }
+
+    // 4. Wildcard Exposure (e.g., expose * except BrokenPump)
+    if (import_stmt.expose_all)
+    {
+        for (const auto& exported_symbol : module_payload.mod->exports)
+        {
+            if (std::find(
+                    import_stmt.excluded_symbols.begin(),
+                    import_stmt.excluded_symbols.end(),
+                    exported_symbol->name
+                ) == import_stmt.excluded_symbols.end())
+            {
+                emit(
+                    OpCode::IMPORT_MODULE,
+                    module_index,
+                    "module " + resolved_module_symbol->name
+                );
+
+                int member_index = module_payload.mod->get_member_index(
+                    exported_symbol->name
+                );
+                emit(
+                    OpCode::GET_MEMBER,
+                    member_index,
+                    "expose * " + exported_symbol->name
+                );
+
+                stack.push_back(exported_symbol);
+            }
+        }
     }
 }
 

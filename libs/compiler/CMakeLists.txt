@@ -1,7 +1,6 @@
 add_library(
     CompilerLib
     Compiler.cpp
-    Compiler_imports.cpp
     Compiler_utils.cpp
     InstructionPrinter.cpp
 )

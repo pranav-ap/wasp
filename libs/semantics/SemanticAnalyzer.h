@@ -11,6 +11,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace Wasp
@@ -54,7 +55,14 @@ private:
     void inject_prelude();
     void hoist_statements(StatementVector& statements);
     void hoist_names_and_imports(StatementVector& statements);
+    void hoist_import(Import& stmt);
     void hoist_signatures_and_generics(StatementVector& statements);
+
+    std::pair<ObjectStringMap, StringVector> evaluate_generics(
+        const std::vector<FieldDefinition>& generic_fields
+    );
+
+    template <typename CallableDef> void hoist_callable(CallableDef& def);
 
     void visit(ExpressionStatement& statement);
     void visit(FunctionDefinition& statement);
@@ -70,8 +78,7 @@ private:
     void visit(SimpleLoop& statement);
     void visit(ForInLoop& statement);
     void visit(LoopControl& statement);
-    void visit(SimpleImport& statement);
-    void visit(FromImport& statement);
+    void visit(Import& statement);
     void visit(Pass& statement);
     void visit(Native& statement);
     void visit(Return& statement);

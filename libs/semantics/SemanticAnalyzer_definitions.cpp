@@ -630,11 +630,7 @@ void SemanticAnalyzer::visit(TraitDefinition& def)
 
 // Do Nothing
 
-void SemanticAnalyzer::visit(SimpleImport& imp)
-{
-}
-
-void SemanticAnalyzer::visit(FromImport& imp)
+void SemanticAnalyzer::visit(Import& imp)
 {
 }
 
