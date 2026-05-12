@@ -85,6 +85,16 @@ Object_ptr SemanticAnalyzer::visit(NoneLiteral& expr)
     return workspace->pool->get_none_type();
 }
 
+Object_ptr SemanticAnalyzer::visit(InterpolatedString& node)
+{
+    for (auto& part : node.parts)
+    {
+        visit(part);
+    }
+
+    return workspace->pool->get_string_type();
+}
+
 Object_ptr SemanticAnalyzer::visit(DotLiteral& expr)
 {
     Doctor::get().fatal(
@@ -384,20 +394,34 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
 
     std::string member_name = expr.right->as<Identifier>().name;
 
+    // 1. Modules
     if (auto type = try_unwrap_ptr<ModuleType_ptr>(left_type))
     {
         expr.member_index = type->get_member_index(member_name);
         return type->get_member(member_name);
     }
-    else if (auto type = try_unwrap_ptr<ClassType_ptr>(left_type))
+
+    // 2. Classes or Traits (Inline check for OOP types)
+    BaseOOPType_ptr oop_type = nullptr;
+    if (auto t = try_unwrap_ptr<ClassType_ptr>(left_type))
     {
-        expr.member_index = type->get_member_index(member_name);
-        return type->get_member(member_name);
+        oop_type = t;
     }
-    else if (auto type = try_unwrap_ptr<EnumType_ptr>(left_type))
+    else if (auto t = try_unwrap_ptr<TraitType_ptr>(left_type))
+    {
+        oop_type = t;
+    }
+
+    if (oop_type)
+    {
+        expr.member_index = oop_type->get_member_index(member_name);
+        return oop_type->get_member(member_name);
+    }
+
+    // 3. Enums
+    if (auto type = try_unwrap_ptr<EnumType_ptr>(left_type))
     {
         std::string full_name = type->name + "." + member_name;
-
         if (type->nested_enums.contains(full_name))
         {
             return make_object(type->nested_enums.at(full_name));
@@ -406,8 +430,8 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
         Doctor::get().assert(
             type->members.contains(full_name),
             WaspStage::Semantics,
-            "Enum '" + type->name + "' does not contain member '" +
-                member_name + "'."
+            "Enum '" + type->name + "' does not contain member '" + member_name +
+                "'."
         );
 
         expr.member_index = type->members.at(full_name);
@@ -415,25 +439,82 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
         return left_type;
     }
 
+    // 4. Template Parameters (Generics)
+    if (auto type = try_unwrap_ptr<GenericType_ptr>(left_type))
+    {
+        Object_ptr constraint = type->constraint_type;
+
+        // Check if the constraint is a Union/Variant (e.g., Int | String)
+        if (auto* variant_constraint = constraint->try_as<VariantType>())
+        {
+            Object_ptr resulting_member_type = nullptr;
+
+            for (const auto& variant : variant_constraint->types)
+            {
+                // Manual check for OOP types within the variant loop
+                BaseOOPType_ptr oop_variant = nullptr;
+                if (variant->is<ClassType_ptr>())
+                {
+                    oop_variant = variant->as<ClassType_ptr>();
+                }
+                else if (variant->is<TraitType_ptr>())
+                {
+                    oop_variant = variant->as<TraitType_ptr>();
+                }
+
+                Doctor::get().assert(
+                    oop_variant && oop_variant->contains_member(member_name),
+                    WaspStage::Semantics,
+                    "Member '" + member_name +
+                        "' not found in variant of template parameter."
+                );
+
+                if (!resulting_member_type)
+                {
+                    resulting_member_type = oop_variant->get_member(member_name);
+                }
+            }
+            return resulting_member_type;
+        }
+
+        // Single OOP constraint (e.g., T: Int)
+        BaseOOPType_ptr single_oop = nullptr;
+        if (auto t = try_unwrap_ptr<ClassType_ptr>(constraint))
+        {
+            single_oop = t;
+        }
+        else if (auto t = try_unwrap_ptr<TraitType_ptr>(constraint))
+        {
+            single_oop = t;
+        }
+
+        if (single_oop)
+        {
+            return single_oop->get_member(member_name);
+        }
+    }
+
     Doctor::get().fatal(
         WaspStage::Semantics,
         "Cannot access member '" + member_name +
-            "'. LHS is not a module, class, trait, or enum."
+            "'. LHS is not a module, class, trait, enum, or template parameter."
     );
-    return nullptr;
 }
 
 Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
 {
+    // 1. Resolve angular arguments (e.g., <int>)
     ObjectVector angular_arguments;
     for (const auto& arg_node : node.angular_nodes)
     {
         angular_arguments.push_back(visit(arg_node));
     }
 
+    // 2. Resolve the target symbol (e.g., 'greet' or 'Box')
     Symbol_ptr target_symbol = resolve_target_symbol(node.target);
     node.symbol = target_symbol;
 
+    // Case A: Template Classes
     if (target_symbol->payload_is<ClassData>())
     {
         Object_ptr base = target_symbol->get_type();
@@ -442,13 +523,13 @@ Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
         Doctor::get().assert(
             names.size() == angular_arguments.size(),
             WaspStage::Semantics,
-            "Generic argument count mismatch. Expected " +
-                std::to_string(names.size()) + ", got " +
+            "Generic argument count mismatch for class '" + target_symbol->name +
+                "'. Expected " + std::to_string(names.size()) + ", got " +
                 std::to_string(angular_arguments.size()) + "."
         );
 
         ObjectStringMap substitutions;
-        for (size_t i = 0; i < angular_arguments.size(); ++i)
+        for (size_t i = 0; i < names.size(); ++i)
         {
             substitutions[names[i]] = angular_arguments[i];
         }
@@ -456,14 +537,24 @@ Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
         return type_system->substitute_generics(base, substitutions);
     }
 
+    // Case B: Template Functions (Overloads)
     if (target_symbol->payload_is<OverloadsData>())
     {
         auto candidates = target_symbol->get_payload_as<OverloadsData>()
                               .get_overloads_with_indices();
 
+        // specialize_candidates must filter by generic count AND verify
+        // that 'int' satisfies the 'int | str' constraint.
         auto result = type_system->specialize_candidates(
             candidates,
             angular_arguments
+        );
+
+        Doctor::get().assert(
+            !result.signatures.empty(),
+            WaspStage::Semantics,
+            "No matching template overload found for '" + target_symbol->name +
+                "' with the provided type arguments."
         );
 
         Doctor::get().assert(
@@ -472,18 +563,18 @@ Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
             "Ambiguous generic reference for '" + target_symbol->name + "'."
         );
 
+        // Store the specific overload index so the Backend knows which
+        // specialized version of the function to call.
         node.overload_index = result.original_indices[0];
+
         return result.signatures[0];
     }
 
     Doctor::get().fatal(
         WaspStage::Semantics,
-        "Target '" + target_symbol->name +
-            "' does not support template angulars."
+        "Target '" + target_symbol->name + "' does not support template angulars."
     );
-    return nullptr;
 }
-
 // ============================================================================
 // Calls
 // ============================================================================
@@ -691,28 +782,77 @@ Object_ptr SemanticAnalyzer::visit(Constructor& constructor)
 
     target_type = unwrap_type_alias(target_type);
 
-    auto class_type = try_unwrap_ptr<ClassType_ptr>(target_type);
-    Doctor::get().assert(
-        class_type != nullptr,
-        WaspStage::Semantics,
-        "Constructor target must resolve to a class."
-    );
-
-    Doctor::get().assert(
-        argument_types.size() == class_type->fields.size(),
-        WaspStage::Semantics,
-        "Constructor Arguments Count Mismatch."
-    );
-
-    for (size_t i = 0; i < class_type->fields.size(); ++i)
+    std::vector<ClassType_ptr> classes_to_check;
+    if (auto cls = try_unwrap_ptr<ClassType_ptr>(target_type))
     {
-        Object_ptr expected = class_type->get_member(class_type->fields[i]);
+        classes_to_check.push_back(cls);
+    }
+    else if (auto generic = try_unwrap_ptr<GenericType_ptr>(target_type))
+    {
+        Object_ptr constraint = generic->constraint_type;
+        if (auto* union_type = constraint->try_as<VariantType>())
+        {
+            for (auto& variant : union_type->types)
+            {
+                if (auto cls = try_unwrap_ptr<ClassType_ptr>(variant))
+                {
+                    classes_to_check.push_back(cls);
+                }
+            }
+        }
+        else if (auto cls = try_unwrap_ptr<ClassType_ptr>(constraint))
+        {
+            classes_to_check.push_back(cls);
+        }
+    }
+
+    Doctor::get().assert(
+        !classes_to_check.empty(),
+        WaspStage::Semantics,
+        "Constructor target must resolve to a class or a template constrained by "
+        "classes."
+    );
+
+    for (auto& class_type : classes_to_check)
+    {
         Doctor::get().assert(
-            type_system->assignable(current_scope, expected, argument_types[i]),
+            argument_types.size() == class_type->fields.size(),
             WaspStage::Semantics,
-            "Constructor Argument Type Mismatch for field '" +
-                class_type->fields[i] + "'."
+            "Constructor Arguments Count Mismatch for class '" + class_type->name +
+                "'."
         );
+
+        for (size_t i = 0; i < class_type->fields.size(); ++i)
+        {
+            Object_ptr expected = class_type->get_member(class_type->fields[i]);
+            Object_ptr provided = argument_types[i];
+            bool is_valid = false;
+
+            // Handle Union arguments by checking variant compatibility
+            if (auto* union_arg = provided->try_as<VariantType>())
+            {
+                for (auto& variant : union_arg->types)
+                {
+                    if (type_system->assignable(current_scope, expected, variant))
+                    {
+                        is_valid = true;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                is_valid = type_system
+                               ->assignable(current_scope, expected, provided);
+            }
+
+            Doctor::get().assert(
+                is_valid,
+                WaspStage::Semantics,
+                "Constructor Argument Type Mismatch for field '" +
+                    class_type->fields[i] + "' in class '" + class_type->name + "'."
+            );
+        }
     }
 
     return target_type;

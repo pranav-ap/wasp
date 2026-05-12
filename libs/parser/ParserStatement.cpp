@@ -175,13 +175,13 @@ Statement_ptr Parser::parse_return_statement()
 
 ImportAsPair Parser::parse_imported_symbol()
 {
-    auto name = token_pipe.require_in_line(TokenType::IDENTIFIER).value;
+    auto name = token_pipe.require_in_line(TokenType::IDENTIFIER).lexeme;
 
     if (token_pipe.consume_optional_in_line(TokenType::AS))
     {
         return ImportAsPair(
             std::move(name),
-            token_pipe.require_in_line(TokenType::IDENTIFIER).value
+            token_pipe.require_in_line(TokenType::IDENTIFIER).lexeme
         );
     }
 
@@ -211,7 +211,7 @@ std::tuple<std::optional<TokenType>, int, StringVector> Parser::
             auto num_token = token_pipe.require_in_line(
                 TokenType::NUMBER_LITERAL
             );
-            access_argument = std::stoi(num_token.value);
+            access_argument = std::stoi(num_token.lexeme);
             token_pipe.require_in_line(TokenType::CLOSE_PARENTHESIS);
         }
 
@@ -220,7 +220,9 @@ std::tuple<std::optional<TokenType>, int, StringVector> Parser::
 
     do
     {
-        path.push_back(token_pipe.require_in_line(TokenType::IDENTIFIER).value);
+        path.push_back(
+            token_pipe.require_in_line(TokenType::IDENTIFIER).lexeme
+        );
     }
     while (token_pipe.consume_optional_in_line(TokenType::DOT));
 
@@ -242,7 +244,7 @@ Statement_ptr Parser::parse_import()
     // Check for module alias (import X as x)
     if (token_pipe.consume_optional_in_line(TokenType::AS))
     {
-        module_alias = token_pipe.require_in_line(TokenType::IDENTIFIER).value;
+        module_alias = token_pipe.require_in_line(TokenType::IDENTIFIER).lexeme;
     }
 
     // Check for exposed symbols (expose a, b, c)
@@ -259,7 +261,7 @@ Statement_ptr Parser::parse_import()
                 do
                 {
                     excluded_symbols.push_back(
-                        token_pipe.require_in_line(TokenType::IDENTIFIER).value
+                        token_pipe.require_in_line(TokenType::IDENTIFIER).lexeme
                     );
                 }
                 while (token_pipe.consume_optional_in_line(TokenType::COMMA));

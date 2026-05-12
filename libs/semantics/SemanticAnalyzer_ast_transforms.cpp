@@ -45,7 +45,11 @@ Object_ptr SemanticAnalyzer::visit(const Expression_ptr expr)
         expr->data
     );
 
-    // 1. Desugar Literals
+    if (expr->is_desugared)
+    {
+        return resolved_type;
+    }
+
     if (expr->is<IntegerLiteral>())
     {
         desugar_literal(expr, "int");
@@ -66,8 +70,13 @@ Object_ptr SemanticAnalyzer::visit(const Expression_ptr expr)
         desugar_literal(expr, "bool");
         return get_core_symbol("bool")->get_type();
     }
+    else if (expr->is<InterpolatedString>())
+    {
+        return desugar_interpolated_string(expr);
+    }
 
     // Desugar Overloaded Operators into standard function calls
+
     if (expr->is<Infix>())
     {
         auto& infix = expr->as<Infix>();
@@ -110,52 +119,71 @@ void SemanticAnalyzer::desugar_literal(
     const std::string& type_alias_name
 )
 {
-    // 1. Get the compile-time type alias symbol (e.g., "int")
+    // type int
     Symbol_ptr alias_symbol = get_core_symbol(type_alias_name);
-
-    // 2. Unwrap it to find the actual ClassType object
     Object_ptr actual_type = unwrap_type_alias(alias_symbol->get_type());
     auto class_type = actual_type->as<ClassType_ptr>();
 
-    // 3. Look up the actual runtime class symbol by name (e.g., "Int")
-    Symbol_ptr runtime_class_symbol = current_scope->lookup(class_type->name);
+    // class Int
+    Symbol_ptr class_symbol = current_scope->lookup(class_type->name);
 
     Doctor::get().fatal_if_nullptr(
-        runtime_class_symbol,
+        class_symbol,
         WaspStage::Semantics,
         "Runtime class symbol '" + class_type->name + "' not found."
     );
 
-    // 4. Synthesize the Identifier for the Constructor target
-    auto id_node = make_expression(
-        Identifier(runtime_class_symbol->name),
-        expr->start_token,
-        expr->end_token
+    Identifier id(class_symbol->name);
+    id.symbol = class_symbol;
+    id.must_be_captured = class_symbol->should_be_captured(
+        current_scope->get_closure_depth()
     );
 
-    auto& id_data = id_node->as<Identifier>();
-    id_data.symbol = runtime_class_symbol;
+    auto id_node = make_expression(id, expr->start_token, expr->end_token, true);
 
-    // === THE FIX: Evaluate Capture Status ===
-    // If we are currently inside a nested function (closure_depth > 0),
-    // and this runtime class lives in an outer scope (like the module root),
-    // we MUST flag it for capture!
-    if (runtime_class_symbol->should_be_captured(
-            current_scope->get_closure_depth()
-        ))
-    {
-        id_data.must_be_captured = true;
-    }
+    bind_identifier(id_node->as<Identifier>(), class_symbol);
 
-    // 5. Move the original literal down into a new child node
     auto literal_child = make_expression(
         std::move(expr->data),
         expr->start_token,
-        expr->end_token
+        expr->end_token,
+        true
     );
 
-    // 6. Transform current node into a Constructor: Int(raw_literal)
     expr->data = Constructor(id_node, {literal_child});
+    expr->is_desugared = true;
+}
+
+Object_ptr SemanticAnalyzer::desugar_interpolated_string(const Expression_ptr& expr)
+{
+    auto& interp = expr->as<InterpolatedString>();
+
+    if (interp.parts.empty())
+    {
+        expr->data = StringLiteral{""};
+        return visit(expr);
+    }
+
+    Expression_ptr root = interp.parts[0];
+
+    for (size_t i = 1; i < interp.parts.size(); ++i)
+    {
+        Token plus_token;
+        plus_token.type = TokenType::PLUS;
+        plus_token.lexeme = "+";
+        plus_token.line = expr->start_token.line;
+
+        root = make_expression(
+            Infix{root, plus_token, interp.parts[i]},
+            expr->start_token,
+            expr->end_token
+        );
+    }
+
+    expr->data = std::move(root->data);
+
+    // Re-visit so Infix nodes are desugared into method calls
+    return visit(expr);
 }
 
 void SemanticAnalyzer::desugar_overloaded_operator(
@@ -168,7 +196,8 @@ void SemanticAnalyzer::desugar_overloaded_operator(
     auto id_node = make_expression(
         Identifier(operator_symbol->name),
         expr->start_token,
-        expr->end_token
+        expr->end_token,
+        true
     );
 
     bind_identifier(id_node->as<Identifier>(), operator_symbol);

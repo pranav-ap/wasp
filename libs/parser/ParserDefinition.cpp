@@ -34,7 +34,7 @@ Statement_ptr Parser::parse_alias_definition()
     token_pipe.advance_pointer();
 
     auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
-    auto name = name_token.value;
+    auto name = name_token.lexeme;
 
     token_pipe.require_in_line(TokenType::EQUAL);
 
@@ -51,7 +51,7 @@ Statement_ptr Parser::parse_enum_definition(int indent_level)
     Token identifier = token_pipe.require_in_line(TokenType::IDENTIFIER);
     token_pipe.require_in_line(TokenType::EOL);
 
-    return make_statement(parse_enum_body(identifier.value, indent_level + 1));
+    return make_statement(parse_enum_body(identifier.lexeme, indent_level + 1));
 }
 
 EnumDefinition Parser::parse_enum_body(std::string name, int indent_level)
@@ -72,7 +72,7 @@ EnumDefinition Parser::parse_enum_body(std::string name, int indent_level)
         if (token_pipe.consume_optional(TokenType::ENUM))
         {
             auto nested_name = token_pipe.require_in_line(TokenType::IDENTIFIER)
-                                   .value;
+                                   .lexeme;
             token_pipe.require_in_line(TokenType::EOL);
 
             nested_enums.push_back(
@@ -83,7 +83,7 @@ EnumDefinition Parser::parse_enum_body(std::string name, int indent_level)
 
         if (auto token = token_pipe.consume_optional(TokenType::IDENTIFIER))
         {
-            members.push_back(token->value);
+            members.push_back(token->lexeme);
             token_pipe.require_in_line(TokenType::EOL);
             continue;
         }
@@ -103,7 +103,7 @@ std::pair<std::string, TypeAnnotation_ptr> Parser::parse_name_type_pair(
 )
 {
     auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
-    std::string name = name_token.value;
+    std::string name = name_token.lexeme;
 
     token_pipe.require_in_line(TokenType::COLON);
 
@@ -156,7 +156,7 @@ std::tuple<std::string, std::vector<std::string>, StatementVector> Parser::
     token_pipe.advance_pointer();
 
     auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
-    std::string name = name_token.value;
+    std::string name = name_token.lexeme;
 
     std::vector<std::string> traits;
 
@@ -167,7 +167,7 @@ std::tuple<std::string, std::vector<std::string>, StatementVector> Parser::
             auto trait_token = token_pipe.require_in_line(
                 TokenType::IDENTIFIER
             );
-            traits.push_back(trait_token.value);
+            traits.push_back(trait_token.lexeme);
         }
         while (token_pipe.consume_optional_in_line(TokenType::AMPERSAND));
     }
@@ -244,7 +244,7 @@ Statement_ptr Parser::parse_function_definition(
     bool is_pure
 )
 {
-    auto name = token_pipe.require_in_line(TokenType::IDENTIFIER).value;
+    auto name = token_pipe.require_in_line(TokenType::IDENTIFIER).lexeme;
 
     token_pipe.require_in_line(TokenType::OPEN_PARENTHESIS);
     std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters;
@@ -254,7 +254,7 @@ Statement_ptr Parser::parse_function_definition(
         do
         {
             auto param_name = token_pipe.require_in_line(TokenType::IDENTIFIER)
-                                  .value;
+                                  .lexeme;
             token_pipe.require_in_line(TokenType::COLON);
             parameters.push_back({param_name, parse_type()});
         }
@@ -310,7 +310,7 @@ Statement_ptr Parser::parse_operator_definition(
         do
         {
             auto param_name = token_pipe.require_in_line(TokenType::IDENTIFIER)
-                                  .value;
+                                  .lexeme;
             token_pipe.require_in_line(TokenType::COLON);
             parameters.push_back({param_name, parse_type()});
         }
@@ -366,7 +366,7 @@ Statement_ptr Parser::parse_template_definition(int indent_level)
         auto param_type = parse_type();
         token_pipe.require_in_line(TokenType::EOL);
 
-        generics.emplace_back(name_token.value, param_type);
+        generics.emplace_back(name_token.lexeme, param_type);
     }
 
     Statement_ptr target = parse_statement(indent_level);

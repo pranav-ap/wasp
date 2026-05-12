@@ -6,6 +6,8 @@
     X(UNKNOWN, "UNKNOWN", false)                                               \
     X(NUMBER_LITERAL, "NUMBER", false)                                         \
     X(STRING_LITERAL, "STRING", false)                                         \
+    X(INTERPOLATION_START, "INTERPOLATION_START", false)                       \
+    X(INTERPOLATION_END, "INTERPOLATION_END", false)                           \
     X(IDENTIFIER, "IDENTIFIER", false)                                         \
     X(OPEN_PARENTHESIS, "(", false)                                            \
     X(CLOSE_PARENTHESIS, ")", false)                                           \
@@ -187,7 +189,7 @@ constexpr TokenType get_keyword_token_type(const std::string &s) {
 
 struct Token {
   TokenType type;
-  std::string value;
+  std::string lexeme;
 
   int line;
   int column;

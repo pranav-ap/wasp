@@ -41,7 +41,7 @@ Expression_ptr Parser::parse_expression(const int precedence)
         );
 
         Expression_ptr lhs = make_expression(
-            Identifier(id_token->value),
+            Identifier(id_token->lexeme),
             *id_token,
             *id_token
         );
@@ -79,7 +79,8 @@ Expression_ptr Parser::parse_expression(const int precedence)
     Doctor::get().assert(
         prefix_it != prefix_parselets.end(),
         WaspStage::Parser,
-        "Expected the start of an expression but found '" + token->value + "'.",
+        "Expected the start of an expression but found '" + token->lexeme +
+            "'.",
         token->line,
         token->column
     );
@@ -106,7 +107,7 @@ Expression_ptr Parser::parse_expression(const int precedence)
         Doctor::get().assert(
             infix_it != infix_parselets.end(),
             WaspStage::Parser,
-            "No matching infix parselet found for token '" + token->value +
+            "No matching infix parselet found for token '" + token->lexeme +
                 "'.",
             token->line,
             token->column

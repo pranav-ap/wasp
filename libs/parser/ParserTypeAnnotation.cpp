@@ -117,7 +117,7 @@ TypeAnnotation_ptr Parser::consume_datatype_word()
     {
     case TokenType::NUMBER_LITERAL: {
         token_pipe.advance_pointer();
-        auto value = std::stod(token->value);
+        auto value = std::stod(token->lexeme);
         Expression_ptr literal_expr;
 
         if (std::fmod(value, 1.0) == 0.0)
@@ -135,7 +135,7 @@ TypeAnnotation_ptr Parser::consume_datatype_word()
     }
     case TokenType::STRING_LITERAL: {
         token_pipe.advance_pointer();
-        auto literal_expr = make_expression(StringLiteral{token->value});
+        auto literal_expr = make_expression(StringLiteral{token->lexeme});
         return make_type_annotation(LiteralTypeNode{std::move(literal_expr)});
     }
     case TokenType::TRUE_KEYWORD: {
@@ -150,7 +150,7 @@ TypeAnnotation_ptr Parser::consume_datatype_word()
     }
     case TokenType::IDENTIFIER: {
         token_pipe.advance_pointer();
-        return make_type_annotation(TypeIdentifierNode(token->value));
+        return make_type_annotation(TypeIdentifierNode(token->lexeme));
     }
     case TokenType::NONE: {
         token_pipe.advance_pointer();

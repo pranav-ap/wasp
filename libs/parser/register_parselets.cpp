@@ -60,6 +60,10 @@ namespace Wasp
         );
 
         register_parselet(
+            TokenType::INTERPOLATION_START,
+            std::make_shared<InterpolatedStringParselet>()
+        );
+        register_parselet(
             TokenType::STRING_LITERAL,
             std::make_shared<LiteralParselet>()
         );

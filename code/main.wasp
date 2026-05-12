@@ -17,3 +17,18 @@ fun foo(a: int)
     a.repr()
 
 foo(5)
+
+let name: str = 'jon'
+name.repr()
+let greeting: str = 'hello {name}'
+greeting.repr()
+
+
+template
+    T: int | str
+
+fun greet(a: T)
+    print(a)
+
+
+greet<int>(2)

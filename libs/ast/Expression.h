@@ -349,6 +349,8 @@ using ExpressionVariant = std::variant<
     StringLiteral,
     BooleanLiteral,
 
+    InterpolatedString,
+
     NoneLiteral,
     DotLiteral,
     Identifier,
@@ -379,6 +381,8 @@ struct Expression : public AstNode<ExpressionVariant>
 
     Token start_token;
     Token end_token;
+
+    bool is_desugared = false;
 };
 
 template <typename T> inline Expression_ptr make_expression(T&& data)
@@ -390,12 +394,14 @@ template <typename T>
 inline Expression_ptr make_expression(
     T&& data,
     Token start_token,
-    Token end_token
+    Token end_token,
+    bool is_desugared = false
 )
 {
     auto expr = std::make_shared<Expression>(std::forward<T>(data));
     expr->start_token = std::move(start_token);
     expr->end_token = std::move(end_token);
+    expr->is_desugared = is_desugared;
     return expr;
 }
 

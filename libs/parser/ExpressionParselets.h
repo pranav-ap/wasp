@@ -154,4 +154,10 @@ namespace Wasp
     private:
         bool looks_like_generic_args(Parser& parser) const;
     };
+
+    class InterpolatedStringParselet : public IPrefixParselet
+    {
+    public:
+        Expression_ptr parse(Parser& parser, const Token& token) override;
+    };
 }

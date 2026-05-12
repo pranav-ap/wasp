@@ -104,6 +104,8 @@ private:
     Object_ptr visit(BooleanLiteral& expr);
     Object_ptr visit(NoneLiteral& expr);
 
+    Object_ptr visit(InterpolatedString& expr);
+
     Object_ptr visit(DotLiteral& expr);
 
     Object_ptr visit(ListLiteral& expr);
@@ -154,6 +156,8 @@ private:
         const Expression_ptr& expr,
         const std::string& type_alias_name
     );
+
+    Object_ptr desugar_interpolated_string(const Expression_ptr& expr);
 
     void desugar_overloaded_operator(
         const Expression_ptr& expr,

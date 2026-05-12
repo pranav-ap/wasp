@@ -114,7 +114,7 @@ Statement_ptr Parser::parse_loop_control_statement(TokenType control_type)
 
     if (token.has_value() && token.value().type == TokenType::IDENTIFIER)
     {
-        std::string label = token.value().value;
+        std::string label = token.value().lexeme;
         token_pipe.require_in_line(TokenType::EOL);
         return make_statement(LoopControl{control_type, label});
     }

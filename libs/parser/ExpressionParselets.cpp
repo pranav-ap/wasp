@@ -12,6 +12,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -25,7 +26,7 @@ namespace Wasp
 Expression_ptr IdentifierParselet::parse(Parser& parser, const Token& token)
 {
     parser.token_pipe.advance_pointer();
-    return make_expression(Identifier{token.value});
+    return make_expression(Identifier{token.lexeme});
 }
 
 Expression_ptr LiteralParselet::parse(Parser& parser, const Token& token)
@@ -39,9 +40,9 @@ Expression_ptr LiteralParselet::parse(Parser& parser, const Token& token)
     case TokenType::FALSE_KEYWORD:
         return make_expression(BooleanLiteral(false));
     case TokenType::STRING_LITERAL:
-        return make_expression(StringLiteral(token.value));
+        return make_expression(StringLiteral(token.lexeme));
     case TokenType::NUMBER_LITERAL: {
-        double value = std::stod(token.value);
+        double value = std::stod(token.lexeme);
         if (std::fmod(value, 1.0) == 0.0)
         {
             return make_expression(IntegerLiteral(static_cast<int>(value)));
@@ -186,27 +187,27 @@ Expression_ptr AssignmentParselet::parse(
         {
         case TokenType::PLUS_EQUAL:
             op_token.type = TokenType::PLUS;
-            op_token.value = "+";
+            op_token.lexeme = "+";
             break;
         case TokenType::MINUS_EQUAL:
             op_token.type = TokenType::MINUS;
-            op_token.value = "-";
+            op_token.lexeme = "-";
             break;
         case TokenType::STAR_EQUAL:
             op_token.type = TokenType::STAR;
-            op_token.value = "*";
+            op_token.lexeme = "*";
             break;
         case TokenType::DIVISION_EQUAL:
             op_token.type = TokenType::DIVISION;
-            op_token.value = "/";
+            op_token.lexeme = "/";
             break;
         case TokenType::MOD_EQUAL:
             op_token.type = TokenType::MOD;
-            op_token.value = "%";
+            op_token.lexeme = "%";
             break;
         case TokenType::POWER_EQUAL:
             op_token.type = TokenType::POWER;
-            op_token.value = "**";
+            op_token.lexeme = "**";
             break;
         default:
             break;
@@ -417,6 +418,71 @@ Expression_ptr CallParselet::parse(Parser& parser, const Expression_ptr left, co
     }
 
     return make_expression(Call(left, arguments));
+}
+
+Expression_ptr InterpolatedStringParselet::parse(
+    Parser& parser,
+    const Token& token
+)
+{
+    Token end_token = token;
+    InterpolatedString node;
+
+    parser.token_pipe.advance_pointer();
+
+    while (auto current = parser.token_pipe.current_in_line())
+    {
+        // Stop condition!
+        if (current->type == TokenType::INTERPOLATION_END)
+        {
+            end_token = *current;
+            parser.token_pipe.advance_pointer();
+            break;
+        }
+
+        if (current->type == TokenType::STRING_LITERAL)
+        {
+            node.parts.push_back(make_expression(
+                StringLiteral{current->lexeme},
+                *current,
+                *current
+            ));
+            parser.token_pipe.advance_pointer();
+        }
+        else if (current->type == TokenType::OPEN_CURLY_BRACE)
+        {
+            // Consume '{'
+            parser.token_pipe.advance_pointer();
+
+            // Parse whatever expression is inside the braces!
+            node.parts.push_back(parser.parse_expression(0));
+
+            auto close_brace = parser.token_pipe.current_in_line();
+            Doctor::get().assert(
+                close_brace &&
+                    close_brace->type == TokenType::CLOSE_CURLY_BRACE,
+                WaspStage::Parser,
+                "Expected '}' to close the interpolated expression.",
+                current->line,
+                current->column
+            );
+
+            // Consume '}'
+            parser.token_pipe.advance_pointer();
+        }
+        else
+        {
+            Doctor::get().fatal(
+                WaspStage::Parser,
+                "Unexpected token inside interpolated string : " +
+                    current->lexeme,
+                current->line,
+                current->column
+            );
+        }
+    }
+
+    return make_expression(std::move(node), token, end_token);
 }
 
 // ============================================================================

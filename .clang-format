@@ -4,9 +4,17 @@ IndentWidth: 4
 TabWidth: 4
 UseTab: Never
 
-ColumnLimit: 80
+ColumnLimit: 85
 
 PointerAlignment: Left
+
+# --- Variable Assignment Fixes ---
+# High penalty prevents 'auto' from being orphaned on its own line
+PenaltyReturnTypeOnItsOwnLine: 1000000
+PenaltyBreakAssignment: 5000
+
+# Low penalty encourages breaking inside the ( ) instead of the assignment
+PenaltyBreakBeforeFirstCallParameter: 1
 
 BinPackArguments: false
 BinPackParameters: false
@@ -18,8 +26,6 @@ ContinuationIndentWidth: 4
 
 AlwaysBreakAfterReturnType: None
 AlwaysBreakAfterDefinitionReturnType: None
-PenaltyReturnTypeOnItsOwnLine: 100000
-PenaltyBreakAssignment: 1000
 
 AllowAllParametersOfDeclarationOnNextLine: false
 AllowAllArgumentsOnNextLine: false
@@ -37,23 +43,23 @@ AllowShortLoopsOnASingleLine: false
 
 BreakBeforeBraces: Custom
 BraceWrapping:
-  AfterClass: true
-  AfterControlStatement: Always
-  AfterEnum: true
-  AfterFunction: true
-  AfterNamespace: true
-  AfterObjCDeclaration: true
-  AfterStruct: true
-  AfterUnion: true
-  AfterExternBlock: true
-  BeforeCatch: true
-  BeforeElse: true
-  BeforeLambdaBody: true
-  BeforeWhile: true
-  IndentBraces: false
-  SplitEmptyFunction: true
-  SplitEmptyRecord: true
-  SplitEmptyNamespace: true
+    AfterClass: true
+    AfterControlStatement: Always
+    AfterEnum: true
+    AfterFunction: true
+    AfterNamespace: true
+    AfterObjCDeclaration: true
+    AfterStruct: true
+    AfterUnion: true
+    AfterExternBlock: true
+    BeforeCatch: true
+    BeforeElse: true
+    BeforeLambdaBody: true
+    BeforeWhile: true
+    IndentBraces: false
+    SplitEmptyFunction: true
+    SplitEmptyRecord: true
+    SplitEmptyNamespace: true
 
 SeparateDefinitionBlocks: Always
 MaxEmptyLinesToKeep: 1
