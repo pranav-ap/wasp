@@ -36,10 +36,6 @@ Statement_ptr Parser::parse_statement(int expected_indent_level)
 
     switch (token->type)
     {
-    case TokenType::LET:
-        return parse_variable_definition(true);
-    case TokenType::CONST_KEYWORD:
-        return parse_variable_definition(false);
     case TokenType::TYPE:
         return parse_alias_definition();
     case TokenType::ENUM:

@@ -6,11 +6,13 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <variant>
 
-namespace Wasp {
+namespace Wasp
+{
 
 struct BoxableLiteral : public Resolvable
 {
@@ -151,57 +153,43 @@ struct MapLiteral : public BoxableLiteral
         : pairs(std::move(pairs)) {};
 };
 
-struct TypePattern
+struct Assignment : public Resolvable
 {
-    Expression_ptr expression;
-    TypeAnnotation_ptr type_node;
+    Expression_ptr lhs;
+    Expression_ptr rhs;
 
-    TypePattern() = default;
-    TypePattern(Expression_ptr expression, TypeAnnotation_ptr type_node)
-        : expression(std::move(expression)), type_node(std::move(type_node)) {};
-};
+    std::optional<TypeAnnotation_ptr> declared_type = std::nullopt;
 
-struct VariableDefinitionExpression : public Resolvable
-{
-    Expression_ptr assignment;
-    bool is_mutable;
-
-    VariableDefinitionExpression() = default;
-    VariableDefinitionExpression(Expression_ptr assignment, bool is_mutable = false)
-        : assignment(assignment), is_mutable(is_mutable) {};
-};
-
-struct Assignment
-{
-    Expression_ptr lhs_expression;
-    Expression_ptr rhs_expression;
+    bool is_definition = false;
+    bool is_mutable = false;
 
     Assignment() = default;
-    Assignment(Expression_ptr lhs_expression, Expression_ptr rhs_expression)
-        : lhs_expression(std::move(lhs_expression)), rhs_expression(std::move(rhs_expression)) {}
-};
 
-struct UntypedAssignment : public Assignment
-{
-    using Assignment::Assignment;
-};
+    Assignment(Expression_ptr lhs, Expression_ptr rhs)
+        : lhs(std::move(lhs)), rhs(std::move(rhs)), is_definition(false),
+          is_mutable(false)
+    {
+    }
 
-struct TypedAssignment : public Assignment
-{
-    TypeAnnotation_ptr type_node;
-
-    TypedAssignment() : Assignment(), type_node(nullptr) {}
-
-    TypedAssignment(
-        Expression_ptr lhs_expression, Expression_ptr rhs_expression, TypeAnnotation_ptr type_node
+    Assignment(
+        Expression_ptr lhs,
+        Expression_ptr rhs,
+        bool is_definition,
+        bool is_mutable,
+        std::optional<TypeAnnotation_ptr> declared_type = std::nullopt
     )
-        : Assignment(std::move(lhs_expression), std::move(rhs_expression)),
-          type_node(std::move(type_node)) {}
+        : lhs(std::move(lhs)), rhs(std::move(rhs)),
+          declared_type(std::move(declared_type)), is_definition(is_definition),
+          is_mutable(is_mutable)
+    {
+    }
 };
 
 // Branching
 
-struct TernaryBranch {};
+struct TernaryBranch
+{
+};
 
 struct IfTernaryBranch : public TernaryBranch
 {
@@ -211,8 +199,13 @@ struct IfTernaryBranch : public TernaryBranch
 
     IfTernaryBranch() = default;
 
-    IfTernaryBranch(Expression_ptr test, Expression_ptr true_expression, Expression_ptr alternative)
-        : true_expression(true_expression), test(test), alternative(alternative) {};
+    IfTernaryBranch(
+        Expression_ptr test,
+        Expression_ptr true_expression,
+        Expression_ptr alternative
+    )
+        : true_expression(true_expression), test(test),
+          alternative(alternative) {};
 };
 
 struct ElseTernaryBranch : public TernaryBranch
@@ -231,7 +224,10 @@ struct Identifier : public Resolvable
     std::string name;
 
     Identifier() = default;
-    Identifier(std::string name) : name(std::move(name)) {}
+
+    Identifier(std::string name) : name(std::move(name))
+    {
+    }
 };
 
 // a.b
@@ -245,6 +241,7 @@ struct MemberAccess
     bool is_enum_value = false;
 
     MemberAccess() = default;
+
     MemberAccess(Expression_ptr left, Expression_ptr right)
         : left(std::move(left)), right(std::move(right))
     {
@@ -276,7 +273,8 @@ struct Call
     Call() = default;
 
     Call(Expression_ptr callable, ExpressionVector arguments)
-        : callable(callable), arguments(std::move(arguments)), overload_index(-1)
+        : callable(callable), arguments(std::move(arguments)),
+          overload_index(-1)
     {
     }
 };
@@ -320,11 +318,21 @@ struct RangeLiteral
     Expression_ptr step;
     bool is_inclusive;
 
-    RangeLiteral() : start(nullptr), end(nullptr), step(nullptr), is_inclusive(false) {}
+    RangeLiteral()
+        : start(nullptr), end(nullptr), step(nullptr), is_inclusive(false)
+    {
+    }
 
-    RangeLiteral(Expression_ptr start, Expression_ptr end, Expression_ptr step, bool is_inclusive)
+    RangeLiteral(
+        Expression_ptr start,
+        Expression_ptr end,
+        Expression_ptr step,
+        bool is_inclusive
+    )
         : start(std::move(start)), end(std::move(end)), step(std::move(step)),
-          is_inclusive(is_inclusive) {}
+          is_inclusive(is_inclusive)
+    {
+    }
 };
 
 struct InterpolatedString
@@ -361,27 +369,31 @@ using ExpressionVariant = std::variant<
     SetLiteral,
     RangeLiteral,
 
-    VariableDefinitionExpression,
-    UntypedAssignment,
-    TypedAssignment,
-    TypePattern,
+    Assignment,
 
     IfTernaryBranch,
     ElseTernaryBranch>;
 
-struct Expression : public AstNode<ExpressionVariant> {
+struct Expression : public AstNode<ExpressionVariant>
+{
     using AstNode::AstNode;
 
     Token start_token;
     Token end_token;
 };
 
-template <typename T> inline Expression_ptr make_expression(T&& data) {
+template <typename T> inline Expression_ptr make_expression(T&& data)
+{
     return std::make_shared<Expression>(std::forward<T>(data));
 }
 
 template <typename T>
-inline Expression_ptr make_expression(T&& data, Token start_token, Token end_token) {
+inline Expression_ptr make_expression(
+    T&& data,
+    Token start_token,
+    Token end_token
+)
+{
     auto expr = std::make_shared<Expression>(std::forward<T>(data));
     expr->start_token = std::move(start_token);
     expr->end_token = std::move(end_token);

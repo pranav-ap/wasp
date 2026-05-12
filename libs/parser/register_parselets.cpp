@@ -6,9 +6,6 @@
 #include <memory>
 #include <utility>
 
-using std::make_pair;
-using std::make_shared;
-
 namespace Wasp
 {
     void Parser::register_all_parselets()
@@ -28,7 +25,10 @@ namespace Wasp
         register_infix_left(TokenType::EQUAL_EQUAL, Precedence::EQUALITY);
         register_infix_left(TokenType::BANG_EQUAL, Precedence::EQUALITY);
 
-        register_parselet(TokenType::LESSER_THAN, make_shared<LesserThanParselet>());
+        register_parselet(
+            TokenType::LESSER_THAN,
+            std::make_shared<LesserThanParselet>()
+        );
 
         register_infix_left(TokenType::LESSER_THAN_EQUAL, Precedence::COMPARISON);
         register_infix_left(TokenType::GREATER_THAN, Precedence::COMPARISON);
@@ -46,23 +46,55 @@ namespace Wasp
 
         register_infix_left(TokenType::TILDE, Precedence::PIPE);
 
-        register_parselet(TokenType::IDENTIFIER, make_shared<IdentifierParselet>());
-        register_parselet(TokenType::MY, make_shared<IdentifierParselet>());
-        register_parselet(TokenType::OUR, make_shared<IdentifierParselet>());
+        register_parselet(
+            TokenType::IDENTIFIER,
+            std::make_shared<IdentifierParselet>()
+        );
+        register_parselet(
+            TokenType::MY,
+            std::make_shared<IdentifierParselet>()
+        );
+        register_parselet(
+            TokenType::OUR,
+            std::make_shared<IdentifierParselet>()
+        );
 
-        register_parselet(TokenType::STRING_LITERAL, make_shared<LiteralParselet>());
-        register_parselet(TokenType::NUMBER_LITERAL, make_shared<LiteralParselet>());
-        register_parselet(TokenType::TRUE_KEYWORD, make_shared<LiteralParselet>());
-        register_parselet(TokenType::FALSE_KEYWORD, make_shared<LiteralParselet>());
-        register_parselet(TokenType::NONE, make_shared<LiteralParselet>());
-        // register_parselet(TokenType::NATIVE, make_shared<LiteralParselet>());
+        register_parselet(
+            TokenType::STRING_LITERAL,
+            std::make_shared<LiteralParselet>()
+        );
+        register_parselet(
+            TokenType::NUMBER_LITERAL,
+            std::make_shared<LiteralParselet>()
+        );
+        register_parselet(
+            TokenType::TRUE_KEYWORD,
+            std::make_shared<LiteralParselet>()
+        );
+        register_parselet(
+            TokenType::FALSE_KEYWORD,
+            std::make_shared<LiteralParselet>()
+        );
+        register_parselet(TokenType::NONE, std::make_shared<LiteralParselet>());
 
-        register_parselet(TokenType::OPEN_SQUARE_BRACKET, make_shared<SquareBracketParselet>());
-        register_parselet(TokenType::OPEN_CURLY_BRACE, make_shared<CurlyBraceParselet>());
-        register_parselet(TokenType::OPEN_PARENTHESIS, make_shared<ParenthesisParselet>());
-        register_parselet(TokenType::OPEN_PARENTHESIS, make_shared<CallParselet>());
+        register_parselet(
+            TokenType::OPEN_SQUARE_BRACKET,
+            std::make_shared<SquareBracketParselet>()
+        );
+        register_parselet(
+            TokenType::OPEN_CURLY_BRACE,
+            std::make_shared<CurlyBraceParselet>()
+        );
+        register_parselet(
+            TokenType::OPEN_PARENTHESIS,
+            std::make_shared<ParenthesisParselet>()
+        );
+        register_parselet(
+            TokenType::OPEN_PARENTHESIS,
+            std::make_shared<CallParselet>()
+        );
 
-        auto assignment_parselet = make_shared<AssignmentParselet>();
+        auto assignment_parselet = std::make_shared<AssignmentParselet>();
         register_parselet(TokenType::EQUAL, assignment_parselet);
         register_parselet(TokenType::PLUS_EQUAL, assignment_parselet);
         register_parselet(TokenType::MINUS_EQUAL, assignment_parselet);
@@ -71,16 +103,36 @@ namespace Wasp
         register_parselet(TokenType::MOD_EQUAL, assignment_parselet);
         register_parselet(TokenType::POWER_EQUAL, assignment_parselet);
 
-        register_parselet(TokenType::COLON, make_shared<TypePatternParselet>());
-        register_parselet(TokenType::IF, make_shared<TernaryConditionParselet>());
+        register_parselet(
+            TokenType::IF,
+            std::make_shared<TernaryConditionParselet>()
+        );
 
-        register_parselet(TokenType::DOT, make_shared<MemberAccessParselet>());
+        register_parselet(
+            TokenType::DOT,
+            std::make_shared<MemberAccessParselet>()
+        );
 
-        register_parselet(TokenType::DOT, make_shared<PlaceholderDotParselet>());
-        register_parselet(TokenType::DOT_DOT_LESS, make_shared<PrefixRangeParselet>(false));
-        register_parselet(TokenType::DOT_DOT_EQUAL, make_shared<PrefixRangeParselet>(true));
-        register_parselet(TokenType::DOT_DOT_LESS, make_shared<InfixRangeParselet>(false));
-        register_parselet(TokenType::DOT_DOT_EQUAL, make_shared<InfixRangeParselet>(true));
+        register_parselet(
+            TokenType::DOT,
+            std::make_shared<PlaceholderDotParselet>()
+        );
+        register_parselet(
+            TokenType::DOT_DOT_LESS,
+            std::make_shared<PrefixRangeParselet>(false)
+        );
+        register_parselet(
+            TokenType::DOT_DOT_EQUAL,
+            std::make_shared<PrefixRangeParselet>(true)
+        );
+        register_parselet(
+            TokenType::DOT_DOT_LESS,
+            std::make_shared<InfixRangeParselet>(false)
+        );
+        register_parselet(
+            TokenType::DOT_DOT_EQUAL,
+            std::make_shared<InfixRangeParselet>(true)
+        );
     }
 
     void Parser::register_parselet(TokenType token_type, IPrefixParselet_ptr parselet)

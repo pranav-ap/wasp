@@ -33,14 +33,17 @@ TEST(ParseBranching, TernaryLetExpression)
     auto block = parse("if let x = 1 then 1 else 2");
 
     auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
-    auto &ternary = check<Wasp::IfTernaryBranch>(stmt.expression);
+    auto& ternary = check<Wasp::IfTernaryBranch>(stmt.expression);
 
-    // Test Condition
-    auto &letExpr = check<Wasp::VariableDefinitionExpression>(ternary.test);
-    auto &assign = check<Wasp::UntypedAssignment>(letExpr.assignment);
-    auto &identifier = check<Wasp::Identifier>(assign.lhs_expression);
+    // Test Condition (now a unified Assignment node)
+    auto& assign = check<Wasp::Assignment>(ternary.test);
+    EXPECT_TRUE(assign.is_definition);
+    EXPECT_TRUE(assign.is_mutable); // 'let' makes it mutable
+
+    auto& identifier = check<Wasp::Identifier>(assign.lhs);
     EXPECT_EQ(identifier.name, "x");
-    auto& assign_value = check<Wasp::IntegerLiteral>(assign.rhs_expression);
+
+    auto& assign_value = check<Wasp::IntegerLiteral>(assign.rhs);
     EXPECT_EQ(assign_value.value, 1);
 
     // TRUE Branch
@@ -48,7 +51,7 @@ TEST(ParseBranching, TernaryLetExpression)
     EXPECT_EQ(true_val.value, 1);
 
     // ELSE Branch
-    auto &else_branch = check<Wasp::ElseTernaryBranch>(ternary.alternative);
+    auto& else_branch = check<Wasp::ElseTernaryBranch>(ternary.alternative);
     auto& false_val = check<Wasp::IntegerLiteral>(else_branch.expression);
     EXPECT_EQ(false_val.value, 2);
 }

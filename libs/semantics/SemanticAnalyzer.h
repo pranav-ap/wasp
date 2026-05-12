@@ -51,6 +51,7 @@ private:
     void visit(const Statement_ptr statement);
     void visit(StatementVector& statements);
 
+    void inject_prelude();
     void hoist_statements(StatementVector& statements);
     void hoist_names_and_imports(StatementVector& statements);
     void hoist_signatures_and_generics(StatementVector& statements);
@@ -63,7 +64,6 @@ private:
     void visit(TraitDefinition& statement);
     void visit(FieldDefinition& statement);
     void visit(EnumDefinition& statement);
-    void visit(VariableDefinition& statement);
     void visit(TypeAliasDefinition& statement);
     void visit(IfBranch& statement);
     void visit(ElseBranch& statement);
@@ -107,18 +107,18 @@ private:
     Object_ptr visit(MemberAccess& expr);
     Object_ptr visit(TemplateAngular& template_instantiation);
 
-    Object_ptr visit(VariableDefinitionExpression& expr);
-    Object_ptr visit(UntypedAssignment& expr);
-    Object_ptr visit(TypedAssignment& expr);
-    Object_ptr visit(TypePattern& expr);
+    Object_ptr visit(Assignment& expr);
     Object_ptr visit(IfTernaryBranch& expr);
     Object_ptr visit(ElseTernaryBranch& expr);
 
     Object_ptr visit(Call& expr);
     Object_ptr visit(Constructor& expr);
 
-    Object_ptr define_variable(Expression_ptr assignment_expr, bool is_mutable);
-    Object_ptr mutate_variable(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
+    Object_ptr define_variable(Assignment& assign);
+    Object_ptr mutate_variable(
+        Expression_ptr lhs_expr,
+        Expression_ptr rhs_expr
+    );
     Object_ptr mutate_member(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
 
     Object_ptr collapse_types(const ObjectVector& types);

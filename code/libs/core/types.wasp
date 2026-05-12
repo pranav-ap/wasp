@@ -18,3 +18,9 @@ class String
 
 
 type str = String
+
+class Boolean
+    value: @bool
+
+
+type bool = Boolean

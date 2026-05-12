@@ -3,6 +3,7 @@ add_library(
     SemanticAnalyzer.cpp
     SemanticAnalyzer_types.cpp
     SemanticAnalyzer_hoist.cpp
+    SemanticAnalyzer_ast_transforms.cpp
     SemanticAnalyzer_expressions.cpp
     SemanticAnalyzer_control_flow.cpp
     SemanticAnalyzer_definitions.cpp

@@ -40,7 +40,6 @@ private:
     StatementVector parse_statements_block(int expected_indent_level);
     Statement_ptr parse_expression_statement();
 
-    Statement_ptr parse_variable_definition(bool is_mutable);
     Statement_ptr parse_alias_definition();
 
     Statement_ptr parse_function_definition(

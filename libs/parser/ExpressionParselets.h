@@ -115,13 +115,6 @@ namespace Wasp
         int get_precedence() const override;
     };
 
-    class TypePatternParselet : public IInfixParselet
-    {
-    public:
-        Expression_ptr parse(Parser &parser, Expression_ptr left, const Token &token) override;
-        int get_precedence() const override;
-    };
-
     class AssignmentParselet : public IInfixParselet
     {
     public:

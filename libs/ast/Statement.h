@@ -23,7 +23,9 @@ struct ExpressionStatement
     Expression_ptr expression;
 
     ExpressionStatement() = default;
-    explicit ExpressionStatement(Expression_ptr expr) : expression(std::move(expr))
+
+    explicit ExpressionStatement(Expression_ptr expr)
+        : expression(std::move(expr))
     {
     }
 };
@@ -95,7 +97,8 @@ struct AbstractFunctionDefinition : public Definition
 };
 
 // Standalone functions remain Templatable
-struct FunctionDefinition : public AbstractFunctionDefinition, public Templatable
+struct FunctionDefinition : public AbstractFunctionDefinition,
+                            public Templatable
 {
     FunctionDefinition() = default;
 
@@ -145,7 +148,8 @@ struct MethodDefinition : public AbstractFunctionDefinition
     }
 };
 
-struct OperatorDefinition : public AbstractFunctionDefinition, public Templatable
+struct OperatorDefinition : public AbstractFunctionDefinition,
+                            public Templatable
 {
     TokenType operator_token_type;
 
@@ -165,7 +169,8 @@ struct OperatorDefinition : public AbstractFunctionDefinition, public Templatabl
               std::move(body),
               true // Operators are always pure
           ),
-          Templatable(std::move(generics)), operator_token_type(operator_token_type)
+          Templatable(std::move(generics)),
+          operator_token_type(operator_token_type)
     {
     }
 };
@@ -225,17 +230,6 @@ struct TypeAliasDefinition : public Definition, public Templatable
     }
 };
 
-struct VariableDefinition : public Definition
-{
-    Expression_ptr expression;
-    bool is_mutable;
-
-    VariableDefinition() = default;
-
-    VariableDefinition(Expression_ptr expression, bool is_mutable)
-        : expression(std::move(expression)), is_mutable(is_mutable) {};
-};
-
 struct EnumDefinition : public Definition
 {
     std::map<std::string, int> members;
@@ -275,8 +269,13 @@ struct IfBranch : Branch
     IfBranch(Expression_ptr test, StatementVector body)
         : Branch(body), test(test), alternative(std::nullopt) {};
 
-    IfBranch(Expression_ptr test, StatementVector body, Statement_ptr alternative)
-        : Branch(body), test(test), alternative(std::make_optional(alternative)) {};
+    IfBranch(
+        Expression_ptr test,
+        StatementVector body,
+        Statement_ptr alternative
+    )
+        : Branch(body), test(test),
+          alternative(std::make_optional(alternative)) {};
 };
 
 struct ElseBranch : Branch
@@ -339,7 +338,8 @@ struct Return
 
     Return() : expression(std::nullopt) {};
 
-    Return(Expression_ptr expression) : expression(std::make_optional(std::move(expression))) {};
+    Return(Expression_ptr expression)
+        : expression(std::make_optional(std::move(expression))) {};
 };
 
 // Loop Controls
@@ -351,7 +351,8 @@ struct LoopControl
 
     LoopControl() = default;
 
-    LoopControl(TokenType type, std::string label = "") : type(type), label(label)
+    LoopControl(TokenType type, std::string label = "")
+        : type(type), label(label)
     {
     }
 };
@@ -371,7 +372,10 @@ struct AbstractImport : public Resolvable
 
     AbstractImport() = default;
 
-    AbstractImport(std::optional<TokenType> access_token_type, StringVector path)
+    AbstractImport(
+        std::optional<TokenType> access_token_type,
+        StringVector path
+    )
         : access_token_type(access_token_type), path(std::move(path))
     {
     }
@@ -391,7 +395,8 @@ struct SimpleImport : public AbstractImport
         StringVector path,
         std::optional<std::string> alias = std::nullopt
     )
-        : AbstractImport(access_token_type, std::move(path)), alias(std::move(alias))
+        : AbstractImport(access_token_type, std::move(path)),
+          alias(std::move(alias))
     {
     }
 };
@@ -404,7 +409,10 @@ struct ImportAsPair : public Resolvable
 
     ImportAsPair() = default;
 
-    ImportAsPair(std::string name, std::optional<std::string> alias = std::nullopt)
+    ImportAsPair(
+        std::string name,
+        std::optional<std::string> alias = std::nullopt
+    )
         : name(std::move(name)), alias(std::move(alias))
     {
     }
@@ -434,7 +442,6 @@ using StatementVariant = std::variant<
     std::monostate,
     ExpressionStatement,
 
-    VariableDefinition,
     TypeAliasDefinition,
     EnumDefinition,
 
@@ -474,7 +481,8 @@ template <typename T> inline Statement_ptr make_statement(T&& data)
     return std::make_shared<Statement>(std::forward<T>(data));
 }
 
-template <typename T> inline Statement_ptr make_statement(T&& data, int statement_number)
+template <typename T>
+inline Statement_ptr make_statement(T&& data, int statement_number)
 {
     auto stmt = std::make_shared<Statement>(std::forward<T>(data));
     stmt->statement_number = statement_number;

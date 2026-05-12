@@ -11,18 +11,22 @@ TEST(ParseDefinitions, IntDefinition)
     auto block = parse("let x: int = 5");
     ASSERT_EQ(block.size(), 1);
 
-    auto& var_def = check<Wasp::VariableDefinition>(block[0]);
-    EXPECT_TRUE(var_def.is_mutable);
+    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
+    auto& assignment = check<Wasp::Assignment>(stmt.expression);
 
-    auto& assignment = check<Wasp::TypedAssignment>(var_def.expression);
+    EXPECT_TRUE(assignment.is_definition);
+    EXPECT_TRUE(assignment.is_mutable);
+    ASSERT_TRUE(assignment.declared_type.has_value());
 
-    auto& lhs = check<Wasp::Identifier>(assignment.lhs_expression);
+    auto& lhs = check<Wasp::Identifier>(assignment.lhs);
     EXPECT_EQ(lhs.name, "x");
 
-    auto& type_node = check<Wasp::TypeIdentifierNode>(assignment.type_node);
+    auto& type_node = check<Wasp::TypeIdentifierNode>(
+        assignment.declared_type.value()
+    );
     EXPECT_EQ(type_node.name, "int");
 
-    auto& rhs = check<Wasp::IntegerLiteral>(assignment.rhs_expression);
+    auto& rhs = check<Wasp::IntegerLiteral>(assignment.rhs);
     EXPECT_EQ(rhs.value, 5);
 }
 
@@ -31,23 +35,25 @@ TEST(ParseDefinitions, ListDefinition)
     auto block = parse("let x : [int] = [1, 2, 3]");
     ASSERT_EQ(block.size(), 1);
 
-    auto& var_def = check<Wasp::VariableDefinition>(block[0]);
-    EXPECT_TRUE(var_def.is_mutable);
+    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
+    auto& assignment = check<Wasp::Assignment>(stmt.expression);
 
-    auto& assignment = check<Wasp::TypedAssignment>(var_def.expression);
+    EXPECT_TRUE(assignment.is_definition);
+    EXPECT_TRUE(assignment.is_mutable);
+    ASSERT_TRUE(assignment.declared_type.has_value());
 
-    auto& lhs = check<Wasp::Identifier>(assignment.lhs_expression);
+    auto& lhs = check<Wasp::Identifier>(assignment.lhs);
     EXPECT_EQ(lhs.name, "x");
 
     auto& list_type_ptr = check<std::shared_ptr<Wasp::ListTypeNode>>(
-        assignment.type_node
+        assignment.declared_type.value()
     );
     auto& element_type = check<Wasp::TypeIdentifierNode>(
         list_type_ptr->element_type
     );
     EXPECT_EQ(element_type.name, "int");
 
-    auto& list = check<Wasp::ListLiteral>(assignment.rhs_expression);
+    auto& list = check<Wasp::ListLiteral>(assignment.rhs);
     ASSERT_EQ(list.expressions.size(), 3);
 }
 
@@ -56,16 +62,18 @@ TEST(ParseDefinitions, MapDefinition)
     auto block = parse("let x : { int => int } = {1 => 1, 2 => 2, 3 => 3}");
     ASSERT_EQ(block.size(), 1);
 
-    auto& var_def = check<Wasp::VariableDefinition>(block[0]);
-    EXPECT_TRUE(var_def.is_mutable);
+    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
+    auto& assignment = check<Wasp::Assignment>(stmt.expression);
 
-    auto& assignment = check<Wasp::TypedAssignment>(var_def.expression);
+    EXPECT_TRUE(assignment.is_definition);
+    EXPECT_TRUE(assignment.is_mutable);
+    ASSERT_TRUE(assignment.declared_type.has_value());
 
-    auto& lhs = check<Wasp::Identifier>(assignment.lhs_expression);
+    auto& lhs = check<Wasp::Identifier>(assignment.lhs);
     EXPECT_EQ(lhs.name, "x");
 
     auto& map_type_ptr = check<std::shared_ptr<Wasp::MapTypeNode>>(
-        assignment.type_node
+        assignment.declared_type.value()
     );
     auto& key_type = check<Wasp::TypeIdentifierNode>(map_type_ptr->key_type);
     EXPECT_EQ(key_type.name, "int");
@@ -75,7 +83,7 @@ TEST(ParseDefinitions, MapDefinition)
     );
     EXPECT_EQ(value_type.name, "int");
 
-    auto& map = check<Wasp::MapLiteral>(assignment.rhs_expression);
+    auto& map = check<Wasp::MapLiteral>(assignment.rhs);
     ASSERT_EQ(map.pairs.size(), 3);
 }
 
@@ -84,12 +92,16 @@ TEST(ParseDefinitions, FunTypeDefinition)
     auto block = parse("let x : (int) => int = function_name");
     ASSERT_EQ(block.size(), 1);
 
-    auto& var_def = check<Wasp::VariableDefinition>(block[0]);
-    auto& assignment = check<Wasp::TypedAssignment>(var_def.expression);
+    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
+    auto& assignment = check<Wasp::Assignment>(stmt.expression);
+
+    EXPECT_TRUE(assignment.is_definition);
+    EXPECT_TRUE(assignment.is_mutable);
+    ASSERT_TRUE(assignment.declared_type.has_value());
 
     // Check (int) => int
     auto& func_type_ptr = check<std::shared_ptr<Wasp::FunctionTypeNode>>(
-        assignment.type_node
+        assignment.declared_type.value()
     );
 
     ASSERT_EQ(func_type_ptr->input_types.size(), 1);
@@ -104,7 +116,7 @@ TEST(ParseDefinitions, FunTypeDefinition)
     EXPECT_EQ(return_type.name, "int");
 
     // Check RHS assignment
-    auto& rhs = check<Wasp::Identifier>(assignment.rhs_expression);
+    auto& rhs = check<Wasp::Identifier>(assignment.rhs);
     EXPECT_EQ(rhs.name, "function_name");
 }
 
@@ -113,12 +125,19 @@ TEST(ParseDefinitions, VariantDefinition)
     auto block = parse("let x : int | float = 5");
     ASSERT_EQ(block.size(), 1);
 
-    auto& var_def = check<Wasp::VariableDefinition>(block[0]);
-    auto& assignment = check<Wasp::TypedAssignment>(var_def.expression);
+    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
+    auto& assignment = check<Wasp::Assignment>(stmt.expression);
+
+    EXPECT_TRUE(assignment.is_definition);
+    EXPECT_TRUE(assignment.is_mutable);
+    ASSERT_TRUE(assignment.declared_type.has_value());
+
+    auto& lhs = check<Wasp::Identifier>(assignment.lhs);
+    EXPECT_EQ(lhs.name, "x");
 
     // Check int | float
     auto& variant_type_ptr = check<std::shared_ptr<Wasp::VariantTypeNode>>(
-        assignment.type_node
+        assignment.declared_type.value()
     );
     ASSERT_EQ(variant_type_ptr->types.size(), 2);
 
@@ -129,6 +148,6 @@ TEST(ParseDefinitions, VariantDefinition)
     EXPECT_EQ(type_2.name, "float");
 
     // Check RHS assignment
-    auto& rhs = check<Wasp::IntegerLiteral>(assignment.rhs_expression);
+    auto& rhs = check<Wasp::IntegerLiteral>(assignment.rhs);
     EXPECT_EQ(rhs.value, 5);
 }

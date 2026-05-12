@@ -164,18 +164,18 @@ Expression_ptr CurlyBraceParselet::parse(Parser& parser, const Token& token)
     return make_expression(SetLiteral(elements));
 }
 
-Expression_ptr TypePatternParselet::parse(Parser& parser, Expression_ptr left, const Token& token)
-{
-    parser.token_pipe.advance_pointer();
-    TypeAnnotation_ptr type = parser.parse_type();
-    return make_expression(TypePattern(left, type));
-}
-
-Expression_ptr AssignmentParselet::parse(Parser& parser, Expression_ptr left, const Token& token)
+Expression_ptr AssignmentParselet::parse(
+    Parser& parser,
+    Expression_ptr left,
+    const Token& token
+)
 {
     parser.token_pipe.advance_pointer();
 
-    Expression_ptr right = parser.parse_expression(static_cast<int>(Precedence::ASSIGNMENT) - 1);
+    Expression_ptr right = parser.parse_expression(
+        static_cast<int>(Precedence::ASSIGNMENT) - 1
+    );
+
     Doctor::get().fatal_if_nullptr(right, WaspStage::Parser);
 
     if (token.type != TokenType::EQUAL)
@@ -212,17 +212,18 @@ Expression_ptr AssignmentParselet::parse(Parser& parser, Expression_ptr left, co
             break;
         }
 
-        // Transform: right = (left op right)
-        right = make_expression(Infix(left, op_token, right));
+        right = make_expression(
+            Infix(left, op_token, right),
+            left->start_token,
+            right->end_token
+        );
     }
 
-    if (left->is<TypePattern>())
-    {
-        const auto& pattern = left->as<TypePattern>();
-        return make_expression(TypedAssignment(pattern.expression, right, pattern.type_node));
-    }
-
-    return make_expression(UntypedAssignment(left, right));
+    return make_expression(
+        Assignment(left, right),
+        left->start_token,
+        right->end_token
+    );
 }
 
 Expression_ptr TernaryConditionParselet::parse(Parser& parser, const Token& token)
@@ -433,10 +434,6 @@ int PrefixOperatorParselet::get_precedence() const
 int InfixOperatorParselet::get_precedence() const
 {
     return precedence;
-}
-int TypePatternParselet::get_precedence() const
-{
-    return static_cast<int>(Precedence::TYPE_PATTERN);
 }
 int AssignmentParselet::get_precedence() const
 {

@@ -28,60 +28,55 @@ namespace Wasp
 // Variable Definitions & Assignments
 // ---------------------------------------------------------------------------
 
-Object_ptr SemanticAnalyzer::define_variable(
-    Expression_ptr assignment_node,
-    bool is_mutable
-)
+Object_ptr SemanticAnalyzer::visit(Assignment& expr)
 {
-    Expression_ptr identifier_expr = nullptr;
-    Expression_ptr rhs_expr = nullptr;
-    Object_ptr declared_type = nullptr;
+    if (expr.is_definition)
+    {
+        return define_variable(expr);
+    }
 
-    std::visit(
-        overloaded{
-            [&](UntypedAssignment& assign)
-            {
-                identifier_expr = assign.lhs_expression;
-                rhs_expr = assign.rhs_expression;
-            },
-            [&](TypedAssignment& assign)
-            {
-                identifier_expr = assign.lhs_expression;
-                rhs_expr = assign.rhs_expression;
-                declared_type = visit(assign.type_node);
-            },
-            [](auto&)
-            {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "Invalid variable definition expression"
-                );
-            }
-        },
-        assignment_node->data
+    if (expr.lhs->is<Identifier>())
+    {
+        return mutate_variable(expr.lhs, expr.rhs);
+    }
+
+    if (expr.lhs->is<MemberAccess>())
+    {
+        return mutate_member(expr.lhs, expr.rhs);
+    }
+
+    Doctor::get().fatal(
+        WaspStage::Semantics,
+        "Left-hand side of assignment must be an Identifier or MemberAccess."
     );
+    return nullptr;
+}
 
+Object_ptr SemanticAnalyzer::define_variable(Assignment& assign)
+{
     Doctor::get().assert(
-        identifier_expr->is<Identifier>(),
+        assign.lhs->is<Identifier>(),
         WaspStage::Semantics,
         "Left-hand side of definition must be an Identifier."
     );
 
-    std::string symbol_name = identifier_expr->as<Identifier>().name;
+    std::string symbol_name = assign.lhs->as<Identifier>().name;
 
-    Object_ptr resolved_type = visit(rhs_expr);
+    Object_ptr resolved_type = visit(assign.rhs);
     resolved_type = unwrap_type_alias(resolved_type);
 
-    if (declared_type)
+    if (assign.declared_type.has_value())
     {
+        Object_ptr explicit_type = visit(assign.declared_type.value());
+
         Doctor::get().assert(
             type_system
-                ->assignable(current_scope, declared_type, resolved_type),
+                ->assignable(current_scope, explicit_type, resolved_type),
             WaspStage::Semantics,
             "Type mismatch in variable definition for " + symbol_name
         );
 
-        resolved_type = declared_type;
+        resolved_type = explicit_type;
     }
 
     if (Symbol_ptr hoisted_symbol = current_scope->lookup(symbol_name))
@@ -93,7 +88,7 @@ Object_ptr SemanticAnalyzer::define_variable(
         );
 
         hoisted_symbol->set_type(resolved_type);
-        identifier_expr->as<Identifier>().symbol = hoisted_symbol;
+        assign.lhs->as<Identifier>().symbol = hoisted_symbol;
 
         return hoisted_symbol->get_type();
     }
@@ -101,13 +96,13 @@ Object_ptr SemanticAnalyzer::define_variable(
     auto local_symbol = SymbolFactory::create_variable(
         symbol_name,
         resolved_type,
-        is_mutable,
+        assign.is_mutable,
         current_scope->get_closure_depth(),
         current_scope->get_lexical_depth()
     );
 
     current_scope->define(local_symbol);
-    identifier_expr->as<Identifier>().symbol = local_symbol;
+    assign.lhs->as<Identifier>().symbol = local_symbol;
 
     return local_symbol->get_type();
 }
@@ -135,7 +130,6 @@ void SemanticAnalyzer::validate_purity_constraints(
                     target_symbol->name + "'"
             );
         }
-
         scope = scope->get_enclosing();
     }
 }
@@ -145,12 +139,6 @@ Object_ptr SemanticAnalyzer::mutate_variable(
     Expression_ptr assigned_expr
 )
 {
-    Doctor::get().assert(
-        identifier_expr->is<Identifier>(),
-        WaspStage::Semantics,
-        "Left-hand side of assignment must be an Identifier."
-    );
-
     auto& identifier_node = identifier_expr->as<Identifier>();
     std::string symbol_name = identifier_node.name;
 
@@ -179,7 +167,6 @@ Object_ptr SemanticAnalyzer::mutate_variable(
     validate_purity_constraints(target_symbol);
 
     identifier_node.symbol = target_symbol;
-
     Object_ptr assigned_type = visit(assigned_expr);
 
     Doctor::get().assert(
@@ -201,7 +188,6 @@ Object_ptr SemanticAnalyzer::mutate_member(
 )
 {
     auto& mac = lhs_expr->as<MemberAccess>();
-
     Object_ptr expected_type = visit(mac);
 
     if (mac.member_index == -1)
@@ -226,42 +212,6 @@ Object_ptr SemanticAnalyzer::mutate_member(
     );
 
     return expected_type;
-}
-
-void SemanticAnalyzer::visit(VariableDefinition& statement)
-{
-    define_variable(statement.expression, statement.is_mutable);
-}
-
-Object_ptr SemanticAnalyzer::visit(VariableDefinitionExpression& expr)
-{
-    return define_variable(expr.assignment, expr.is_mutable);
-}
-
-Object_ptr SemanticAnalyzer::visit(UntypedAssignment& expr)
-{
-    if (expr.lhs_expression->is<Identifier>())
-    {
-        return mutate_variable(expr.lhs_expression, expr.rhs_expression);
-    }
-
-    if (expr.lhs_expression->is<MemberAccess>())
-    {
-        return mutate_member(expr.lhs_expression, expr.rhs_expression);
-    }
-
-    Doctor::get().fatal(
-        WaspStage::Semantics,
-        "Left-hand side of assignment must be an Identifier or MemberAccess."
-    );
-}
-
-Object_ptr SemanticAnalyzer::visit(TypedAssignment& expr)
-{
-    Doctor::get().fatal(
-        WaspStage::Semantics,
-        "TypedAssignment cannot be visited directly"
-    );
 }
 
 // ---------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 from core.io import print
-from core.types import int, Int, str, String
+from core.types import int, Int, str, String, bool, Boolean
 
 
 operator + (left: Int, right: Int) => Int
@@ -15,4 +15,3 @@ y.repr()
 
 let z: int = x + y
 z.repr()
-

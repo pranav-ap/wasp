@@ -32,16 +32,6 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-Statement_ptr Parser::parse_variable_definition(bool is_mutable)
-{
-    token_pipe.advance_pointer();
-
-    auto expression = parse_expression();
-    token_pipe.require_in_line(TokenType::EOL);
-
-    return make_statement(VariableDefinition(expression, is_mutable));
-}
-
 Statement_ptr Parser::parse_alias_definition()
 {
     token_pipe.advance_pointer();
