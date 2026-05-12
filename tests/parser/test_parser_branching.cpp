@@ -88,10 +88,10 @@ else
 
     // 1. Check the main 'if' branch
     auto& stmt = check<Wasp::IfBranch>(block[0]);
-    auto &test = check<Wasp::Infix>(stmt.test);
+    auto& test = check<Wasp::Infix>(stmt.test);
 
     {
-        auto &left = check<Wasp::Identifier>(test.left);
+        auto& left = check<Wasp::Identifier>(test.left);
         EXPECT_EQ(left.name, "x");
 
         EXPECT_EQ(test.op.type, Wasp::TokenType::EQUAL_EQUAL);
@@ -102,17 +102,18 @@ else
 
     {
         ASSERT_EQ(stmt.body.size(), 1);
-        check<Wasp::Pass>(stmt.body[0]);
+        auto& placeholder = check<Wasp::Placeholder>(stmt.body[0]);
+        EXPECT_EQ(placeholder.type, Wasp::TokenType::PASS);
     }
 
     // 2. Check the 'elif' branch (nested in the first 'if' alternative)
     ASSERT_TRUE(stmt.alternative.has_value());
-    auto &elif_stmt = check<Wasp::IfBranch>(stmt.alternative.value());
+    auto& elif_stmt = check<Wasp::IfBranch>(stmt.alternative.value());
 
     {
-        auto &elif_test = check<Wasp::Infix>(elif_stmt.test);
+        auto& elif_test = check<Wasp::Infix>(elif_stmt.test);
 
-        auto &left = check<Wasp::Identifier>(elif_test.left);
+        auto& left = check<Wasp::Identifier>(elif_test.left);
         EXPECT_EQ(left.name, "x");
 
         EXPECT_EQ(elif_test.op.type, Wasp::TokenType::EQUAL_EQUAL);
@@ -123,15 +124,17 @@ else
 
     {
         ASSERT_EQ(elif_stmt.body.size(), 1);
-        check<Wasp::Pass>(elif_stmt.body[0]);
+        auto& placeholder = check<Wasp::Placeholder>(elif_stmt.body[0]);
+        EXPECT_EQ(placeholder.type, Wasp::TokenType::PASS);
     }
 
     // 3. Check the 'else' branch (nested in the 'elif' alternative)
     ASSERT_TRUE(elif_stmt.alternative.has_value());
-    auto &else_stmt = check<Wasp::ElseBranch>(elif_stmt.alternative.value());
+    auto& else_stmt = check<Wasp::ElseBranch>(elif_stmt.alternative.value());
 
     {
         ASSERT_EQ(else_stmt.body.size(), 1);
-        check<Wasp::Pass>(else_stmt.body[0]);
+        auto& placeholder = check<Wasp::Placeholder>(else_stmt.body[0]);
+        EXPECT_EQ(placeholder.type, Wasp::TokenType::PASS);
     }
 }

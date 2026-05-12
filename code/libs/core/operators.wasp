@@ -1,0 +1,5 @@
+import my.types expose *
+
+
+infix + (left: Int, right: Int) => Int
+    return Int(left.value + right.value)

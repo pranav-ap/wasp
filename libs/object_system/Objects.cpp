@@ -282,4 +282,64 @@ bool VariantObject::has_value()
     return value != nullptr && !value->is<std::monostate>();
 }
 
+// ============================================================================
+// Object Method Implementations
+// ============================================================================
+
+bool Object::is_type_object() const
+{
+    return is<TypeType>() || is<AnyType>() || is<NoneType>() || is<IntType>() ||
+           is<FloatType>() || is<StringType>() || is<BooleanType>() ||
+           is<ListType>() || is<TupleType>() || is<SetType>() ||
+           is<MapType>() || is<VariantType>() || is<Signature_ptr>() ||
+           is<ModuleType_ptr>() || is<ClassType_ptr>() || is<TraitType_ptr>() ||
+           is<EnumType_ptr>() || is<TypeAlias_ptr>() || is<GenericType_ptr>() ||
+           is<LiteralType>() || is<NamedDefinitionType>();
+}
+
+bool Object::is_runtime_value() const
+{
+    // A runtime value is anything that isn't a type, an empty state,
+    // an overload group, or a control-flow action object.
+    return !is_type_object() && !is<std::monostate>() &&
+           !is<std::shared_ptr<BreakObject>>() &&
+           !is<std::shared_ptr<ContinueObject>>() &&
+           !is<std::shared_ptr<RedoObject>>() &&
+           !is<std::shared_ptr<ReturnObject>>() &&
+           !is<std::shared_ptr<ErrorObject>>() &&
+           !is<std::shared_ptr<ObjectOverloadList>>();
+}
+
+bool Object::is_callable() const
+{
+    return is<std::shared_ptr<FunctionBlueprintObject>>() ||
+           is<std::shared_ptr<FunctionRuntimeObject>>() ||
+           is<std::shared_ptr<NativeFunctionObject>>() || is<Signature_ptr>();
+}
+
+IterableAbstractObject* Object::as_iterable()
+{
+    if (auto* str = try_as<StringObject>())
+    {
+        return str;
+    }
+
+    if (auto* list_ptr = try_as<std::shared_ptr<ListObject>>())
+    {
+        return list_ptr->get();
+    }
+
+    if (auto* set_ptr = try_as<std::shared_ptr<SetObject>>())
+    {
+        return set_ptr->get();
+    }
+
+    if (auto* map_ptr = try_as<std::shared_ptr<MapObject>>())
+    {
+        return map_ptr->get();
+    }
+
+    return nullptr;
+}
+
 } // namespace Wasp

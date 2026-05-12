@@ -16,7 +16,7 @@ namespace Wasp
 
 struct BoxableLiteral : public Resolvable
 {
-    Expression_ptr construtable = nullptr;
+    Expression_ptr constructible = nullptr;
 
     BoxableLiteral() = default;
 };
@@ -73,6 +73,11 @@ struct DotLiteral : public Resolvable
 {
 };
 
+struct InterpolatedString
+{
+    ExpressionVector parts;
+};
+
 struct OperatorExpression : public Resolvable
 {
     int overload_index = -1;
@@ -124,7 +129,7 @@ struct SequenceLiteral : public BoxableLiteral
 {
     ExpressionVector expressions;
 
-    explicit SequenceLiteral() = default;
+    SequenceLiteral() = default;
     explicit SequenceLiteral(ExpressionVector expressions)
         : expressions(std::move(expressions)) {};
 };
@@ -266,7 +271,6 @@ struct Call
     ExpressionVector arguments;
 
     bool is_method_call = false;
-    bool is_pure_method_call = false;
 
     int overload_index;
 
@@ -333,11 +337,6 @@ struct RangeLiteral
           is_inclusive(is_inclusive)
     {
     }
-};
-
-struct InterpolatedString
-{
-    ExpressionVector parts;
 };
 
 // Expression

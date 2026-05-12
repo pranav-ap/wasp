@@ -159,6 +159,22 @@ struct Symbol : public std::enable_shared_from_this<Symbol>
     void add_overload(Symbol_ptr overload);
     std::string to_string() const;
 
+    bool is_mutable_variable() const
+    {
+        auto* var_data = try_get_payload<VariableData>();
+        return var_data && var_data->is_mutable;
+    }
+
+    bool is_callable_payload() const
+    {
+        return payload_is_any_of<FunctionData, MethodData, OverloadsData>();
+    }
+
+    bool is_oop_type() const
+    {
+        return payload_is_any_of<ClassData, TraitData>();
+    }
+
     template <typename T> bool payload_is() const
     {
         return std::holds_alternative<T>(payload);
@@ -172,6 +188,21 @@ struct Symbol : public std::enable_shared_from_this<Symbol>
     template <typename T> const T& get_payload_as() const
     {
         return std::get<T>(payload);
+    }
+
+    template <typename T> T* try_get_payload()
+    {
+        return std::get_if<T>(&payload);
+    }
+
+    template <typename T> const T* try_get_payload() const
+    {
+        return std::get_if<T>(&payload);
+    }
+
+    template <typename... Ts> bool payload_is_any_of() const
+    {
+        return (payload_is<Ts>() || ...);
     }
 };
 

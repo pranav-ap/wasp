@@ -3,7 +3,6 @@
 #include "AST.h"
 #include "Resolvable.h"
 #include "Token.h"
-
 #include <filesystem>
 #include <map>
 #include <memory>
@@ -15,8 +14,6 @@
 
 namespace Wasp
 {
-
-struct ExpressionStatement;
 
 struct ExpressionStatement
 {
@@ -30,7 +27,7 @@ struct ExpressionStatement
     }
 };
 
-// --- Core Structural Components ---
+// --- Core ---
 
 struct Definition : public Resolvable
 {
@@ -68,97 +65,97 @@ struct Templatable
     }
 };
 
-// --- Function Definitions ---
+// --- Callables ---
 
-struct AbstractFunctionDefinition : public Definition, public Templatable
+struct AbstractCallable : public Definition, public Templatable
 {
     std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters;
     std::vector<std::shared_ptr<Symbol>> parameter_symbols;
-
     TypeAnnotation_ptr return_type;
     StatementVector body;
-
     std::shared_ptr<Symbol> group_symbol;
-
     bool is_pure = false;
 
-    AbstractFunctionDefinition() = default;
+    AbstractCallable() = default;
 
-    AbstractFunctionDefinition(
+    AbstractCallable(
         std::string name,
-        std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters,
-        TypeAnnotation_ptr return_type,
+        std::vector<std::pair<std::string, TypeAnnotation_ptr>> params,
+        TypeAnnotation_ptr ret,
         StatementVector body,
-        bool is_pure = false,
-        std::vector<FieldDefinition> generics = {}
+        bool pure = false,
+        std::vector<FieldDefinition> gen = {}
     )
-        : Definition(std::move(name)), Templatable(std::move(generics)),
-          parameters(std::move(parameters)),
-          return_type(std::move(return_type)), body(std::move(body)),
-          is_pure(is_pure)
+        : Definition(std::move(name)), Templatable(std::move(gen)),
+          parameters(std::move(params)), return_type(std::move(ret)),
+          body(std::move(body)), is_pure(pure)
     {
     }
 };
 
-struct FunctionDefinition : public AbstractFunctionDefinition
+struct FunctionDefinition : public AbstractCallable
 {
-    bool is_method = false;
+    using AbstractCallable::AbstractCallable;
+};
+
+struct MethodDefinition : public AbstractCallable
+{
     bool is_static = false;
 
-    FunctionDefinition() = default;
+    MethodDefinition() = default;
 
-    FunctionDefinition(
+    MethodDefinition(
         std::string name,
-        std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters,
-        TypeAnnotation_ptr return_type,
+        std::vector<std::pair<std::string, TypeAnnotation_ptr>> params,
+        TypeAnnotation_ptr ret,
         StatementVector body,
-        bool is_pure = false,
-        bool is_method = false,
-        bool is_static = false,
-        std::vector<FieldDefinition> generics = {}
+        bool pure = false,
+        bool stat = false,
+        std::vector<FieldDefinition> gen = {}
     )
-        : AbstractFunctionDefinition(
+        : AbstractCallable(
               std::move(name),
-              std::move(parameters),
-              std::move(return_type),
+              std::move(params),
+              std::move(ret),
               std::move(body),
-              is_pure,
-              std::move(generics)
+              pure,
+              std::move(gen)
           ),
-          is_method(is_method), is_static(is_static)
+          is_static(stat)
     {
     }
 };
 
-struct OperatorDefinition : public AbstractFunctionDefinition
+struct OperatorDefinition : public AbstractCallable
 {
-    TokenType operator_token_type;
+    TokenType op_type;
     TokenType fixity;
 
     OperatorDefinition() = default;
 
     OperatorDefinition(
-        TokenType fixity,
-        TokenType operator_token_type,
-        std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters,
-        TypeAnnotation_ptr return_type,
+        TokenType fix,
+        TokenType op,
+        std::string mangled,
+        std::vector<std::pair<std::string, TypeAnnotation_ptr>> params,
+        TypeAnnotation_ptr ret,
         StatementVector body,
-        std::vector<FieldDefinition> generics = {}
+        std::vector<FieldDefinition> gen = {}
     )
-        : AbstractFunctionDefinition(
-              to_string(operator_token_type),
-              std::move(parameters),
-              std::move(return_type),
+        : AbstractCallable(
+              std::move(mangled),
+              std::move(params),
+              std::move(ret),
               std::move(body),
-              true, // Operators are natively pure
-              std::move(generics)
+              true,
+              std::move(gen)
           ),
-          operator_token_type(operator_token_type), fixity(fixity)
+          op_type(op), fixity(fix)
     {
     }
 };
 
-// --- Object Oriented Definitions ---
+// --- OOP ---
 
 struct AbstractOOPDefinition : public Definition, public Templatable
 {
@@ -171,9 +168,9 @@ struct AbstractOOPDefinition : public Definition, public Templatable
         std::string name,
         StringVector traits,
         StatementVector members,
-        std::vector<FieldDefinition> generics = {}
+        std::vector<FieldDefinition> gen = {}
     )
-        : Definition(std::move(name)), Templatable(std::move(generics)),
+        : Definition(std::move(name)), Templatable(std::move(gen)),
           traits(std::move(traits)), members(std::move(members))
     {
     }
@@ -197,11 +194,11 @@ struct TypeAliasDefinition : public Definition, public Templatable
 
     TypeAliasDefinition(
         std::string name,
-        TypeAnnotation_ptr ref_type,
-        std::vector<FieldDefinition> generics = {}
+        TypeAnnotation_ptr ref,
+        std::vector<FieldDefinition> gen = {}
     )
-        : Definition(std::move(name)), Templatable(std::move(generics)),
-          ref_type(std::move(ref_type))
+        : Definition(std::move(name)), Templatable(std::move(gen)),
+          ref_type(std::move(ref))
     {
     }
 };
@@ -215,15 +212,15 @@ struct EnumDefinition : public Definition
 
     EnumDefinition(
         std::string name,
-        const StringVector& member_list,
+        const StringVector& list,
         std::vector<EnumDefinition> nested = {}
     )
         : Definition(std::move(name)), nested_enums(std::move(nested))
     {
-        int index = 0;
-        for (const auto& member : member_list)
+        int i = 0;
+        for (const auto& m : list)
         {
-            members.emplace(member, index++);
+            members.emplace(m, i++);
         }
     }
 };
@@ -233,6 +230,12 @@ struct EnumDefinition : public Definition
 struct Branch
 {
     StatementVector body;
+
+    Branch() = default;
+
+    explicit Branch(StatementVector body) : body(std::move(body))
+    {
+    }
 };
 
 struct IfBranch : Branch
@@ -242,46 +245,40 @@ struct IfBranch : Branch
 
     IfBranch() = default;
 
-    IfBranch(Expression_ptr test, StatementVector body)
-        : Branch(body), test(test), alternative(std::nullopt) {};
-
     IfBranch(
         Expression_ptr test,
         StatementVector body,
-        Statement_ptr alternative
+        Statement_ptr alt = nullptr
     )
-        : Branch(body), test(test),
-          alternative(std::make_optional(alternative)) {};
+        : Branch{std::move(body)}, test(std::move(test)),
+          alternative(alt ? std::make_optional(alt) : std::nullopt)
+    {
+    }
 };
 
 struct ElseBranch : Branch
 {
-    ElseBranch() = default;
-    explicit ElseBranch(StatementVector body) : Branch(body) {};
+    using Branch::Branch;
 };
 
-struct Loop
-{
-    StatementVector body;
-};
-
-struct SimpleLoop : public Loop
+struct SimpleLoop : public Branch
 {
     Expression_ptr condition;
     TokenType style;
 
     SimpleLoop() = default;
 
-    SimpleLoop(StatementVector body, Expression_ptr condition, TokenType style)
-        : Loop(body), condition(std::move(condition)), style(style) {};
+    SimpleLoop(StatementVector body, Expression_ptr cond, TokenType style)
+        : Branch{std::move(body)}, condition(std::move(cond)), style(style)
+    {
+    }
 };
 
-struct ForInLoop : public Loop
+struct ForInLoop : public Branch
 {
-    bool lhs_is_mutable;
+    bool lhs_is_mutable = false;
     Expression_ptr lhs;
-    Expression_ptr iterable_expression;
-
+    Expression_ptr iterable;
     std::shared_ptr<Symbol> iterator_symbol;
 
     ForInLoop() = default;
@@ -289,33 +286,38 @@ struct ForInLoop : public Loop
     ForInLoop(
         StatementVector body,
         Expression_ptr lhs,
-        Expression_ptr iterable_expression,
-        bool lhs_is_mutable
+        Expression_ptr iter,
+        bool mut
     )
-        : Loop(body), lhs_is_mutable(lhs_is_mutable), lhs(std::move(lhs)),
-          iterable_expression(std::move(iterable_expression)) {};
+        : Branch{std::move(body)}, lhs_is_mutable(mut), lhs(std::move(lhs)),
+          iterable(std::move(iter))
+    {
+    }
 };
 
-struct Pass
-{
-};
+// --- Others ---
 
-struct Required
+struct Placeholder
 {
-};
+    // PASS, REQUIRED, or NATIVE
+    TokenType type;
 
-struct Native
-{
+    Placeholder() = default;
+
+    explicit Placeholder(TokenType type) : type(type)
+    {
+    }
 };
 
 struct Return
 {
     std::optional<Expression_ptr> expression;
 
-    Return() : expression(std::nullopt) {};
+    Return() = default;
 
-    explicit Return(Expression_ptr expression)
-        : expression(std::make_optional(std::move(expression))) {};
+    explicit Return(Expression_ptr expr) : expression(std::move(expr))
+    {
+    }
 };
 
 struct LoopControl
@@ -326,12 +328,12 @@ struct LoopControl
     LoopControl() = default;
 
     explicit LoopControl(TokenType type, std::string label = "")
-        : type(type), label(label)
+        : type(type), label(std::move(label))
     {
     }
 };
 
-// --- Submodules & Modules Imports ---
+// --- Imports ---
 
 struct ImportAsPair : public Resolvable
 {
@@ -351,14 +353,11 @@ struct ImportAsPair : public Resolvable
 
 struct Import : public Resolvable
 {
-    std::optional<TokenType> access_modifier = std::nullopt;
+    std::optional<TokenType> access_modifier;
     int access_argument = 1;
-
     StringVector path;
     std::filesystem::path absolute_path;
-
-    std::optional<std::string> module_alias = std::nullopt;
-
+    std::optional<std::string> module_alias;
     bool expose_all = false;
     std::vector<ImportAsPair> exposed_symbols;
     StringVector excluded_symbols;
@@ -366,54 +365,46 @@ struct Import : public Resolvable
     Import() = default;
 
     Import(
-        std::optional<TokenType> access_modifier,
-        int access_argument,
-        StringVector path,
-        std::optional<std::string> module_alias = std::nullopt,
-        bool expose_all = false,
-        std::vector<ImportAsPair> exposed_symbols = {},
-        StringVector excluded_symbols = {}
+        std::optional<TokenType> mod,
+        int arg,
+        StringVector p,
+        std::optional<std::string> alias = std::nullopt,
+        bool all = false,
+        std::vector<ImportAsPair> syms = {},
+        StringVector ex = {}
     )
-        : access_modifier(access_modifier), access_argument(access_argument),
-          path(std::move(path)), module_alias(std::move(module_alias)),
-          expose_all(expose_all), exposed_symbols(std::move(exposed_symbols)),
-          excluded_symbols(std::move(excluded_symbols))
+        : access_modifier(mod), access_argument(arg), path(std::move(p)),
+          module_alias(std::move(alias)), expose_all(all),
+          exposed_symbols(std::move(syms)), excluded_symbols(std::move(ex))
     {
     }
 };
 
+// --- Variant & Utils ---
+
 using StatementVariant = std::variant<
     std::monostate,
     ExpressionStatement,
-
     TypeAliasDefinition,
     EnumDefinition,
-
     FunctionDefinition,
+    MethodDefinition,
     OperatorDefinition,
-
     FieldDefinition,
     ClassDefinition,
     TraitDefinition,
-
     Import,
-
     IfBranch,
     ElseBranch,
     SimpleLoop,
     ForInLoop,
     LoopControl,
-
-    Pass,
-    Native,
-    Required,
-
+    Placeholder,
     Return>;
 
 struct Statement : public AstNode<StatementVariant>
 {
     using AstNode::AstNode;
-
     Token start_token;
     Token end_token;
 };
@@ -423,12 +414,24 @@ template <typename T> inline Statement_ptr make_statement(T&& data)
     return std::make_shared<Statement>(std::forward<T>(data));
 }
 
-template <typename T>
-inline Statement_ptr make_statement(T&& data, int statement_number)
+inline std::string get_operator_name(TokenType fixity, TokenType op_type)
 {
-    auto stmt = std::make_shared<Statement>(std::forward<T>(data));
-    stmt->statement_number = statement_number;
-    return stmt;
+    std::string fix;
+
+    if (fixity == TokenType::INFIX)
+    {
+        fix = "infix_";
+    }
+    if (fixity == TokenType::PREFIX)
+    {
+        fix = "prefix_";
+    }
+    if (fixity == TokenType::POSTFIX)
+    {
+        fix = "postfix_";
+    }
+
+    return fix + to_string(op_type);
 }
 
 } // namespace Wasp

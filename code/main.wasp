@@ -1,14 +1,9 @@
 import core.io expose *
 import core.types expose *
-
-
-infix + (left: Int, right: Int) => Int
-    return Int(left.value + right.value)
-
+import core.operators expose *
 
 let x: int = 1
 x.repr()
-
 
 let y: int = 2
 y.repr()

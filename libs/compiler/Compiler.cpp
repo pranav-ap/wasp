@@ -245,21 +245,67 @@ void Compiler::visit(Return& statement)
 // Definitions
 // ============================================================================
 
+void Compiler::emit_closure_upvalues(const std::vector<Upvalue>& upvalues)
+{
+    emit(OpCode::MAKE_FUNCTION, static_cast<int>(upvalues.size()));
+
+    for (const auto& uv : upvalues)
+    {
+        emit_raw_byte(uv.is_local_to_parent ? std::byte{1} : std::byte{0});
+        emit_raw_byte(static_cast<std::byte>(uv.index));
+    }
+}
+
+void Compiler::compile_function_closure(
+    const std::string& name,
+    const std::vector<Symbol_ptr>& parameters,
+    StatementVector body
+)
+{
+    Compiler func_compiler(this);
+
+    func_compiler.enter_scope();
+
+    for (const auto& param_symbol : parameters)
+    {
+        func_compiler.stack.push_back(param_symbol);
+    }
+
+    func_compiler.visit(body);
+    func_compiler.leave_scope();
+
+    func_compiler.emit(OpCode::LOAD_NONE);
+    func_compiler.emit(OpCode::RETURN);
+
+    CodeObject code = func_compiler.flatten();
+
+    int const_id = workspace->pool->allocate_function_definition(
+        std::move(code),
+        name
+    );
+    emit(OpCode::LOAD_CONST, const_id, "fun " + name);
+
+    emit_closure_upvalues(func_compiler.upvalues);
+}
+
 void Compiler::visit(FunctionDefinition& def)
 {
     bool is_new_declaration = (resolve_local(def.group_symbol->id) == -1);
     int physical_index = get_or_add_local_index(def.group_symbol);
 
+    // 1. Initialize the Overload Group if it's the first time we've seen this
+    // name
     if (is_new_declaration)
     {
         emit(OpCode::PUSH_EMPTY_OVERLOAD_GROUP);
         emit(
             OpCode::SET_LOCAL,
             physical_index,
-            "reserve slot for fun " + def.name
+            std::string("reserve slot for fun ") + def.name
         );
     }
 
+    // 2. Load the Implementation
     if (def.symbol->is_native())
     {
         std::string mangled = mangle_name(
@@ -267,7 +313,6 @@ void Compiler::visit(FunctionDefinition& def)
             "",
             def.symbol->module_path
         );
-
         int registry_id = workspace->native_registry->get_native_index(mangled);
         emit(OpCode::GET_NATIVE, registry_id, mangled);
     }
@@ -276,18 +321,14 @@ void Compiler::visit(FunctionDefinition& def)
         compile_function_closure(def.name, def.parameter_symbols, def.body);
     }
 
-    std::string debug_prefix = def.is_pure ? "pure fun " : "fun ";
-    emit(
-        OpCode::STORE_FUNCTION_OVERLOAD,
-        physical_index,
-        debug_prefix + def.name
-    );
+    // 3. Register this specific overload into the group
+    std::string label = (def.is_pure ? "pure fun " : "fun ") + def.name;
+    emit(OpCode::STORE_FUNCTION_OVERLOAD, physical_index, label);
 }
 
 void Compiler::visit(OperatorDefinition& def)
 {
     bool is_new_declaration = (resolve_local(def.group_symbol->id) == -1);
-
     int physical_index = get_or_add_local_index(def.group_symbol);
 
     if (is_new_declaration)
@@ -302,12 +343,12 @@ void Compiler::visit(OperatorDefinition& def)
 
     if (def.symbol->is_native())
     {
+        // def.name is already mangled by the Parser (e.g., __infix_PLUS)
         std::string mangled = mangle_name(
             def.name,
             "",
             def.symbol->module_path
         );
-
         int registry_id = workspace->native_registry->get_native_index(mangled);
         emit(OpCode::GET_NATIVE, registry_id, mangled);
     }
@@ -316,12 +357,19 @@ void Compiler::visit(OperatorDefinition& def)
         compile_function_closure(def.name, def.parameter_symbols, def.body);
     }
 
-    std::string debug_prefix = "operator " + def.name;
     emit(
         OpCode::STORE_FUNCTION_OVERLOAD,
         physical_index,
-        debug_prefix + def.name
+        "operator " + def.name
     );
+}
+
+void Compiler::visit(MethodDefinition& def)
+{
+    // Methods are compiled entirely within the ClassDefinition or
+    // TraitDefinition pass. When the top-level compiler encounters them, we do
+    // absolutely nothing.
+    return;
 }
 
 void Compiler::visit(ClassDefinition& def)
@@ -336,19 +384,16 @@ void Compiler::visit(ClassDefinition& def)
     int unique_method_count = 0;
 
     // 2. Compile Method Overload Groups
-    // class_type->methods is the master list of unique names populated during
-    // semantics
     for (const std::string& method_name : class_type->methods)
     {
         int overload_count = 0;
 
         for (auto& stmt : def.members)
         {
-            auto* func = stmt->try_as<FunctionDefinition>();
+            auto* func = stmt->try_as<MethodDefinition>();
 
-            // Only process FunctionDefinitions marked as methods matching this
-            // name
-            if (!func || !func->is_method || func->name != method_name)
+            // Only process if it is a Method AND matches the current name
+            if (!func || func->name != method_name)
             {
                 continue;
             }
@@ -394,49 +439,6 @@ void Compiler::visit(ClassDefinition& def)
         "populate class " + def.name
     );
     emit(OpCode::SET_LOCAL, slot, "update local slot");
-}
-
-void Compiler::emit_closure_upvalues(const std::vector<Upvalue>& upvalues)
-{
-    emit(OpCode::MAKE_FUNCTION, static_cast<int>(upvalues.size()));
-
-    for (const auto& uv : upvalues)
-    {
-        emit_raw_byte(uv.is_local_to_parent ? std::byte{1} : std::byte{0});
-        emit_raw_byte(static_cast<std::byte>(uv.index));
-    }
-}
-
-void Compiler::compile_function_closure(
-    const std::string& name,
-    const std::vector<Symbol_ptr>& parameters,
-    StatementVector body
-)
-{
-    Compiler func_compiler(this);
-
-    func_compiler.enter_scope();
-
-    for (const auto& param_symbol : parameters)
-    {
-        func_compiler.stack.push_back(param_symbol);
-    }
-
-    func_compiler.visit(body);
-    func_compiler.leave_scope();
-
-    func_compiler.emit(OpCode::LOAD_NONE);
-    func_compiler.emit(OpCode::RETURN);
-
-    CodeObject code = func_compiler.flatten();
-
-    int const_id = workspace->pool->allocate_function_definition(
-        std::move(code),
-        name
-    );
-    emit(OpCode::LOAD_CONST, const_id, "fun " + name);
-
-    emit_closure_upvalues(func_compiler.upvalues);
 }
 
 void Compiler::visit(TypeAliasDefinition& def)
@@ -894,7 +896,7 @@ void Compiler::visit(ForInLoop& statement)
 
     enter_scope("for-in loop");
 
-    visit(statement.iterable_expression);
+    visit(statement.iterable);
     emit(OpCode::GET_ITER);
 
     stack.push_back(statement.iterator_symbol);
@@ -1113,15 +1115,7 @@ void Compiler::visit(Import& import_stmt)
 // Other
 // ============================================================================
 
-void Compiler::visit(Pass& statement)
-{
-}
-
-void Compiler::visit(Required& statement)
-{
-}
-
-void Compiler::visit(Native& statement)
+void Compiler::visit(Placeholder& statement)
 {
 }
 

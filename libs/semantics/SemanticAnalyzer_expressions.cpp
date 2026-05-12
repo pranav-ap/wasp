@@ -2,6 +2,7 @@
 #include "Doctor.h"
 #include "Expression.h"
 #include "Objects.h"
+#include "Resolvable.h"
 #include "SemanticAnalyzer.h"
 #include "Statement.h"
 #include "SymbolScope.h"
@@ -12,14 +13,7 @@
 #include <ctime>
 #include <memory>
 #include <string>
-#include <variant>
 #include <vector>
-
-template <class... Ts> struct overloaded : Ts...
-{
-    using Ts::operator()...;
-};
-template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
@@ -56,28 +50,34 @@ Symbol_ptr SemanticAnalyzer::get_core_symbol(const std::string& type_name)
     return symbol;
 }
 
+Object_ptr SemanticAnalyzer::resolve_literal(
+    Resolvable& expr,
+    const std::string& type_name,
+    Object_ptr type_obj
+)
+{
+    expr.symbol = get_core_symbol(type_name);
+    return type_obj;
+}
+
 Object_ptr SemanticAnalyzer::visit(IntegerLiteral& expr)
 {
-    expr.symbol = get_core_symbol("int");
-    return workspace->pool->get_int_type();
+    return resolve_literal(expr, "int", workspace->pool->get_int_type());
 }
 
 Object_ptr SemanticAnalyzer::visit(FloatLiteral& expr)
 {
-    expr.symbol = get_core_symbol("float");
-    return workspace->pool->get_float_type();
+    return resolve_literal(expr, "float", workspace->pool->get_float_type());
 }
 
 Object_ptr SemanticAnalyzer::visit(StringLiteral& expr)
 {
-    expr.symbol = get_core_symbol("str");
-    return workspace->pool->get_string_type();
+    return resolve_literal(expr, "str", workspace->pool->get_string_type());
 }
 
 Object_ptr SemanticAnalyzer::visit(BooleanLiteral& expr)
 {
-    expr.symbol = get_core_symbol("bool");
-    return workspace->pool->get_boolean_type();
+    return resolve_literal(expr, "bool", workspace->pool->get_boolean_type());
 }
 
 Object_ptr SemanticAnalyzer::visit(NoneLiteral& expr)
@@ -91,6 +91,7 @@ Object_ptr SemanticAnalyzer::visit(DotLiteral& expr)
         WaspStage::Semantics,
         "Dot Literals are not supported yet"
     );
+    return nullptr;
 }
 
 Object_ptr SemanticAnalyzer::resolve_operator_overload(
@@ -132,59 +133,64 @@ Object_ptr SemanticAnalyzer::resolve_operator_overload(
     return function_symbol->get_type()->as<Signature_ptr>()->return_type;
 }
 
-Object_ptr SemanticAnalyzer::visit(Prefix& expr)
+Object_ptr SemanticAnalyzer::evaluate_operator(
+    OperatorExpression& expr,
+    TokenType fixity,
+    TokenType op_type,
+    const ObjectVector& operand_types
+)
 {
-    Object_ptr operand_type = visit(expr.operand);
-
-    if (operand_type->is<ClassType_ptr>() || operand_type->is<TraitType_ptr>())
+    // 1. Check for OOP Overloads
+    for (const auto& type : operand_types)
     {
-        return resolve_operator_overload(
-            expr,
-            to_string(expr.op.type),
-            {operand_type}
-        );
+        if (type->is_any_of<ClassType_ptr, TraitType_ptr>())
+        {
+            return resolve_operator_overload(
+                expr,
+                get_operator_name(fixity, op_type),
+                operand_types
+            );
+        }
     }
 
-    return type_system->infer(current_scope, operand_type, expr.op.type);
+    // 2. Standard Inference
+    if (operand_types.size() == 1)
+    {
+        return type_system->infer(current_scope, operand_types[0], op_type);
+    }
+
+    return type_system
+        ->infer(current_scope, operand_types[0], op_type, operand_types[1]);
+}
+
+Object_ptr SemanticAnalyzer::visit(Prefix& expr)
+{
+    return evaluate_operator(
+        expr,
+        TokenType::PREFIX,
+        expr.op.type,
+        {visit(expr.operand)}
+    );
 }
 
 Object_ptr SemanticAnalyzer::visit(Infix& expr)
 {
-    Object_ptr left_type = visit(expr.left);
-    Object_ptr right_type = visit(expr.right);
-
-    bool left_is_oop = left_type->is<ClassType_ptr>() ||
-                       left_type->is<TraitType_ptr>();
-    bool right_is_oop = right_type->is<ClassType_ptr>() ||
-                        right_type->is<TraitType_ptr>();
-
-    if (left_is_oop || right_is_oop)
-    {
-        return resolve_operator_overload(
-            expr,
-            to_string(expr.op.type),
-            {left_type, right_type}
-        );
-    }
-
-    return type_system
-        ->infer(current_scope, left_type, expr.op.type, right_type);
+    return evaluate_operator(
+        expr,
+        TokenType::INFIX,
+        expr.op.type,
+        {visit(expr.left), visit(expr.right)}
+    );
 }
 
 Object_ptr SemanticAnalyzer::visit(Postfix& expr)
 {
-    Object_ptr operand_type = visit(expr.operand);
-
-    if (operand_type->is<ClassType_ptr>() || operand_type->is<TraitType_ptr>())
-    {
-        return resolve_operator_overload(
-            expr,
-            to_string(expr.op.type),
-            {operand_type}
-        );
-    }
-
-    return type_system->infer(current_scope, operand_type, expr.op.type);
+    return evaluate_operator(
+        expr,
+        TokenType::POSTFIX,
+        expr.op.type,
+        {visit(expr.operand)}
+    );
 }
 
 // ============================================================================
@@ -213,22 +219,22 @@ Object_ptr SemanticAnalyzer::collapse_types(const ObjectVector& types)
 
 Object_ptr SemanticAnalyzer::visit(ListLiteral& expr)
 {
-    ObjectVector element_types;
-    for (const auto& element : expr.expressions)
-    {
-        element_types.push_back(visit(element));
-    }
-    return make_object(ListType(collapse_types(element_types)));
+    return make_object(ListType(collapse_types(visit(expr.expressions))));
 }
 
 Object_ptr SemanticAnalyzer::visit(TupleLiteral& expr)
 {
-    ObjectVector element_types;
-    for (const auto& element : expr.expressions)
+    return make_object(TupleType(visit(expr.expressions)));
+}
+
+Object_ptr SemanticAnalyzer::visit(SetLiteral& expr)
+{
+    ObjectVector types = visit(expr.expressions);
+    for (auto& type : types)
     {
-        element_types.push_back(visit(element));
+        type_system->expect_key_type(current_scope, type);
     }
-    return make_object(TupleType(element_types));
+    return make_object(SetType(collapse_types(types)));
 }
 
 Object_ptr SemanticAnalyzer::visit(MapLiteral& expr)
@@ -245,18 +251,6 @@ Object_ptr SemanticAnalyzer::visit(MapLiteral& expr)
     return make_object(
         MapType(collapse_types(key_types), collapse_types(val_types))
     );
-}
-
-Object_ptr SemanticAnalyzer::visit(SetLiteral& expr)
-{
-    ObjectVector element_types;
-    for (const auto& element : expr.expressions)
-    {
-        Object_ptr el_type = visit(element);
-        type_system->expect_key_type(current_scope, el_type);
-        element_types.push_back(el_type);
-    }
-    return make_object(SetType(collapse_types(element_types)));
 }
 
 Object_ptr SemanticAnalyzer::visit(RangeLiteral& expr)
@@ -342,36 +336,28 @@ Symbol_ptr SemanticAnalyzer::resolve_target_symbol(Expression_ptr target)
 {
     Symbol_ptr target_symbol = nullptr;
 
-    std::visit(
-        overloaded{
-            [&](Identifier& id)
-            {
-                Symbol_ptr unresolved = current_scope->lookup(id.name);
-                Doctor::get().fatal_if_nullptr(
-                    unresolved,
-                    WaspStage::Semantics,
-                    "Undefined identifier: '" + id.name + "'"
-                );
+    if (auto* id = target->try_as<Identifier>())
+    {
+        Symbol_ptr unresolved = current_scope->lookup(id->name);
+        Doctor::get().fatal_if_nullptr(
+            unresolved,
+            WaspStage::Semantics,
+            "Undefined identifier: '" + id->name + "'"
+        );
 
-                target_symbol = unresolved->resolve();
-                bind_identifier(id, target_symbol);
-            },
-            [&](MemberAccess& access)
-            {
-                auto member_symbol = get_module_member_symbol(access);
-                target_symbol = member_symbol;
-                access.right->as<Identifier>().symbol = target_symbol;
-            },
-            [&](auto&)
-            {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "Invalid target expression."
-                );
-            }
-        },
-        target->data
-    );
+        target_symbol = unresolved->resolve();
+        bind_identifier(*id, target_symbol);
+    }
+    else if (auto* access = target->try_as<MemberAccess>())
+    {
+        auto member_symbol = get_module_member_symbol(*access);
+        target_symbol = member_symbol;
+        access->right->as<Identifier>().symbol = target_symbol;
+    }
+    else
+    {
+        Doctor::get().fatal(WaspStage::Semantics, "Invalid target expression.");
+    }
 
     return target_symbol;
 }
@@ -401,49 +387,43 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
 
     std::string member_name = expr.right->as<Identifier>().name;
 
-    return std::visit(
-        overloaded{
-            [&](ModuleType_ptr type) -> Object_ptr
-            {
-                expr.member_index = type->get_member_index(member_name);
-                return type->get_member(member_name);
-            },
-            [&](ClassType_ptr type) -> Object_ptr
-            {
-                expr.member_index = type->get_member_index(member_name);
-                return type->get_member(member_name);
-            },
-            [&](EnumType_ptr type) -> Object_ptr
-            {
-                std::string full_name = type->name + "." + member_name;
+    if (auto type = try_unwrap_ptr<ModuleType_ptr>(left_type))
+    {
+        expr.member_index = type->get_member_index(member_name);
+        return type->get_member(member_name);
+    }
+    else if (auto type = try_unwrap_ptr<ClassType_ptr>(left_type))
+    {
+        expr.member_index = type->get_member_index(member_name);
+        return type->get_member(member_name);
+    }
+    else if (auto type = try_unwrap_ptr<EnumType_ptr>(left_type))
+    {
+        std::string full_name = type->name + "." + member_name;
 
-                if (type->nested_enums.contains(full_name))
-                {
-                    return make_object(type->nested_enums.at(full_name));
-                }
+        if (type->nested_enums.contains(full_name))
+        {
+            return make_object(type->nested_enums.at(full_name));
+        }
 
-                Doctor::get().assert(
-                    type->members.contains(full_name),
-                    WaspStage::Semantics,
-                    "Enum '" + type->name + "' does not contain member '" +
-                        member_name + "'."
-                );
+        Doctor::get().assert(
+            type->members.contains(full_name),
+            WaspStage::Semantics,
+            "Enum '" + type->name + "' does not contain member '" +
+                member_name + "'."
+        );
 
-                expr.member_index = type->members.at(full_name);
-                expr.is_enum_value = true;
-                return left_type;
-            },
-            [&](auto&) -> Object_ptr
-            {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "Cannot access member '" + member_name +
-                        "'. LHS is not a module, class, trait, or enum."
-                );
-            }
-        },
-        left_type->value
+        expr.member_index = type->members.at(full_name);
+        expr.is_enum_value = true;
+        return left_type;
+    }
+
+    Doctor::get().fatal(
+        WaspStage::Semantics,
+        "Cannot access member '" + member_name +
+            "'. LHS is not a module, class, trait, or enum."
     );
+    return nullptr;
 }
 
 Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
@@ -504,6 +484,7 @@ Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
         "Target '" + target_symbol->name +
             "' does not support template angulars."
     );
+    return nullptr;
 }
 
 // ============================================================================
@@ -514,82 +495,55 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
 {
     ObjectVector argument_types = visit(call.arguments);
 
-    return std::visit(
-        overloaded{
-            [&](Identifier& identifier) -> Object_ptr
-            {
-                auto unresolved = current_scope->lookup(identifier.name);
-                Doctor::get().fatal_if_nullptr(
-                    unresolved,
-                    WaspStage::Semantics,
-                    "Undefined callable: '" + identifier.name + "'"
-                );
+    if (auto* identifier = call.callable->try_as<Identifier>())
+    {
+        auto unresolved = current_scope->lookup(identifier->name);
+        Doctor::get().fatal_if_nullptr(
+            unresolved,
+            WaspStage::Semantics,
+            "Undefined callable: '" + identifier->name + "'"
+        );
 
-                auto symbol = unresolved->resolve();
-                bind_identifier(identifier, symbol);
+        auto symbol = unresolved->resolve();
+        bind_identifier(*identifier, symbol);
 
-                return resolve_standard_overload(call, symbol, argument_types);
-            },
-            [&](TemplateAngular& concrete_template) -> Object_ptr
-            {
-                return call_concrete_template(
-                    call,
-                    concrete_template,
-                    argument_types
-                );
-            },
-            [&](MemberAccess& access) -> Object_ptr
-            {
-                Object_ptr left_type = visit(access.left);
+        return resolve_standard_overload(call, symbol, argument_types);
+    }
+    else if (auto* concrete_template = call.callable->try_as<TemplateAngular>())
+    {
+        return call_concrete_template(call, *concrete_template, argument_types);
+    }
+    else if (auto* access = call.callable->try_as<MemberAccess>())
+    {
+        Object_ptr left_type = visit(access->left);
 
-                return std::visit(
-                    overloaded{
-                        [&](ClassType_ptr const& class_type) -> Object_ptr
-                        {
-                            return call_method(
-                                call,
-                                access,
-                                argument_types,
-                                class_type
-                            );
-                        },
+        if (auto class_type = try_unwrap_ptr<ClassType_ptr>(left_type))
+        {
+            return call_method(call, *access, argument_types, class_type);
+        }
+        else if (auto module_type = try_unwrap_ptr<ModuleType_ptr>(left_type))
+        {
+            auto member_symbol = get_module_member_symbol(*access);
+            access->right->as<Identifier>().symbol = member_symbol;
 
-                        [&](ModuleType_ptr const& module_type) -> Object_ptr
-                        {
-                            auto member_symbol = get_module_member_symbol(
-                                access
-                            );
-                            access.right->as<Identifier>()
-                                .symbol = member_symbol;
+            return resolve_standard_overload(
+                call,
+                member_symbol,
+                argument_types
+            );
+        }
 
-                            return resolve_standard_overload(
-                                call,
-                                member_symbol,
-                                argument_types
-                            );
-                        },
+        Doctor::get().fatal(
+            WaspStage::Semantics,
+            "LHS of call must be a module or class type."
+        );
+    }
 
-                        [&](const auto&) -> Object_ptr
-                        {
-                            Doctor::get().fatal(
-                                WaspStage::Semantics,
-                                "LHS of call must be a module or class type."
-                            );
-                        }
-                    },
-                    left_type->value
-                );
-            },
-            [&](auto&) -> Object_ptr
-            {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "Expected an Identifier or MemberAccess as the callable."
-                );
-            }
-        },
-        call.callable->data
+    Doctor::get().fatal(
+        WaspStage::Semantics,
+        "Expected an Identifier or MemberAccess as the callable."
     );
+    return nullptr;
 }
 
 Object_ptr SemanticAnalyzer::resolve_standard_overload(
@@ -655,7 +609,6 @@ Object_ptr SemanticAnalyzer::call_method(
     call.overload_index = overload_index;
 
     call.is_method_call = true;
-    call.is_pure_method_call = class_type->is_pure(method_name);
 
     return signature_obj->as<Signature_ptr>()->return_type;
 }
@@ -724,38 +677,29 @@ Object_ptr SemanticAnalyzer::call_concrete_template(
 Object_ptr SemanticAnalyzer::visit(Constructor& constructor)
 {
     ObjectVector argument_types = visit(constructor.values);
-
     Object_ptr target_type = nullptr;
-    std::visit(
-        overloaded{
-            [&](Identifier& target)
-            {
-                target_type = visit(target);
-            },
-            [&](TemplateAngular& tc)
-            {
-                target_type = visit(tc);
-            },
-            [&](auto&)
-            {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "Invalid constructor target"
-                );
-            }
-        },
-        constructor.construtable->data
-    );
+
+    if (auto* target = constructor.construtable->try_as<Identifier>())
+    {
+        target_type = visit(*target);
+    }
+    else if (auto* tc = constructor.construtable->try_as<TemplateAngular>())
+    {
+        target_type = visit(*tc);
+    }
+    else
+    {
+        Doctor::get().fatal(WaspStage::Semantics, "Invalid constructor target");
+    }
 
     target_type = unwrap_type_alias(target_type);
 
+    auto class_type = try_unwrap_ptr<ClassType_ptr>(target_type);
     Doctor::get().assert(
-        target_type && target_type->is<ClassType_ptr>(),
+        class_type != nullptr,
         WaspStage::Semantics,
         "Constructor target must resolve to a class."
     );
-
-    auto class_type = target_type->as<ClassType_ptr>();
 
     Doctor::get().assert(
         argument_types.size() == class_type->fields.size(),

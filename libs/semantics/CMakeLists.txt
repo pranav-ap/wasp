@@ -1,6 +1,7 @@
 add_library(
     SemanticAnalyzerLib
     SemanticAnalyzer.cpp
+    SemanticAnalyzer_exports.cpp
     SemanticAnalyzer_types.cpp
     SemanticAnalyzer_hoist.cpp
     SemanticAnalyzer_ast_transforms.cpp

@@ -3,6 +3,7 @@
 #include "Doctor.h"
 #include "NativeRegistry.h"
 #include "Objects.h"
+#include "Token.h"
 
 #include <cstddef>
 #include <filesystem>

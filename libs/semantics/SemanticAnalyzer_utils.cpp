@@ -1,9 +1,13 @@
+#include "Doctor.h"
 #include "SemanticAnalyzer.h"
 #include "SymbolScope.h"
+#include "Token.h"
 #include "Workspace.h"
+
 
 #include <ctime>
 #include <memory>
+#include <string>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -43,4 +47,32 @@ void SemanticAnalyzer::leave_scope_keep_symbol(Symbol_ptr symbol_to_keep)
         }
     }
 }
+
+std::string SemanticAnalyzer::get_operator_symbol_name(
+    TokenType fixity,
+    TokenType op_type
+)
+{
+    std::string prefix;
+    switch (fixity)
+    {
+    case TokenType::INFIX:
+        prefix = "infix_";
+        break;
+    case TokenType::PREFIX:
+        prefix = "prefix_";
+        break;
+    case TokenType::POSTFIX:
+        prefix = "postfix_";
+        break;
+    default:
+        Doctor::get().fatal(
+            WaspStage::Compiler,
+            "Invalid operator fixity for operator symbol name generation."
+        );
+    }
+
+    return prefix + to_string(op_type);
+}
+
 } // namespace Wasp

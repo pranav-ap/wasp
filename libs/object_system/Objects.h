@@ -651,6 +651,12 @@ struct Object
 
     Object() = default;
 
+    bool is_type_object() const;
+    bool is_runtime_value() const;
+    bool is_callable() const;
+
+    IterableAbstractObject* as_iterable();
+
     template <typename T> Object(T&& val) : value(std::forward<T>(val))
     {
     }
@@ -679,6 +685,11 @@ struct Object
     {
         return std::get_if<T>(&value);
     }
+
+    template <typename... Ts> bool is_any_of() const
+    {
+        return (is<Ts>() || ...);
+    }
 };
 
 template <typename T> inline Object_ptr make_object(T&& val)
@@ -686,6 +697,19 @@ template <typename T> inline Object_ptr make_object(T&& val)
     return std::make_shared<Object>(std::forward<T>(val));
 }
 
+template <typename T> inline T try_unwrap_ptr(Object_ptr obj)
+{
+    if (!obj || !obj->is<T>())
+    {
+        return nullptr;
+    }
+    return obj->as<T>();
+}
+
+inline bool is_numeric_type(Object_ptr type)
+{
+    return type && type->is_any_of<IntType, FloatType>();
+}
 // ============================================================================
 // Utils
 // ============================================================================

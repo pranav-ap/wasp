@@ -3,8 +3,10 @@
 #include "AST.h"
 #include "Expression.h"
 #include "Objects.h"
+#include "Resolvable.h"
 #include "Statement.h"
 #include "SymbolScope.h"
+#include "Token.h"
 #include "TypeAnnotation.h"
 #include "TypeSystem.h"
 #include "Workspace.h"
@@ -55,22 +57,28 @@ private:
     void inject_prelude();
     void analyze_oop_definition(AbstractOOPDefinition& def);
     void hoist_statements(StatementVector& statements);
-    void hoist_names_and_imports(StatementVector& statements);
+    void hoist_names(StatementVector& statements);
     void hoist_import(Import& stmt);
-    void hoist_signatures_and_generics(StatementVector& statements);
+    void hoist_signatures(StatementVector& statements);
 
     std::pair<ObjectStringMap, StringVector> evaluate_generics(
         const std::vector<FieldDefinition>& generic_fields
     );
 
-    template <typename CallableDef> void hoist_callable(CallableDef& def);
+    void hoist_function_definition(AbstractCallable& def);
+
+    void analyze_callable(
+        AbstractCallable& def,
+        ScopeType scope_type,
+        Object_ptr context_type,
+        bool is_static
+    );
 
     void visit(ExpressionStatement& statement);
     void visit(FunctionDefinition& statement);
     void visit(OperatorDefinition& statement);
     void visit(ClassDefinition& statement);
     void visit(TraitDefinition& statement);
-    void visit(FieldDefinition& statement);
     void visit(EnumDefinition& statement);
     void visit(TypeAliasDefinition& statement);
     void visit(IfBranch& statement);
@@ -78,10 +86,7 @@ private:
     void visit(SimpleLoop& statement);
     void visit(ForInLoop& statement);
     void visit(LoopControl& statement);
-    void visit(Import& statement);
-    void visit(Pass& statement);
-    void visit(Required& statement);
-    void visit(Native& statement);
+    void visit(Placeholder& statement);
     void visit(Return& statement);
 
     bool prepare_generic_scope(const ObjectStringMap& generics);
@@ -132,6 +137,19 @@ private:
     Object_ptr collapse_types(const ObjectVector& types);
     Symbol_ptr get_core_symbol(const std::string& type_name);
 
+    Object_ptr resolve_literal(
+        Resolvable& expr,
+        const std::string& type_name,
+        Object_ptr type_obj
+    );
+
+    Object_ptr evaluate_operator(
+        OperatorExpression& expr,
+        TokenType fixity,
+        TokenType op_type,
+        const ObjectVector& operand_types
+    );
+
     void desugar_literal(
         const Expression_ptr& expr,
         const std::string& type_alias_name
@@ -180,6 +198,8 @@ private:
         const std::string& operator_name,
         const ObjectVector& operand_types
     );
+
+    std::string get_operator_symbol_name(TokenType fixity, TokenType op_type);
 
     // =========================================================================
     // Type Annotation Visitors

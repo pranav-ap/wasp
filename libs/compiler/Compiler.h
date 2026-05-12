@@ -122,15 +122,14 @@ private:
     void visit(SimpleLoop& statement);
     void visit(ForInLoop& statement);
 
-    void visit(Pass& statement);
-    void visit(Required& statement);
-    void visit(Native& statement);
+    void visit(Placeholder& statement);
     void visit(LoopControl& statement);
 
     void visit(Import& statement);
 
     void visit(FunctionDefinition& statement);
-    void visit(OperatorDefinition& statement);
+    void visit(MethodDefinition& statement);
+    void visit(OperatorDefinition& def);
 
     void visit(TypeAliasDefinition& statement);
 

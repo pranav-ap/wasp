@@ -53,9 +53,9 @@ Statement_ptr Parser::parse_statement(int expected_indent_level)
         return parse_for_in_loop(expected_indent_level);
 
     case TokenType::PASS:
-        return parse_pass_statement();
     case TokenType::NATIVE:
-        return parse_native_statement();
+    case TokenType::REQUIRED:
+        return parse_placeholder(token->type);
 
     case TokenType::BREAK:
     case TokenType::CONTINUE:
@@ -140,37 +140,24 @@ StatementVector Parser::parse_statements_block(int expected_indent_level) {
     return statements;
 }
 
-Statement_ptr Parser::parse_expression_statement() {
+Statement_ptr Parser::parse_expression_statement()
+{
     const auto expression = parse_expression();
     token_pipe.require_in_line(TokenType::EOL);
 
     return make_statement(ExpressionStatement{expression});
 }
 
-Statement_ptr Parser::parse_pass_statement() {
-    token_pipe.advance_pointer();
-    token_pipe.require_in_line(TokenType::EOL);
-
-    return make_statement(Pass{});
-}
-
-Statement_ptr Parser::parse_required_statement()
+Statement_ptr Parser::parse_placeholder(TokenType placeholder_type)
 {
     token_pipe.advance_pointer();
     token_pipe.require_in_line(TokenType::EOL);
 
-    return make_statement(Required{});
+    return make_statement(Placeholder(placeholder_type));
 }
 
-Statement_ptr Parser::parse_native_statement()
+Statement_ptr Parser::parse_return_statement()
 {
-    token_pipe.advance_pointer();
-    token_pipe.require_in_line(TokenType::EOL);
-
-    return make_statement(Native{});
-}
-
-Statement_ptr Parser::parse_return_statement() {
     token_pipe.advance_pointer();
 
     if (token_pipe.consume_optional_in_line(TokenType::EOL)) {

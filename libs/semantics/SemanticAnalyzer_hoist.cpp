@@ -24,8 +24,142 @@ namespace Wasp
 
 void SemanticAnalyzer::hoist_statements(StatementVector& statements)
 {
-    hoist_names_and_imports(statements);
-    hoist_signatures_and_generics(statements);
+    hoist_names(statements);
+    hoist_signatures(statements);
+}
+
+void SemanticAnalyzer::hoist_names(StatementVector& statements)
+{
+    int closure_depth = current_scope->get_closure_depth();
+    int lexical_depth = current_scope->get_lexical_depth();
+
+    for (auto& stmt_ptr : statements)
+    {
+        std::visit(
+            overloaded{
+                [&](Import& stmt)
+                {
+                    hoist_import(stmt);
+                },
+                [&](ClassDefinition& def)
+                {
+                    auto type = make_object(
+                        std::make_shared<ClassType>(def.name)
+                    );
+
+                    def.symbol = current_scope->define(
+                        SymbolFactory::create_class(
+                            def.name,
+                            type,
+                            closure_depth,
+                            lexical_depth
+                        )
+                    );
+                },
+                [&](TraitDefinition& def)
+                {
+                    auto type = make_object(
+                        std::make_shared<TraitType>(def.name)
+                    );
+
+                    def.symbol = current_scope->define(
+                        SymbolFactory::create_trait(
+                            def.name,
+                            type,
+                            closure_depth,
+                            lexical_depth
+                        )
+                    );
+                },
+                [&](TypeAliasDefinition& def)
+                {
+                    auto type = make_object(
+                        std::make_shared<TypeAlias>(
+                            def.name,
+                            nullptr,
+                            ObjectStringMap{},
+                            StringVector{}
+                        )
+                    );
+                    def.symbol = current_scope->define(
+                        SymbolFactory::create_type_alias(
+                            def.name,
+                            type,
+                            closure_depth,
+                            lexical_depth
+                        )
+                    );
+                },
+                [&](EnumDefinition& def)
+                {
+                    auto type = make_object(
+                        std::make_shared<EnumType>(def.name)
+                    );
+
+                    def.symbol = current_scope->define(
+                        SymbolFactory::create_enum(
+                            def.name,
+                            type,
+                            closure_depth,
+                            lexical_depth
+                        )
+                    );
+                },
+                [](auto&)
+                {
+                }
+            },
+            stmt_ptr->data
+        );
+    }
+}
+
+void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
+{
+    auto assign_generics = [&](auto& def, auto type_ptr)
+    {
+        auto [generics, ordered_names] = evaluate_generics(def.generics);
+        type_ptr->generics = std::move(generics);
+        type_ptr->expected_generic_names_order = std::move(ordered_names);
+    };
+
+    for (auto& stmt_ptr : statements)
+    {
+        std::visit(
+            overloaded{
+                [&](ClassDefinition& def)
+                {
+                    assign_generics(
+                        def,
+                        def.symbol->get_type()->as<ClassType_ptr>()
+                    );
+                },
+                [&](TraitDefinition& def)
+                {
+                    assign_generics(
+                        def,
+                        def.symbol->get_type()->as<TraitType_ptr>()
+                    );
+                },
+                [&](FunctionDefinition& def)
+                {
+                    hoist_function_definition(def);
+                },
+                [&](TypeAliasDefinition& def)
+                {
+                    auto alias_type = def.symbol->get_type()
+                                          ->as<TypeAlias_ptr>();
+
+                    assign_generics(def, alias_type);
+                    alias_type->underlying_type = visit(def.ref_type);
+                },
+                [](auto&)
+                {
+                }
+            },
+            stmt_ptr->data
+        );
+    }
 }
 
 void SemanticAnalyzer::hoist_import(Import& stmt)
@@ -105,89 +239,6 @@ void SemanticAnalyzer::hoist_import(Import& stmt)
     }
 }
 
-void SemanticAnalyzer::hoist_names_and_imports(StatementVector& statements)
-{
-    int closure_depth = current_scope->get_closure_depth();
-    int lexical_depth = current_scope->get_lexical_depth();
-
-    for (auto& stmt_ptr : statements)
-    {
-        std::visit(
-            overloaded{
-                [&](Import& stmt)
-                {
-                    hoist_import(stmt);
-                },
-                [&](ClassDefinition& def)
-                {
-                    auto type = make_object(
-                        std::make_shared<ClassType>(def.name)
-                    );
-                    def.symbol = current_scope->define(
-                        SymbolFactory::create_class(
-                            def.name,
-                            type,
-                            closure_depth,
-                            lexical_depth
-                        )
-                    );
-                },
-                [&](TraitDefinition& def)
-                {
-                    auto type = make_object(
-                        std::make_shared<TraitType>(def.name)
-                    );
-                    def.symbol = current_scope->define(
-                        SymbolFactory::create_trait(
-                            def.name,
-                            type,
-                            closure_depth,
-                            lexical_depth
-                        )
-                    );
-                },
-                [&](TypeAliasDefinition& def)
-                {
-                    auto type = make_object(
-                        std::make_shared<TypeAlias>(
-                            def.name,
-                            nullptr,
-                            ObjectStringMap{},
-                            StringVector{}
-                        )
-                    );
-                    def.symbol = current_scope->define(
-                        SymbolFactory::create_type_alias(
-                            def.name,
-                            type,
-                            closure_depth,
-                            lexical_depth
-                        )
-                    );
-                },
-                [&](EnumDefinition& def)
-                {
-                    auto type = make_object(
-                        std::make_shared<EnumType>(def.name)
-                    );
-                    def.symbol = current_scope->define(
-                        SymbolFactory::create_enum(
-                            def.name,
-                            type,
-                            closure_depth,
-                            lexical_depth
-                        )
-                    );
-                },
-                [](auto&)
-                {
-                }
-            },
-            stmt_ptr->data
-        );
-    }
-}
-
 std::pair<ObjectStringMap, StringVector> SemanticAnalyzer::evaluate_generics(
     const std::vector<FieldDefinition>& generic_fields
 )
@@ -207,8 +258,7 @@ std::pair<ObjectStringMap, StringVector> SemanticAnalyzer::evaluate_generics(
     return {generics_map, ordered_names};
 }
 
-template <typename CallableDef>
-void SemanticAnalyzer::hoist_callable(CallableDef& def)
+void SemanticAnalyzer::hoist_function_definition(AbstractCallable& def)
 {
     auto [generics, ordered_names] = evaluate_generics(def.generics);
     bool has_generics = prepare_generic_scope(generics);
@@ -235,6 +285,7 @@ void SemanticAnalyzer::hoist_callable(CallableDef& def)
             ordered_names
         )
     );
+
     auto symbol = SymbolFactory::create_function(
         def.name,
         signature,
@@ -248,59 +299,6 @@ void SemanticAnalyzer::hoist_callable(CallableDef& def)
 
     def.symbol = symbol;
     def.group_symbol = current_scope->define(symbol);
-}
-
-void SemanticAnalyzer::hoist_signatures_and_generics(
-    StatementVector& statements
-)
-{
-    auto assign_generics = [&](auto& def, auto type_ptr)
-    {
-        auto [generics, ordered_names] = evaluate_generics(def.generics);
-        type_ptr->generics = std::move(generics);
-        type_ptr->expected_generic_names_order = std::move(ordered_names);
-    };
-
-    for (auto& stmt_ptr : statements)
-    {
-        std::visit(
-            overloaded{
-                [&](ClassDefinition& def)
-                {
-                    assign_generics(
-                        def,
-                        def.symbol->get_type()->template as<ClassType_ptr>()
-                    );
-                },
-                [&](TraitDefinition& def)
-                {
-                    assign_generics(
-                        def,
-                        def.symbol->get_type()->template as<TraitType_ptr>()
-                    );
-                },
-                [&](FunctionDefinition& def)
-                {
-                    hoist_callable(def);
-                },
-                [&](OperatorDefinition& def)
-                {
-                    hoist_callable(def);
-                },
-                [&](TypeAliasDefinition& def)
-                {
-                    auto alias_type = def.symbol->get_type()
-                                          ->template as<TypeAlias_ptr>();
-                    assign_generics(def, alias_type);
-                    alias_type->underlying_type = visit(def.ref_type);
-                },
-                [](auto&)
-                {
-                }
-            },
-            stmt_ptr->data
-        );
-    }
 }
 
 } // namespace Wasp
