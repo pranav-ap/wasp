@@ -575,6 +575,7 @@ Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
         "Target '" + target_symbol->name + "' does not support template angulars."
     );
 }
+
 // ============================================================================
 // Calls
 // ============================================================================
