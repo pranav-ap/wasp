@@ -3,6 +3,7 @@
 #include "Objects.h"
 #include "SemanticAnalyzer.h"
 #include "Statement.h"
+#include "SymbolScope.h"
 #include "Workspace.h"
 
 #include <algorithm>
@@ -46,7 +47,6 @@ void SemanticAnalyzer::hoist_names(StatementVector& statements)
                     auto type = make_object(
                         std::make_shared<ClassType>(def.name)
                     );
-
                     def.symbol = current_scope->define(
                         SymbolFactory::create_class(
                             def.name,
@@ -61,7 +61,6 @@ void SemanticAnalyzer::hoist_names(StatementVector& statements)
                     auto type = make_object(
                         std::make_shared<TraitType>(def.name)
                     );
-
                     def.symbol = current_scope->define(
                         SymbolFactory::create_trait(
                             def.name,
@@ -74,13 +73,9 @@ void SemanticAnalyzer::hoist_names(StatementVector& statements)
                 [&](TypeAliasDefinition& def)
                 {
                     auto type = make_object(
-                        std::make_shared<TypeAlias>(
-                            def.name,
-                            nullptr,
-                            ObjectStringMap{},
-                            StringVector{}
-                        )
+                        std::make_shared<TypeAlias>(def.name)
                     );
+
                     def.symbol = current_scope->define(
                         SymbolFactory::create_type_alias(
                             def.name,
@@ -95,7 +90,6 @@ void SemanticAnalyzer::hoist_names(StatementVector& statements)
                     auto type = make_object(
                         std::make_shared<EnumType>(def.name)
                     );
-
                     def.symbol = current_scope->define(
                         SymbolFactory::create_enum(
                             def.name,
@@ -106,8 +100,7 @@ void SemanticAnalyzer::hoist_names(StatementVector& statements)
                     );
                 },
                 [](auto&)
-                {
-                }
+                { /* Functions and Operators are hoisted in the next pass */ }
             },
             stmt_ptr->data
         );
@@ -145,17 +138,19 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
                 {
                     hoist_function_definition(def);
                 },
+                [&](OperatorDefinition& def)
+                {
+                    hoist_function_definition(def);
+                },
                 [&](TypeAliasDefinition& def)
                 {
                     auto alias_type = def.symbol->get_type()
                                           ->as<TypeAlias_ptr>();
-
                     assign_generics(def, alias_type);
                     alias_type->underlying_type = visit(def.ref_type);
                 },
                 [](auto&)
-                {
-                }
+                { /* No signature hoisting needed for other statements */ }
             },
             stmt_ptr->data
         );
@@ -239,25 +234,6 @@ void SemanticAnalyzer::hoist_import(Import& stmt)
     }
 }
 
-std::pair<ObjectStringMap, StringVector> SemanticAnalyzer::evaluate_generics(
-    const std::vector<FieldDefinition>& generic_fields
-)
-{
-    ObjectStringMap generics_map;
-    StringVector ordered_names;
-
-    for (const auto& field : generic_fields)
-    {
-        auto generic_type = make_object(
-            std::make_shared<GenericType>(field.name, visit(field.type))
-        );
-        generics_map[field.name] = generic_type;
-        ordered_names.push_back(field.name);
-    }
-
-    return {generics_map, ordered_names};
-}
-
 void SemanticAnalyzer::hoist_function_definition(AbstractCallable& def)
 {
     auto [generics, ordered_names] = evaluate_generics(def.generics);
@@ -299,6 +275,43 @@ void SemanticAnalyzer::hoist_function_definition(AbstractCallable& def)
 
     def.symbol = symbol;
     def.group_symbol = current_scope->define(symbol);
+}
+
+std::pair<ObjectStringMap, StringVector> SemanticAnalyzer::evaluate_generics(
+    const std::vector<FieldDefinition>& generic_fields
+)
+{
+    ObjectStringMap generics_map;
+    StringVector ordered_names;
+
+    for (const auto& field : generic_fields)
+    {
+        auto generic_type = make_object(
+            std::make_shared<GenericType>(field.name, visit(field.type))
+        );
+        generics_map[field.name] = generic_type;
+        ordered_names.push_back(field.name);
+    }
+
+    return {generics_map, ordered_names};
+}
+
+bool SemanticAnalyzer::prepare_generic_scope(const ObjectStringMap& generics)
+{
+    if (generics.empty())
+    {
+        return false;
+    }
+
+    enter_scope(ScopeType::TEMPLATE);
+
+    for (const auto& [name, generic_type] : generics)
+    {
+        auto symbol = SymbolFactory::create_generic(name, generic_type);
+        current_scope->define(symbol);
+    }
+
+    return true;
 }
 
 } // namespace Wasp

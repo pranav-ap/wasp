@@ -305,9 +305,9 @@ struct TypeAlias : public TemplatableType
 
     TypeAlias(
         std::string name,
-        Object_ptr underlying_type,
-        ObjectStringMap generics,
-        StringVector expected_generic_names_order
+        Object_ptr underlying_type = nullptr,
+        ObjectStringMap generics = {},
+        StringVector expected_generic_names_order = {}
     )
         : TemplatableType(
               std::move(generics),

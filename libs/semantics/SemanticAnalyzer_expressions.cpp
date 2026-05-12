@@ -91,7 +91,6 @@ Object_ptr SemanticAnalyzer::visit(DotLiteral& expr)
         WaspStage::Semantics,
         "Dot Literals are not supported yet"
     );
-    return nullptr;
 }
 
 Object_ptr SemanticAnalyzer::resolve_operator_overload(
@@ -140,7 +139,6 @@ Object_ptr SemanticAnalyzer::evaluate_operator(
     const ObjectVector& operand_types
 )
 {
-    // 1. Check for OOP Overloads
     for (const auto& type : operand_types)
     {
         if (type->is_any_of<ClassType_ptr, TraitType_ptr>())
@@ -153,7 +151,6 @@ Object_ptr SemanticAnalyzer::evaluate_operator(
         }
     }
 
-    // 2. Standard Inference
     if (operand_types.size() == 1)
     {
         return type_system->infer(current_scope, operand_types[0], op_type);

@@ -17,25 +17,20 @@
 #include <variant>
 #include <vector>
 
-template <class... Ts> struct overloaded : Ts...
-{
-    using Ts::operator()...;
-};
-template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
-
 namespace Wasp
 {
 
 Compiler::Compiler(Workspace_ptr workspace)
-    : workspace(std::move(workspace)), current_block_id(InvalidBlockId), parent(nullptr),
-      compiler_depth(0), current_lexical_scope_depth(0)
+    : workspace(std::move(workspace)), current_block_id(InvalidBlockId),
+      parent(nullptr), compiler_depth(0), current_lexical_scope_depth(0)
 {
     current_block_id = graph.create_block();
     graph.set_entry_block(current_block_id);
 }
 
 Compiler::Compiler(Compiler* parent)
-    : parent(parent), workspace(parent->workspace), compiler_depth(parent->compiler_depth + 1),
+    : parent(parent), workspace(parent->workspace),
+      compiler_depth(parent->compiler_depth + 1),
       current_lexical_scope_depth(parent->current_lexical_scope_depth + 1),
       module_path(parent->module_path)
 {
@@ -52,11 +47,15 @@ FunctionBlueprintObject_ptr Compiler::run(
     this->module_path = std::move(filepath);
 
     if (is_main)
+    {
         emit(OpCode::ENTER_WORKSPACE);
+    }
     emit(OpCode::ENTER_MODULE);
 
     for (const auto& s : block)
+    {
         visit(s);
+    }
 
     BlockId exit = graph.create_block();
     graph.add_edge(current_block_id, exit);
@@ -66,7 +65,9 @@ FunctionBlueprintObject_ptr Compiler::run(
     emit_exports();
 
     if (is_main)
+    {
         emit(OpCode::EXIT_WORKSPACE);
+    }
 
     return std::make_shared<FunctionBlueprintObject>(flatten(), module_path);
 }
@@ -85,10 +86,8 @@ void Compiler::emit_exports()
 
     int export_count = 0;
 
-    // Iterate over the exports approved by the Semantic Analyzer
     for (const auto& exported_symbol : mod->exports)
     {
-        // Find where this export lives on the VM's local stack
         int stack_index = resolve_local(exported_symbol->id);
 
         Doctor::get().assert(
@@ -97,12 +96,10 @@ void Compiler::emit_exports()
             "Failed to find exported symbol on stack: " + exported_symbol->name
         );
 
-        // Push it to the top of the stack for EXIT_MODULE to consume
         emit(OpCode::GET_LOCAL, stack_index, exported_symbol->name);
         export_count++;
     }
 
-    // Exit the module with the correct, synchronized count
     emit(OpCode::EXIT_MODULE, export_count);
 }
 
@@ -118,12 +115,20 @@ void Compiler::visit(std::vector<Statement_ptr>& statements)
     };
 
     for (auto& stmt : statements)
+    {
         if (is_func(stmt))
+        {
             visit(stmt);
+        }
+    }
 
     for (auto& stmt : statements)
+    {
         if (!is_func(stmt))
+        {
             visit(stmt);
+        }
+    }
 }
 
 void Compiler::visit(const Statement_ptr statement)
@@ -131,17 +136,19 @@ void Compiler::visit(const Statement_ptr statement)
     Doctor::get().fatal_if_nullptr(statement, WaspStage::Compiler);
 
     std::visit(
-        overloaded{
-            [&](std::monostate&)
+        [this](auto& node)
+        {
+            using T = std::decay_t<decltype(node)>;
+            if constexpr (std::is_same_v<T, std::monostate>)
             {
                 Doctor::get().fatal(
                     WaspStage::Compiler,
                     "Unhandled Statement (monostate) in Compiler!"
                 );
-            },
-            [&](auto& stat)
+            }
+            else if constexpr (requires { this->visit(node); })
             {
-                this->visit(stat);
+                this->visit(node);
             }
         },
         statement->data
@@ -162,33 +169,23 @@ void Compiler::visit(Assignment& expr)
 {
     if (expr.lhs->is<Identifier>())
     {
-        // 1. Evaluate the right-hand side (leaves value on the VM stack)
         visit(expr.rhs);
 
         auto& id = expr.lhs->as<Identifier>();
         auto symbol = id.symbol;
         Doctor::get().fatal_if_nullptr(symbol, WaspStage::Compiler);
 
-        // 2. Handle captured closure variables (Upvalues) vs pure locals
         if (id.must_be_captured)
         {
             int upval_index = resolve_upvalue(this, symbol);
             emit(OpCode::SET_UPVALUE, upval_index, symbol->name);
-            emit(
-                OpCode::GET_UPVALUE,
-                upval_index,
-                symbol->name
-            ); // Leave value on stack
+            emit(OpCode::GET_UPVALUE, upval_index, symbol->name);
         }
         else
         {
             int physical_index = get_or_add_local_index(symbol);
             emit(OpCode::SET_LOCAL, physical_index, symbol->name);
-            emit(
-                OpCode::GET_LOCAL,
-                physical_index,
-                symbol->name
-            ); // Leave value on stack
+            emit(OpCode::GET_LOCAL, physical_index, symbol->name);
         }
     }
     else if (expr.lhs->is<MemberAccess>())
@@ -259,13 +256,21 @@ void Compiler::emit_closure_upvalues(const std::vector<Upvalue>& upvalues)
 void Compiler::compile_function_closure(
     const std::string& name,
     const std::vector<Symbol_ptr>& parameters,
-    StatementVector body
+    StatementVector body,
+    Symbol_ptr context_symbol
 )
 {
     Compiler func_compiler(this);
 
     func_compiler.enter_scope();
 
+    // 1. Ghost variable fix! Push "my" or "our" so it takes slot 0
+    if (context_symbol)
+    {
+        func_compiler.stack.push_back(context_symbol);
+    }
+
+    // 2. Push standard parameters (Slots 1, 2, 3...)
     for (const auto& param_symbol : parameters)
     {
         func_compiler.stack.push_back(param_symbol);
@@ -293,8 +298,6 @@ void Compiler::visit(FunctionDefinition& def)
     bool is_new_declaration = (resolve_local(def.group_symbol->id) == -1);
     int physical_index = get_or_add_local_index(def.group_symbol);
 
-    // 1. Initialize the Overload Group if it's the first time we've seen this
-    // name
     if (is_new_declaration)
     {
         emit(OpCode::PUSH_EMPTY_OVERLOAD_GROUP);
@@ -305,7 +308,6 @@ void Compiler::visit(FunctionDefinition& def)
         );
     }
 
-    // 2. Load the Implementation
     if (def.symbol->is_native())
     {
         std::string mangled = mangle_name(
@@ -318,10 +320,14 @@ void Compiler::visit(FunctionDefinition& def)
     }
     else
     {
-        compile_function_closure(def.name, def.parameter_symbols, def.body);
+        compile_function_closure(
+            def.name,
+            def.parameter_symbols,
+            def.body,
+            nullptr
+        );
     }
 
-    // 3. Register this specific overload into the group
     std::string label = (def.is_pure ? "pure fun " : "fun ") + def.name;
     emit(OpCode::STORE_FUNCTION_OVERLOAD, physical_index, label);
 }
@@ -343,7 +349,6 @@ void Compiler::visit(OperatorDefinition& def)
 
     if (def.symbol->is_native())
     {
-        // def.name is already mangled by the Parser (e.g., __infix_PLUS)
         std::string mangled = mangle_name(
             def.name,
             "",
@@ -354,7 +359,12 @@ void Compiler::visit(OperatorDefinition& def)
     }
     else
     {
-        compile_function_closure(def.name, def.parameter_symbols, def.body);
+        compile_function_closure(
+            def.name,
+            def.parameter_symbols,
+            def.body,
+            nullptr
+        );
     }
 
     emit(
@@ -364,26 +374,16 @@ void Compiler::visit(OperatorDefinition& def)
     );
 }
 
-void Compiler::visit(MethodDefinition& def)
-{
-    // Methods are compiled entirely within the ClassDefinition or
-    // TraitDefinition pass. When the top-level compiler encounters them, we do
-    // absolutely nothing.
-    return;
-}
-
 void Compiler::visit(ClassDefinition& def)
 {
     int slot = get_or_add_local_index(def.symbol);
 
-    // 1. Initialize the Blueprint
     emit(OpCode::PUSH_EMPTY_CLASS_BLUEPRINT, "class " + def.name);
     emit(OpCode::SET_LOCAL, slot, "init class in slot");
 
     auto class_type = def.symbol->get_type()->as<ClassType_ptr>();
     int unique_method_count = 0;
 
-    // 2. Compile Method Overload Groups
     for (const std::string& method_name : class_type->methods)
     {
         int overload_count = 0;
@@ -392,7 +392,6 @@ void Compiler::visit(ClassDefinition& def)
         {
             auto* func = stmt->try_as<MethodDefinition>();
 
-            // Only process if it is a Method AND matches the current name
             if (!func || func->name != method_name)
             {
                 continue;
@@ -416,7 +415,9 @@ void Compiler::visit(ClassDefinition& def)
                 compile_function_closure(
                     func->name,
                     func->parameter_symbols,
-                    func->body
+                    func->body,
+                    func->context_symbol // <--- Now using the context symbol to
+                                         // fix the crash!
                 );
             }
             overload_count++;
@@ -430,7 +431,6 @@ void Compiler::visit(ClassDefinition& def)
         unique_method_count++;
     }
 
-    // 3. Finalize the Class
     emit(OpCode::GET_LOCAL, slot, "load blueprint for population");
     emit(
         OpCode::BUILD_CLASS,
@@ -454,18 +454,6 @@ void Compiler::visit(TypeAliasDefinition& def)
             "compile-time alias: " + def.name
         );
     }
-}
-
-void Compiler::visit(TraitDefinition& trait_definition)
-{
-}
-
-void Compiler::visit(EnumDefinition& def)
-{
-}
-
-void Compiler::visit(FieldDefinition& statement)
-{
 }
 
 // ============================================================================
@@ -688,6 +676,10 @@ void Compiler::visit(Infix& expr)
     }
 }
 
+void Compiler::visit(Postfix& expr)
+{
+}
+
 // ============================================================================
 // Data Structures
 // ============================================================================
@@ -750,14 +742,6 @@ void Compiler::visit(RangeLiteral& expr)
     }
 
     emit(OpCode::BUILD_RANGE, expr.is_inclusive ? 1 : 0);
-}
-
-void Compiler::visit(DotLiteral& expr)
-{
-}
-
-void Compiler::visit(Postfix& expr)
-{
 }
 
 // -----------------------------------------------------------------------
@@ -1035,7 +1019,6 @@ void Compiler::visit(Import& import_stmt)
         "Import statement must have a resolved symbol"
     );
 
-    // 1. Resolve the module we are importing from
     auto unresolved_module_symbol = import_stmt.symbol;
     auto resolved_module_symbol = unresolved_module_symbol->resolve();
     Doctor::get().fatal_if_nullptr(resolved_module_symbol, WaspStage::Compiler);
@@ -1045,9 +1028,6 @@ void Compiler::visit(Import& import_stmt)
         module_payload.mod->absolute_filepath
     );
 
-    // 2. Module-Level Import
-    // (If it was aliased, OR if no specific symbols were exposed, we load the
-    // module itself)
     if (import_stmt.module_alias.has_value() ||
         (!import_stmt.expose_all && import_stmt.exposed_symbols.empty()))
     {
@@ -1059,7 +1039,6 @@ void Compiler::visit(Import& import_stmt)
         stack.push_back(unresolved_module_symbol);
     }
 
-    // 3. Explicitly Exposed Symbols (e.g., expose Tank as T, Pump)
     for (const auto& pair : import_stmt.exposed_symbols)
     {
         Doctor::get().fatal_if_nullptr(pair.symbol, WaspStage::Compiler);
@@ -1079,7 +1058,6 @@ void Compiler::visit(Import& import_stmt)
         stack.push_back(pair.symbol);
     }
 
-    // 4. Wildcard Exposure (e.g., expose * except BrokenPump)
     if (import_stmt.expose_all)
     {
         for (const auto& exported_symbol : module_payload.mod->exports)
@@ -1109,14 +1087,6 @@ void Compiler::visit(Import& import_stmt)
             }
         }
     }
-}
-
-// ============================================================================
-// Other
-// ============================================================================
-
-void Compiler::visit(Placeholder& statement)
-{
 }
 
 } // namespace Wasp

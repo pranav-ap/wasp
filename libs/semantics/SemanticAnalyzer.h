@@ -55,7 +55,7 @@ private:
     void visit(StatementVector& statements);
 
     void inject_prelude();
-    void analyze_oop_definition(AbstractOOPDefinition& def);
+    void analyze_oops_definition(AbstractOopsDefinition& def);
     void hoist_statements(StatementVector& statements);
     void hoist_names(StatementVector& statements);
     void hoist_import(Import& stmt);

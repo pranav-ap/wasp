@@ -1,4 +1,3 @@
-#include "Doctor.h"
 #include "SemanticAnalyzer.h"
 #include "SymbolScope.h"
 #include "Token.h"
@@ -17,10 +16,6 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
-
-// ============================================================================
-// SCOPE MANAGEMENT
-// ============================================================================
 
 void SemanticAnalyzer::enter_scope(ScopeType scope_type)
 {
@@ -53,26 +48,7 @@ std::string SemanticAnalyzer::get_operator_symbol_name(
     TokenType op_type
 )
 {
-    std::string prefix;
-    switch (fixity)
-    {
-    case TokenType::INFIX:
-        prefix = "infix_";
-        break;
-    case TokenType::PREFIX:
-        prefix = "prefix_";
-        break;
-    case TokenType::POSTFIX:
-        prefix = "postfix_";
-        break;
-    default:
-        Doctor::get().fatal(
-            WaspStage::Compiler,
-            "Invalid operator fixity for operator symbol name generation."
-        );
-    }
-
-    return prefix + to_string(op_type);
+    return to_string(fixity) + "_" + to_string(op_type);
 }
 
 } // namespace Wasp

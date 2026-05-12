@@ -71,6 +71,7 @@ struct AbstractCallable : public Definition, public Templatable
 {
     std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters;
     std::vector<std::shared_ptr<Symbol>> parameter_symbols;
+    std::shared_ptr<Symbol> context_symbol = nullptr;
     TypeAnnotation_ptr return_type;
     StatementVector body;
     std::shared_ptr<Symbol> group_symbol;
@@ -157,14 +158,14 @@ struct OperatorDefinition : public AbstractCallable
 
 // --- OOP ---
 
-struct AbstractOOPDefinition : public Definition, public Templatable
+struct AbstractOopsDefinition : public Definition, public Templatable
 {
     StringVector traits;
     StatementVector members;
 
-    AbstractOOPDefinition() = default;
+    AbstractOopsDefinition() = default;
 
-    AbstractOOPDefinition(
+    AbstractOopsDefinition(
         std::string name,
         StringVector traits,
         StatementVector members,
@@ -176,14 +177,14 @@ struct AbstractOOPDefinition : public Definition, public Templatable
     }
 };
 
-struct ClassDefinition : public AbstractOOPDefinition
+struct ClassDefinition : public AbstractOopsDefinition
 {
-    using AbstractOOPDefinition::AbstractOOPDefinition;
+    using AbstractOopsDefinition::AbstractOopsDefinition;
 };
 
-struct TraitDefinition : public AbstractOOPDefinition
+struct TraitDefinition : public AbstractOopsDefinition
 {
-    using AbstractOOPDefinition::AbstractOOPDefinition;
+    using AbstractOopsDefinition::AbstractOopsDefinition;
 };
 
 struct TypeAliasDefinition : public Definition, public Templatable

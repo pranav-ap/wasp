@@ -122,15 +122,12 @@ private:
     void visit(SimpleLoop& statement);
     void visit(ForInLoop& statement);
 
-    void visit(Placeholder& statement);
     void visit(LoopControl& statement);
-
     void visit(Import& statement);
 
     void visit(FunctionDefinition& statement);
-    void visit(MethodDefinition& statement);
     void visit(OperatorDefinition& def);
-
+    void visit(ClassDefinition& statement);
     void visit(TypeAliasDefinition& statement);
 
     void visit(Return& statement);
@@ -138,13 +135,9 @@ private:
     void compile_function_closure(
         const std::string& name,
         const std::vector<Symbol_ptr>& parameters,
-        StatementVector body
+        StatementVector body,
+        Symbol_ptr context_symbol = nullptr
     );
-
-    void visit(ClassDefinition& statement);
-    void visit(TraitDefinition& statement);
-
-    void visit(EnumDefinition& statement);
 
     // Expressions
 
@@ -155,8 +148,6 @@ private:
     void visit(FloatLiteral& expr);
     void visit(StringLiteral& expr);
     void visit(BooleanLiteral& expr);
-
-    void visit(DotLiteral& expr);
 
     void visit(Identifier& expr);
     void visit(MemberAccess& expr);
@@ -180,7 +171,6 @@ private:
     void visit(ElseTernaryBranch& expr);
 
     void visit(TemplateAngular& expr);
-    void visit(FieldDefinition& statement);
 
     // -----------------------------------------------------------------------
     // UTILS
