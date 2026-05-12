@@ -118,8 +118,6 @@ void SemanticAnalyzer::desugar_literal(
     auto class_type = actual_type->as<ClassType_ptr>();
 
     // 3. Look up the actual runtime class symbol by name (e.g., "Int")
-    // This works flawlessly now because Pass 1 Hoisting puts 'Int' in the
-    // scope!
     Symbol_ptr runtime_class_symbol = current_scope->lookup(class_type->name);
 
     Doctor::get().fatal_if_nullptr(
@@ -134,7 +132,20 @@ void SemanticAnalyzer::desugar_literal(
         expr->start_token,
         expr->end_token
     );
-    id_node->as<Identifier>().symbol = runtime_class_symbol;
+
+    auto& id_data = id_node->as<Identifier>();
+    id_data.symbol = runtime_class_symbol;
+
+    // === THE FIX: Evaluate Capture Status ===
+    // If we are currently inside a nested function (closure_depth > 0),
+    // and this runtime class lives in an outer scope (like the module root),
+    // we MUST flag it for capture!
+    if (runtime_class_symbol->should_be_captured(
+            current_scope->get_closure_depth()
+        ))
+    {
+        id_data.must_be_captured = true;
+    }
 
     // 5. Move the original literal down into a new child node
     auto literal_child = make_expression(

@@ -36,8 +36,8 @@ Symbol::Symbol(
     int lexical_depth,
     SymbolPayload payload
 )
-    : id(id), name(std::move(name)), closure_depth(closure_depth), lexical_depth(lexical_depth),
-      payload(std::move(payload)), module_path("")
+    : id(id), name(std::move(name)), closure_depth(closure_depth),
+      lexical_depth(lexical_depth), payload(std::move(payload)), module_path("")
 {
 }
 
@@ -48,35 +48,25 @@ bool Symbol::is_global() const
 
 bool Symbol::is_exportable() const
 {
-    bool global = is_global();
-    bool is_module = payload_is<ModuleData>();
-    bool is_alias = payload_is<SymbolAliasData>();
-    return global && !is_module && !is_alias;
+    return is_global() && !payload_is_any_of<ModuleData, SymbolAliasData>();
 }
 
 bool Symbol::is_either_function_or_method() const
 {
-    return payload_is<FunctionData>() || payload_is<MethodData>();
+    return payload_is_any_of<FunctionData, MethodData>();
 }
 
 bool Symbol::is_native() const
 {
-    if (payload_is<FunctionData>())
-        return get_payload_as<FunctionData>().is_native;
+    if (auto* func_data = try_get_payload<FunctionData>())
+    {
+        return func_data->is_native;
+    }
 
-    if (payload_is<MethodData>())
-        return get_payload_as<MethodData>().is_native;
-
-    return false;
-}
-
-bool Symbol::is_native_function_or_method() const
-{
-    if (payload_is<FunctionData>())
-        return get_payload_as<FunctionData>().is_native;
-
-    if (payload_is<MethodData>())
-        return get_payload_as<MethodData>().is_native;
+    if (auto* meth_data = try_get_payload<MethodData>())
+    {
+        return meth_data->is_native;
+    }
 
     return false;
 }

@@ -8,5 +8,12 @@ x.repr()
 let y: int = 2
 y.repr()
 
-let z: int = x + y
+let z: int = x + y + 8
 z.repr()
+
+
+fun foo(a: int)
+    a = a + 1
+    a.repr()
+
+foo(5)

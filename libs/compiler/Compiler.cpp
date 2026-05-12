@@ -13,9 +13,16 @@
 #include <cstddef>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
+
+template <class... Ts> struct overloaded : Ts...
+{
+    using Ts::operator()...;
+};
+template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
@@ -109,25 +116,70 @@ void Compiler::emit_exports()
 
 void Compiler::visit(std::vector<Statement_ptr>& statements)
 {
-    auto is_func = [](const Statement_ptr& s)
+    // PASS 1: Pre-allocate stack slots to support forward references
+    for (auto& stmt_ptr : statements)
     {
-        return s->is<FunctionDefinition>();
-    };
+        Symbol_ptr sym = nullptr;
+        bool is_callable = false;
 
-    for (auto& stmt : statements)
-    {
-        if (is_func(stmt))
+        std::visit(
+            overloaded{
+                [&](FunctionDefinition& def)
+                {
+                    sym = def.group_symbol;
+                    is_callable = true;
+                },
+                [&](OperatorDefinition& def)
+                {
+                    sym = def.group_symbol;
+                    is_callable = true;
+                },
+                [&](ClassDefinition& def)
+                {
+                    sym = def.symbol;
+                },
+                [&](TraitDefinition& def)
+                {
+                    sym = def.symbol;
+                },
+                [&](EnumDefinition& def)
+                {
+                    sym = def.symbol;
+                },
+                [&](TypeAliasDefinition& def)
+                {
+                    sym = def.symbol;
+                },
+                [](auto&) { /* Do nothing for all other statement types */ }
+            },
+            stmt_ptr->data
+        );
+
+        // If it's a declaration we haven't allocated yet, claim a slot!
+        if (sym && resolve_local(sym->id) == -1)
         {
-            visit(stmt);
+            int slot = get_or_add_local_index(sym);
+
+            if (is_callable)
+            {
+                emit(OpCode::PUSH_EMPTY_OVERLOAD_GROUP);
+            }
+            else
+            {
+                emit(OpCode::LOAD_NONE);
+            }
+            emit(
+                OpCode::SET_LOCAL,
+                slot,
+                "pre-allocate hoist for " + sym->name
+            );
         }
     }
 
-    for (auto& stmt : statements)
+    // PASS 2: Compile all statements in their natural, top-to-bottom order!
+    for (auto& stmt_ptr : statements)
     {
-        if (!is_func(stmt))
-        {
-            visit(stmt);
-        }
+        visit(stmt_ptr);
     }
 }
 
@@ -295,18 +347,7 @@ void Compiler::compile_function_closure(
 
 void Compiler::visit(FunctionDefinition& def)
 {
-    bool is_new_declaration = (resolve_local(def.group_symbol->id) == -1);
     int physical_index = get_or_add_local_index(def.group_symbol);
-
-    if (is_new_declaration)
-    {
-        emit(OpCode::PUSH_EMPTY_OVERLOAD_GROUP);
-        emit(
-            OpCode::SET_LOCAL,
-            physical_index,
-            std::string("reserve slot for fun ") + def.name
-        );
-    }
 
     if (def.symbol->is_native())
     {
@@ -334,18 +375,7 @@ void Compiler::visit(FunctionDefinition& def)
 
 void Compiler::visit(OperatorDefinition& def)
 {
-    bool is_new_declaration = (resolve_local(def.group_symbol->id) == -1);
     int physical_index = get_or_add_local_index(def.group_symbol);
-
-    if (is_new_declaration)
-    {
-        emit(OpCode::PUSH_EMPTY_OVERLOAD_GROUP);
-        emit(
-            OpCode::SET_LOCAL,
-            physical_index,
-            "reserve slot for operator " + def.name
-        );
-    }
 
     if (def.symbol->is_native())
     {
@@ -373,7 +403,6 @@ void Compiler::visit(OperatorDefinition& def)
         "operator " + def.name
     );
 }
-
 void Compiler::visit(ClassDefinition& def)
 {
     int slot = get_or_add_local_index(def.symbol);
