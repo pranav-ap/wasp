@@ -109,7 +109,9 @@
     X(UP, "up", true)                                                          \
     X(TYPE, "type", true)                                                      \
     X(EXPORT, "export", true)                                                  \
-    X(OPERATOR, "operator", true)                                              \
+    X(INFIX, "infix", true)                                                    \
+    X(POSTFIX, "postfix", true)                                                \
+    X(PREFIX, "prefix", true)                                                  \
     X(NATIVE, "native", true)                                                  \
     X(ENUM, "enum", true)                                                      \
     X(TRUE_KEYWORD, "true", true)                                              \

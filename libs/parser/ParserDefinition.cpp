@@ -106,33 +106,23 @@ Statement_ptr Parser::parse_function_definition(
     bool is_pure
 )
 {
-    auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
-    auto name = name_token.value;
+    auto name = token_pipe.require_in_line(TokenType::IDENTIFIER).value;
 
     token_pipe.require_in_line(TokenType::OPEN_PARENTHESIS);
-
     std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters;
 
     if (!token_pipe.consume_optional(TokenType::CLOSE_PARENTHESIS))
     {
-        while (true)
+        do
         {
-            auto param_name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
-            auto param_name = param_name_token.value;
-
+            auto param_name = token_pipe.require_in_line(TokenType::IDENTIFIER)
+                                  .value;
             token_pipe.require_in_line(TokenType::COLON);
-
-            auto param_type = parse_type();
-
-            parameters.push_back(make_pair(param_name, param_type));
-
-            if (token_pipe.consume_optional(TokenType::CLOSE_PARENTHESIS))
-            {
-                break;
-            }
-
-            token_pipe.require_in_line(TokenType::COMMA);
+            parameters.push_back({param_name, parse_type()});
         }
+        while (token_pipe.consume_optional_in_line(TokenType::COMMA));
+
+        token_pipe.require_in_line(TokenType::CLOSE_PARENTHESIS);
     }
 
     TypeAnnotation_ptr return_type = nullptr;
@@ -142,27 +132,16 @@ Statement_ptr Parser::parse_function_definition(
     }
 
     token_pipe.require_in_line(TokenType::EOL);
-
     StatementVector body = parse_statements_block(indent_level + 1);
-
-    if (in_class_block)
-    {
-        return make_statement(MethodDefinition(
-            std::move(name),
-            std::move(parameters),
-            std::move(return_type),
-            std::move(body),
-            is_pure,
-            is_our
-        ));
-    }
 
     return make_statement(FunctionDefinition(
         std::move(name),
         std::move(parameters),
         std::move(return_type),
         std::move(body),
-        is_pure
+        is_pure,
+        in_class_block,
+        is_our
     ));
 }
 
@@ -343,37 +322,30 @@ Statement_ptr Parser::parse_template_definition(int indent_level)
     return target;
 }
 
-Statement_ptr Parser::parse_operator_definition(int indent_level)
+Statement_ptr Parser::parse_operator_definition(
+    TokenType fixity,
+    int indent_level
+)
 {
-    // Peek at the token to see what operator it is (+, -, ==, etc.)
     auto operator_token = token_pipe.current_in_line();
     Doctor::get().fatal_if_nullopt(operator_token, WaspStage::Parser);
     token_pipe.advance_pointer();
 
     token_pipe.require_in_line(TokenType::OPEN_PARENTHESIS);
-
     std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters;
 
     if (!token_pipe.consume_optional(TokenType::CLOSE_PARENTHESIS))
     {
-        while (true)
+        do
         {
-            auto param_name_token = token_pipe.require_in_line(
-                TokenType::IDENTIFIER
-            );
-
+            auto param_name = token_pipe.require_in_line(TokenType::IDENTIFIER)
+                                  .value;
             token_pipe.require_in_line(TokenType::COLON);
-
-            auto param_type = parse_type();
-            parameters.push_back(make_pair(param_name_token.value, param_type));
-
-            if (token_pipe.consume_optional(TokenType::CLOSE_PARENTHESIS))
-            {
-                break;
-            }
-
-            token_pipe.require_in_line(TokenType::COMMA);
+            parameters.push_back({param_name, parse_type()});
         }
+        while (token_pipe.consume_optional_in_line(TokenType::COMMA));
+
+        token_pipe.require_in_line(TokenType::CLOSE_PARENTHESIS);
     }
 
     TypeAnnotation_ptr return_type = nullptr;
@@ -383,10 +355,10 @@ Statement_ptr Parser::parse_operator_definition(int indent_level)
     }
 
     token_pipe.require_in_line(TokenType::EOL);
-
     StatementVector body = parse_statements_block(indent_level + 1);
 
     return make_statement(OperatorDefinition(
+        fixity,
         operator_token->type,
         std::move(parameters),
         std::move(return_type),

@@ -30,7 +30,7 @@ struct ExpressionStatement
     }
 };
 
-// Definitions
+// --- Core Structural Components ---
 
 struct Definition : public Resolvable
 {
@@ -68,7 +68,9 @@ struct Templatable
     }
 };
 
-struct AbstractFunctionDefinition : public Definition
+// --- Function Definitions ---
+
+struct AbstractFunctionDefinition : public Definition, public Templatable
 {
     std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters;
     std::vector<std::shared_ptr<Symbol>> parameter_symbols;
@@ -87,19 +89,22 @@ struct AbstractFunctionDefinition : public Definition
         std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters,
         TypeAnnotation_ptr return_type,
         StatementVector body,
-        bool is_pure = false
+        bool is_pure = false,
+        std::vector<FieldDefinition> generics = {}
     )
-        : Definition(std::move(name)), parameters(std::move(parameters)),
+        : Definition(std::move(name)), Templatable(std::move(generics)),
+          parameters(std::move(parameters)),
           return_type(std::move(return_type)), body(std::move(body)),
           is_pure(is_pure)
     {
     }
 };
 
-// Standalone functions remain Templatable
-struct FunctionDefinition : public AbstractFunctionDefinition,
-                            public Templatable
+struct FunctionDefinition : public AbstractFunctionDefinition
 {
+    bool is_method = false;
+    bool is_static = false;
+
     FunctionDefinition() = default;
 
     FunctionDefinition(
@@ -108,6 +113,8 @@ struct FunctionDefinition : public AbstractFunctionDefinition,
         TypeAnnotation_ptr return_type,
         StatementVector body,
         bool is_pure = false,
+        bool is_method = false,
+        bool is_static = false,
         std::vector<FieldDefinition> generics = {}
     )
         : AbstractFunctionDefinition(
@@ -115,47 +122,23 @@ struct FunctionDefinition : public AbstractFunctionDefinition,
               std::move(parameters),
               std::move(return_type),
               std::move(body),
-              is_pure
+              is_pure,
+              std::move(generics)
           ),
-          Templatable(std::move(generics))
+          is_method(is_method), is_static(is_static)
     {
     }
 };
 
-struct MethodDefinition : public AbstractFunctionDefinition
-{
-    bool is_static = false;
-
-    MethodDefinition() = default;
-
-    MethodDefinition(
-        std::string name,
-        std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters,
-        TypeAnnotation_ptr return_type,
-        StatementVector body,
-        bool is_pure = false,
-        bool is_static = false
-    )
-        : AbstractFunctionDefinition(
-              std::move(name),
-              std::move(parameters),
-              std::move(return_type),
-              std::move(body),
-              is_pure
-          ),
-          is_static(is_static)
-    {
-    }
-};
-
-struct OperatorDefinition : public AbstractFunctionDefinition,
-                            public Templatable
+struct OperatorDefinition : public AbstractFunctionDefinition
 {
     TokenType operator_token_type;
+    TokenType fixity;
 
     OperatorDefinition() = default;
 
     OperatorDefinition(
+        TokenType fixity,
         TokenType operator_token_type,
         std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters,
         TypeAnnotation_ptr return_type,
@@ -163,26 +146,28 @@ struct OperatorDefinition : public AbstractFunctionDefinition,
         std::vector<FieldDefinition> generics = {}
     )
         : AbstractFunctionDefinition(
-              std::move(to_string(operator_token_type)),
+              to_string(operator_token_type),
               std::move(parameters),
               std::move(return_type),
               std::move(body),
-              true // Operators are always pure
+              true, // Operators are natively pure
+              std::move(generics)
           ),
-          Templatable(std::move(generics)),
-          operator_token_type(operator_token_type)
+          operator_token_type(operator_token_type), fixity(fixity)
     {
     }
 };
 
-struct ClassDefinition : public Definition, public Templatable
+// --- Object Oriented Definitions ---
+
+struct AbstractOOPDefinition : public Definition, public Templatable
 {
     StringVector traits;
     StatementVector members;
 
-    ClassDefinition() = default;
+    AbstractOOPDefinition() = default;
 
-    ClassDefinition(
+    AbstractOOPDefinition(
         std::string name,
         StringVector traits,
         StatementVector members,
@@ -194,23 +179,14 @@ struct ClassDefinition : public Definition, public Templatable
     }
 };
 
-struct TraitDefinition : public Definition, public Templatable
+struct ClassDefinition : public AbstractOOPDefinition
 {
-    StringVector traits;
-    StatementVector members;
+    using AbstractOOPDefinition::AbstractOOPDefinition;
+};
 
-    TraitDefinition() = default;
-
-    TraitDefinition(
-        std::string name,
-        StringVector traits,
-        StatementVector members,
-        std::vector<FieldDefinition> generics = {}
-    )
-        : Definition(std::move(name)), Templatable(std::move(generics)),
-          traits(std::move(traits)), members(std::move(members))
-    {
-    }
+struct TraitDefinition : public AbstractOOPDefinition
+{
+    using AbstractOOPDefinition::AbstractOOPDefinition;
 };
 
 struct TypeAliasDefinition : public Definition, public Templatable
@@ -252,7 +228,7 @@ struct EnumDefinition : public Definition
     }
 };
 
-// Branching
+// --- Control Flow ---
 
 struct Branch
 {
@@ -281,10 +257,8 @@ struct IfBranch : Branch
 struct ElseBranch : Branch
 {
     ElseBranch() = default;
-    ElseBranch(StatementVector body) : Branch(body) {};
+    explicit ElseBranch(StatementVector body) : Branch(body) {};
 };
-
-// Looping
 
 struct Loop
 {
@@ -322,9 +296,11 @@ struct ForInLoop : public Loop
           iterable_expression(std::move(iterable_expression)) {};
 };
 
-// Other
-
 struct Pass
+{
+};
+
+struct Required
 {
 };
 
@@ -338,11 +314,9 @@ struct Return
 
     Return() : expression(std::nullopt) {};
 
-    Return(Expression_ptr expression)
+    explicit Return(Expression_ptr expression)
         : expression(std::make_optional(std::move(expression))) {};
 };
-
-// Loop Controls
 
 struct LoopControl
 {
@@ -351,15 +325,14 @@ struct LoopControl
 
     LoopControl() = default;
 
-    LoopControl(TokenType type, std::string label = "")
+    explicit LoopControl(TokenType type, std::string label = "")
         : type(type), label(label)
     {
     }
 };
 
-// Imports
+// --- Submodules & Modules Imports ---
 
-// Tank as FuelTank
 struct ImportAsPair : public Resolvable
 {
     std::string name;
@@ -367,7 +340,7 @@ struct ImportAsPair : public Resolvable
 
     ImportAsPair() = default;
 
-    ImportAsPair(
+    explicit ImportAsPair(
         std::string name,
         std::optional<std::string> alias = std::nullopt
     )
@@ -378,30 +351,16 @@ struct ImportAsPair : public Resolvable
 
 struct Import : public Resolvable
 {
-    // --- Path Resolution ---
-    // std::nullopt means it's a 3rd party lib (like 'math3d')
-    // Otherwise it holds: my, our, pkg, top, or up
     std::optional<TokenType> access_modifier = std::nullopt;
-
-    // Handles the '2' in up(2). Defaults to 1 for standard 'up' or 'pkg'.
     int access_argument = 1;
 
-    // ["engine", "fuel"]
     StringVector path;
     std::filesystem::path absolute_path;
 
-    // --- Module Level ---
-    // import top.engine as e
     std::optional<std::string> module_alias = std::nullopt;
 
-    // --- Expose Level ---
-    // expose *
     bool expose_all = false;
-
-    // expose Tank, Pump as P
     std::vector<ImportAsPair> exposed_symbols;
-
-    // except BrokenPump
     StringVector excluded_symbols;
 
     Import() = default;
@@ -423,8 +382,6 @@ struct Import : public Resolvable
     }
 };
 
-// Statement Variant
-
 using StatementVariant = std::variant<
     std::monostate,
     ExpressionStatement,
@@ -433,7 +390,6 @@ using StatementVariant = std::variant<
     EnumDefinition,
 
     FunctionDefinition,
-    MethodDefinition,
     OperatorDefinition,
 
     FieldDefinition,
@@ -451,8 +407,6 @@ using StatementVariant = std::variant<
     Pass,
     Native,
     Return>;
-
-// STATEMENT
 
 struct Statement : public AstNode<StatementVariant>
 {

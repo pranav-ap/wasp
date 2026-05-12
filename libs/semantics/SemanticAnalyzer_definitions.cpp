@@ -13,6 +13,7 @@
 #include "SemanticAnalyzer.h"
 #include "Statement.h"
 #include "SymbolScope.h"
+#include "Token.h"
 #include "Workspace.h"
 
 template <class... Ts> struct overloaded : Ts...
@@ -328,14 +329,6 @@ void SemanticAnalyzer::visit(FieldDefinition& stat)
     );
 }
 
-void SemanticAnalyzer::visit(MethodDefinition& stat)
-{
-    Doctor::get().fatal(
-        WaspStage::Semantics,
-        "Methods cannot be defined outside of a class or trait."
-    );
-}
-
 bool SemanticAnalyzer::prepare_generic_scope(const ObjectStringMap& generics)
 {
     if (generics.empty())
@@ -414,6 +407,24 @@ void SemanticAnalyzer::visit(OperatorDefinition& def)
     auto signature = def.symbol->get_type()->as<Signature_ptr>();
     bool has_generics = prepare_generic_scope(signature->generics);
 
+    // Validate parameter count based on fixity
+    if (def.fixity == TokenType::INFIX)
+    {
+        Doctor::get().assert(
+            def.parameters.size() == 2,
+            WaspStage::Semantics,
+            "Infix operator '" + def.name + "' must have exactly 2 parameters."
+        );
+    }
+    else
+    {
+        Doctor::get().assert(
+            def.parameters.size() == 1,
+            WaspStage::Semantics,
+            "Unary operator '" + def.name + "' must have exactly 1 parameter."
+        );
+    }
+
     ScopeType scope_type = def.is_pure ? ScopeType::PURE_FUNCTION
                                        : ScopeType::FUNCTION;
 
@@ -426,8 +437,7 @@ void SemanticAnalyzer::visit(OperatorDefinition& def)
         auto param_symbol = SymbolFactory::create_variable(
             def.parameters[i].first,
             signature->parameter_types[i],
-            // TODO : Operators shouldn't mutate their parameters or should they?
-            false,
+            false, // Operators parameters are immutable by convention
             current_scope->get_closure_depth(),
             current_scope->get_lexical_depth()
         );
@@ -440,17 +450,14 @@ void SemanticAnalyzer::visit(OperatorDefinition& def)
         def.symbol->mark_as_native();
     }
 
-    for (auto& stmt : def.body)
-    {
-        visit(stmt);
-    }
+    visit(def.body);
 
     return_type_stack.pop_back();
-    leave_scope(); // Close FUNCTION scope
+    leave_scope();
 
     if (has_generics)
     {
-        leave_scope(); // Close TEMPLATE scope
+        leave_scope();
     }
 }
 
@@ -458,12 +465,23 @@ void SemanticAnalyzer::visit(OperatorDefinition& def)
 // Classes & Traits
 // ---------------------------------------------------------------------------
 
-void SemanticAnalyzer::visit(ClassDefinition& def)
+void SemanticAnalyzer::analyze_oop_definition(AbstractOOPDefinition& def)
 {
-    auto class_type = def.symbol->get_type()->as<ClassType_ptr>();
-    bool has_generics = prepare_generic_scope(class_type->generics);
+    auto type_obj = def.symbol->get_type();
+    BaseOOPType_ptr oop_type;
 
-    // --- Pass 0: Fill up class type ---
+    if (type_obj->is<ClassType_ptr>())
+    {
+        oop_type = type_obj->as<ClassType_ptr>();
+    }
+    else
+    {
+        oop_type = type_obj->as<TraitType_ptr>();
+    }
+
+    bool has_generics = prepare_generic_scope(oop_type->generics);
+
+    // --- Pass 0: Fill up type structure ---
     for (auto& stmt : def.members)
     {
         std::visit(
@@ -472,45 +490,50 @@ void SemanticAnalyzer::visit(ClassDefinition& def)
                 {
                     Doctor::get().assert(
                         std::find(
-                            class_type->fields.begin(),
-                            class_type->fields.end(),
+                            oop_type->fields.begin(),
+                            oop_type->fields.end(),
                             f.name
-                        ) == class_type->fields.end(),
+                        ) == oop_type->fields.end(),
                         WaspStage::Semantics,
-                        "Duplicate field name '" + f.name + "' in class."
+                        "Duplicate field '" + f.name + "'."
                     );
 
                     auto field_type = visit(f.type);
-                    class_type->fields.push_back(f.name);
-                    class_type->member_types[f.name] = field_type;
+                    oop_type->fields.push_back(f.name);
+                    oop_type->member_types[f.name] = field_type;
                 },
-                [&](MethodDefinition& m)
+                [&](FunctionDefinition& f)
                 {
-                    auto push_unique = [](StringVector& vec, const std::string& name)
+                    if (!f.is_method)
                     {
-                        if (std::find(vec.begin(), vec.end(), name) == vec.end())
+                        return; // Only process methods here
+                    }
+
+                    auto push_unique =
+                        [](StringVector& vec, const std::string& name)
+                    {
+                        if (std::find(vec.begin(), vec.end(), name) ==
+                            vec.end())
                         {
                             vec.push_back(name);
                         }
                     };
 
-                    push_unique(class_type->methods, m.name);
-
-                    if (m.is_pure)
+                    push_unique(oop_type->methods, f.name);
+                    if (f.is_pure)
                     {
-                        push_unique(class_type->pures, m.name);
+                        push_unique(oop_type->pures, f.name);
                     }
-
-                    if (m.is_static)
+                    if (f.is_static)
                     {
-                        push_unique(class_type->statics, m.name);
+                        push_unique(oop_type->statics, f.name);
                     }
                 },
                 [](auto&)
                 {
                     Doctor::get().fatal(
                         WaspStage::Semantics,
-                        "Invalid statement in class body."
+                        "Invalid statement in OOP body."
                     );
                 }
             },
@@ -518,20 +541,22 @@ void SemanticAnalyzer::visit(ClassDefinition& def)
         );
     }
 
-    auto class_type_obj = make_object(class_type);
-
-    // --- Pass 1: Hoisting ---
+    // --- Pass 1: Signature Hoisting ---
     for (auto& stmt : def.members)
     {
-        if (auto* method_def = stmt->try_as<MethodDefinition>())
+        if (auto* func_def = stmt->try_as<FunctionDefinition>())
         {
-            Object_ptr return_type = method_def->return_type
-                                         ? visit(method_def->return_type)
-                                         : workspace->pool->get_none_type();
+            if (!func_def->is_method)
+            {
+                continue;
+            }
 
+            Object_ptr return_type = func_def->return_type
+                                         ? visit(func_def->return_type)
+                                         : workspace->pool->get_none_type();
             ObjectVector param_types;
 
-            for (const auto& [name, type_node] : method_def->parameters)
+            for (const auto& [name, type_node] : func_def->parameters)
             {
                 param_types.push_back(visit(type_node));
             }
@@ -540,35 +565,43 @@ void SemanticAnalyzer::visit(ClassDefinition& def)
                 std::make_shared<Signature>(
                     param_types,
                     return_type,
-                    class_type->generics,
-                    class_type->expected_generic_names_order
+                    oop_type->generics,
+                    oop_type->expected_generic_names_order
                 )
             );
 
-            method_def->symbol = SymbolFactory::create_method(
-                method_def->name,
+            // Logic matches Method creation but uses unified FunctionDefinition
+            // node
+            func_def->symbol = SymbolFactory::create_method(
+                func_def->name,
                 signature,
-                false, // can become true once we analyse body
+                false,
                 current_scope->get_closure_depth(),
                 current_scope->get_lexical_depth()
             );
 
-            class_type->add_overload(method_def->name, signature);
+            oop_type->add_overload(func_def->name, signature);
         }
     }
 
-    // --- Pass 2: Analysis ---
+    // --- Pass 2: Body Analysis ---
     for (auto& stmt : def.members)
     {
-        if (auto* method_def = std::get_if<MethodDefinition>(&stmt->data))
+        if (auto* func_def = stmt->try_as<FunctionDefinition>())
         {
-            auto signature = method_def->symbol->get_type()->as<Signature_ptr>();
-            bool has_method_generics = prepare_generic_scope(signature->generics);
+            if (!func_def->is_method)
+            {
+                continue;
+            }
 
-            enter_scope(
-                method_def->is_pure ? ScopeType::PURE_METHOD : ScopeType::METHOD
+            auto signature = func_def->symbol->get_type()->as<Signature_ptr>();
+            bool has_method_generics = prepare_generic_scope(
+                signature->generics
             );
 
+            enter_scope(
+                func_def->is_pure ? ScopeType::PURE_METHOD : ScopeType::METHOD
+            );
             return_type_stack.push_back(signature->return_type);
 
             auto define_param = [&](const std::string& name, Object_ptr type)
@@ -576,35 +609,28 @@ void SemanticAnalyzer::visit(ClassDefinition& def)
                 auto symbol = SymbolFactory::create_variable(
                     name,
                     type,
-                    !method_def->is_pure,
+                    !func_def->is_pure,
                     current_scope->get_closure_depth(),
                     current_scope->get_lexical_depth()
                 );
-
                 current_scope->define(symbol);
-                method_def->parameter_symbols.push_back(symbol);
+                func_def->parameter_symbols.push_back(symbol);
             };
 
-            if (method_def->is_static)
-            {
-                define_param("our", class_type_obj);
-            }
-            else
-            {
-                define_param("my", class_type_obj);
-            }
+            // Unified injection of 'my' or 'our'
+            define_param(func_def->is_static ? "our" : "my", type_obj);
 
-            for (size_t i = 0; i < method_def->parameters.size(); ++i)
+            for (size_t i = 0; i < func_def->parameters.size(); ++i)
             {
                 define_param(
-                    method_def->parameters[i].first,
+                    func_def->parameters[i].first,
                     signature->parameter_types[i]
                 );
             }
 
-            visit(method_def->body);
-            return_type_stack.pop_back();
+            visit(func_def->body);
 
+            return_type_stack.pop_back();
             leave_scope();
 
             if (has_method_generics)
@@ -620,15 +646,15 @@ void SemanticAnalyzer::visit(ClassDefinition& def)
     }
 }
 
-void SemanticAnalyzer::visit(TraitDefinition& def)
+void SemanticAnalyzer::visit(ClassDefinition& def)
 {
-    Doctor::get().fatal(
-        WaspStage::Semantics,
-        "Trait definitions are not supported for now"
-    );
+    analyze_oop_definition(def);
 }
 
-// Do Nothing
+void SemanticAnalyzer::visit(TraitDefinition& def)
+{
+    analyze_oop_definition(def);
+}
 
 void SemanticAnalyzer::visit(Import& imp)
 {

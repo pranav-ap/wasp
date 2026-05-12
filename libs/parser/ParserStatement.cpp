@@ -71,9 +71,12 @@ Statement_ptr Parser::parse_statement(int expected_indent_level)
         token_pipe.require_in_line(TokenType::FUN);
         return parse_function_definition(expected_indent_level, false, false, true);
     }
-    case TokenType::OPERATOR: {
+    case TokenType::INFIX:
+    case TokenType::PREFIX:
+    case TokenType::POSTFIX: {
+        TokenType fixity = token_pipe.current()->type;
         token_pipe.advance_pointer();
-        return parse_operator_definition(expected_indent_level);
+        return parse_operator_definition(fixity, expected_indent_level);
     }
 
     case TokenType::RETURN_KEYWORD:
@@ -174,17 +177,20 @@ Statement_ptr Parser::parse_return_statement() {
 }
 
 // Imports
+
 ImportAsPair Parser::parse_imported_symbol()
 {
-    auto sym_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
-    std::optional<std::string> alias = std::nullopt;
+    auto name = token_pipe.require_in_line(TokenType::IDENTIFIER).value;
 
     if (token_pipe.consume_optional_in_line(TokenType::AS))
     {
-        alias = token_pipe.require_in_line(TokenType::IDENTIFIER).value;
+        return ImportAsPair(
+            std::move(name),
+            token_pipe.require_in_line(TokenType::IDENTIFIER).value
+        );
     }
 
-    return {sym_token.value, std::move(alias)};
+    return ImportAsPair(std::move(name));
 }
 
 std::tuple<std::optional<TokenType>, int, StringVector> Parser::

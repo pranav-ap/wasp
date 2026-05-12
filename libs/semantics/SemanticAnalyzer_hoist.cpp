@@ -107,8 +107,8 @@ void SemanticAnalyzer::hoist_import(Import& stmt)
 
 void SemanticAnalyzer::hoist_names_and_imports(StatementVector& statements)
 {
-    int c_depth = current_scope->get_closure_depth();
-    int l_depth = current_scope->get_lexical_depth();
+    int closure_depth = current_scope->get_closure_depth();
+    int lexical_depth = current_scope->get_lexical_depth();
 
     for (auto& stmt_ptr : statements)
     {
@@ -127,8 +127,8 @@ void SemanticAnalyzer::hoist_names_and_imports(StatementVector& statements)
                         SymbolFactory::create_class(
                             def.name,
                             type,
-                            c_depth,
-                            l_depth
+                            closure_depth,
+                            lexical_depth
                         )
                     );
                 },
@@ -141,8 +141,8 @@ void SemanticAnalyzer::hoist_names_and_imports(StatementVector& statements)
                         SymbolFactory::create_trait(
                             def.name,
                             type,
-                            c_depth,
-                            l_depth
+                            closure_depth,
+                            lexical_depth
                         )
                     );
                 },
@@ -160,8 +160,8 @@ void SemanticAnalyzer::hoist_names_and_imports(StatementVector& statements)
                         SymbolFactory::create_type_alias(
                             def.name,
                             type,
-                            c_depth,
-                            l_depth
+                            closure_depth,
+                            lexical_depth
                         )
                     );
                 },
@@ -174,8 +174,8 @@ void SemanticAnalyzer::hoist_names_and_imports(StatementVector& statements)
                         SymbolFactory::create_enum(
                             def.name,
                             type,
-                            c_depth,
-                            l_depth
+                            closure_depth,
+                            lexical_depth
                         )
                     );
                 },

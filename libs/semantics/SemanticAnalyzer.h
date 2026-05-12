@@ -53,6 +53,7 @@ private:
     void visit(StatementVector& statements);
 
     void inject_prelude();
+    void analyze_oop_definition(AbstractOOPDefinition& def);
     void hoist_statements(StatementVector& statements);
     void hoist_names_and_imports(StatementVector& statements);
     void hoist_import(Import& stmt);
@@ -66,7 +67,6 @@ private:
 
     void visit(ExpressionStatement& statement);
     void visit(FunctionDefinition& statement);
-    void visit(MethodDefinition& statement);
     void visit(OperatorDefinition& statement);
     void visit(ClassDefinition& statement);
     void visit(TraitDefinition& statement);

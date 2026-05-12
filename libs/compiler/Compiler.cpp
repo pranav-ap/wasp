@@ -324,91 +324,57 @@ void Compiler::visit(OperatorDefinition& def)
     );
 }
 
-void Compiler::visit(ClassDefinition& class_definition)
+void Compiler::visit(ClassDefinition& def)
 {
-    int class_blueprint_physical_index = get_or_add_local_index(
-        class_definition.symbol
-    );
+    int slot = get_or_add_local_index(def.symbol);
 
-    emit(
-        OpCode::PUSH_EMPTY_CLASS_BLUEPRINT,
-        "push empty class " + class_definition.name
-    );
-    emit(
-        OpCode::SET_LOCAL,
-        class_blueprint_physical_index,
-        "init class in slot"
-    );
+    // 1. Initialize the Blueprint
+    emit(OpCode::PUSH_EMPTY_CLASS_BLUEPRINT, "class " + def.name);
+    emit(OpCode::SET_LOCAL, slot, "init class in slot");
 
+    auto class_type = def.symbol->get_type()->as<ClassType_ptr>();
     int unique_method_count = 0;
 
-    auto type_obj = class_definition.symbol->get_type();
-    std::shared_ptr<ClassType> class_type = type_obj->as<ClassType_ptr>();
-
-    StringVector all_methods = class_type->methods;
-    all_methods.insert(
-        all_methods.end(),
-        class_type->pures.begin(),
-        class_type->pures.end()
-    );
-    all_methods.insert(
-        all_methods.end(),
-        class_type->statics.begin(),
-        class_type->statics.end()
-    );
-
-    auto compile_if_match =
-        [&](auto& method, const std::string& target_name, int& count)
+    // 2. Compile Method Overload Groups
+    // class_type->methods is the master list of unique names populated during
+    // semantics
+    for (const std::string& method_name : class_type->methods)
     {
-        if (method.name == target_name)
+        int overload_count = 0;
+
+        for (auto& stmt : def.members)
         {
-            if (method.symbol->is_native())
+            auto* func = stmt->try_as<FunctionDefinition>();
+
+            // Only process FunctionDefinitions marked as methods matching this
+            // name
+            if (!func || !func->is_method || func->name != method_name)
+            {
+                continue;
+            }
+
+            if (func->symbol->is_native())
             {
                 std::string mangled = mangle_name(
-                    method.name,
-                    class_definition.name,
-                    method.symbol->module_path
+                    func->name,
+                    def.name,
+                    func->symbol->module_path
                 );
 
                 int registry_id = workspace->native_registry->get_native_index(
                     mangled
                 );
-                emit(
-                    OpCode::GET_NATIVE,
-                    registry_id,
-                    "load native method " + mangled
-                );
+                emit(OpCode::GET_NATIVE, registry_id, "load native " + mangled);
             }
             else
             {
                 compile_function_closure(
-                    method.name,
-                    method.parameter_symbols,
-                    method.body
+                    func->name,
+                    func->parameter_symbols,
+                    func->body
                 );
             }
-            count++;
-        }
-    };
-
-    for (const std::string& method_name : all_methods)
-    {
-        int overload_count = 0;
-
-        for (auto& stmt : class_definition.members)
-        {
-            std::visit(
-                overloaded{
-                    [&](MethodDefinition& m)
-                    {
-                        compile_if_match(m, method_name, overload_count);
-                    },
-                    [&](auto&)
-                    {
-                    } // Ignore fields, type aliases, etc.
-                },
-                stmt->data
-            );
+            overload_count++;
         }
 
         emit(
@@ -419,24 +385,15 @@ void Compiler::visit(ClassDefinition& class_definition)
         unique_method_count++;
     }
 
-    auto fields_offset = static_cast<int>(class_type->fields.size());
-
-    emit(
-        OpCode::GET_LOCAL,
-        class_blueprint_physical_index,
-        "load pre-allocated class for modification"
-    );
+    // 3. Finalize the Class
+    emit(OpCode::GET_LOCAL, slot, "load blueprint for population");
     emit(
         OpCode::BUILD_CLASS,
         unique_method_count,
-        fields_offset,
-        "populate class " + class_definition.name
+        static_cast<int>(class_type->fields.size()),
+        "populate class " + def.name
     );
-    emit(
-        OpCode::SET_LOCAL,
-        class_blueprint_physical_index,
-        "update local slot"
-    );
+    emit(OpCode::SET_LOCAL, slot, "update local slot");
 }
 
 void Compiler::emit_closure_upvalues(const std::vector<Upvalue>& upvalues)
@@ -502,10 +459,6 @@ void Compiler::visit(TraitDefinition& trait_definition)
 }
 
 void Compiler::visit(EnumDefinition& def)
-{
-}
-
-void Compiler::visit(MethodDefinition& statement)
 {
 }
 

@@ -203,12 +203,16 @@ class Person
     EXPECT_EQ(class_def.name, "Person");
     ASSERT_EQ(class_def.members.size(), 2);
 
-    auto& func_def1 = check<Wasp::MethodDefinition>(class_def.members[0]);
+    auto& func_def1 = check<Wasp::FunctionDefinition>(class_def.members[0]);
     EXPECT_EQ(func_def1.name, "fortify");
-    ASSERT_EQ(func_def1.parameters.size(), 0);
+    EXPECT_TRUE(func_def1.is_method);
+    EXPECT_FALSE(func_def1.is_static);
+    EXPECT_TRUE(func_def1.parameters.empty());
 
-    auto& func_def2 = check<Wasp::MethodDefinition>(class_def.members[1]);
+    auto& func_def2 = check<Wasp::FunctionDefinition>(class_def.members[1]);
     EXPECT_EQ(func_def2.name, "weaken");
+    EXPECT_TRUE(func_def2.is_method);
+    EXPECT_FALSE(func_def2.is_static);
 
     ASSERT_EQ(func_def2.parameters.size(), 1);
     EXPECT_EQ(func_def2.parameters[0].first, "damage");

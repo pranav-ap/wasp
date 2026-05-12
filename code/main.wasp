@@ -2,7 +2,7 @@ import core.io expose *
 import core.types expose *
 
 
-operator + (left: Int, right: Int) => Int
+infix + (left: Int, right: Int) => Int
     return Int(left.value + right.value)
 
 

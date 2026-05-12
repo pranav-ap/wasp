@@ -180,8 +180,6 @@ private:
     void visit(ElseTernaryBranch& expr);
 
     void visit(TemplateAngular& expr);
-
-    void visit(MethodDefinition& statement);
     void visit(FieldDefinition& statement);
 
     // -----------------------------------------------------------------------
