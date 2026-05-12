@@ -66,6 +66,7 @@
     X(ELSE, "else", true)                                                      \
     X(THEN, "then", true)                                                      \
     X(PASS, "pass", true)                                                      \
+    X(REQUIRED, "required", true)                                              \
     X(NO, "no", true)                                                          \
     X(NONE, "none", true)                                                      \
     X(SOME, "some", true)                                                      \

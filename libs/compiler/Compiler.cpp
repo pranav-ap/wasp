@@ -1117,6 +1117,10 @@ void Compiler::visit(Pass& statement)
 {
 }
 
+void Compiler::visit(Required& statement)
+{
+}
+
 void Compiler::visit(Native& statement)
 {
 }

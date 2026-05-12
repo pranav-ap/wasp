@@ -154,6 +154,14 @@ Statement_ptr Parser::parse_pass_statement() {
     return make_statement(Pass{});
 }
 
+Statement_ptr Parser::parse_required_statement()
+{
+    token_pipe.advance_pointer();
+    token_pipe.require_in_line(TokenType::EOL);
+
+    return make_statement(Required{});
+}
+
 Statement_ptr Parser::parse_native_statement()
 {
     token_pipe.advance_pointer();

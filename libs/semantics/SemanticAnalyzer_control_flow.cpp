@@ -97,6 +97,10 @@ void SemanticAnalyzer::visit(Pass& statement)
 {
 }
 
+void SemanticAnalyzer::visit(Required& statement)
+{
+}
+
 // ---------------------------------------------------------------------------
 // Loops
 // ---------------------------------------------------------------------------

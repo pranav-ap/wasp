@@ -123,6 +123,7 @@ private:
     void visit(ForInLoop& statement);
 
     void visit(Pass& statement);
+    void visit(Required& statement);
     void visit(Native& statement);
     void visit(LoopControl& statement);
 

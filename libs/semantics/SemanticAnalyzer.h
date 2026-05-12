@@ -80,6 +80,7 @@ private:
     void visit(LoopControl& statement);
     void visit(Import& statement);
     void visit(Pass& statement);
+    void visit(Required& statement);
     void visit(Native& statement);
     void visit(Return& statement);
 

@@ -406,6 +406,8 @@ using StatementVariant = std::variant<
 
     Pass,
     Native,
+    Required,
+
     Return>;
 
 struct Statement : public AstNode<StatementVariant>
