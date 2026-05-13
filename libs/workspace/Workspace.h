@@ -5,10 +5,12 @@
 #include "ConstantPool.h"
 #include "NativeRegistry.h"
 #include "Objects.h"
+#include "Statement.h"
 
 #include <filesystem>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <variant>
@@ -47,7 +49,7 @@ struct PossibleNativeData : public TypedData
 
 struct FunctionData : public PossibleNativeData
 {
-    StatementVector body_ast;
+    std::optional<FunctionDefinition> ast_blueprint = std::nullopt;
 
     FunctionData(bool is_native) : PossibleNativeData(is_native)
     {
@@ -56,6 +58,8 @@ struct FunctionData : public PossibleNativeData
 
 struct MethodData : public PossibleNativeData
 {
+    std::optional<MethodDefinition> ast_blueprint = std::nullopt;
+
     MethodData(bool is_native) : PossibleNativeData(is_native)
     {
     }
@@ -92,7 +96,7 @@ struct TraitData : public TypedData
     using TypedData::TypedData;
 };
 
-struct GenericData : public TypedData
+struct TemplateParameterData : public TypedData
 {
     using TypedData::TypedData;
 };
@@ -124,7 +128,7 @@ using SymbolPayload = std::variant<
     ModuleData,
     ClassData,
     TraitData,
-    GenericData,
+    TemplateParameterData,
     EnumData,
     TypeAliasData,
     SymbolAliasData>;
@@ -264,7 +268,7 @@ public:
         int lexical_depth = 0
     );
 
-    static Symbol_ptr create_generic(
+    static Symbol_ptr create_template_parameter(
         std::string name,
         Object_ptr type = nullptr,
         int closure_depth = 0,

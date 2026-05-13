@@ -11,6 +11,7 @@
 #include <ctime>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -23,6 +24,56 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
+
+void SemanticAnalyzer::visit(std::vector<Statement_ptr>& statements)
+{
+    hoist_statements(statements);
+
+    for (const auto& stmt : statements)
+    {
+        visit(stmt);
+    }
+}
+
+void SemanticAnalyzer::visit(const Statement_ptr statement)
+{
+    Doctor::get().fatal_if_nullptr(statement, WaspStage::Semantics);
+
+    std::visit(
+        overloaded{
+            [&](std::monostate&)
+            {
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Unhandled Statement in Semantic Analyzer!"
+                );
+            },
+            [&](FieldDefinition&)
+            {
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Field definitions are not valid statements on their own."
+                );
+            },
+            [&](auto& stat)
+            {
+                using T = std::decay_t<decltype(stat)>;
+
+                if constexpr (
+                    std::is_same_v<T, Import> || std::is_same_v<T, MethodDefinition>
+                )
+                {
+                    return;
+                }
+                else
+                {
+                    this->visit(stat);
+                }
+            }
+        },
+        statement->data
+    );
+}
 
 void SemanticAnalyzer::visit(ExpressionStatement& statement)
 {

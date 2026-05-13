@@ -191,14 +191,14 @@ private:
         ClassType_ptr class_type
     );
 
-    Object_ptr call_generic_method(
+    Object_ptr call_template_method(
         Call& call,
         MemberAccess& access,
         const ObjectVector& argument_types,
-        GenericType_ptr generic
+        TemplateParameterType_ptr generic
     );
 
-    Object_ptr call_concrete_template(
+    Object_ptr call_template_function(
         Call& call,
         TemplateAngular& concrete_template,
         const ObjectVector& argument_types

@@ -263,7 +263,7 @@ StringVector TypeSystem::get_generics_declaration_order(const Object_ptr& base) 
 {
     return std::visit(
         overloaded{
-            [&](const GenericType_ptr& g) -> StringVector
+            [&](const TemplateParameterType_ptr& g) -> StringVector
             {
                 return {g->name};
             },
@@ -332,7 +332,8 @@ Object_ptr TypeSystem::substitute_generics(
     bool is_identity = true;
     for (const auto& [k, v] : substitutions)
     {
-        if (!v->is<GenericType_ptr>() || v->as<GenericType_ptr>()->name != k)
+        if (!v->is<TemplateParameterType_ptr>() ||
+            v->as<TemplateParameterType_ptr>()->name != k)
         {
             is_identity = false;
             break;
@@ -377,7 +378,7 @@ Object_ptr TypeSystem::substitute_generics(
 
         return std::visit(
             overloaded{
-                [&](GenericType_ptr g) -> Object_ptr
+                [&](TemplateParameterType_ptr g) -> Object_ptr
                 {
                     return substitutions.contains(g->name)
                                ? substitutions.at(g->name)

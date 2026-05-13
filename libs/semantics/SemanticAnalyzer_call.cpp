@@ -1,8 +1,10 @@
 #include "AST.h"
+#include "ASTCloner.h"
 #include "Doctor.h"
 #include "Expression.h"
 #include "Objects.h"
 #include "SemanticAnalyzer.h"
+#include "Statement.h"
 #include "SymbolScope.h"
 #include "Workspace.h"
 
@@ -44,7 +46,7 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
             },
             [&](TemplateAngular& ta)
             {
-                return call_concrete_template(call, ta, argument_types);
+                return call_template_function(call, ta, argument_types);
             },
             [&](MemberAccess& ma) -> Object_ptr
             {
@@ -67,23 +69,22 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                                 argument_types
                             );
                         },
-                        [&](GenericType_ptr generic) -> Object_ptr
+                        [&](TemplateParameterType_ptr template_parameter_type)
+                            -> Object_ptr
                         {
-                            return call_generic_method(
+                            return call_template_method(
                                 call,
                                 ma,
                                 argument_types,
-                                generic
+                                template_parameter_type
                             );
                         },
                         [&](auto&) -> Object_ptr
                         {
                             Doctor::get().fatal(
                                 WaspStage::Semantics,
-                                "LHS of call must be a module, class, or template "
-                                "parameter."
+                                "LHS of call must be a module, class, or template"
                             );
-                            return nullptr;
                         }
                     },
                     left_type->value
@@ -96,67 +97,9 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                     "Expected an Identifier, TemplateAngular, or MemberAccess as "
                     "the callable."
                 );
-                return nullptr;
             }
         },
         call.callable->data
-    );
-}
-
-Object_ptr SemanticAnalyzer::call_generic_method(
-    Call& call,
-    MemberAccess& access,
-    const ObjectVector& argument_types,
-    GenericType_ptr generic
-)
-{
-    std::string method_name = access.right->as<Identifier>().name;
-
-    return std::visit(
-        overloaded{
-            [&](VariantType& union_type) -> Object_ptr
-            {
-                ObjectVector all_return_types;
-
-                for (auto& variant : union_type.types)
-                {
-                    auto class_type = try_unwrap_ptr<ClassType_ptr>(variant);
-
-                    Object_ptr ret_type = call_method(
-                        call,
-                        access,
-                        argument_types,
-                        class_type
-                    );
-
-                    all_return_types.push_back(ret_type);
-                }
-
-                ObjectVector unique_return_types = type_system->remove_duplicates(
-                    current_scope,
-                    all_return_types
-                );
-
-                if (unique_return_types.size() == 1)
-                {
-                    return unique_return_types[0];
-                }
-
-                return make_object(VariantType{unique_return_types});
-            },
-            [&](ClassType_ptr cls) -> Object_ptr
-            {
-                return call_method(call, access, argument_types, cls);
-            },
-            [&](auto&) -> Object_ptr
-            {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "Generic constraint must resolve to a class or variant type."
-                );
-            }
-        },
-        generic->constraint_type->value
     );
 }
 
@@ -225,7 +168,7 @@ Object_ptr SemanticAnalyzer::call_method(
     return signature_obj->as<Signature_ptr>()->return_type;
 }
 
-Object_ptr SemanticAnalyzer::call_concrete_template(
+Object_ptr SemanticAnalyzer::call_template_function(
     Call& call,
     TemplateAngular& template_angular,
     const ObjectVector& argument_types
@@ -274,9 +217,179 @@ Object_ptr SemanticAnalyzer::call_concrete_template(
         argument_types
     );
 
+    // --- 1. Get the original generic symbol ---
+    Symbol_ptr generic_symbol = generic_candidates[subset_index].first;
+
+    // --- 2. Build the Substitution Map (T -> int) ---
+    ObjectStringMap substitutions;
+    auto generic_names = type_system->get_generics_declaration_order(
+        generic_symbol->get_type()
+    );
+
+    for (size_t i = 0; i < generic_names.size(); ++i)
+    {
+        substitutions[generic_names[i]] = concrete_arguments[i];
+    }
+
+    // --- 3. Deep Clone the AST Blueprint ---
+    ASTCloner cloner(substitutions);
+    Statement_ptr cloned_stmt = nullptr;
+
+    if (generic_symbol->payload_is<FunctionData>())
+    {
+        auto& data = generic_symbol->get_payload_as<FunctionData>();
+        Doctor::get().assert(
+            data.ast_blueprint.has_value(),
+            WaspStage::Semantics,
+            "AST Blueprint is missing from the generic function '" +
+                generic_symbol->name + "'."
+        );
+
+        Statement_ptr wrapper = make_statement(data.ast_blueprint.value());
+        cloned_stmt = cloner.clone(wrapper);
+    }
+    else if (generic_symbol->payload_is<MethodData>())
+    {
+        auto& data = generic_symbol->get_payload_as<MethodData>();
+        Doctor::get().assert(
+            data.ast_blueprint.has_value(),
+            WaspStage::Semantics,
+            "AST Blueprint is missing from the generic method '" +
+                generic_symbol->name + "'."
+        );
+
+        Statement_ptr wrapper = make_statement(data.ast_blueprint.value());
+        cloned_stmt = cloner.clone(wrapper);
+    }
+
+    // --- 4. Re-Analyze the Cloned Body (Scope Trap Fix) ---
+
+    // A. Save the caller's scope so variables don't leak into the template
+    SymbolScope_ptr caller_scope = current_scope;
+
+    // B. Jump back to the Module scope (or the root if Module isn't found)
+    while (current_scope->get_enclosing() != nullptr &&
+           current_scope->get_type() != ScopeType::MODULE)
+    {
+        current_scope = current_scope->get_enclosing();
+    }
+
+    // C. Re-analyze the fully cloned and specialized definition
+    if (cloned_stmt && cloned_stmt->is<FunctionDefinition>())
+    {
+        auto& specialized_def = cloned_stmt->as<FunctionDefinition>();
+
+        // CRITICAL FIX: The cloner wiped the symbol. Give it a new concrete one!
+        specialized_def.symbol = SymbolFactory::create_function(
+            generic_symbol->name,
+            function_object, // Pass the specialized Signature_ptr
+            generic_symbol->is_native(),
+            current_scope->get_closure_depth(),
+            current_scope->get_lexical_depth()
+        );
+
+        // It is no longer generic, clear the AST field so `analyze_callable`
+        // analyzes the body immediately
+        specialized_def.generics.clear();
+
+        analyze_callable(
+            specialized_def,
+            specialized_def.is_pure ? ScopeType::PURE_FUNCTION : ScopeType::FUNCTION,
+            nullptr,
+            false
+        );
+    }
+    else if (cloned_stmt && cloned_stmt->is<MethodDefinition>())
+    {
+        auto& specialized_def = cloned_stmt->as<MethodDefinition>();
+
+        // CRITICAL FIX: The cloner wiped the symbol. Give it a new concrete one!
+        specialized_def.symbol = SymbolFactory::create_method(
+            generic_symbol->name,
+            function_object, // Pass the specialized Signature_ptr
+            generic_symbol->is_native(),
+            current_scope->get_closure_depth(),
+            current_scope->get_lexical_depth()
+        );
+
+        // It is no longer generic, clear the AST field so `analyze_callable`
+        // analyzes the body immediately
+        specialized_def.generics.clear();
+
+        analyze_callable(
+            specialized_def,
+            specialized_def.is_pure ? ScopeType::PURE_FUNCTION : ScopeType::FUNCTION,
+            nullptr, // Context type (fetch if needed for methods)
+            specialized_def.is_static
+        );
+    }
+
+    // D. Restore the caller's scope so the rest of the file analyzes correctly
+    current_scope = caller_scope;
+    if (current_module && cloned_stmt)
+    {
+        current_module->stmts.push_back(cloned_stmt);
+    }
     call.overload_index = original_indices[subset_index];
 
     return function_object->as<Signature_ptr>()->return_type;
+}
+
+Object_ptr SemanticAnalyzer::call_template_method(
+    Call& call,
+    MemberAccess& access,
+    const ObjectVector& argument_types,
+    TemplateParameterType_ptr template_parameter_type
+)
+{
+    std::string method_name = access.right->as<Identifier>().name;
+
+    return std::visit(
+        overloaded{
+            [&](VariantType& union_type) -> Object_ptr
+            {
+                ObjectVector all_return_types;
+
+                for (auto& variant : union_type.types)
+                {
+                    auto class_type = try_unwrap_ptr<ClassType_ptr>(variant);
+
+                    Object_ptr ret_type = call_method(
+                        call,
+                        access,
+                        argument_types,
+                        class_type
+                    );
+
+                    all_return_types.push_back(ret_type);
+                }
+
+                ObjectVector unique_return_types = type_system->remove_duplicates(
+                    current_scope,
+                    all_return_types
+                );
+
+                if (unique_return_types.size() == 1)
+                {
+                    return unique_return_types[0];
+                }
+
+                return make_object(VariantType{unique_return_types});
+            },
+            [&](ClassType_ptr cls) -> Object_ptr
+            {
+                return call_method(call, access, argument_types, cls);
+            },
+            [&](auto&) -> Object_ptr
+            {
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Generic constraint must resolve to a class or variant type."
+                );
+            }
+        },
+        template_parameter_type->constraint_type->value
+    );
 }
 
 } // namespace Wasp

@@ -70,18 +70,38 @@ void SemanticAnalyzer::analyze_callable(
         }
     }
 
-    // if (has_generics)
-    // {
-    //     if (def.symbol->payload_is<FunctionData>())
-    //     {
-    //         def.symbol->get_payload_as<FunctionData>().body_ast = def.body;
-    //     }
-    // }
-    // else
-    // {
-    // }
-
-    visit(def.body);
+    if (has_generics)
+    {
+        if (def.symbol->payload_is<FunctionData>())
+        {
+            def.symbol->get_payload_as<FunctionData>()
+                .ast_blueprint = FunctionDefinition(
+                def.name,
+                def.parameters,
+                def.return_type,
+                def.body,
+                def.is_pure,
+                def.generics
+            );
+        }
+        else if (def.symbol->payload_is<MethodData>())
+        {
+            def.symbol->get_payload_as<MethodData>()
+                .ast_blueprint = MethodDefinition(
+                def.name,
+                def.parameters,
+                def.return_type,
+                def.body,
+                def.is_pure,
+                is_static,
+                def.generics
+            );
+        }
+    }
+    else
+    {
+        visit(def.body);
+    }
 
     return_type_stack.pop_back();
     leave_scope();

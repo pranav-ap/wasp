@@ -287,7 +287,7 @@ std::pair<ObjectStringMap, StringVector> SemanticAnalyzer::evaluate_generics(
     for (const auto& field : generic_fields)
     {
         auto generic_type = make_object(
-            std::make_shared<GenericType>(field.name, visit(field.type))
+            std::make_shared<TemplateParameterType>(field.name, visit(field.type))
         );
         generics_map[field.name] = generic_type;
         ordered_names.push_back(field.name);
@@ -307,7 +307,7 @@ bool SemanticAnalyzer::prepare_generic_scope(const ObjectStringMap& generics)
 
     for (const auto& [name, generic_type] : generics)
     {
-        auto symbol = SymbolFactory::create_generic(name, generic_type);
+        auto symbol = SymbolFactory::create_template_parameter(name, generic_type);
         current_scope->define(symbol);
     }
 

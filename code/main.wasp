@@ -28,21 +28,10 @@ template
     T: int | str
 
 fun greet(a: T)
-    a.repr()
-
+    let num = 1
+    num.repr()
 
 greet<int>(2)
 greet<str>('hi')
 
 
-template
-    T: int | str
-
-fun tell(a: T) => T
-    return a
-
-
-let p = tell<int>(2)
-p.repr()
-let q = tell<str>('hi')
-q.repr()

@@ -73,7 +73,7 @@ bool Symbol::is_native() const
 
 bool Symbol::is_generic() const
 {
-    return payload_is<GenericData>();
+    return payload_is<TemplateParameterData>();
 }
 
 bool Symbol::should_be_captured(int usage_depth) const
@@ -123,7 +123,7 @@ Object_ptr Symbol::get_type()
             {
                 return d.mod->type;
             },
-            [](const GenericData& d) -> Object_ptr
+            [](const TemplateParameterData& d) -> Object_ptr
             {
                 return d.type;
             },
@@ -184,7 +184,7 @@ void Symbol::set_type(Object_ptr new_type)
             {
                 d.type = new_type;
             },
-            [&](GenericData& d)
+            [&](TemplateParameterData& d)
             {
                 d.type = new_type;
             },
@@ -292,7 +292,7 @@ std::string Symbol::to_string() const
     {
         payload_type = "Trait";
     }
-    else if (payload_is<GenericData>())
+    else if (payload_is<TemplateParameterData>())
     {
         payload_type = "Generic";
     }
@@ -429,7 +429,7 @@ Symbol_ptr SymbolFactory::create_trait(
     );
 }
 
-Symbol_ptr SymbolFactory::create_generic(
+Symbol_ptr SymbolFactory::create_template_parameter(
     std::string name,
     Object_ptr type,
     int closure_depth,
@@ -441,7 +441,7 @@ Symbol_ptr SymbolFactory::create_generic(
         std::move(name),
         closure_depth,
         lexical_depth,
-        GenericData{std::move(type)}
+        TemplateParameterData{std::move(type)}
     );
 }
 

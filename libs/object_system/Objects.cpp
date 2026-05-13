@@ -290,10 +290,10 @@ bool Object::is_type_object() const
 {
     return is<TypeType>() || is<AnyType>() || is<NoneType>() || is<IntType>() ||
            is<FloatType>() || is<StringType>() || is<BooleanType>() ||
-           is<ListType>() || is<TupleType>() || is<SetType>() ||
-           is<MapType>() || is<VariantType>() || is<Signature_ptr>() ||
-           is<ModuleType_ptr>() || is<ClassType_ptr>() || is<TraitType_ptr>() ||
-           is<EnumType_ptr>() || is<TypeAlias_ptr>() || is<GenericType_ptr>() ||
+           is<ListType>() || is<TupleType>() || is<SetType>() || is<MapType>() ||
+           is<VariantType>() || is<Signature_ptr>() || is<ModuleType_ptr>() ||
+           is<ClassType_ptr>() || is<TraitType_ptr>() || is<EnumType_ptr>() ||
+           is<TypeAlias_ptr>() || is<TemplateParameterType_ptr>() ||
            is<LiteralType>() || is<NamedDefinitionType>();
 }
 

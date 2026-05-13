@@ -40,7 +40,7 @@ Object_ptr SemanticAnalyzer::visit(Constructor& constructor)
     {
         classes_to_check.push_back(cls);
     }
-    else if (auto generic = try_unwrap_ptr<GenericType_ptr>(target_type))
+    else if (auto generic = try_unwrap_ptr<TemplateParameterType_ptr>(target_type))
     {
         Object_ptr constraint = generic->constraint_type;
         if (auto* union_type = constraint->try_as<VariantType>())

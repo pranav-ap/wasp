@@ -93,13 +93,13 @@ struct LiteralType
 // Template
 // ============================================================================
 
-struct GenericType
+struct TemplateParameterType
 {
     std::string name;
     Object_ptr constraint_type;
 };
 
-using GenericType_ptr = std::shared_ptr<GenericType>;
+using TemplateParameterType_ptr = std::shared_ptr<TemplateParameterType>;
 
 struct TemplatableType
 {
@@ -645,7 +645,7 @@ struct Object
         EnumType_ptr,
         TypeAlias_ptr,
 
-        GenericType_ptr>;
+        TemplateParameterType_ptr>;
 
     UnderlyingVariant value;
 

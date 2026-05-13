@@ -38,7 +38,7 @@ void SemanticAnalyzer::visit(TypeAliasDefinition& def)
         for (const auto& [name, generic_type] : type_alias_type->generics)
         {
             current_scope->define(
-                SymbolFactory::create_generic(name, generic_type)
+                SymbolFactory::create_template_parameter(name, generic_type)
             );
         }
     }

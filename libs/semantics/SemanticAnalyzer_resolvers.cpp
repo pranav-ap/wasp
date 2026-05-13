@@ -162,7 +162,7 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
     }
 
     // 4. Template Parameters (Generics)
-    if (auto type = try_unwrap_ptr<GenericType_ptr>(left_type))
+    if (auto type = try_unwrap_ptr<TemplateParameterType_ptr>(left_type))
     {
         Object_ptr constraint = type->constraint_type;
 
