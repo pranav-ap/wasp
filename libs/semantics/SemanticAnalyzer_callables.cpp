@@ -55,7 +55,7 @@ void SemanticAnalyzer::analyze_callable(
         auto param_symbol = SymbolFactory::create_variable(
             def.parameters[i].first,
             signature->parameter_types[i],
-            !def.is_pure, // Pure callables keep parameters immutable
+            !def.is_pure,
             current_scope->get_closure_depth(),
             current_scope->get_lexical_depth()
         );
@@ -70,44 +70,7 @@ void SemanticAnalyzer::analyze_callable(
         }
     }
 
-    if (has_generics)
-    {
-        if (def.symbol->payload_is<FunctionData>())
-        {
-            auto& data = def.symbol->get_payload_as<FunctionData>();
-
-            data.ast_blueprint = FunctionDefinition(
-                def.name,
-                def.parameters,
-                def.return_type,
-                def.body,
-                def.is_pure,
-                def.template_params
-            );
-
-            data.definition_scope = current_scope;
-        }
-        else if (def.symbol->payload_is<MethodData>())
-        {
-            auto& data = def.symbol->get_payload_as<MethodData>();
-
-            data.ast_blueprint = MethodDefinition(
-                def.name,
-                def.parameters,
-                def.return_type,
-                def.body,
-                def.is_pure,
-                is_static,
-                def.template_params
-            );
-
-            data.definition_scope = current_scope;
-        }
-    }
-    else
-    {
-        visit(def.body);
-    }
+    visit(def.body);
 
     return_type_stack.pop_back();
     leave_scope();

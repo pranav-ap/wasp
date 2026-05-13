@@ -41,11 +41,6 @@ void Compiler::visit(Identifier& expr)
     {
         int stack_index = resolve_local(symbol->id);
 
-        if (symbol->name == "greet")
-        {
-            Doctor::get().fatal(WaspStage::Compiler, "boom");
-        }
-
         Doctor::get().assert(
             stack_index != -1,
             WaspStage::Compiler,

@@ -1,10 +1,8 @@
 #include "AST.h"
-#include "ASTCloner.h"
 #include "Doctor.h"
 #include "Expression.h"
 #include "Objects.h"
 #include "SemanticAnalyzer.h"
-#include "Statement.h"
 #include "SymbolScope.h"
 #include "Workspace.h"
 
@@ -216,73 +214,6 @@ Object_ptr SemanticAnalyzer::call_template_function(
                                                          specialized_candidates,
                                                          argument_types
                                                      );
-
-    // Create Substitution Map (T -> int)
-
-    Symbol_ptr generic_symbol = generic_candidates[subset_index].first;
-    auto generic_names = type_system->get_generics_declaration_order(
-        generic_symbol->get_type()
-    );
-
-    ObjectStringMap substitutions;
-    for (size_t i = 0; i < generic_names.size(); ++i)
-    {
-        substitutions[generic_names[i]] = angular_args[i];
-    }
-
-    // Clone the AST
-
-    ASTCloner cloner(substitutions);
-
-    Doctor::get().assert(
-        generic_symbol->payload_is<FunctionData>(),
-        WaspStage::Semantics,
-        "Symbol must hold function data."
-    );
-
-    auto function_data = generic_symbol->get_payload_as<FunctionData>();
-
-    Statement_ptr cloned_function_definition_statement = cloner.clone(
-        make_statement(function_data.ast_blueprint.value())
-    );
-
-    SymbolScope_ptr definition_scope = function_data.definition_scope;
-
-    Doctor::get().fatal_if_nullptr(
-        definition_scope,
-        WaspStage::Semantics,
-        "Template definition scope was lost!"
-    );
-
-    SymbolScope_ptr caller_scope = current_scope;
-    current_scope = definition_scope;
-
-    Doctor::get().assert(
-        cloned_function_definition_statement->is<FunctionDefinition>(),
-        WaspStage::Semantics,
-        "Expected a function definition after cloning."
-    );
-
-    auto& cloned_function_definition = cloned_function_definition_statement
-                                           ->as<FunctionDefinition>();
-
-    cloned_function_definition.symbol = SymbolFactory::create_function(
-        generic_symbol->name,
-        best_signature_object,
-        generic_symbol->is_native(),
-        current_scope->get_closure_depth(),
-        current_scope->get_lexical_depth()
-    );
-
-    cloned_function_definition.group_symbol = template_angular.group_symbol;
-
-    cloned_function_definition.template_params.clear();
-    best_signature_object->as<Signature_ptr>()->generics.clear();
-
-    visit(cloned_function_definition_statement);
-
-    current_scope = caller_scope;
-    pending_templates.push_back(cloned_function_definition_statement);
 
     call.overload_index = original_indices[subset_index];
 

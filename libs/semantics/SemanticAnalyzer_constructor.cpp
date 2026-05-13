@@ -8,7 +8,6 @@
 
 #include <cctype>
 #include <ctime>
-#include <memory>
 #include <string>
 #include <vector>
 
@@ -36,6 +35,7 @@ Object_ptr SemanticAnalyzer::visit(Constructor& constructor)
     target_type = unwrap_type_alias(target_type);
 
     std::vector<ClassType_ptr> classes_to_check;
+
     if (auto cls = try_unwrap_ptr<ClassType_ptr>(target_type))
     {
         classes_to_check.push_back(cls);
@@ -43,6 +43,7 @@ Object_ptr SemanticAnalyzer::visit(Constructor& constructor)
     else if (auto generic = try_unwrap_ptr<TemplateParameterType_ptr>(target_type))
     {
         Object_ptr constraint = generic->constraint_type;
+
         if (auto* union_type = constraint->try_as<VariantType>())
         {
             for (auto& variant : union_type->types)
@@ -62,8 +63,7 @@ Object_ptr SemanticAnalyzer::visit(Constructor& constructor)
     Doctor::get().assert(
         !classes_to_check.empty(),
         WaspStage::Semantics,
-        "Constructor target must resolve to a class or a template constrained by "
-        "classes."
+        "Classes not found for constructor target"
     );
 
     for (auto& class_type : classes_to_check)

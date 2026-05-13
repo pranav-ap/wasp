@@ -5,12 +5,10 @@
 #include "ConstantPool.h"
 #include "NativeRegistry.h"
 #include "Objects.h"
-#include "Statement.h"
 
 #include <filesystem>
 #include <map>
 #include <memory>
-#include <optional>
 #include <string>
 #include <utility>
 #include <variant>
@@ -51,9 +49,6 @@ struct PossibleNativeData : public TypedData
 
 struct FunctionData : public PossibleNativeData
 {
-    std::optional<FunctionDefinition> ast_blueprint = std::nullopt;
-    SymbolScope_ptr definition_scope = nullptr;
-
     FunctionData(bool is_native) : PossibleNativeData(is_native)
     {
     }
@@ -61,9 +56,6 @@ struct FunctionData : public PossibleNativeData
 
 struct MethodData : public PossibleNativeData
 {
-    std::optional<MethodDefinition> ast_blueprint = std::nullopt;
-    SymbolScope_ptr definition_scope = nullptr;
-
     MethodData(bool is_native) : PossibleNativeData(is_native)
     {
     }

@@ -212,6 +212,12 @@ private:
         const ObjectVector& operand_types
     );
 
+    Object_ptr resolve_member_access(
+        MemberAccess& expr,
+        Object_ptr target_type,
+        const std::string& member_name
+    );
+
     std::string get_operator_symbol_name(TokenType fixity, TokenType op_type);
 
     // =========================================================================

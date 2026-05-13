@@ -9,6 +9,13 @@
 #include <ctime>
 #include <memory>
 #include <string>
+#include <variant>
+
+template <class... Ts> struct overloaded : Ts...
+{
+    using Ts::operator()...;
+};
+template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
@@ -116,110 +123,140 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
 
     std::string member_name = expr.right->as<Identifier>().name;
 
-    // 1. Modules
-    if (auto type = try_unwrap_ptr<ModuleType_ptr>(left_type))
-    {
-        expr.member_index = type->get_member_index(member_name);
-        return type->get_member(member_name);
-    }
+    return resolve_member_access(expr, left_type, member_name);
+}
 
-    // 2. Classes or Traits (Inline check for OOP types)
-    BaseOOPType_ptr oop_type = nullptr;
-    if (auto t = try_unwrap_ptr<ClassType_ptr>(left_type))
-    {
-        oop_type = t;
-    }
-    else if (auto t = try_unwrap_ptr<TraitType_ptr>(left_type))
-    {
-        oop_type = t;
-    }
-
-    if (oop_type)
-    {
-        expr.member_index = oop_type->get_member_index(member_name);
-        return oop_type->get_member(member_name);
-    }
-
-    // 3. Enums
-    if (auto type = try_unwrap_ptr<EnumType_ptr>(left_type))
-    {
-        std::string full_name = type->name + "." + member_name;
-        if (type->nested_enums.contains(full_name))
-        {
-            return make_object(type->nested_enums.at(full_name));
-        }
-
-        Doctor::get().assert(
-            type->members.contains(full_name),
-            WaspStage::Semantics,
-            "Enum '" + type->name + "' does not contain member '" + member_name +
-                "'."
-        );
-
-        expr.member_index = type->members.at(full_name);
-        expr.is_enum_value = true;
-        return left_type;
-    }
-
-    // 4. Template Parameters (Generics)
-    if (auto type = try_unwrap_ptr<TemplateParameterType_ptr>(left_type))
-    {
-        Object_ptr constraint = type->constraint_type;
-
-        // Check if the constraint is a Union/Variant (e.g., Int | String)
-        if (auto* variant_constraint = constraint->try_as<VariantType>())
-        {
-            Object_ptr resulting_member_type = nullptr;
-
-            for (const auto& variant : variant_constraint->types)
+Object_ptr SemanticAnalyzer::resolve_member_access(
+    MemberAccess& expr,
+    Object_ptr target_type,
+    const std::string& member_name
+)
+{
+    return std::visit(
+        overloaded{
+            [&](ModuleType_ptr type) -> Object_ptr
             {
-                // Manual check for OOP types within the variant loop
-                BaseOOPType_ptr oop_variant = nullptr;
-                if (variant->is<ClassType_ptr>())
+                expr.member_index = type->get_member_index(member_name);
+                return type->get_member(member_name);
+            },
+
+            [&](ClassType_ptr type) -> Object_ptr
+            {
+                expr.member_index = type->get_member_index(member_name);
+                return type->get_member(member_name);
+            },
+
+            [&](TraitType_ptr type) -> Object_ptr
+            {
+                expr.member_index = type->get_member_index(member_name);
+                return type->get_member(member_name);
+            },
+
+            [&](EnumType_ptr type) -> Object_ptr
+            {
+                std::string full_name = type->name + "." + member_name;
+                if (type->nested_enums.contains(full_name))
                 {
-                    oop_variant = variant->as<ClassType_ptr>();
-                }
-                else if (variant->is<TraitType_ptr>())
-                {
-                    oop_variant = variant->as<TraitType_ptr>();
+                    return make_object(type->nested_enums.at(full_name));
                 }
 
                 Doctor::get().assert(
-                    oop_variant && oop_variant->contains_member(member_name),
+                    type->members.contains(full_name),
                     WaspStage::Semantics,
-                    "Member '" + member_name +
-                        "' not found in variant of template parameter."
+                    "Enum '" + type->name + "' does not contain member '" +
+                        member_name + "'."
                 );
 
-                if (!resulting_member_type)
+                expr.member_index = type->members.at(full_name);
+                expr.is_enum_value = true;
+
+                return target_type;
+            },
+
+            [&](TemplateParameterType_ptr type) -> Object_ptr
+            {
+                Doctor::get().fatal_if_nullptr(
+                    type->constraint_type,
+                    WaspStage::Semantics
+                );
+
+                return resolve_member_access(
+                    expr,
+                    type->constraint_type,
+                    member_name
+                );
+            },
+
+            [&](VariantType& variant_type) -> Object_ptr
+            {
+                ObjectVector resulting_member_types;
+
+                for (const auto& variant_obj : variant_type.types)
                 {
-                    resulting_member_type = oop_variant->get_member(member_name);
+                    std::visit(
+                        overloaded{
+                            [&](ClassType_ptr oop_variant)
+                            {
+                                Doctor::get().assert(
+                                    oop_variant->contains_member(member_name),
+                                    WaspStage::Semantics,
+                                    "Member '" + member_name +
+                                        "' not found in class variant."
+                                );
+
+                                resulting_member_types.push_back(
+                                    oop_variant->get_member(member_name)
+                                );
+                            },
+                            [&](TraitType_ptr oop_variant)
+                            {
+                                Doctor::get().assert(
+                                    oop_variant->contains_member(member_name),
+                                    WaspStage::Semantics,
+                                    "Member '" + member_name +
+                                        "' not found in trait variant."
+                                );
+
+                                resulting_member_types.push_back(
+                                    oop_variant->get_member(member_name)
+                                );
+                            },
+                            [&](auto&)
+                            {
+                                Doctor::get().fatal(
+                                    WaspStage::Semantics,
+                                    "Variant contains a non-OOP type, cannot access "
+                                    "member '" +
+                                        member_name + "'."
+                                );
+                            }
+                        },
+                        variant_obj->value
+                    );
                 }
+
+                ObjectVector unique_types = type_system->remove_duplicates(
+                    current_scope,
+                    resulting_member_types
+                );
+
+                if (unique_types.size() == 1)
+                {
+                    return unique_types.front();
+                }
+
+                return make_object(VariantType{unique_types});
+            },
+
+            [&](auto&) -> Object_ptr
+            {
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Invalid LHS for a member access : " + member_name
+                );
             }
-            return resulting_member_type;
-        }
-
-        // Single OOP constraint (e.g., T: Int)
-        BaseOOPType_ptr single_oop = nullptr;
-        if (auto t = try_unwrap_ptr<ClassType_ptr>(constraint))
-        {
-            single_oop = t;
-        }
-        else if (auto t = try_unwrap_ptr<TraitType_ptr>(constraint))
-        {
-            single_oop = t;
-        }
-
-        if (single_oop)
-        {
-            return single_oop->get_member(member_name);
-        }
-    }
-
-    Doctor::get().fatal(
-        WaspStage::Semantics,
-        "Cannot access member '" + member_name +
-            "'. LHS is not a module, class, trait, enum, or template parameter."
+        },
+        target_type->value
     );
 }
 
