@@ -3,6 +3,7 @@
 #include "Expression.h"
 #include "Objects.h"
 #include "SemanticAnalyzer.h"
+#include "Statement.h"
 #include "Token.h"
 #include "Workspace.h"
 
@@ -22,6 +23,22 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
+
+void SemanticAnalyzer::visit(ExpressionStatement& statement)
+{
+    visit(statement.expression);
+}
+
+ObjectVector SemanticAnalyzer::visit(ExpressionVector expressions)
+{
+    ObjectVector computed_types;
+    computed_types.reserve(expressions.size());
+    for (const auto& expr : expressions)
+    {
+        computed_types.push_back(visit(expr));
+    }
+    return computed_types;
+}
 
 Object_ptr SemanticAnalyzer::visit(const Expression_ptr expr)
 {

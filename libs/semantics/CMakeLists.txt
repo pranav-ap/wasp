@@ -8,7 +8,11 @@ add_library(
     SemanticAnalyzer_types.cpp
     SemanticAnalyzer_hoist.cpp
     SemanticAnalyzer_ast_transforms.cpp
-    SemanticAnalyzer_expressions.cpp
+    SemanticAnalyzer_constructor.cpp
+    SemanticAnalyzer_resolvers.cpp
+    SemanticAnalyzer_literals.cpp
+    SemanticAnalyzer_operators.cpp
+    SemanticAnalyzer_call.cpp
     SemanticAnalyzer_control_flow.cpp
     SemanticAnalyzer_definitions.cpp
     SemanticAnalyzer_utils.cpp
