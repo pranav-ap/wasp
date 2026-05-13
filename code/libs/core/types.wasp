@@ -1,6 +1,15 @@
 import my.io expose *
 
 
+class Boolean
+    value: @bool
+
+    fun repr()
+        print(my.value)
+
+type bool = Boolean
+
+
 class Int
     value: @int
 
@@ -9,6 +18,15 @@ class Int
 
 
 type int = Int
+
+class Float
+    value: @float
+
+    fun repr()
+        print(my.value)
+
+type float = Float
+
 
 class String
     value: @str
@@ -21,3 +39,5 @@ class String
 
 
 type str = String
+
+

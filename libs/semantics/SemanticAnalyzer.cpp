@@ -32,6 +32,15 @@ void SemanticAnalyzer::run(const std::vector<Module_ptr>& build_order)
             visit(stmt);
         }
 
+        // Flush the monomorphized templates
+
+        for (const auto& tmpl : pending_templates)
+        {
+            mod->stmts.push_back(tmpl);
+        }
+
+        pending_templates.clear();
+
         StringVector ordered_export_names = setup_ordered_export_names(mod);
         setup_exports(mod, ordered_export_names);
         leave_scope();

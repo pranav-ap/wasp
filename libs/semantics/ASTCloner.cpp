@@ -1,8 +1,10 @@
 #include "ASTCloner.h"
 #include "AST.h"
 #include "Expression.h"
+#include "Objects.h"
 #include "Statement.h"
 #include "TypeAnnotation.h"
+#include "Workspace.h"
 
 #include <map>
 #include <memory>
@@ -145,10 +147,36 @@ ExpressionVariant ASTCloner::clone_expr_data(const ExpressionVariant& data)
                 return InterpolatedString{clone(n.parts)};
             },
 
+            // [&](const Identifier& id) -> ExpressionVariant
+            // {
+            //     auto c = id;
+            //     wipe_resolvable(c);
+            //     return c;
+            // },
+
             [&](const Identifier& id) -> ExpressionVariant
             {
                 auto c = id;
                 wipe_resolvable(c);
+
+                if (auto it = substitutions.find(id.name); it != substitutions.end())
+                {
+                    Object_ptr concrete_type = it->second;
+
+                    int c_depth = id.symbol ? id.symbol->closure_depth : 0;
+                    int l_depth = id.symbol ? id.symbol->lexical_depth : 0;
+
+                    // "T" acts as a type. By turning it into a TypeAlias,
+                    // the Semantic Analyzer will safely resolve it to the concrete
+                    // type!
+                    c.symbol = SymbolFactory::create_type_alias(
+                        id.name,
+                        concrete_type,
+                        c_depth,
+                        l_depth
+                    );
+                }
+
                 return c;
             },
 
@@ -296,7 +324,7 @@ StatementVariant ASTCloner::clone_stmt_data(const StatementVariant& data)
 
             [&](const TypeAliasDefinition& n) -> StatementVariant
             {
-                TypeAliasDefinition c(n.name, clone(n.ref_type), n.generics);
+                TypeAliasDefinition c(n.name, clone(n.ref_type), n.template_params);
                 wipe_resolvable(c);
                 return c;
             },
@@ -356,14 +384,16 @@ StatementVariant ASTCloner::clone_stmt_data(const StatementVariant& data)
 
             [&](const ClassDefinition& n) -> StatementVariant
             {
-                ClassDefinition c(n.name, n.traits, clone(n.members), n.generics);
+                ClassDefinition
+                    c(n.name, n.traits, clone(n.members), n.template_params);
                 wipe_resolvable(c);
                 return c;
             },
 
             [&](const TraitDefinition& n) -> StatementVariant
             {
-                TraitDefinition c(n.name, n.traits, clone(n.members), n.generics);
+                TraitDefinition
+                    c(n.name, n.traits, clone(n.members), n.template_params);
                 wipe_resolvable(c);
                 return c;
             },
@@ -444,9 +474,26 @@ TypeAnnotationVariant ASTCloner::clone_type_data(const TypeAnnotationVariant& da
                 return LiteralTypeNode{clone(n.literal)};
             },
 
+            // [&](const TypeIdentifierNode& n) -> TypeAnnotationVariant
+            // {
+            //     return n;
+            // },
+
             [&](const TypeIdentifierNode& n) -> TypeAnnotationVariant
             {
-                return n;
+                auto c = n;
+
+                if (auto it = substitutions.find(n.name); it != substitutions.end())
+                {
+                    Object_ptr concrete_type = it->second;
+
+                    if (concrete_type)
+                    {
+                        c.name = stringify_object(concrete_type);
+                    }
+                }
+
+                return c;
             },
 
             [&](const NativeTypeNode& n) -> TypeAnnotationVariant

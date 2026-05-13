@@ -24,6 +24,8 @@ using Symbol_ptr = std::shared_ptr<Symbol>;
 using SymbolVector = std::vector<Symbol_ptr>;
 using SymbolStringMap = std::map<std::string, Symbol_ptr>;
 using SymbolIntMap = std::map<int, Symbol_ptr>;
+struct SymbolScope;
+using SymbolScope_ptr = std::shared_ptr<SymbolScope>;
 
 struct Module;
 using Module_ptr = std::shared_ptr<Module>;
@@ -50,6 +52,7 @@ struct PossibleNativeData : public TypedData
 struct FunctionData : public PossibleNativeData
 {
     std::optional<FunctionDefinition> ast_blueprint = std::nullopt;
+    SymbolScope_ptr definition_scope = nullptr;
 
     FunctionData(bool is_native) : PossibleNativeData(is_native)
     {
@@ -59,6 +62,7 @@ struct FunctionData : public PossibleNativeData
 struct MethodData : public PossibleNativeData
 {
     std::optional<MethodDefinition> ast_blueprint = std::nullopt;
+    SymbolScope_ptr definition_scope = nullptr;
 
     MethodData(bool is_native) : PossibleNativeData(is_native)
     {
@@ -162,6 +166,8 @@ struct Symbol : public std::enable_shared_from_this<Symbol>
     Symbol_ptr resolve();
 
     void add_overload(Symbol_ptr overload);
+    SymbolVector get_overloads() const;
+
     std::string to_string() const;
 
     bool is_mutable_variable() const

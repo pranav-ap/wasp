@@ -30,7 +30,7 @@ void SemanticAnalyzer::visit(TypeAliasDefinition& def)
     );
 
     auto type_alias_type = type_alias_obj->as<TypeAlias_ptr>();
-    bool has_generics = !def.generics.empty();
+    bool has_generics = !def.template_params.empty();
 
     if (has_generics)
     {

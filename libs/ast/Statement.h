@@ -55,12 +55,12 @@ struct FieldDefinition : public Definition
 
 struct Templatable
 {
-    std::vector<FieldDefinition> generics;
+    std::vector<FieldDefinition> template_params;
 
     Templatable() = default;
 
-    explicit Templatable(std::vector<FieldDefinition> generics)
-        : generics(std::move(generics))
+    explicit Templatable(std::vector<FieldDefinition> template_params)
+        : template_params(std::move(template_params))
     {
     }
 };
@@ -84,12 +84,12 @@ struct AbstractCallable : public Definition, public Templatable
         std::vector<std::pair<std::string, TypeAnnotation_ptr>> params,
         TypeAnnotation_ptr ret,
         StatementVector body,
-        bool pure = false,
-        std::vector<FieldDefinition> gen = {}
+        bool is_pure = false,
+        std::vector<FieldDefinition> template_params = {}
     )
-        : Definition(std::move(name)), Templatable(std::move(gen)),
+        : Definition(std::move(name)), Templatable(std::move(template_params)),
           parameters(std::move(params)), return_type(std::move(ret)),
-          body(std::move(body)), is_pure(pure)
+          body(std::move(body)), is_pure(is_pure)
     {
     }
 };
@@ -110,19 +110,19 @@ struct MethodDefinition : public AbstractCallable
         std::vector<std::pair<std::string, TypeAnnotation_ptr>> params,
         TypeAnnotation_ptr ret,
         StatementVector body,
-        bool pure = false,
-        bool stat = false,
-        std::vector<FieldDefinition> gen = {}
+        bool is_pure = false,
+        bool is_static = false,
+        std::vector<FieldDefinition> template_params = {}
     )
         : AbstractCallable(
               std::move(name),
               std::move(params),
               std::move(ret),
               std::move(body),
-              pure,
-              std::move(gen)
+              is_pure,
+              std::move(template_params)
           ),
-          is_static(stat)
+          is_static(is_static)
     {
     }
 };
@@ -141,7 +141,7 @@ struct OperatorDefinition : public AbstractCallable
         std::vector<std::pair<std::string, TypeAnnotation_ptr>> params,
         TypeAnnotation_ptr ret,
         StatementVector body,
-        std::vector<FieldDefinition> gen = {}
+        std::vector<FieldDefinition> template_params = {}
     )
         : AbstractCallable(
               std::move(mangled),
@@ -149,7 +149,7 @@ struct OperatorDefinition : public AbstractCallable
               std::move(ret),
               std::move(body),
               true,
-              std::move(gen)
+              std::move(template_params)
           ),
           op_type(op), fixity(fix)
     {
@@ -169,9 +169,9 @@ struct AbstractOopsDefinition : public Definition, public Templatable
         std::string name,
         StringVector traits,
         StatementVector members,
-        std::vector<FieldDefinition> gen = {}
+        std::vector<FieldDefinition> template_params = {}
     )
-        : Definition(std::move(name)), Templatable(std::move(gen)),
+        : Definition(std::move(name)), Templatable(std::move(template_params)),
           traits(std::move(traits)), members(std::move(members))
     {
     }

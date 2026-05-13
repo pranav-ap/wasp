@@ -1,4 +1,4 @@
-fun print(value: @int | @float | @str)
+fun print(value:  @bool | @int | @float | @str)
     native
 
 

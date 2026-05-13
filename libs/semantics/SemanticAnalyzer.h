@@ -35,6 +35,8 @@ private:
     SymbolScope_ptr current_scope;
     ObjectVector return_type_stack;
 
+    StatementVector pending_templates;
+
     // =========================================================================
     // Scope & Environment Management
     // =========================================================================
@@ -61,7 +63,7 @@ private:
     void hoist_import(Import& stmt);
     void hoist_signatures(StatementVector& statements);
 
-    std::pair<ObjectStringMap, StringVector> evaluate_generics(
+    std::pair<ObjectStringMap, StringVector> evaluate_template_params(
         const std::vector<FieldDefinition>& generic_fields
     );
 
@@ -195,7 +197,7 @@ private:
         Call& call,
         MemberAccess& access,
         const ObjectVector& argument_types,
-        TemplateParameterType_ptr generic
+        TemplateParameterType_ptr template_parameter_type
     );
 
     Object_ptr call_template_function(

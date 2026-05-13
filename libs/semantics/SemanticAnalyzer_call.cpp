@@ -69,14 +69,14 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                                 argument_types
                             );
                         },
-                        [&](TemplateParameterType_ptr template_parameter_type)
+                        [&](TemplateParameterType_ptr template_param_type)
                             -> Object_ptr
                         {
                             return call_template_method(
                                 call,
                                 ma,
                                 argument_types,
-                                template_parameter_type
+                                template_param_type
                             );
                         },
                         [&](auto&) -> Object_ptr
@@ -115,8 +115,7 @@ Object_ptr SemanticAnalyzer::resolve_standard_overload(
         "Symbol must hold function overloads."
     );
 
-    auto candidates = overload_symbol->get_payload_as<OverloadsData>()
-                          .get_overloads();
+    auto candidates = overload_symbol->get_overloads();
 
     auto [function_symbol, overload_index] = type_system->get_best_function_symbol(
         current_scope,
@@ -174,165 +173,120 @@ Object_ptr SemanticAnalyzer::call_template_function(
     const ObjectVector& argument_types
 )
 {
-    ObjectVector concrete_arguments;
+    // Evaluate Angular Arguments - greet<int, str>
 
-    for (const auto& node : template_angular.angular_nodes)
+    ObjectVector angular_args;
+
+    for (auto& node : template_angular.angular_nodes)
     {
-        concrete_arguments.push_back(visit(node));
+        angular_args.push_back(visit(node));
     }
 
-    Symbol_ptr overload_symbol = resolve_target_symbol(template_angular.target);
-    template_angular.symbol = overload_symbol;
+    template_angular.symbol = resolve_target_symbol(template_angular.target);
 
     Doctor::get().assert(
-        overload_symbol->payload_is<OverloadsData>(),
+        template_angular.target->is<Identifier>(),
         WaspStage::Semantics,
-        "Symbol '" + overload_symbol->name + "' must hold function overloads."
+        "Expected template target to be an identifier."
     );
 
-    auto candidates = overload_symbol->get_payload_as<OverloadsData>()
-                          .get_overloads();
+    bind_identifier(
+        template_angular.target->as<Identifier>(),
+        template_angular.symbol
+    );
+
+    // Find Best Specialization
+
+    auto candidates = template_angular.symbol->get_overloads();
 
     auto generic_candidates = type_system->filter_by_generic_arity(
         candidates,
-        concrete_arguments.size()
-    );
-
-    Doctor::get().assert(
-        !generic_candidates.empty(),
-        WaspStage::Semantics,
-        "No generic functions with required arity found for '" +
-            overload_symbol->name + "'"
+        angular_args.size()
     );
 
     auto [specialized_candidates, original_indices] = type_system
                                                           ->specialize_candidates(
                                                               generic_candidates,
-                                                              concrete_arguments
+                                                              angular_args
                                                           );
 
-    auto [function_object, subset_index] = type_system->get_best_function_object(
-        current_scope,
-        specialized_candidates,
-        argument_types
-    );
+    auto [best_signature_object, subset_index] = type_system
+                                                     ->get_best_function_object(
+                                                         current_scope,
+                                                         specialized_candidates,
+                                                         argument_types
+                                                     );
 
-    // --- 1. Get the original generic symbol ---
+    // Create Substitution Map (T -> int)
+
     Symbol_ptr generic_symbol = generic_candidates[subset_index].first;
-
-    // --- 2. Build the Substitution Map (T -> int) ---
-    ObjectStringMap substitutions;
     auto generic_names = type_system->get_generics_declaration_order(
         generic_symbol->get_type()
     );
 
+    ObjectStringMap substitutions;
     for (size_t i = 0; i < generic_names.size(); ++i)
     {
-        substitutions[generic_names[i]] = concrete_arguments[i];
+        substitutions[generic_names[i]] = angular_args[i];
     }
 
-    // --- 3. Deep Clone the AST Blueprint ---
+    // Clone the AST
+
     ASTCloner cloner(substitutions);
-    Statement_ptr cloned_stmt = nullptr;
 
-    if (generic_symbol->payload_is<FunctionData>())
-    {
-        auto& data = generic_symbol->get_payload_as<FunctionData>();
-        Doctor::get().assert(
-            data.ast_blueprint.has_value(),
-            WaspStage::Semantics,
-            "AST Blueprint is missing from the generic function '" +
-                generic_symbol->name + "'."
-        );
+    Doctor::get().assert(
+        generic_symbol->payload_is<FunctionData>(),
+        WaspStage::Semantics,
+        "Symbol must hold function data."
+    );
 
-        Statement_ptr wrapper = make_statement(data.ast_blueprint.value());
-        cloned_stmt = cloner.clone(wrapper);
-    }
-    else if (generic_symbol->payload_is<MethodData>())
-    {
-        auto& data = generic_symbol->get_payload_as<MethodData>();
-        Doctor::get().assert(
-            data.ast_blueprint.has_value(),
-            WaspStage::Semantics,
-            "AST Blueprint is missing from the generic method '" +
-                generic_symbol->name + "'."
-        );
+    auto function_data = generic_symbol->get_payload_as<FunctionData>();
 
-        Statement_ptr wrapper = make_statement(data.ast_blueprint.value());
-        cloned_stmt = cloner.clone(wrapper);
-    }
+    Statement_ptr cloned_function_definition_statement = cloner.clone(
+        make_statement(function_data.ast_blueprint.value())
+    );
 
-    // --- 4. Re-Analyze the Cloned Body (Scope Trap Fix) ---
+    SymbolScope_ptr definition_scope = function_data.definition_scope;
 
-    // A. Save the caller's scope so variables don't leak into the template
+    Doctor::get().fatal_if_nullptr(
+        definition_scope,
+        WaspStage::Semantics,
+        "Template definition scope was lost!"
+    );
+
     SymbolScope_ptr caller_scope = current_scope;
+    current_scope = definition_scope;
 
-    // B. Jump back to the Module scope (or the root if Module isn't found)
-    while (current_scope->get_enclosing() != nullptr &&
-           current_scope->get_type() != ScopeType::MODULE)
-    {
-        current_scope = current_scope->get_enclosing();
-    }
+    Doctor::get().assert(
+        cloned_function_definition_statement->is<FunctionDefinition>(),
+        WaspStage::Semantics,
+        "Expected a function definition after cloning."
+    );
 
-    // C. Re-analyze the fully cloned and specialized definition
-    if (cloned_stmt && cloned_stmt->is<FunctionDefinition>())
-    {
-        auto& specialized_def = cloned_stmt->as<FunctionDefinition>();
+    auto& cloned_function_definition = cloned_function_definition_statement
+                                           ->as<FunctionDefinition>();
 
-        // CRITICAL FIX: The cloner wiped the symbol. Give it a new concrete one!
-        specialized_def.symbol = SymbolFactory::create_function(
-            generic_symbol->name,
-            function_object, // Pass the specialized Signature_ptr
-            generic_symbol->is_native(),
-            current_scope->get_closure_depth(),
-            current_scope->get_lexical_depth()
-        );
+    cloned_function_definition.symbol = SymbolFactory::create_function(
+        generic_symbol->name,
+        best_signature_object,
+        generic_symbol->is_native(),
+        current_scope->get_closure_depth(),
+        current_scope->get_lexical_depth()
+    );
 
-        // It is no longer generic, clear the AST field so `analyze_callable`
-        // analyzes the body immediately
-        specialized_def.generics.clear();
+    cloned_function_definition.group_symbol = template_angular.group_symbol;
 
-        analyze_callable(
-            specialized_def,
-            specialized_def.is_pure ? ScopeType::PURE_FUNCTION : ScopeType::FUNCTION,
-            nullptr,
-            false
-        );
-    }
-    else if (cloned_stmt && cloned_stmt->is<MethodDefinition>())
-    {
-        auto& specialized_def = cloned_stmt->as<MethodDefinition>();
+    cloned_function_definition.template_params.clear();
+    best_signature_object->as<Signature_ptr>()->generics.clear();
 
-        // CRITICAL FIX: The cloner wiped the symbol. Give it a new concrete one!
-        specialized_def.symbol = SymbolFactory::create_method(
-            generic_symbol->name,
-            function_object, // Pass the specialized Signature_ptr
-            generic_symbol->is_native(),
-            current_scope->get_closure_depth(),
-            current_scope->get_lexical_depth()
-        );
+    visit(cloned_function_definition_statement);
 
-        // It is no longer generic, clear the AST field so `analyze_callable`
-        // analyzes the body immediately
-        specialized_def.generics.clear();
-
-        analyze_callable(
-            specialized_def,
-            specialized_def.is_pure ? ScopeType::PURE_FUNCTION : ScopeType::FUNCTION,
-            nullptr, // Context type (fetch if needed for methods)
-            specialized_def.is_static
-        );
-    }
-
-    // D. Restore the caller's scope so the rest of the file analyzes correctly
     current_scope = caller_scope;
-    if (current_module && cloned_stmt)
-    {
-        current_module->stmts.push_back(cloned_stmt);
-    }
+    pending_templates.push_back(cloned_function_definition_statement);
+
     call.overload_index = original_indices[subset_index];
 
-    return function_object->as<Signature_ptr>()->return_type;
+    return best_signature_object->as<Signature_ptr>()->return_type;
 }
 
 Object_ptr SemanticAnalyzer::call_template_method(
@@ -342,53 +296,9 @@ Object_ptr SemanticAnalyzer::call_template_method(
     TemplateParameterType_ptr template_parameter_type
 )
 {
-    std::string method_name = access.right->as<Identifier>().name;
-
-    return std::visit(
-        overloaded{
-            [&](VariantType& union_type) -> Object_ptr
-            {
-                ObjectVector all_return_types;
-
-                for (auto& variant : union_type.types)
-                {
-                    auto class_type = try_unwrap_ptr<ClassType_ptr>(variant);
-
-                    Object_ptr ret_type = call_method(
-                        call,
-                        access,
-                        argument_types,
-                        class_type
-                    );
-
-                    all_return_types.push_back(ret_type);
-                }
-
-                ObjectVector unique_return_types = type_system->remove_duplicates(
-                    current_scope,
-                    all_return_types
-                );
-
-                if (unique_return_types.size() == 1)
-                {
-                    return unique_return_types[0];
-                }
-
-                return make_object(VariantType{unique_return_types});
-            },
-            [&](ClassType_ptr cls) -> Object_ptr
-            {
-                return call_method(call, access, argument_types, cls);
-            },
-            [&](auto&) -> Object_ptr
-            {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "Generic constraint must resolve to a class or variant type."
-                );
-            }
-        },
-        template_parameter_type->constraint_type->value
+    Doctor::get().fatal(
+        WaspStage::Semantics,
+        "Calling template methods is not yet implemented."
     );
 }
 

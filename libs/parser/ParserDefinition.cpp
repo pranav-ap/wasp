@@ -375,27 +375,27 @@ Statement_ptr Parser::parse_template_definition(int indent_level)
         overloaded{
             [&](FunctionDefinition& def)
             {
-                def.generics = std::move(generics);
+                def.template_params = std::move(generics);
             },
             [&](MethodDefinition& def)
             {
-                def.generics = std::move(generics);
+                def.template_params = std::move(generics);
             },
             [&](OperatorDefinition& def)
             {
-                def.generics = std::move(generics);
+                def.template_params = std::move(generics);
             },
             [&](ClassDefinition& def)
             {
-                def.generics = std::move(generics);
+                def.template_params = std::move(generics);
             },
             [&](TraitDefinition& def)
             {
-                def.generics = std::move(generics);
+                def.template_params = std::move(generics);
             },
             [&](TypeAliasDefinition& def)
             {
-                def.generics = std::move(generics);
+                def.template_params = std::move(generics);
             },
             [&](auto&)
             {

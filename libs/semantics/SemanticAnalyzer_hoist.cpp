@@ -111,8 +111,11 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
 {
     auto assign_generics = [&](auto& def, auto type_ptr)
     {
-        auto [generics, ordered_names] = evaluate_generics(def.generics);
-        type_ptr->generics = std::move(generics);
+        auto [template_params, ordered_names] = evaluate_template_params(
+            def.template_params
+        );
+
+        type_ptr->generics = std::move(template_params);
         type_ptr->expected_generic_names_order = std::move(ordered_names);
     };
 
@@ -236,7 +239,7 @@ void SemanticAnalyzer::hoist_import(Import& stmt)
 
 void SemanticAnalyzer::hoist_function_definition(AbstractCallable& def)
 {
-    auto [generics, ordered_names] = evaluate_generics(def.generics);
+    auto [generics, ordered_names] = evaluate_template_params(def.template_params);
     bool has_generics = prepare_generic_scope(generics);
 
     Object_ptr return_type = def.return_type ? visit(def.return_type)
@@ -277,7 +280,7 @@ void SemanticAnalyzer::hoist_function_definition(AbstractCallable& def)
     def.group_symbol = current_scope->define(symbol);
 }
 
-std::pair<ObjectStringMap, StringVector> SemanticAnalyzer::evaluate_generics(
+std::pair<ObjectStringMap, StringVector> SemanticAnalyzer::evaluate_template_params(
     const std::vector<FieldDefinition>& generic_fields
 )
 {

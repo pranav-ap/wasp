@@ -74,28 +74,34 @@ void SemanticAnalyzer::analyze_callable(
     {
         if (def.symbol->payload_is<FunctionData>())
         {
-            def.symbol->get_payload_as<FunctionData>()
-                .ast_blueprint = FunctionDefinition(
+            auto& data = def.symbol->get_payload_as<FunctionData>();
+
+            data.ast_blueprint = FunctionDefinition(
                 def.name,
                 def.parameters,
                 def.return_type,
                 def.body,
                 def.is_pure,
-                def.generics
+                def.template_params
             );
+
+            data.definition_scope = current_scope;
         }
         else if (def.symbol->payload_is<MethodData>())
         {
-            def.symbol->get_payload_as<MethodData>()
-                .ast_blueprint = MethodDefinition(
+            auto& data = def.symbol->get_payload_as<MethodData>();
+
+            data.ast_blueprint = MethodDefinition(
                 def.name,
                 def.parameters,
                 def.return_type,
                 def.body,
                 def.is_pure,
                 is_static,
-                def.generics
+                def.template_params
             );
+
+            data.definition_scope = current_scope;
         }
     }
     else

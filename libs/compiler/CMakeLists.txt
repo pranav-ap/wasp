@@ -2,6 +2,17 @@ add_library(
     CompilerLib
     Compiler.cpp
     Compiler_utils.cpp
+    Compiler_call.cpp
+    Compiler_callable.cpp
+    Compiler_constructor.cpp
+    Compiler_control_flow.cpp
+    Compiler_definitions.cpp
+    Compiler_exports.cpp
+    Compiler_literals.cpp
+    Compiler_oops.cpp
+    Compiler_operators.cpp
+    Compiler_resolvers.cpp
+    Compiler_variables.cpp
     InstructionPrinter.cpp
 )
 

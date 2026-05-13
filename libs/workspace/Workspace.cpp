@@ -260,6 +260,17 @@ void Symbol::add_overload(Symbol_ptr overload)
     get_payload_as<OverloadsData>().overloads.push_back(std::move(overload));
 }
 
+SymbolVector Symbol::get_overloads() const
+{
+    Doctor::get().assert(
+        payload_is<OverloadsData>(),
+        WaspStage::Semantics,
+        "Symbol '" + name + " is not an overloads group"
+    );
+
+    return get_payload_as<OverloadsData>().overloads;
+}
+
 std::string Symbol::to_string() const
 {
     std::string payload_type = "Unknown";
