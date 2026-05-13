@@ -34,7 +34,7 @@ void SemanticAnalyzer::analyze_callable(
     enter_scope(scope_type);
     return_type_stack.push_back(signature->return_type);
 
-    // 1. Bind Context ('my' or 'our') for Methods
+    // Bind Context ('my' or 'our') for Methods
     if (context_type)
     {
         auto context_sym = SymbolFactory::create_variable(
@@ -48,7 +48,7 @@ void SemanticAnalyzer::analyze_callable(
         def.context_symbol = current_scope->define(context_sym);
     }
 
-    // 2. Bind Parameters
+    // Bind Parameters
     def.parameter_symbols.clear();
     for (size_t i = 0; i < def.parameters.size(); ++i)
     {
@@ -62,7 +62,6 @@ void SemanticAnalyzer::analyze_callable(
         def.parameter_symbols.push_back(current_scope->define(param_symbol));
     }
 
-    // 3. Handle Native Marking & Body Analysis
     if (def.body.size() == 1 && def.body.front()->is<Placeholder>())
     {
         if (def.body.front()->as<Placeholder>().type == TokenType::NATIVE)
@@ -71,9 +70,19 @@ void SemanticAnalyzer::analyze_callable(
         }
     }
 
+    // if (has_generics)
+    // {
+    //     if (def.symbol->payload_is<FunctionData>())
+    //     {
+    //         def.symbol->get_payload_as<FunctionData>().body_ast = def.body;
+    //     }
+    // }
+    // else
+    // {
+    // }
+
     visit(def.body);
 
-    // 4. Cleanup
     return_type_stack.pop_back();
     leave_scope();
     if (has_generics)

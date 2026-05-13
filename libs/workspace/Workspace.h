@@ -47,6 +47,8 @@ struct PossibleNativeData : public TypedData
 
 struct FunctionData : public PossibleNativeData
 {
+    StatementVector body_ast;
+
     FunctionData(bool is_native) : PossibleNativeData(is_native)
     {
     }

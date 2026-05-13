@@ -16,5 +16,8 @@ class String
     fun repr()
         print(my.value)
 
+    fun repr2()
+        print(my.value)
+
 
 type str = String
