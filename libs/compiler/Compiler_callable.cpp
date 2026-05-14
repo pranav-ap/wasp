@@ -86,26 +86,22 @@ void Compiler::compile_function_closure(
 
 void Compiler::visit(FunctionDefinition& def)
 {
+    if (!def.template_params.empty())
+    {
+        return;
+    }
+
     int physical_index = get_or_add_local_index(def.group_symbol);
 
     if (def.symbol->is_native())
     {
-        std::string mangled = mangle_name(
-            def.name,
-            "",
-            def.symbol->module_path
-        );
+        std::string mangled = mangle_name(def.name, "", def.symbol->module_path);
         int registry_id = workspace->native_registry->get_native_index(mangled);
         emit(OpCode::GET_NATIVE, registry_id, mangled);
     }
     else
     {
-        compile_function_closure(
-            def.name,
-            def.parameter_symbols,
-            def.body,
-            nullptr
-        );
+        compile_function_closure(def.name, def.parameter_symbols, def.body, nullptr);
     }
 
     std::string label = (def.is_pure ? "pure fun " : "fun ") + def.name;
@@ -114,34 +110,25 @@ void Compiler::visit(FunctionDefinition& def)
 
 void Compiler::visit(OperatorDefinition& def)
 {
+    if (!def.template_params.empty())
+    {
+        return;
+    }
+
     int physical_index = get_or_add_local_index(def.group_symbol);
 
     if (def.symbol->is_native())
     {
-        std::string mangled = mangle_name(
-            def.name,
-            "",
-            def.symbol->module_path
-        );
+        std::string mangled = mangle_name(def.name, "", def.symbol->module_path);
         int registry_id = workspace->native_registry->get_native_index(mangled);
         emit(OpCode::GET_NATIVE, registry_id, mangled);
     }
     else
     {
-        compile_function_closure(
-            def.name,
-            def.parameter_symbols,
-            def.body,
-            nullptr
-        );
+        compile_function_closure(def.name, def.parameter_symbols, def.body, nullptr);
     }
 
-    emit(
-        OpCode::STORE_FUNCTION_OVERLOAD,
-        physical_index,
-        "operator " + def.name
-    );
+    emit(OpCode::STORE_FUNCTION_OVERLOAD, physical_index, "operator " + def.name);
 }
-
 
 } // namespace Wasp

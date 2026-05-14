@@ -1,8 +1,10 @@
 #include "AST.h"
+#include "ASTCloner.h"
 #include "Doctor.h"
 #include "Expression.h"
 #include "Objects.h"
 #include "SemanticAnalyzer.h"
+#include "Statement.h"
 #include "SymbolScope.h"
 #include "Workspace.h"
 
@@ -171,10 +173,7 @@ Object_ptr SemanticAnalyzer::call_template_function(
     const ObjectVector& argument_types
 )
 {
-    // Evaluate Angular Arguments - greet<int, str>
-
     ObjectVector angular_args;
-
     for (auto& node : template_angular.angular_nodes)
     {
         angular_args.push_back(visit(node));
@@ -192,8 +191,6 @@ Object_ptr SemanticAnalyzer::call_template_function(
         template_angular.target->as<Identifier>(),
         template_angular.symbol
     );
-
-    // Find Best Specialization
 
     auto candidates = template_angular.symbol->get_overloads();
 
@@ -215,9 +212,68 @@ Object_ptr SemanticAnalyzer::call_template_function(
                                                          argument_types
                                                      );
 
-    call.overload_index = original_indices[subset_index];
+    int winning_index = original_indices[subset_index];
+    Symbol_ptr blueprint_symbol = candidates[winning_index];
 
-    return best_signature_object->as<Signature_ptr>()->return_type;
+    Doctor::get().assert(
+        blueprint_symbol->payload_is<FunctionData>(),
+        WaspStage::Semantics,
+        "Resolved template symbol does not contain FunctionData."
+    );
+
+    auto& function_data = blueprint_symbol->get_payload_as<FunctionData>();
+    Statement_ptr blueprint_stmt = function_data.function_definition;
+
+    std::string specialized_name = blueprint_symbol->name + "_" +
+                                   mangle_object(angular_args);
+
+    SymbolScope_ptr def_scope = function_data.definition_scope;
+
+    ObjectStringMap substitutions;
+    auto expected_names = blueprint_symbol->get_type()
+                              ->as<Signature_ptr>()
+                              ->expected_generic_names_order;
+
+    for (size_t i = 0; i < expected_names.size(); ++i)
+    {
+        substitutions[expected_names[i]] = angular_args[i];
+    }
+
+    ASTCloner cloner(substitutions);
+    Statement_ptr specialized_stmt = cloner.clone(blueprint_stmt);
+
+    auto* specialized_def_ptr = std::get_if<FunctionDefinition>(
+        &specialized_stmt->data
+    );
+    Doctor::get().assert(
+        specialized_def_ptr != nullptr,
+        WaspStage::Semantics,
+        "Cloned template blueprint is not a FunctionDefinition."
+    );
+
+    auto& specialized_def = *specialized_def_ptr;
+
+    specialized_def.name = specialized_name;
+    specialized_def.template_params.clear();
+
+    SymbolScope_ptr previous_scope = current_scope;
+    current_scope = def_scope;
+
+    hoist_function_definition(specialized_def);
+    visit(specialized_def);
+
+    current_scope = previous_scope;
+
+    pending_templates.push_back(specialized_stmt);
+
+    template_angular.symbol = specialized_def.group_symbol;
+    call.overload_index = 0;
+
+    Identifier specialized_id(specialized_name);
+    specialized_id.symbol = specialized_def.group_symbol;
+    call.callable->data = specialized_id;
+
+    return specialized_def.symbol->get_type()->as<Signature_ptr>()->return_type;
 }
 
 Object_ptr SemanticAnalyzer::call_template_method(

@@ -1,4 +1,5 @@
 #include "AST.h"
+#include "ASTCloner.h"
 #include "Doctor.h"
 #include "Objects.h"
 #include "SemanticAnalyzer.h"
@@ -140,10 +141,37 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
                 [&](FunctionDefinition& def)
                 {
                     hoist_function_definition(def);
+
+                    if (!def.template_params.empty())
+                    {
+                        auto& function_data = def.symbol
+                                                  ->get_payload_as<FunctionData>();
+
+                        ASTCloner cloner;
+                        function_data.function_definition = cloner.clone(
+                            make_statement(def)
+                        );
+
+                        function_data.definition_scope = current_scope;
+                    }
+
                 },
                 [&](OperatorDefinition& def)
                 {
                     hoist_function_definition(def);
+
+                    if (!def.template_params.empty())
+                    {
+                        auto& function_data = def.symbol
+                                                  ->get_payload_as<FunctionData>();
+
+                        ASTCloner cloner;
+                        function_data.function_definition = cloner.clone(
+                            make_statement(def)
+                        );
+                        function_data.definition_scope = current_scope;
+                    }
+
                 },
                 [&](TypeAliasDefinition& def)
                 {

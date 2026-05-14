@@ -5,6 +5,7 @@
 #include "Workspace.h"
 
 #include <ctime>
+#include <utility>
 #include <vector>
 
 template <class... Ts> struct overloaded : Ts...
@@ -27,19 +28,23 @@ void SemanticAnalyzer::run(const std::vector<Module_ptr>& build_order)
         enter_scope(ScopeType::MODULE);
         hoist_statements(mod->stmts);
 
+        StatementVector updated_stmts;
+
         for (const auto& stmt : mod->stmts)
         {
             visit(stmt);
+
+            for (const auto& tmpl : pending_templates)
+            {
+                updated_stmts.push_back(tmpl);
+            }
+
+            pending_templates.clear();
+
+            updated_stmts.push_back(stmt);
         }
 
-        // Flush the monomorphized templates
-
-        for (const auto& tmpl : pending_templates)
-        {
-            mod->stmts.push_back(tmpl);
-        }
-
-        pending_templates.clear();
+        mod->stmts = std::move(updated_stmts);
 
         StringVector ordered_export_names = setup_ordered_export_names(mod);
         setup_exports(mod, ordered_export_names);

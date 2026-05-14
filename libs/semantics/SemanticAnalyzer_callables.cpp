@@ -80,7 +80,10 @@ void SemanticAnalyzer::analyze_callable(
         }
     }
 
-    visit(def.body);
+    if (def.template_params.empty())
+    {
+        visit(def.body);
+    }
 
     return_type_stack.pop_back();
     leave_scope();

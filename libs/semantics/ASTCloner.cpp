@@ -1,5 +1,6 @@
 #include "ASTCloner.h"
 #include "AST.h"
+#include "Doctor.h"
 #include "Expression.h"
 #include "Objects.h"
 #include "Statement.h"
@@ -9,6 +10,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <string>
 #include <utility>
 #include <variant>
 
@@ -20,6 +22,31 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
+
+std::string get_raw_type_name(Object_ptr obj)
+{
+    if (auto cls = try_unwrap_ptr<ClassType_ptr>(obj))
+    {
+        return cls->name;
+    }
+    if (auto trt = try_unwrap_ptr<TraitType_ptr>(obj))
+    {
+        return trt->name;
+    }
+    if (auto alias = try_unwrap_ptr<TypeAlias_ptr>(obj))
+    {
+        return alias->name;
+    }
+    if (auto gen = try_unwrap_ptr<TemplateParameterType_ptr>(obj))
+    {
+        return gen->name;
+    }
+
+    Doctor::get().fatal(
+        WaspStage::Compiler,
+        "Attempted to substitute an unnamed/invalid type in AST Cloner."
+    );
+}
 
 Expression_ptr ASTCloner::clone(const Expression_ptr& expr)
 {
@@ -489,7 +516,8 @@ TypeAnnotationVariant ASTCloner::clone_type_data(const TypeAnnotationVariant& da
 
                     if (concrete_type)
                     {
-                        c.name = stringify_object(concrete_type);
+                        // Safely extract "int" instead of "class type: Int"
+                        c.name = get_raw_type_name(concrete_type);
                     }
                 }
 

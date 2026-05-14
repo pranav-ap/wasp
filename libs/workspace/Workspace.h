@@ -5,6 +5,7 @@
 #include "ConstantPool.h"
 #include "NativeRegistry.h"
 #include "Objects.h"
+#include "Statement.h"
 
 #include <filesystem>
 #include <map>
@@ -49,7 +50,12 @@ struct PossibleNativeData : public TypedData
 
 struct FunctionData : public PossibleNativeData
 {
-    FunctionData(bool is_native) : PossibleNativeData(is_native)
+    Statement_ptr function_definition;
+    SymbolScope_ptr definition_scope;
+
+    FunctionData(bool is_native)
+        : PossibleNativeData(is_native), function_definition(nullptr),
+          definition_scope(nullptr)
     {
     }
 };

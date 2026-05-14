@@ -38,11 +38,10 @@ void Compiler::emit_exports()
     {
         int stack_index = resolve_local(exported_symbol->id);
 
-        Doctor::get().assert(
-            stack_index != -1,
-            WaspStage::Compiler,
-            "Failed to find exported symbol on stack: " + exported_symbol->name
-        );
+        if (stack_index == -1)
+        {
+            continue;
+        }
 
         emit(OpCode::GET_LOCAL, stack_index, exported_symbol->name);
         export_count++;
