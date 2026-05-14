@@ -138,7 +138,7 @@ Symbol_ptr SemanticAnalyzer::monomorphize_callable_template(
     ASTCloner cloner(substitutions);
     Statement_ptr specialized_stmt = cloner.clone(function_data.function_definition);
 
-    Symbol_ptr specialized_symbol = nullptr;
+    Symbol_ptr specialized_group_symbol = nullptr;
 
     SymbolScope_ptr previous_scope = current_scope;
     current_scope = function_data.definition_scope;
@@ -151,7 +151,7 @@ Symbol_ptr SemanticAnalyzer::monomorphize_callable_template(
                 def.template_params.clear();
                 hoist_function_definition(def);
                 visit(def);
-                specialized_symbol = def.symbol;
+                specialized_group_symbol = def.group_symbol;
             },
             [&](OperatorDefinition& def)
             {
@@ -159,7 +159,7 @@ Symbol_ptr SemanticAnalyzer::monomorphize_callable_template(
                 def.template_params.clear();
                 hoist_function_definition(def);
                 visit(def);
-                specialized_symbol = def.symbol;
+                specialized_group_symbol = def.group_symbol;
             },
             [&](auto&)
             {
@@ -172,11 +172,12 @@ Symbol_ptr SemanticAnalyzer::monomorphize_callable_template(
         specialized_stmt->data
     );
 
-    current_scope = previous_scope;
+    Doctor::get().fatal_if_nullptr(specialized_group_symbol, WaspStage::Semantics);
 
+    current_scope = previous_scope;
     pending_templates.push_back(specialized_stmt);
 
-    return specialized_symbol;
+    return specialized_group_symbol;
 }
 
 Object_ptr SemanticAnalyzer::resolve_implicit_template(
@@ -200,7 +201,7 @@ Object_ptr SemanticAnalyzer::resolve_implicit_template(
     std::string specialized_name = function_symbol->name + "_" +
                                    mangle_object(deduced_args);
 
-    Symbol_ptr specialized_symbol = monomorphize_callable_template(
+    Symbol_ptr specialized_group_symbol = monomorphize_callable_template(
         function_symbol,
         substitutions,
         specialized_name
@@ -208,10 +209,12 @@ Object_ptr SemanticAnalyzer::resolve_implicit_template(
 
     call.overload_index = 0;
     Identifier specialized_id(specialized_name);
+    specialized_id.symbol = specialized_group_symbol;
     call.callable->data = specialized_id;
 
+    auto overloads = specialized_group_symbol->get_overloads();
     return unwrap_completely(
-        specialized_symbol->get_type()->as<Signature_ptr>()->return_type
+        overloads[0]->get_type()->as<Signature_ptr>()->return_type
     );
 }
 
@@ -249,46 +252,6 @@ Object_ptr SemanticAnalyzer::resolve_standard_overload(
 
     call.overload_index = overload_index;
     return signature->return_type;
-}
-
-Object_ptr SemanticAnalyzer::call_method(
-    Call& call,
-    MemberAccess& access,
-    const ObjectVector& argument_types,
-    ClassType_ptr class_type
-)
-{
-    auto method_name = access.right->as<Identifier>().name;
-
-    Doctor::get().assert(
-        class_type->contains_member(method_name),
-        WaspStage::Semantics,
-        "Method '" + method_name + "()' does not exist on class '" +
-            class_type->name + "'."
-    );
-
-    auto member = class_type->get_member(method_name);
-
-    Doctor::get().assert(
-        member->is<ObjectOverloadList_ptr>(),
-        WaspStage::Semantics,
-        "Member '" + method_name + "' must be an object overload group."
-    );
-
-    const auto& overloads = member->as<ObjectOverloadList_ptr>()->overloads;
-
-    auto [signature_obj, overload_index] = type_system->get_best_function_object(
-        current_scope,
-        overloads,
-        argument_types
-    );
-
-    access.member_index = class_type->get_member_index(method_name);
-    call.overload_index = overload_index;
-
-    call.is_method_call = true;
-
-    return signature_obj->as<Signature_ptr>()->return_type;
 }
 
 Object_ptr SemanticAnalyzer::call_template_function(
@@ -345,14 +308,7 @@ Object_ptr SemanticAnalyzer::call_template_function(
         "Resolved template symbol does not contain FunctionData."
     );
 
-    auto& function_data = blueprint_symbol->get_payload_as<FunctionData>();
-    Statement_ptr blueprint_stmt = function_data.function_definition;
-
-    std::string specialized_name = blueprint_symbol->name + "_" +
-                                   mangle_object(angular_args);
-
-    SymbolScope_ptr def_scope = function_data.definition_scope;
-
+    // Build the substitutions map
     ObjectStringMap substitutions;
     auto expected_names = blueprint_symbol->get_type()
                               ->as<Signature_ptr>()
@@ -363,41 +319,69 @@ Object_ptr SemanticAnalyzer::call_template_function(
         substitutions[expected_names[i]] = angular_args[i];
     }
 
-    ASTCloner cloner(substitutions);
-    Statement_ptr specialized_stmt = cloner.clone(blueprint_stmt);
+    // Name Mangling
+    std::string specialized_name = blueprint_symbol->name + "_" +
+                                   mangle_object(angular_args);
 
-    auto* specialized_def_ptr = std::get_if<FunctionDefinition>(
-        &specialized_stmt->data
-    );
-    Doctor::get().assert(
-        specialized_def_ptr != nullptr,
-        WaspStage::Semantics,
-        "Cloned template blueprint is not a FunctionDefinition."
+    Symbol_ptr specialized_group_symbol = monomorphize_callable_template(
+        blueprint_symbol,
+        substitutions,
+        specialized_name
     );
 
-    auto& specialized_def = *specialized_def_ptr;
-
-    specialized_def.name = specialized_name;
-    specialized_def.template_params.clear();
-
-    SymbolScope_ptr previous_scope = current_scope;
-    current_scope = def_scope;
-
-    hoist_function_definition(specialized_def);
-    visit(specialized_def);
-
-    current_scope = previous_scope;
-
-    pending_templates.push_back(specialized_stmt);
-
-    template_angular.symbol = specialized_def.group_symbol;
+    // Update AST Nodes
+    template_angular.symbol = specialized_group_symbol;
     call.overload_index = 0;
 
     Identifier specialized_id(specialized_name);
-    specialized_id.symbol = specialized_def.group_symbol;
+    specialized_id.symbol = specialized_group_symbol;
     call.callable->data = specialized_id;
 
-    return specialized_def.symbol->get_type()->as<Signature_ptr>()->return_type;
+    // Get the return type safely
+    auto overloads = specialized_group_symbol->get_overloads();
+    return unwrap_completely(
+        overloads[0]->get_type()->as<Signature_ptr>()->return_type
+    );
+}
+
+Object_ptr SemanticAnalyzer::call_method(
+    Call& call,
+    MemberAccess& access,
+    const ObjectVector& argument_types,
+    ClassType_ptr class_type
+)
+{
+    auto method_name = access.right->as<Identifier>().name;
+
+    Doctor::get().assert(
+        class_type->contains_member(method_name),
+        WaspStage::Semantics,
+        "Method '" + method_name + "()' does not exist on class '" +
+            class_type->name + "'."
+    );
+
+    auto member = class_type->get_member(method_name);
+
+    Doctor::get().assert(
+        member->is<ObjectOverloadList_ptr>(),
+        WaspStage::Semantics,
+        "Member '" + method_name + "' must be an object overload group."
+    );
+
+    const auto& overloads = member->as<ObjectOverloadList_ptr>()->overloads;
+
+    auto [signature_obj, overload_index] = type_system->get_best_function_object(
+        current_scope,
+        overloads,
+        argument_types
+    );
+
+    access.member_index = class_type->get_member_index(method_name);
+    call.overload_index = overload_index;
+
+    call.is_method_call = true;
+
+    return signature_obj->as<Signature_ptr>()->return_type;
 }
 
 Object_ptr SemanticAnalyzer::call_template_method(

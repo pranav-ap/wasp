@@ -23,7 +23,7 @@ template
     T: int | str
 
 fun greet(a: T)
-    let num = 5
+    let num = 33
     num.repr()
 
 greet<int>(2)
