@@ -67,10 +67,10 @@ bool TypeSystem::equal(
     }
 
     // Special Case: Generics
-    if (t1->is<GenericType_ptr>() && t2->is<GenericType_ptr>())
+    if (t1->is<TemplateParameterType_ptr>() && t2->is<TemplateParameterType_ptr>())
     {
-        auto g1 = t1->as<GenericType_ptr>();
-        auto g2 = t2->as<GenericType_ptr>();
+        auto g1 = t1->as<TemplateParameterType_ptr>();
+        auto g2 = t2->as<TemplateParameterType_ptr>();
         return equal(scope, g1->constraint_type, g2->constraint_type);
     }
 
@@ -267,19 +267,19 @@ bool TypeSystem::assignable(
     }
 
     // Generics
-    if (rhs_type->is<GenericType_ptr>())
+    if (rhs_type->is<TemplateParameterType_ptr>())
     {
         return assignable(
             scope,
             lhs_type,
-            rhs_type->as<GenericType_ptr>()->constraint_type
+            rhs_type->as<TemplateParameterType_ptr>()->constraint_type
         );
     }
-    if (lhs_type->is<GenericType_ptr>())
+    if (lhs_type->is<TemplateParameterType_ptr>())
     {
         return assignable(
             scope,
-            lhs_type->as<GenericType_ptr>()->constraint_type,
+            lhs_type->as<TemplateParameterType_ptr>()->constraint_type,
             rhs_type
         );
     }
@@ -425,13 +425,13 @@ Object_ptr TypeSystem::infer(
     {
         right_type = right_type->as<TypeAlias_ptr>()->underlying_type;
     }
-    if (left_type->is<GenericType_ptr>())
+    if (left_type->is<TemplateParameterType_ptr>())
     {
-        left_type = left_type->as<GenericType_ptr>()->constraint_type;
+        left_type = left_type->as<TemplateParameterType_ptr>()->constraint_type;
     }
-    if (right_type->is<GenericType_ptr>())
+    if (right_type->is<TemplateParameterType_ptr>())
     {
-        right_type = right_type->as<GenericType_ptr>()->constraint_type;
+        right_type = right_type->as<TemplateParameterType_ptr>()->constraint_type;
     }
 
     if (left_type->is<VariantType>())
@@ -558,9 +558,10 @@ Object_ptr TypeSystem::infer(
     {
         operand_type = operand_type->as<TypeAlias_ptr>()->underlying_type;
     }
-    if (operand_type->is<GenericType_ptr>())
+    if (operand_type->is<TemplateParameterType_ptr>())
     {
-        operand_type = operand_type->as<GenericType_ptr>()->constraint_type;
+        operand_type = operand_type->as<TemplateParameterType_ptr>()
+                           ->constraint_type;
     }
 
     if (operand_type->is<VariantType>())

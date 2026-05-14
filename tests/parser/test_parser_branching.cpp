@@ -33,14 +33,17 @@ TEST(ParseBranching, TernaryLetExpression)
     auto block = parse("if let x = 1 then 1 else 2");
 
     auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
-    auto &ternary = check<Wasp::IfTernaryBranch>(stmt.expression);
+    auto& ternary = check<Wasp::IfTernaryBranch>(stmt.expression);
 
-    // Test Condition
-    auto &letExpr = check<Wasp::VariableDefinitionExpression>(ternary.test);
-    auto &assign = check<Wasp::UntypedAssignment>(letExpr.assignment);
-    auto &identifier = check<Wasp::Identifier>(assign.lhs_expression);
+    // Test Condition (now a unified Assignment node)
+    auto& assign = check<Wasp::Assignment>(ternary.test);
+    EXPECT_TRUE(assign.is_definition);
+    EXPECT_TRUE(assign.is_mutable); // 'let' makes it mutable
+
+    auto& identifier = check<Wasp::Identifier>(assign.lhs);
     EXPECT_EQ(identifier.name, "x");
-    auto& assign_value = check<Wasp::IntegerLiteral>(assign.rhs_expression);
+
+    auto& assign_value = check<Wasp::IntegerLiteral>(assign.rhs);
     EXPECT_EQ(assign_value.value, 1);
 
     // TRUE Branch
@@ -48,7 +51,7 @@ TEST(ParseBranching, TernaryLetExpression)
     EXPECT_EQ(true_val.value, 1);
 
     // ELSE Branch
-    auto &else_branch = check<Wasp::ElseTernaryBranch>(ternary.alternative);
+    auto& else_branch = check<Wasp::ElseTernaryBranch>(ternary.alternative);
     auto& false_val = check<Wasp::IntegerLiteral>(else_branch.expression);
     EXPECT_EQ(false_val.value, 2);
 }
@@ -85,10 +88,10 @@ else
 
     // 1. Check the main 'if' branch
     auto& stmt = check<Wasp::IfBranch>(block[0]);
-    auto &test = check<Wasp::Infix>(stmt.test);
+    auto& test = check<Wasp::Infix>(stmt.test);
 
     {
-        auto &left = check<Wasp::Identifier>(test.left);
+        auto& left = check<Wasp::Identifier>(test.left);
         EXPECT_EQ(left.name, "x");
 
         EXPECT_EQ(test.op.type, Wasp::TokenType::EQUAL_EQUAL);
@@ -99,17 +102,18 @@ else
 
     {
         ASSERT_EQ(stmt.body.size(), 1);
-        check<Wasp::Pass>(stmt.body[0]);
+        auto& placeholder = check<Wasp::Placeholder>(stmt.body[0]);
+        EXPECT_EQ(placeholder.type, Wasp::TokenType::PASS);
     }
 
     // 2. Check the 'elif' branch (nested in the first 'if' alternative)
     ASSERT_TRUE(stmt.alternative.has_value());
-    auto &elif_stmt = check<Wasp::IfBranch>(stmt.alternative.value());
+    auto& elif_stmt = check<Wasp::IfBranch>(stmt.alternative.value());
 
     {
-        auto &elif_test = check<Wasp::Infix>(elif_stmt.test);
+        auto& elif_test = check<Wasp::Infix>(elif_stmt.test);
 
-        auto &left = check<Wasp::Identifier>(elif_test.left);
+        auto& left = check<Wasp::Identifier>(elif_test.left);
         EXPECT_EQ(left.name, "x");
 
         EXPECT_EQ(elif_test.op.type, Wasp::TokenType::EQUAL_EQUAL);
@@ -120,15 +124,17 @@ else
 
     {
         ASSERT_EQ(elif_stmt.body.size(), 1);
-        check<Wasp::Pass>(elif_stmt.body[0]);
+        auto& placeholder = check<Wasp::Placeholder>(elif_stmt.body[0]);
+        EXPECT_EQ(placeholder.type, Wasp::TokenType::PASS);
     }
 
     // 3. Check the 'else' branch (nested in the 'elif' alternative)
     ASSERT_TRUE(elif_stmt.alternative.has_value());
-    auto &else_stmt = check<Wasp::ElseBranch>(elif_stmt.alternative.value());
+    auto& else_stmt = check<Wasp::ElseBranch>(elif_stmt.alternative.value());
 
     {
         ASSERT_EQ(else_stmt.body.size(), 1);
-        check<Wasp::Pass>(else_stmt.body[0]);
+        auto& placeholder = check<Wasp::Placeholder>(else_stmt.body[0]);
+        EXPECT_EQ(placeholder.type, Wasp::TokenType::PASS);
     }
 }

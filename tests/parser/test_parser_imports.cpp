@@ -5,85 +5,136 @@
 #include <gtest/gtest.h>
 
 // -----------------------------------------------------------------------------
-// Simple Imports
+// Standard Imports
 // -----------------------------------------------------------------------------
 
-TEST(ParseImports, SimpleImportLibrary) {
+TEST(ParseImports, SimpleImportLibrary)
+{
     auto block = parse("import math3d");
 
-    auto& stmt = check<Wasp::SimpleImport>(block[0]);
+    auto& stmt = check<Wasp::Import>(block[0]);
 
-    EXPECT_FALSE(stmt.access_token_type.has_value());
+    EXPECT_FALSE(stmt.access_modifier.has_value());
+    EXPECT_EQ(stmt.access_argument, 1);
     ASSERT_EQ(stmt.path.size(), 1);
     EXPECT_EQ(stmt.path[0], "math3d");
-    EXPECT_FALSE(stmt.alias.has_value());
+
+    EXPECT_FALSE(stmt.module_alias.has_value());
+    EXPECT_FALSE(stmt.expose_all);
+    EXPECT_TRUE(stmt.exposed_symbols.empty());
 }
 
-TEST(ParseImports, SimpleMyImportLibrary) {
+TEST(ParseImports, SimpleMyImportLibrary)
+{
     auto block = parse("import my.math3d");
 
-    auto& stmt = check<Wasp::SimpleImport>(block[0]);
+    auto& stmt = check<Wasp::Import>(block[0]);
 
-    EXPECT_TRUE(stmt.access_token_type.has_value());
+    ASSERT_TRUE(stmt.access_modifier.has_value());
+    EXPECT_EQ(stmt.access_modifier.value(), Wasp::TokenType::MY);
+    EXPECT_EQ(stmt.access_argument, 1);
+
     ASSERT_EQ(stmt.path.size(), 1);
     EXPECT_EQ(stmt.path[0], "math3d");
-    EXPECT_FALSE(stmt.alias.has_value());
+    EXPECT_FALSE(stmt.module_alias.has_value());
 }
 
-TEST(ParseImports, SimpleImportWithAliasAndDepth) {
+TEST(ParseImports, SimpleImportWithAliasAndDepth)
+{
     auto block = parse("import up(2).navigation as nav");
 
-    auto& stmt = check<Wasp::SimpleImport>(block[0]);
+    auto& stmt = check<Wasp::Import>(block[0]);
 
-    ASSERT_TRUE(stmt.access_token_type.has_value());
-    EXPECT_EQ(stmt.access_token_type.value(), Wasp::TokenType::UP);
+    ASSERT_TRUE(stmt.access_modifier.has_value());
+    EXPECT_EQ(stmt.access_modifier.value(), Wasp::TokenType::UP);
 
-    ASSERT_EQ(stmt.path.size(), 2);
-    // Depth is stored as the first element in the path vector
-    EXPECT_EQ(stmt.path[0], "2");
-    EXPECT_EQ(stmt.path[1], "navigation");
+    // Depth is now stored cleanly in access_argument!
+    EXPECT_EQ(stmt.access_argument, 2);
+
+    ASSERT_EQ(stmt.path.size(), 1);
+    EXPECT_EQ(stmt.path[0], "navigation");
+
+    ASSERT_TRUE(stmt.module_alias.has_value());
+    EXPECT_EQ(stmt.module_alias.value(), "nav");
 }
 
 // -----------------------------------------------------------------------------
-// From Imports
+// Expose Imports
 // -----------------------------------------------------------------------------
 
-TEST(ParseImports, FromImportSingleSymbol) {
-    auto block = parse("from my.fuel import Tank");
+TEST(ParseImports, ExposeSingleSymbol)
+{
+    auto block = parse("import my.fuel expose Tank");
 
-    auto& stmt = check<Wasp::FromImport>(block[0]);
+    auto& stmt = check<Wasp::Import>(block[0]);
 
-    ASSERT_TRUE(stmt.access_token_type.has_value());
-    EXPECT_EQ(stmt.access_token_type.value(), Wasp::TokenType::MY);
+    ASSERT_TRUE(stmt.access_modifier.has_value());
+    EXPECT_EQ(stmt.access_modifier.value(), Wasp::TokenType::MY);
 
     ASSERT_EQ(stmt.path.size(), 1);
     EXPECT_EQ(stmt.path[0], "fuel");
 
-    ASSERT_EQ(stmt.import_as_pairs.size(), 1);
-    EXPECT_EQ(stmt.import_as_pairs[0].name, "Tank");
-    EXPECT_FALSE(stmt.import_as_pairs[0].alias.has_value());
+    ASSERT_EQ(stmt.exposed_symbols.size(), 1);
+    EXPECT_EQ(stmt.exposed_symbols[0].name, "Tank");
+    EXPECT_FALSE(stmt.exposed_symbols[0].alias.has_value());
 }
 
-TEST(ParseImports, FromImportGroupedSymbols) {
-    auto block = parse("from up(3).engine import (Tank as FuelTank, Pump)");
+TEST(ParseImports, ExposeGroupedSymbols)
+{
+    auto block = parse("import up(3).engine expose Tank as FuelTank, Pump");
 
-    auto& stmt = check<Wasp::FromImport>(block[0]);
+    auto& stmt = check<Wasp::Import>(block[0]);
 
-    ASSERT_TRUE(stmt.access_token_type.has_value());
-    EXPECT_EQ(stmt.access_token_type.value(), Wasp::TokenType::UP);
+    ASSERT_TRUE(stmt.access_modifier.has_value());
+    EXPECT_EQ(stmt.access_modifier.value(), Wasp::TokenType::UP);
+    EXPECT_EQ(stmt.access_argument, 3);
 
-    ASSERT_EQ(stmt.path.size(), 2);
-    EXPECT_EQ(stmt.path[0], "3");
-    EXPECT_EQ(stmt.path[1], "engine");
+    ASSERT_EQ(stmt.path.size(), 1);
+    EXPECT_EQ(stmt.path[0], "engine");
 
-    ASSERT_EQ(stmt.import_as_pairs.size(), 2);
+    ASSERT_EQ(stmt.exposed_symbols.size(), 2);
 
     // First symbol
-    EXPECT_EQ(stmt.import_as_pairs[0].name, "Tank");
-    ASSERT_TRUE(stmt.import_as_pairs[0].alias.has_value());
-    EXPECT_EQ(stmt.import_as_pairs[0].alias.value(), "FuelTank");
+    EXPECT_EQ(stmt.exposed_symbols[0].name, "Tank");
+    ASSERT_TRUE(stmt.exposed_symbols[0].alias.has_value());
+    EXPECT_EQ(stmt.exposed_symbols[0].alias.value(), "FuelTank");
 
     // Second symbol
-    EXPECT_EQ(stmt.import_as_pairs[1].name, "Pump");
-    EXPECT_FALSE(stmt.import_as_pairs[1].alias.has_value());
+    EXPECT_EQ(stmt.exposed_symbols[1].name, "Pump");
+    EXPECT_FALSE(stmt.exposed_symbols[1].alias.has_value());
+}
+
+// -----------------------------------------------------------------------------
+// Wildcard Imports
+// -----------------------------------------------------------------------------
+
+TEST(ParseImports, ExposeWildcard)
+{
+    auto block = parse("import math3d expose *");
+
+    auto& stmt = check<Wasp::Import>(block[0]);
+
+    ASSERT_EQ(stmt.path.size(), 1);
+    EXPECT_EQ(stmt.path[0], "math3d");
+
+    EXPECT_TRUE(stmt.expose_all);
+    EXPECT_TRUE(stmt.excluded_symbols.empty());
+    EXPECT_TRUE(stmt.exposed_symbols.empty());
+}
+
+TEST(ParseImports, ExposeWildcardWithExceptions)
+{
+    auto block = parse("import math3d expose * except tan, cos");
+
+    auto& stmt = check<Wasp::Import>(block[0]);
+
+    ASSERT_EQ(stmt.path.size(), 1);
+    EXPECT_EQ(stmt.path[0], "math3d");
+
+    EXPECT_TRUE(stmt.expose_all);
+    EXPECT_TRUE(stmt.exposed_symbols.empty());
+
+    ASSERT_EQ(stmt.excluded_symbols.size(), 2);
+    EXPECT_EQ(stmt.excluded_symbols[0], "tan");
+    EXPECT_EQ(stmt.excluded_symbols[1], "cos");
 }

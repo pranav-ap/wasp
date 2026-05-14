@@ -6,6 +6,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <utility>
 
 namespace Wasp
@@ -21,22 +22,56 @@ Expression_ptr Parser::parse_expression(const int precedence)
     auto token = token_pipe.current_in_line();
 
     if (!token)
+    {
         return nullptr;
+    }
 
     auto token_type = token->type;
 
-    if (token_type == TokenType::LET)
+    if (token_type == TokenType::LET || token_type == TokenType::CONST_KEYWORD)
     {
+        bool is_mutable = (token_type == TokenType::LET);
         token_pipe.advance_pointer();
-        Expression_ptr expr = parse_expression();
-        return make_expression(VariableDefinitionExpression(expr, true));
-    }
 
-    if (token_type == TokenType::CONST_KEYWORD)
-    {
+        auto id_token = token_pipe.current_in_line();
+        Doctor::get().assert(
+            id_token && id_token->type == TokenType::IDENTIFIER,
+            WaspStage::Parser,
+            "Expected an identifier after variable definition keyword."
+        );
+
+        Expression_ptr lhs = make_expression(
+            Identifier(id_token->lexeme),
+            *id_token,
+            *id_token
+        );
+
         token_pipe.advance_pointer();
-        Expression_ptr expr = parse_expression();
-        return make_expression(VariableDefinitionExpression(expr, false));
+
+        std::optional<TypeAnnotation_ptr> declared_type = std::nullopt;
+
+        if (auto colon_token = token_pipe.current_in_line();
+            colon_token && colon_token->type == TokenType::COLON)
+        {
+            token_pipe.advance_pointer();
+            declared_type = parse_type();
+        }
+
+        auto equal_token = token_pipe.current_in_line();
+        Doctor::get().assert(
+            equal_token && equal_token->type == TokenType::EQUAL,
+            WaspStage::Parser,
+            "Variable definition must be initialized with '='."
+        );
+
+        token_pipe.advance_pointer();
+        Expression_ptr rhs = parse_expression(0);
+
+        return make_expression(
+            Assignment(lhs, rhs, true, is_mutable, declared_type),
+            *token,
+            rhs->end_token
+        );
     }
 
     auto prefix_it = prefix_parselets.find(token_type);
@@ -44,7 +79,8 @@ Expression_ptr Parser::parse_expression(const int precedence)
     Doctor::get().assert(
         prefix_it != prefix_parselets.end(),
         WaspStage::Parser,
-        "Expected the start of an expression but found '" + token->value + "'.",
+        "Expected the start of an expression but found '" + token->lexeme +
+            "'.",
         token->line,
         token->column
     );
@@ -71,7 +107,8 @@ Expression_ptr Parser::parse_expression(const int precedence)
         Doctor::get().assert(
             infix_it != infix_parselets.end(),
             WaspStage::Parser,
-            "No matching infix parselet found for token '" + token->value + "'.",
+            "No matching infix parselet found for token '" + token->lexeme +
+                "'.",
             token->line,
             token->column
         );

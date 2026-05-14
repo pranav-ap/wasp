@@ -2,35 +2,34 @@
 
 namespace Wasp
 {
-    enum class Precedence : int
-    {
-        COMMA = 1,
-        DEFINITION,
-        ASSIGNMENT,
-        PIPE, // ~
-        TERNARY_CONDITION,
-        TYPE_PATTERN, // :
+enum class Precedence : int
+{
+    COMMA = 1,
+    DEFINITION,
+    ASSIGNMENT,
+    PIPE, // ~
+    TERNARY_CONDITION,
 
-        // Logical
-        OR,
-        AND,
-        EQUALITY,   // == !=
-        COMPARISON, // < > <= >= in is
+    // Logical
+    OR,
+    AND,
+    EQUALITY,   // == !=
+    COMPARISON, // < > <= >= in is
 
-        RANGE,
+    RANGE,
 
-        // Arithmetic
-        TERM,    // + -
-        PRODUCT, // * / %
+    // Arithmetic
+    TERM,    // + -
+    PRODUCT, // * / %
 
-        // Transformational
-        CAST,     // as
-        EXPONENT, // ^
-        PREFIX,   // + - typeof
+    // Transformational
+    CAST,     // as
+    EXPONENT, // ^
+    PREFIX,   // + - typeof
 
-        // Structural
-        POSTFIX,
-        CALL,         // call() new delete
-        MEMBER_ACCESS // . ?.
-    };
+    // Structural
+    POSTFIX,
+    CALL,         // call() new delete
+    MEMBER_ACCESS // . ?.
+};
 }

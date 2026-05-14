@@ -21,11 +21,13 @@ namespace Wasp
 struct Upvalue
 {
     // TRUE:  The variable is a local variable on the immediate parent's stack.
-    // FALSE: The variable is an upvalue already captured by the immediate parent.
+    // FALSE: The variable is an upvalue already captured by the immediate
+    // parent.
     bool is_local_to_parent;
 
-    // If is_local_to_parent == true:  Offset from the parent's stack Base Pointer.
-    // If is_local_to_parent == false: Offset into the parent's upvalue array.
+    // If is_local_to_parent == true:  Offset from the parent's stack Base
+    // Pointer. If is_local_to_parent == false: Offset into the parent's upvalue
+    // array.
     int index;
 };
 
@@ -74,8 +76,10 @@ private:
     CFGraph graph;
     BlockId current_block_id;
 
-    // Stack of <HeaderBlockId, BodyBlockId, EndBlockId, lexical_scope_depth, body depth>
-    std::vector<std::tuple<BlockId, BlockId, BlockId, int, int>> loop_tracking_stack;
+    // Stack of <HeaderBlockId, BodyBlockId, EndBlockId, lexical_scope_depth,
+    // body depth>
+    std::vector<std::tuple<BlockId, BlockId, BlockId, int, int>>
+        loop_tracking_stack;
 
     // -----------------------------------------------------------------------
     // Scope
@@ -92,7 +96,12 @@ private:
 
     void emit(OpCode opcode, std::string comment = "");
     void emit(OpCode opcode, int operand, std::string comment = "");
-    void emit(OpCode opcode, int operand_1, int operand_2, std::string comment = "");
+    void emit(
+        OpCode opcode,
+        int operand_1,
+        int operand_2,
+        std::string comment = ""
+    );
     void emit_raw_byte(std::byte b);
 
     void emit_local_cleanups(int target_depth);
@@ -106,7 +115,6 @@ private:
     void visit(std::vector<Statement_ptr>& statements);
 
     void visit(ExpressionStatement& statement);
-    void visit(VariableDefinition& statement);
 
     void visit(IfBranch& statement);
     void visit(ElseBranch& statement);
@@ -114,16 +122,12 @@ private:
     void visit(SimpleLoop& statement);
     void visit(ForInLoop& statement);
 
-    void visit(Pass& statement);
-    void visit(Native& statement);
     void visit(LoopControl& statement);
-
-    void visit(SimpleImport& statement);
-    void visit(FromImport& statement);
+    void visit(Import& statement);
 
     void visit(FunctionDefinition& statement);
-    void visit(OperatorDefinition& statement);
-
+    void visit(OperatorDefinition& def);
+    void visit(ClassDefinition& statement);
     void visit(TypeAliasDefinition& statement);
 
     void visit(Return& statement);
@@ -131,13 +135,9 @@ private:
     void compile_function_closure(
         const std::string& name,
         const std::vector<Symbol_ptr>& parameters,
-        StatementVector body
+        StatementVector body,
+        Symbol_ptr context_symbol = nullptr
     );
-
-    void visit(ClassDefinition& statement);
-    void visit(TraitDefinition& statement);
-
-    void visit(EnumDefinition& statement);
 
     // Expressions
 
@@ -148,8 +148,6 @@ private:
     void visit(FloatLiteral& expr);
     void visit(StringLiteral& expr);
     void visit(BooleanLiteral& expr);
-
-    void visit(DotLiteral& expr);
 
     void visit(Identifier& expr);
     void visit(MemberAccess& expr);
@@ -167,18 +165,12 @@ private:
     void visit(SetLiteral& expr);
     void visit(RangeLiteral& expr);
 
-    void visit(VariableDefinitionExpression& expr);
-    void visit(UntypedAssignment& expr);
-    void visit(TypedAssignment& expr);
-    void visit(TypePattern& expr);
+    void visit(Assignment& expr);
 
     void visit(IfTernaryBranch& expr);
     void visit(ElseTernaryBranch& expr);
 
     void visit(TemplateAngular& expr);
-
-    void visit(MethodDefinition& statement);
-    void visit(FieldDefinition& statement);
 
     // -----------------------------------------------------------------------
     // UTILS
@@ -194,11 +186,23 @@ private:
 
     std::map<BlockId, size_t> calculate_block_offsets() const;
 
-    void resolve_jumps_in_block(CodeObject& code, const std::map<BlockId, size_t>& offsets) const;
+    void resolve_jumps_in_block(
+        CodeObject& code,
+        const std::map<BlockId, size_t>& offsets
+    ) const;
 
-    void compile_variable_definition(const Expression_ptr& assignment, bool as_expression = false);
-    void compile_identifier_assignment(Identifier& id, const Expression_ptr& rhs);
-    void compile_member_assignment(MemberAccess& mac, const Expression_ptr& rhs);
+    void compile_variable_definition(
+        const Expression_ptr& assignment,
+        bool as_expression = false
+    );
+    void compile_identifier_assignment(
+        Identifier& id,
+        const Expression_ptr& rhs
+    );
+    void compile_member_assignment(
+        MemberAccess& mac,
+        const Expression_ptr& rhs
+    );
 
     std::string mangle_name(
         const std::string& fn_name,

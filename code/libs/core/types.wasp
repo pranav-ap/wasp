@@ -1,4 +1,14 @@
-from my.io import print
+import my.io expose *
+
+# --------------------------
+# The Core Four
+# --------------------------
+
+class Boolean
+    value: @bool
+
+    fun repr()
+        print(my.value)
 
 
 class Int
@@ -8,7 +18,12 @@ class Int
         print(my.value)
 
 
-type int = Int
+class Float
+    value: @float
+
+    fun repr()
+        print(my.value)
+
 
 class String
     value: @str
@@ -16,5 +31,16 @@ class String
     fun repr()
         print(my.value)
 
+    fun repr2()
+        print(my.value)
 
+
+# --------------------------
+# Aliases for the Core Four
+# --------------------------
+
+type bool = Boolean
+type int = Int
+type float = Float
 type str = String
+

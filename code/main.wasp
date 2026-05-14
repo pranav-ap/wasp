@@ -1,18 +1,32 @@
-from core.io import print
-from core.types import int, Int, str, String
-
-
-operator + (left: Int, right: Int) => Int
-    return Int(left.value + right.value)
-
+import core.io expose *
+import core.types expose *
+import core.operators expose *
 
 let x: int = 1
 x.repr()
-
 
 let y: int = 2
 y.repr()
 
 let z: int = x + y
 z.repr()
+
+
+fun foo(a: int)
+    a = a + 1
+    a.repr()
+
+foo(3)
+
+
+template
+    T: int | str
+
+fun greet(a: T)
+    let num = 5
+    num.repr()
+
+greet<int>(2)
+greet<str>('hi')
+
 

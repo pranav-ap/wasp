@@ -1,9 +1,8 @@
+#include "Lexer.h"
 #include <gtest/gtest.h>
-#include "Lexer.h" 
-
 
 TEST(LexerTestSuite, SanityTest) {
-    EXPECT_TRUE(true); 
+    EXPECT_TRUE(true);
 }
 
 
@@ -20,7 +19,7 @@ TEST(LexerTestSuite, TokenizeSimpleCode) {
     EXPECT_EQ(tokens[4].type, Wasp::TokenType::EQUAL);
     EXPECT_EQ(tokens[5].type, Wasp::TokenType::SPACE);
     EXPECT_EQ(tokens[6].type, Wasp::TokenType::NUMBER_LITERAL);
-    EXPECT_EQ(tokens[6].value, "10");
+    EXPECT_EQ(tokens[6].lexeme, "10");
     EXPECT_EQ(tokens[7].type, Wasp::TokenType::EOL);
     EXPECT_EQ(tokens[8].type, Wasp::TokenType::END_OF_FILE);
 }

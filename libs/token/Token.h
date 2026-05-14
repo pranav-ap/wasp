@@ -6,6 +6,8 @@
     X(UNKNOWN, "UNKNOWN", false)                                               \
     X(NUMBER_LITERAL, "NUMBER", false)                                         \
     X(STRING_LITERAL, "STRING", false)                                         \
+    X(INTERPOLATION_START, "INTERPOLATION_START", false)                       \
+    X(INTERPOLATION_END, "INTERPOLATION_END", false)                           \
     X(IDENTIFIER, "IDENTIFIER", false)                                         \
     X(OPEN_PARENTHESIS, "(", false)                                            \
     X(CLOSE_PARENTHESIS, ")", false)                                           \
@@ -59,12 +61,14 @@
     X(ZIP, "<>", false)                                                        \
     X(STEP, "step", true)                                                      \
     X(IMPORT, "import", true)                                                  \
-    X(FROM, "from", true)                                                      \
+    X(EXPOSE, "expose", true)                                                  \
+    X(EXCEPT, "except", true)                                                  \
     X(IF, "if", true)                                                          \
     X(ELIF, "elif", true)                                                      \
     X(ELSE, "else", true)                                                      \
     X(THEN, "then", true)                                                      \
     X(PASS, "pass", true)                                                      \
+    X(REQUIRED, "required", true)                                              \
     X(NO, "no", true)                                                          \
     X(NONE, "none", true)                                                      \
     X(SOME, "some", true)                                                      \
@@ -108,7 +112,9 @@
     X(UP, "up", true)                                                          \
     X(TYPE, "type", true)                                                      \
     X(EXPORT, "export", true)                                                  \
-    X(OPERATOR, "operator", true)                                              \
+    X(INFIX, "infix", true)                                                    \
+    X(POSTFIX, "postfix", true)                                                \
+    X(PREFIX, "prefix", true)                                                  \
     X(NATIVE, "native", true)                                                  \
     X(ENUM, "enum", true)                                                      \
     X(TRUE_KEYWORD, "true", true)                                              \
@@ -183,7 +189,7 @@ constexpr TokenType get_keyword_token_type(const std::string &s) {
 
 struct Token {
   TokenType type;
-  std::string value;
+  std::string lexeme;
 
   int line;
   int column;

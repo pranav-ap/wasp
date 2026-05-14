@@ -12,16 +12,9 @@
 #include <variant>
 #include <vector>
 
-#define CASE(token_type, call)                                                                     \
-    case token_type: {                                                                             \
-        return call;                                                                               \
-    }
-
 #define MAKE_TYPE(x) std::make_shared<TypeAnnotation>(x)
-#define MAKE_RECURSIVE_TYPE(T, ...)                                                                \
+#define MAKE_RECURSIVE_TYPE(T, ...)                                            \
     std::make_shared<TypeAnnotation>(std::make_shared<T>(__VA_ARGS__))
-
-using std::make_pair;
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -32,22 +25,16 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-Statement_ptr Parser::parse_variable_definition(bool is_mutable)
-{
-    token_pipe.advance_pointer();
-
-    auto expression = parse_expression();
-    token_pipe.require_in_line(TokenType::EOL);
-
-    return make_statement(VariableDefinition(expression, is_mutable));
-}
+// ============================================================================
+// Types & Enums
+// ============================================================================
 
 Statement_ptr Parser::parse_alias_definition()
 {
     token_pipe.advance_pointer();
 
     auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
-    auto name = name_token.value;
+    auto name = name_token.lexeme;
 
     token_pipe.require_in_line(TokenType::EQUAL);
 
@@ -57,8 +44,6 @@ Statement_ptr Parser::parse_alias_definition()
     return make_statement(TypeAliasDefinition(name, ref_type));
 }
 
-// Enum
-
 Statement_ptr Parser::parse_enum_definition(int indent_level)
 {
     token_pipe.advance_pointer();
@@ -66,7 +51,7 @@ Statement_ptr Parser::parse_enum_definition(int indent_level)
     Token identifier = token_pipe.require_in_line(TokenType::IDENTIFIER);
     token_pipe.require_in_line(TokenType::EOL);
 
-    return make_statement(parse_enum_body(identifier.value, indent_level + 1));
+    return make_statement(parse_enum_body(identifier.lexeme, indent_level + 1));
 }
 
 EnumDefinition Parser::parse_enum_body(std::string name, int indent_level)
@@ -82,21 +67,23 @@ EnumDefinition Parser::parse_enum_body(std::string name, int indent_level)
         {
             break;
         }
-
         token_pipe.expect_n_indents(indent_level);
 
         if (token_pipe.consume_optional(TokenType::ENUM))
         {
-            auto nested_name = token_pipe.require_in_line(TokenType::IDENTIFIER).value;
+            auto nested_name = token_pipe.require_in_line(TokenType::IDENTIFIER)
+                                   .lexeme;
             token_pipe.require_in_line(TokenType::EOL);
 
-            nested_enums.push_back(parse_enum_body(nested_name, indent_level + 1));
+            nested_enums.push_back(
+                parse_enum_body(nested_name, indent_level + 1)
+            );
             continue;
         }
 
         if (auto token = token_pipe.consume_optional(TokenType::IDENTIFIER))
         {
-            members.push_back(token->value);
+            members.push_back(token->lexeme);
             token_pipe.require_in_line(TokenType::EOL);
             continue;
         }
@@ -107,146 +94,16 @@ EnumDefinition Parser::parse_enum_body(std::string name, int indent_level)
     return EnumDefinition(std::move(name), members, nested_enums);
 }
 
-// Others
+// ============================================================================
+// Helpers
+// ============================================================================
 
-Statement_ptr Parser::parse_function_definition(
-    int indent_level,
-    bool in_class_block,
-    bool is_our,
-    bool is_pure
+std::pair<std::string, TypeAnnotation_ptr> Parser::parse_name_type_pair(
+    int member_indent
 )
 {
     auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
-    auto name = name_token.value;
-
-    token_pipe.require_in_line(TokenType::OPEN_PARENTHESIS);
-
-    std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters;
-
-    if (!token_pipe.consume_optional(TokenType::CLOSE_PARENTHESIS))
-    {
-        while (true)
-        {
-            auto param_name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
-            auto param_name = param_name_token.value;
-
-            token_pipe.require_in_line(TokenType::COLON);
-
-            auto param_type = parse_type();
-
-            parameters.push_back(make_pair(param_name, param_type));
-
-            if (token_pipe.consume_optional(TokenType::CLOSE_PARENTHESIS))
-            {
-                break;
-            }
-
-            token_pipe.require_in_line(TokenType::COMMA);
-        }
-    }
-
-    TypeAnnotation_ptr return_type = nullptr;
-    if (token_pipe.consume_optional_in_line(TokenType::ARROW))
-    {
-        return_type = parse_type();
-    }
-
-    token_pipe.require_in_line(TokenType::EOL);
-
-    StatementVector body = parse_statements_block(indent_level + 1);
-
-    if (in_class_block)
-    {
-        return make_statement(MethodDefinition(
-            std::move(name),
-            std::move(parameters),
-            std::move(return_type),
-            std::move(body),
-            is_pure,
-            is_our
-        ));
-    }
-
-    return make_statement(FunctionDefinition(
-        std::move(name),
-        std::move(parameters),
-        std::move(return_type),
-        std::move(body),
-        is_pure
-    ));
-}
-
-std::tuple<std::string, std::vector<std::string>, StatementVector> Parser::
-    parse_membered_definition_base(int indent_level)
-{
-    token_pipe.advance_pointer();
-
-    auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
-    std::string name = name_token.value;
-
-    std::vector<std::string> traits;
-
-    if (token_pipe.consume_optional_in_line(TokenType::IS))
-    {
-        do
-        {
-            auto trait_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
-            traits.push_back(trait_token.value);
-        }
-        while (token_pipe.consume_optional_in_line(TokenType::AMPERSAND));
-    }
-
-    token_pipe.require_in_line(TokenType::EOL);
-
-    StatementVector members;
-    const int body_indent = indent_level + 1;
-
-    while (true)
-    {
-        token_pipe.ignore_empty_lines();
-
-        if (token_pipe.lookahead_indents() != body_indent)
-        {
-            break;
-        }
-
-        token_pipe.expect_n_indents(body_indent);
-
-        if (token_pipe.consume_optional(TokenType::FUN))
-        {
-            members.push_back(parse_function_definition(body_indent, true, false, false));
-        }
-        else if (token_pipe.consume_optional(TokenType::PURE))
-        {
-            token_pipe.require_in_line(TokenType::FUN);
-            members.push_back(parse_function_definition(body_indent, true, false, true));
-        }
-        else if (token_pipe.consume_optional(TokenType::OUR))
-        {
-            bool is_pure = token_pipe.consume_optional_in_line(TokenType::PURE).has_value();
-            token_pipe.require_in_line(TokenType::FUN);
-            members.push_back(parse_function_definition(body_indent, true, true, is_pure));
-        }
-        else
-        {
-            auto [member_name, member_type] = parse_name_type_pair(body_indent);
-            members.push_back(make_statement(FieldDefinition(member_name, member_type)));
-        }
-    }
-
-    return {std::move(name), std::move(traits), std::move(members)};
-}
-
-Statement_ptr Parser::parse_class_definition(int indent_level)
-{
-    auto [name, traits, members] = parse_membered_definition_base(indent_level);
-    return make_statement(ClassDefinition(name, traits, members));
-}
-
-std::pair<std::string, TypeAnnotation_ptr> Parser::parse_name_type_pair(int member_indent)
-{
-    auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
-    std::string name = name_token.value;
+    std::string name = name_token.lexeme;
 
     token_pipe.require_in_line(TokenType::COLON);
 
@@ -254,7 +111,10 @@ std::pair<std::string, TypeAnnotation_ptr> Parser::parse_name_type_pair(int memb
     {
         token_pipe.require_in_line(TokenType::EOL);
         auto parsed_block = parse_name_type_block(member_indent + 1);
-        return {name, MAKE_RECURSIVE_TYPE(RecordTypeNode, std::move(parsed_block))};
+        return {
+            name,
+            MAKE_RECURSIVE_TYPE(RecordTypeNode, std::move(parsed_block))
+        };
     }
 
     auto type = parse_type();
@@ -278,10 +138,93 @@ StatementVector Parser::parse_name_type_block(int expected_indent)
 
         token_pipe.expect_n_indents(expected_indent);
         auto [member_name, member_type] = parse_name_type_pair(expected_indent);
-        members.push_back(make_statement(FieldDefinition(member_name, member_type)));
+        members.push_back(
+            make_statement(FieldDefinition(member_name, member_type))
+        );
     }
 
     return members;
+}
+
+// ============================================================================
+// OOP Definitions
+// ============================================================================
+
+std::tuple<std::string, std::vector<std::string>, StatementVector> Parser::
+    parse_membered_definition_base(int indent_level)
+{
+    token_pipe.advance_pointer();
+
+    auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
+    std::string name = name_token.lexeme;
+
+    std::vector<std::string> traits;
+
+    if (token_pipe.consume_optional_in_line(TokenType::IS))
+    {
+        do
+        {
+            auto trait_token = token_pipe.require_in_line(
+                TokenType::IDENTIFIER
+            );
+            traits.push_back(trait_token.lexeme);
+        }
+        while (token_pipe.consume_optional_in_line(TokenType::AMPERSAND));
+    }
+
+    token_pipe.require_in_line(TokenType::EOL);
+
+    StatementVector members;
+    const int body_indent = indent_level + 1;
+
+    while (true)
+    {
+        token_pipe.ignore_empty_lines();
+
+        if (token_pipe.lookahead_indents() != body_indent)
+        {
+            break;
+        }
+        token_pipe.expect_n_indents(body_indent);
+
+        if (token_pipe.consume_optional(TokenType::FUN))
+        {
+            members.push_back(
+                parse_function_definition(body_indent, true, false, false)
+            );
+        }
+        else if (token_pipe.consume_optional(TokenType::PURE))
+        {
+            token_pipe.require_in_line(TokenType::FUN);
+            members.push_back(
+                parse_function_definition(body_indent, true, false, true)
+            );
+        }
+        else if (token_pipe.consume_optional(TokenType::OUR))
+        {
+            bool is_pure = token_pipe.consume_optional_in_line(TokenType::PURE)
+                               .has_value();
+            token_pipe.require_in_line(TokenType::FUN);
+            members.push_back(
+                parse_function_definition(body_indent, true, true, is_pure)
+            );
+        }
+        else
+        {
+            auto [member_name, member_type] = parse_name_type_pair(body_indent);
+            members.push_back(
+                make_statement(FieldDefinition(member_name, member_type))
+            );
+        }
+    }
+
+    return {std::move(name), std::move(traits), std::move(members)};
+}
+
+Statement_ptr Parser::parse_class_definition(int indent_level)
+{
+    auto [name, traits, members] = parse_membered_definition_base(indent_level);
+    return make_statement(ClassDefinition(name, traits, members));
 }
 
 Statement_ptr Parser::parse_trait_definition(int indent_level)
@@ -290,12 +233,118 @@ Statement_ptr Parser::parse_trait_definition(int indent_level)
     return make_statement(TraitDefinition(name, traits, members));
 }
 
+// ============================================================================
+// Callables
+// ============================================================================
+
+Statement_ptr Parser::parse_function_definition(
+    int indent_level,
+    bool in_class_block,
+    bool is_our,
+    bool is_pure
+)
+{
+    auto name = token_pipe.require_in_line(TokenType::IDENTIFIER).lexeme;
+
+    token_pipe.require_in_line(TokenType::OPEN_PARENTHESIS);
+    std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters;
+
+    if (!token_pipe.consume_optional(TokenType::CLOSE_PARENTHESIS))
+    {
+        do
+        {
+            auto param_name = token_pipe.require_in_line(TokenType::IDENTIFIER)
+                                  .lexeme;
+            token_pipe.require_in_line(TokenType::COLON);
+            parameters.push_back({param_name, parse_type()});
+        }
+        while (token_pipe.consume_optional_in_line(TokenType::COMMA));
+
+        token_pipe.require_in_line(TokenType::CLOSE_PARENTHESIS);
+    }
+
+    TypeAnnotation_ptr return_type = nullptr;
+    if (token_pipe.consume_optional_in_line(TokenType::ARROW))
+    {
+        return_type = parse_type();
+    }
+
+    token_pipe.require_in_line(TokenType::EOL);
+    StatementVector body = parse_statements_block(indent_level + 1);
+
+    if (in_class_block)
+    {
+        return make_statement(MethodDefinition(
+            std::move(name),
+            std::move(parameters),
+            std::move(return_type),
+            std::move(body),
+            is_pure,
+            is_our
+        ));
+    }
+
+    return make_statement(FunctionDefinition(
+        std::move(name),
+        std::move(parameters),
+        std::move(return_type),
+        std::move(body),
+        is_pure
+    ));
+}
+
+Statement_ptr Parser::parse_operator_definition(
+    TokenType fixity,
+    int indent_level
+)
+{
+    auto operator_token = token_pipe.current_in_line();
+    Doctor::get().fatal_if_nullopt(operator_token, WaspStage::Parser);
+    token_pipe.advance_pointer();
+
+    token_pipe.require_in_line(TokenType::OPEN_PARENTHESIS);
+    std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters;
+
+    if (!token_pipe.consume_optional(TokenType::CLOSE_PARENTHESIS))
+    {
+        do
+        {
+            auto param_name = token_pipe.require_in_line(TokenType::IDENTIFIER)
+                                  .lexeme;
+            token_pipe.require_in_line(TokenType::COLON);
+            parameters.push_back({param_name, parse_type()});
+        }
+        while (token_pipe.consume_optional_in_line(TokenType::COMMA));
+
+        token_pipe.require_in_line(TokenType::CLOSE_PARENTHESIS);
+    }
+
+    TypeAnnotation_ptr return_type = nullptr;
+    if (token_pipe.consume_optional_in_line(TokenType::ARROW))
+    {
+        return_type = parse_type();
+    }
+
+    token_pipe.require_in_line(TokenType::EOL);
+    StatementVector body = parse_statements_block(indent_level + 1);
+
+    return make_statement(OperatorDefinition(
+        fixity,
+        operator_token->type,
+        get_operator_name(fixity, operator_token->type),
+        std::move(parameters),
+        std::move(return_type),
+        std::move(body)
+    ));
+}
+
+// ============================================================================
 // Templates
+// ============================================================================
 
 Statement_ptr Parser::parse_template_definition(int indent_level)
 {
-    // Consume the 'template' keyword
-    token_pipe.advance_pointer();
+    token_pipe.advance_pointer(); // Consume 'template'
     token_pipe.require_in_line(TokenType::EOL);
 
     std::vector<FieldDefinition> generics;
@@ -309,17 +358,15 @@ Statement_ptr Parser::parse_template_definition(int indent_level)
         {
             break;
         }
-
         token_pipe.expect_n_indents(body_indent);
 
         auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
         token_pipe.require_in_line(TokenType::COLON);
 
         auto param_type = parse_type();
-
         token_pipe.require_in_line(TokenType::EOL);
 
-        generics.emplace_back(name_token.value, param_type);
+        generics.emplace_back(name_token.lexeme, param_type);
     }
 
     Statement_ptr target = parse_statement(indent_level);
@@ -328,80 +375,40 @@ Statement_ptr Parser::parse_template_definition(int indent_level)
         overloaded{
             [&](FunctionDefinition& def)
             {
-                def.generics = std::move(generics);
+                def.template_params = std::move(generics);
+            },
+            [&](MethodDefinition& def)
+            {
+                def.template_params = std::move(generics);
+            },
+            [&](OperatorDefinition& def)
+            {
+                def.template_params = std::move(generics);
             },
             [&](ClassDefinition& def)
             {
-                def.generics = std::move(generics);
+                def.template_params = std::move(generics);
             },
             [&](TraitDefinition& def)
             {
-                def.generics = std::move(generics);
+                def.template_params = std::move(generics);
             },
             [&](TypeAliasDefinition& def)
             {
-                def.generics = std::move(generics);
+                def.template_params = std::move(generics);
             },
             [&](auto&)
             {
-                Doctor::get().fatal(WaspStage::Parser, "Invalid template target");
+                Doctor::get().fatal(
+                    WaspStage::Parser,
+                    "Invalid template target"
+                );
             }
         },
         target->data
     );
 
     return target;
-}
-
-Statement_ptr Parser::parse_operator_definition(int indent_level)
-{
-    // Peek at the token to see what operator it is (+, -, ==, etc.)
-    auto operator_token = token_pipe.current_in_line();
-    Doctor::get().fatal_if_nullopt(operator_token, WaspStage::Parser);
-    token_pipe.advance_pointer();
-
-    token_pipe.require_in_line(TokenType::OPEN_PARENTHESIS);
-
-    std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters;
-
-    if (!token_pipe.consume_optional(TokenType::CLOSE_PARENTHESIS))
-    {
-        while (true)
-        {
-            auto param_name_token = token_pipe.require_in_line(
-                TokenType::IDENTIFIER
-            );
-
-            token_pipe.require_in_line(TokenType::COLON);
-
-            auto param_type = parse_type();
-            parameters.push_back(make_pair(param_name_token.value, param_type));
-
-            if (token_pipe.consume_optional(TokenType::CLOSE_PARENTHESIS))
-            {
-                break;
-            }
-
-            token_pipe.require_in_line(TokenType::COMMA);
-        }
-    }
-
-    TypeAnnotation_ptr return_type = nullptr;
-    if (token_pipe.consume_optional_in_line(TokenType::ARROW))
-    {
-        return_type = parse_type();
-    }
-
-    token_pipe.require_in_line(TokenType::EOL);
-
-    StatementVector body = parse_statements_block(indent_level + 1);
-
-    return make_statement(OperatorDefinition(
-        operator_token->type,
-        std::move(parameters),
-        std::move(return_type),
-        std::move(body)
-    ));
 }
 
 } // namespace Wasp

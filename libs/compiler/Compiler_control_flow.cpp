@@ -1,5 +1,6 @@
-#include "CFGraph.h"
 #include "Compiler.h"
+#include "AST.h"
+#include "CFGraph.h"
 #include "Doctor.h"
 #include "Expression.h"
 #include "OpCode.h"
@@ -8,7 +9,6 @@
 #include "Workspace.h"
 
 #include <memory>
-#include <optional>
 #include <string>
 #include <variant>
 #include <vector>
@@ -158,7 +158,7 @@ void Compiler::visit(ForInLoop& statement)
 
     enter_scope("for-in loop");
 
-    visit(statement.iterable_expression);
+    visit(statement.iterable);
     emit(OpCode::GET_ITER);
 
     stack.push_back(statement.iterator_symbol);
@@ -180,8 +180,13 @@ void Compiler::visit(ForInLoop& statement)
     emit(OpCode::LOOP_ITER, static_cast<int>(end));
     emit(OpCode::JUMP, static_cast<int>(body));
 
-    loop_tracking_stack
-        .emplace_back(header, body, end, current_lexical_scope_depth, current_lexical_scope_depth);
+    loop_tracking_stack.emplace_back(
+        header,
+        body,
+        end,
+        current_lexical_scope_depth,
+        current_lexical_scope_depth
+    );
 
     set_current_block(body);
 
@@ -224,7 +229,8 @@ void Compiler::visit(SimpleLoop& statement)
     enter_scope("loop header");
     visit(statement.condition);
 
-    if (statement.style == TokenType::UNTIL || statement.style == TokenType::UNLESS)
+    if (statement.style == TokenType::UNTIL ||
+        statement.style == TokenType::UNLESS)
     {
         emit(OpCode::NOT);
     }
@@ -252,12 +258,17 @@ void Compiler::visit(SimpleLoop& statement)
 
 void Compiler::visit(LoopControl& statement)
 {
-    Doctor::get()
-        .assert(!loop_tracking_stack.empty(), WaspStage::Compiler, "Loop control outside loop");
+    Doctor::get().assert(
+        !loop_tracking_stack.empty(),
+        WaspStage::Compiler,
+        "Loop control outside loop"
+    );
 
-    auto [header, body, end, entry_depth, body_depth] = loop_tracking_stack.back();
+    auto [header, body, end, entry_depth, body_depth] = loop_tracking_stack
+                                                            .back();
 
-    int target_depth = (statement.type == TokenType::REDO) ? body_depth : entry_depth;
+    int target_depth = (statement.type == TokenType::REDO) ? body_depth
+                                                           : entry_depth;
 
     emit_local_cleanups(target_depth);
 
@@ -278,16 +289,5 @@ void Compiler::visit(LoopControl& statement)
     }
 }
 
-// ============================================================================
-// Other
-// ============================================================================
-
-void Compiler::visit(Pass& statement)
-{
-}
-
-void Compiler::visit(Native& statement)
-{
-}
 
 } // namespace Wasp

@@ -151,55 +151,68 @@ Token Lexer::consume_number_literal() {
 
     return Token{TokenType::NUMBER_LITERAL, value, LINE_NUM, COL_NUM};
 }
+
 Token Lexer::consume_string_literal()
 {
     int start_line = token_position.get_line_num();
     int start_col = token_position.get_column_num();
-
-    next();
+    next(); // Skip opening quote
 
     std::string current_chars;
-    std::queue<Token> local_pending;
+    std::vector<Token> local_pending;
+    bool is_interpolated = false;
 
-    auto emit_string = [&]()
+    auto flush_string = [&]()
     {
-        local_pending.push(Token{TokenType::STRING_LITERAL, current_chars, start_line, start_col});
-        current_chars.clear();
-    };
-
-    auto emit_plus = [&](int line, int col)
-    {
-        local_pending.push(Token{TokenType::PLUS, "+", line, col});
+        if (!current_chars.empty())
+        {
+            local_pending.push_back(
+                Token{
+                    TokenType::STRING_LITERAL,
+                    current_chars,
+                    start_line,
+                    start_col
+                }
+            );
+            current_chars.clear();
+        }
     };
 
     while (get_current_char() != '\'' && get_current_char() != '\0')
     {
         if (get_current_char() == '{')
         {
-            emit_string();
-            emit_plus(token_position.get_line_num(), token_position.get_column_num());
+            is_interpolated = true;
+            flush_string();
 
+            // Push the '{'
+            local_pending.push_back(
+                Token{
+                    TokenType::OPEN_CURLY_BRACE,
+                    "{",
+                    token_position.get_line_num(),
+                    token_position.get_column_num()
+                }
+            );
             next();
 
             int brace_depth = 1;
-            while (get_current_char() != '\0')
+            while (get_current_char() != '\0' && brace_depth > 0)
             {
-                Token t = next_token();
-
+                Token t = next_token(); // Lex the inner expression normally!
                 if (t.type == TokenType::OPEN_CURLY_BRACE)
-                    brace_depth++;
-                if (t.type == TokenType::CLOSE_CURLY_BRACE)
-                    brace_depth--;
-
-                if (brace_depth == 0)
                 {
-                    emit_plus(t.line, t.column);
-                    break;
+                    brace_depth++;
+                }
+                if (t.type == TokenType::CLOSE_CURLY_BRACE)
+                {
+                    brace_depth--;
                 }
 
-                local_pending.push(t);
+                local_pending.push_back(t);
             }
 
+            // Reset position trackers for the next string segment
             start_line = token_position.get_line_num();
             start_col = token_position.get_column_num();
             continue;
@@ -209,23 +222,47 @@ Token Lexer::consume_string_literal()
         next();
     }
 
-    emit_string();
+    flush_string();
 
     if (get_current_char() == '\'')
     {
-        next();
+        next(); // Skip closing quote
     }
 
-    Token first_token = local_pending.front();
-    local_pending.pop();
-
-    while (!local_pending.empty())
+    // --- THE CLEAN RETURN ---
+    // If it's just a normal string 'hello', return it directly!
+    if (!is_interpolated && local_pending.size() == 1)
     {
-        pending_tokens.push(local_pending.front());
-        local_pending.pop();
+        return local_pending[0];
+    }
+    // If it's an empty string ''
+    if (!is_interpolated && local_pending.empty())
+    {
+        return Token{TokenType::STRING_LITERAL, "", start_line, start_col};
     }
 
-    return first_token;
+    // If it IS interpolated, wrap it in our boundary tokens and flush to the
+    // main queue
+    pending_tokens.push(
+        Token{TokenType::INTERPOLATION_START, "'", start_line, start_col}
+    );
+    for (const auto& t : local_pending)
+    {
+        pending_tokens.push(t);
+    }
+    pending_tokens.push(
+        Token{
+            TokenType::INTERPOLATION_END,
+            "'",
+            token_position.get_line_num(),
+            token_position.get_column_num()
+        }
+    );
+
+    // Pop and return the first token from the queue
+    Token first = pending_tokens.front();
+    pending_tokens.pop();
+    return first;
 }
 
 Token Lexer::consume_operators() {

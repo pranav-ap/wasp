@@ -3,6 +3,7 @@
 #include "Doctor.h"
 #include "NativeRegistry.h"
 #include "Objects.h"
+#include "Token.h"
 
 #include <cstddef>
 #include <filesystem>
@@ -35,8 +36,8 @@ Symbol::Symbol(
     int lexical_depth,
     SymbolPayload payload
 )
-    : id(id), name(std::move(name)), closure_depth(closure_depth), lexical_depth(lexical_depth),
-      payload(std::move(payload)), module_path("")
+    : id(id), name(std::move(name)), closure_depth(closure_depth),
+      lexical_depth(lexical_depth), payload(std::move(payload)), module_path("")
 {
 }
 
@@ -47,42 +48,32 @@ bool Symbol::is_global() const
 
 bool Symbol::is_exportable() const
 {
-    bool global = is_global();
-    bool is_module = payload_is<ModuleData>();
-    bool is_alias = payload_is<SymbolAliasData>();
-    return global && !is_module && !is_alias;
+    return is_global() && !payload_is_any_of<ModuleData, SymbolAliasData>();
 }
 
 bool Symbol::is_either_function_or_method() const
 {
-    return payload_is<FunctionData>() || payload_is<MethodData>();
+    return payload_is_any_of<FunctionData, MethodData>();
 }
 
 bool Symbol::is_native() const
 {
-    if (payload_is<FunctionData>())
-        return get_payload_as<FunctionData>().is_native;
+    if (auto* func_data = try_get_payload<FunctionData>())
+    {
+        return func_data->is_native;
+    }
 
-    if (payload_is<MethodData>())
-        return get_payload_as<MethodData>().is_native;
-
-    return false;
-}
-
-bool Symbol::is_native_function_or_method() const
-{
-    if (payload_is<FunctionData>())
-        return get_payload_as<FunctionData>().is_native;
-
-    if (payload_is<MethodData>())
-        return get_payload_as<MethodData>().is_native;
+    if (auto* meth_data = try_get_payload<MethodData>())
+    {
+        return meth_data->is_native;
+    }
 
     return false;
 }
 
 bool Symbol::is_generic() const
 {
-    return payload_is<GenericData>();
+    return payload_is<TemplateParameterData>();
 }
 
 bool Symbol::should_be_captured(int usage_depth) const
@@ -132,7 +123,7 @@ Object_ptr Symbol::get_type()
             {
                 return d.mod->type;
             },
-            [](const GenericData& d) -> Object_ptr
+            [](const TemplateParameterData& d) -> Object_ptr
             {
                 return d.type;
             },
@@ -193,7 +184,7 @@ void Symbol::set_type(Object_ptr new_type)
             {
                 d.type = new_type;
             },
-            [&](GenericData& d)
+            [&](TemplateParameterData& d)
             {
                 d.type = new_type;
             },
@@ -269,6 +260,17 @@ void Symbol::add_overload(Symbol_ptr overload)
     get_payload_as<OverloadsData>().overloads.push_back(std::move(overload));
 }
 
+SymbolVector Symbol::get_overloads() const
+{
+    Doctor::get().assert(
+        payload_is<OverloadsData>(),
+        WaspStage::Semantics,
+        "Symbol '" + name + " is not an overloads group"
+    );
+
+    return get_payload_as<OverloadsData>().overloads;
+}
+
 std::string Symbol::to_string() const
 {
     std::string payload_type = "Unknown";
@@ -301,7 +303,7 @@ std::string Symbol::to_string() const
     {
         payload_type = "Trait";
     }
-    else if (payload_is<GenericData>())
+    else if (payload_is<TemplateParameterData>())
     {
         payload_type = "Generic";
     }
@@ -438,7 +440,7 @@ Symbol_ptr SymbolFactory::create_trait(
     );
 }
 
-Symbol_ptr SymbolFactory::create_generic(
+Symbol_ptr SymbolFactory::create_template_parameter(
     std::string name,
     Object_ptr type,
     int closure_depth,
@@ -450,7 +452,7 @@ Symbol_ptr SymbolFactory::create_generic(
         std::move(name),
         closure_depth,
         lexical_depth,
-        GenericData{std::move(type)}
+        TemplateParameterData{std::move(type)}
     );
 }
 

@@ -22,6 +22,8 @@ using Symbol_ptr = std::shared_ptr<Symbol>;
 using SymbolVector = std::vector<Symbol_ptr>;
 using SymbolStringMap = std::map<std::string, Symbol_ptr>;
 using SymbolIntMap = std::map<int, Symbol_ptr>;
+struct SymbolScope;
+using SymbolScope_ptr = std::shared_ptr<SymbolScope>;
 
 struct Module;
 using Module_ptr = std::shared_ptr<Module>;
@@ -90,7 +92,7 @@ struct TraitData : public TypedData
     using TypedData::TypedData;
 };
 
-struct GenericData : public TypedData
+struct TemplateParameterData : public TypedData
 {
     using TypedData::TypedData;
 };
@@ -122,7 +124,7 @@ using SymbolPayload = std::variant<
     ModuleData,
     ClassData,
     TraitData,
-    GenericData,
+    TemplateParameterData,
     EnumData,
     TypeAliasData,
     SymbolAliasData>;
@@ -144,7 +146,6 @@ struct Symbol : public std::enable_shared_from_this<Symbol>
     bool is_exportable() const;
     bool is_either_function_or_method() const;
     bool is_native() const;
-    bool is_native_function_or_method() const;
     bool is_generic() const;
 
     Object_ptr get_type();
@@ -157,7 +158,25 @@ struct Symbol : public std::enable_shared_from_this<Symbol>
     Symbol_ptr resolve();
 
     void add_overload(Symbol_ptr overload);
+    SymbolVector get_overloads() const;
+
     std::string to_string() const;
+
+    bool is_mutable_variable() const
+    {
+        auto* var_data = try_get_payload<VariableData>();
+        return var_data && var_data->is_mutable;
+    }
+
+    bool is_callable_payload() const
+    {
+        return payload_is_any_of<FunctionData, MethodData, OverloadsData>();
+    }
+
+    bool is_oop_type() const
+    {
+        return payload_is_any_of<ClassData, TraitData>();
+    }
 
     template <typename T> bool payload_is() const
     {
@@ -172,6 +191,21 @@ struct Symbol : public std::enable_shared_from_this<Symbol>
     template <typename T> const T& get_payload_as() const
     {
         return std::get<T>(payload);
+    }
+
+    template <typename T> T* try_get_payload()
+    {
+        return std::get_if<T>(&payload);
+    }
+
+    template <typename T> const T* try_get_payload() const
+    {
+        return std::get_if<T>(&payload);
+    }
+
+    template <typename... Ts> bool payload_is_any_of() const
+    {
+        return (payload_is<Ts>() || ...);
     }
 };
 
@@ -232,7 +266,7 @@ public:
         int lexical_depth = 0
     );
 
-    static Symbol_ptr create_generic(
+    static Symbol_ptr create_template_parameter(
         std::string name,
         Object_ptr type = nullptr,
         int closure_depth = 0,

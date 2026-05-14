@@ -9,6 +9,7 @@
 
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -23,21 +24,26 @@ namespace Wasp
 {
 
 Compiler::Compiler(Workspace_ptr workspace)
-    : workspace(std::move(workspace)), current_block_id(InvalidBlockId), parent(nullptr),
-      compiler_depth(0), current_lexical_scope_depth(0)
+    : workspace(std::move(workspace)), current_block_id(InvalidBlockId),
+      parent(nullptr), compiler_depth(0), current_lexical_scope_depth(0)
 {
     current_block_id = graph.create_block();
     graph.set_entry_block(current_block_id);
 }
 
 Compiler::Compiler(Compiler* parent)
-    : parent(parent), workspace(parent->workspace), compiler_depth(parent->compiler_depth + 1),
+    : parent(parent), workspace(parent->workspace),
+      compiler_depth(parent->compiler_depth + 1),
       current_lexical_scope_depth(parent->current_lexical_scope_depth + 1),
       module_path(parent->module_path)
 {
     current_block_id = graph.create_block();
     graph.set_entry_block(current_block_id);
 }
+
+// ==========================================================================
+// Entry Point
+// ==========================================================================
 
 FunctionBlueprintObject_ptr Compiler::run(
     const StatementVector& block,
@@ -48,11 +54,15 @@ FunctionBlueprintObject_ptr Compiler::run(
     this->module_path = std::move(filepath);
 
     if (is_main)
+    {
         emit(OpCode::ENTER_WORKSPACE);
+    }
     emit(OpCode::ENTER_MODULE);
 
     for (const auto& s : block)
+    {
         visit(s);
+    }
 
     BlockId exit = graph.create_block();
     graph.add_edge(current_block_id, exit);
@@ -62,64 +72,84 @@ FunctionBlueprintObject_ptr Compiler::run(
     emit_exports();
 
     if (is_main)
+    {
         emit(OpCode::EXIT_WORKSPACE);
+    }
 
     return std::make_shared<FunctionBlueprintObject>(flatten(), module_path);
 }
 
-void Compiler::emit_exports()
-{
-    auto mod = workspace->get_module(module_path);
-
-    if (mod == nullptr)
-    {
-        emit(OpCode::EXIT_MODULE, 0);
-        return;
-    }
-
-    Doctor::get().fatal_if_nullptr(mod, WaspStage::Compiler);
-
-    int export_count = 0;
-
-    // Iterate over the exports approved by the Semantic Analyzer
-    for (const auto& exported_symbol : mod->exports)
-    {
-        // Find where this export lives on the VM's local stack
-        int stack_index = resolve_local(exported_symbol->id);
-
-        Doctor::get().assert(
-            stack_index != -1,
-            WaspStage::Compiler,
-            "Failed to find exported symbol on stack: " + exported_symbol->name
-        );
-
-        // Push it to the top of the stack for EXIT_MODULE to consume
-        emit(OpCode::GET_LOCAL, stack_index, exported_symbol->name);
-        export_count++;
-    }
-
-    // Exit the module with the correct, synchronized count
-    emit(OpCode::EXIT_MODULE, export_count);
-}
-
 // ========================================================================
-// Visitors
+// Statement Visitors
 // ========================================================================
 
 void Compiler::visit(std::vector<Statement_ptr>& statements)
 {
-    auto is_func = [](const Statement_ptr& s)
+    // PASS 1: Pre-allocate stack slots to support forward references
+    for (auto& stmt_ptr : statements)
     {
-        return s->is<FunctionDefinition>();
-    };
+        Symbol_ptr sym = nullptr;
+        bool is_callable = false;
 
-    for (auto& stmt : statements)
-        if (is_func(stmt))
-            visit(stmt);
+        std::visit(
+            overloaded{
+                [&](FunctionDefinition& def)
+                {
+                    sym = def.group_symbol;
+                    is_callable = true;
+                },
+                [&](OperatorDefinition& def)
+                {
+                    sym = def.group_symbol;
+                    is_callable = true;
+                },
+                [&](ClassDefinition& def)
+                {
+                    sym = def.symbol;
+                },
+                [&](TraitDefinition& def)
+                {
+                    sym = def.symbol;
+                },
+                [&](EnumDefinition& def)
+                {
+                    sym = def.symbol;
+                },
+                [&](TypeAliasDefinition& def)
+                {
+                    sym = def.symbol;
+                },
+                [](auto&) { /* Do nothing for all other statement types */ }
+            },
+            stmt_ptr->data
+        );
 
-    for (auto& stmt : statements)
-        if (!is_func(stmt))
-            visit(stmt);
+        // If it's a declaration we haven't allocated yet, claim a slot!
+        if (sym && resolve_local(sym->id) == -1)
+        {
+            int slot = get_or_add_local_index(sym);
+
+            if (is_callable)
+            {
+                emit(OpCode::PUSH_EMPTY_OVERLOAD_GROUP);
+            }
+            else
+            {
+                emit(OpCode::LOAD_NONE);
+            }
+            emit(
+                OpCode::SET_LOCAL,
+                slot,
+                "pre-allocate hoist for " + sym->name
+            );
+        }
+    }
+
+    // PASS 2: Compile all statements in their natural, top-to-bottom order!
+    for (auto& stmt_ptr : statements)
+    {
+        visit(stmt_ptr);
+    }
 }
 
 void Compiler::visit(const Statement_ptr statement)
@@ -127,17 +157,19 @@ void Compiler::visit(const Statement_ptr statement)
     Doctor::get().fatal_if_nullptr(statement, WaspStage::Compiler);
 
     std::visit(
-        overloaded{
-            [&](std::monostate&)
+        [this](auto& node)
+        {
+            using T = std::decay_t<decltype(node)>;
+            if constexpr (std::is_same_v<T, std::monostate>)
             {
                 Doctor::get().fatal(
                     WaspStage::Compiler,
                     "Unhandled Statement (monostate) in Compiler!"
                 );
-            },
-            [&](auto& stat)
+            }
+            else if constexpr (requires { this->visit(node); })
             {
-                this->visit(stat);
+                this->visit(node);
             }
         },
         statement->data
@@ -148,6 +180,41 @@ void Compiler::visit(ExpressionStatement& statement)
 {
     visit(statement.expression);
     emit(OpCode::POP);
+}
+
+// ============================================================================
+// Expression Visitors
+// ============================================================================
+
+void Compiler::visit(std::vector<Expression_ptr>& expressions)
+{
+    for (const auto& expr : expressions)
+    {
+        visit(expr);
+    }
+}
+
+void Compiler::visit(const Expression_ptr expr)
+{
+    Doctor::get().fatal_if_nullptr(expr, WaspStage::Compiler);
+
+    std::visit(
+        [this](auto& node)
+        {
+            if constexpr (requires { this->visit(node); })
+            {
+                this->visit(node);
+            }
+            else
+            {
+                Doctor::get().fatal(
+                    WaspStage::Compiler,
+                    "Unimplemented expression compilation"
+                );
+            }
+        },
+        expr->data
+    );
 }
 
 } // namespace Wasp

@@ -1,9 +1,12 @@
 #include "SemanticAnalyzer.h"
 #include "SymbolScope.h"
+#include "Token.h"
 #include "Workspace.h"
+
 
 #include <ctime>
 #include <memory>
+#include <string>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -13,10 +16,6 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
-
-// ============================================================================
-// SCOPE MANAGEMENT
-// ============================================================================
 
 void SemanticAnalyzer::enter_scope(ScopeType scope_type)
 {
@@ -43,4 +42,13 @@ void SemanticAnalyzer::leave_scope_keep_symbol(Symbol_ptr symbol_to_keep)
         }
     }
 }
+
+std::string SemanticAnalyzer::get_operator_symbol_name(
+    TokenType fixity,
+    TokenType op_type
+)
+{
+    return to_string(fixity) + "_" + to_string(op_type);
+}
+
 } // namespace Wasp

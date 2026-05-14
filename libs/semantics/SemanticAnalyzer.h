@@ -3,14 +3,17 @@
 #include "AST.h"
 #include "Expression.h"
 #include "Objects.h"
+#include "Resolvable.h"
 #include "Statement.h"
 #include "SymbolScope.h"
+#include "Token.h"
 #include "TypeAnnotation.h"
 #include "TypeSystem.h"
 #include "Workspace.h"
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace Wasp
@@ -32,6 +35,8 @@ private:
     SymbolScope_ptr current_scope;
     ObjectVector return_type_stack;
 
+    StatementVector pending_templates;
+
     // =========================================================================
     // Scope & Environment Management
     // =========================================================================
@@ -51,32 +56,45 @@ private:
     void visit(const Statement_ptr statement);
     void visit(StatementVector& statements);
 
+    void inject_prelude();
+    void analyze_oops_definition(AbstractOopsDefinition& def);
     void hoist_statements(StatementVector& statements);
-    void hoist_names_and_imports(StatementVector& statements);
-    void hoist_signatures_and_generics(StatementVector& statements);
+    void hoist_names(StatementVector& statements);
+    void hoist_import(Import& stmt);
+    void hoist_signatures(StatementVector& statements);
+
+    std::pair<ObjectStringMap, StringVector> evaluate_template_params(
+        const std::vector<FieldDefinition>& generic_fields
+    );
+
+    void hoist_function_definition(AbstractCallable& def);
+
+    void analyze_callable(
+        AbstractCallable& def,
+        ScopeType scope_type,
+        Object_ptr context_type,
+        bool is_static
+    );
+
+    void analyze_template_parameter_constructor(
+        TemplateParameterType_ptr generic,
+        const ObjectVector& argument_types
+    );
 
     void visit(ExpressionStatement& statement);
     void visit(FunctionDefinition& statement);
-    void visit(MethodDefinition& statement);
     void visit(OperatorDefinition& statement);
     void visit(ClassDefinition& statement);
     void visit(TraitDefinition& statement);
-    void visit(FieldDefinition& statement);
     void visit(EnumDefinition& statement);
-    void visit(VariableDefinition& statement);
     void visit(TypeAliasDefinition& statement);
     void visit(IfBranch& statement);
     void visit(ElseBranch& statement);
     void visit(SimpleLoop& statement);
     void visit(ForInLoop& statement);
     void visit(LoopControl& statement);
-    void visit(SimpleImport& statement);
-    void visit(FromImport& statement);
-    void visit(Pass& statement);
-    void visit(Native& statement);
+    void visit(Placeholder& statement);
     void visit(Return& statement);
-
-    bool prepare_generic_scope(const ObjectStringMap& generics);
 
     // =========================================================================
     // Expression Analysis
@@ -90,6 +108,8 @@ private:
     Object_ptr visit(StringLiteral& expr);
     Object_ptr visit(BooleanLiteral& expr);
     Object_ptr visit(NoneLiteral& expr);
+
+    Object_ptr visit(InterpolatedString& expr);
 
     Object_ptr visit(DotLiteral& expr);
 
@@ -107,27 +127,42 @@ private:
     Object_ptr visit(MemberAccess& expr);
     Object_ptr visit(TemplateAngular& template_instantiation);
 
-    Object_ptr visit(VariableDefinitionExpression& expr);
-    Object_ptr visit(UntypedAssignment& expr);
-    Object_ptr visit(TypedAssignment& expr);
-    Object_ptr visit(TypePattern& expr);
+    Object_ptr visit(Assignment& expr);
     Object_ptr visit(IfTernaryBranch& expr);
     Object_ptr visit(ElseTernaryBranch& expr);
 
     Object_ptr visit(Call& expr);
     Object_ptr visit(Constructor& expr);
 
-    Object_ptr define_variable(Expression_ptr assignment_expr, bool is_mutable);
-    Object_ptr mutate_variable(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
+    Object_ptr define_variable(Assignment& assign);
+    Object_ptr mutate_variable(
+        Expression_ptr lhs_expr,
+        Expression_ptr rhs_expr
+    );
     Object_ptr mutate_member(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
 
     Object_ptr collapse_types(const ObjectVector& types);
     Symbol_ptr get_core_symbol(const std::string& type_name);
 
+    Object_ptr resolve_literal(
+        Resolvable& expr,
+        const std::string& type_name,
+        Object_ptr type_obj
+    );
+
+    Object_ptr evaluate_operator(
+        OperatorExpression& expr,
+        TokenType fixity,
+        TokenType op_type,
+        const ObjectVector& operand_types
+    );
+
     void desugar_literal(
         const Expression_ptr& expr,
         const std::string& type_alias_name
     );
+
+    Object_ptr desugar_interpolated_string(const Expression_ptr& expr);
 
     void desugar_overloaded_operator(
         const Expression_ptr& expr,
@@ -161,7 +196,14 @@ private:
         ClassType_ptr class_type
     );
 
-    Object_ptr call_concrete_template(
+    Object_ptr call_template_method(
+        Call& call,
+        MemberAccess& access,
+        const ObjectVector& argument_types,
+        TemplateParameterType_ptr template_parameter_type
+    );
+
+    Object_ptr call_template_function(
         Call& call,
         TemplateAngular& concrete_template,
         const ObjectVector& argument_types
@@ -172,6 +214,14 @@ private:
         const std::string& operator_name,
         const ObjectVector& operand_types
     );
+
+    Object_ptr resolve_member_access(
+        MemberAccess& expr,
+        Object_ptr target_type,
+        const std::string& member_name
+    );
+
+    std::string get_operator_symbol_name(TokenType fixity, TokenType op_type);
 
     // =========================================================================
     // Type Annotation Visitors

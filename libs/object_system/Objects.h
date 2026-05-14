@@ -93,13 +93,13 @@ struct LiteralType
 // Template
 // ============================================================================
 
-struct GenericType
+struct TemplateParameterType
 {
     std::string name;
     Object_ptr constraint_type;
 };
 
-using GenericType_ptr = std::shared_ptr<GenericType>;
+using TemplateParameterType_ptr = std::shared_ptr<TemplateParameterType>;
 
 struct TemplatableType
 {
@@ -222,11 +222,11 @@ struct BaseOOPType : public BaseMemberedType, public TemplatableType
 
     explicit BaseOOPType(
         std::string name,
-        ObjectStringMap members,
-        StringVector fields,
-        StringVector methods,
-        StringVector pures,
-        StringVector statics,
+        ObjectStringMap members = {},
+        StringVector fields = {},
+        StringVector methods = {},
+        StringVector pures = {},
+        StringVector statics = {},
         ObjectStringMap generics = {},
         StringVector ordered_generic_names = {}
     )
@@ -305,9 +305,9 @@ struct TypeAlias : public TemplatableType
 
     TypeAlias(
         std::string name,
-        Object_ptr underlying_type,
-        ObjectStringMap generics,
-        StringVector expected_generic_names_order
+        Object_ptr underlying_type = nullptr,
+        ObjectStringMap generics = {},
+        StringVector expected_generic_names_order = {}
     )
         : TemplatableType(
               std::move(generics),
@@ -645,11 +645,17 @@ struct Object
         EnumType_ptr,
         TypeAlias_ptr,
 
-        GenericType_ptr>;
+        TemplateParameterType_ptr>;
 
     UnderlyingVariant value;
 
     Object() = default;
+
+    bool is_type_object() const;
+    bool is_runtime_value() const;
+    bool is_callable() const;
+
+    IterableAbstractObject* as_iterable();
 
     template <typename T> Object(T&& val) : value(std::forward<T>(val))
     {
@@ -679,11 +685,30 @@ struct Object
     {
         return std::get_if<T>(&value);
     }
+
+    template <typename... Ts> bool is_any_of() const
+    {
+        return (is<Ts>() || ...);
+    }
 };
 
 template <typename T> inline Object_ptr make_object(T&& val)
 {
     return std::make_shared<Object>(std::forward<T>(val));
+}
+
+template <typename T> inline T try_unwrap_ptr(Object_ptr obj)
+{
+    if (!obj || !obj->is<T>())
+    {
+        return nullptr;
+    }
+    return obj->as<T>();
+}
+
+inline bool is_numeric_type(Object_ptr type)
+{
+    return type && type->is_any_of<IntType, FloatType>();
 }
 
 // ============================================================================

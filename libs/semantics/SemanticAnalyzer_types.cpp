@@ -46,7 +46,6 @@ Object_ptr SemanticAnalyzer::visit(const TypeAnnotation_ptr type_node)
                     WaspStage::Semantics,
                     "Unhandled TypeAnnotation node in visitor"
                 );
-                return nullptr;
             },
             [&](auto& node) -> Object_ptr
             {
@@ -197,10 +196,9 @@ Object_ptr SemanticAnalyzer::visit(TypeIdentifierNode& expr)
 
 Object_ptr SemanticAnalyzer::visit(ListTypeNode& expr)
 {
-    // need to resolve to template class
+    // TODO : need to resolve to template class
 
     Object_ptr resolved_type = make_object(ListType(visit(expr.element_type)));
-
     return resolved_type;
 }
 
@@ -216,7 +214,6 @@ Object_ptr SemanticAnalyzer::visit(TupleTypeNode& expr)
 Object_ptr SemanticAnalyzer::visit(SetTypeNode& expr)
 {
     Object_ptr resolved_type = make_object(SetType(visit(expr.element_type)));
-
     return resolved_type;
 }
 
@@ -232,7 +229,6 @@ Object_ptr SemanticAnalyzer::visit(MapTypeNode& expr)
 Object_ptr SemanticAnalyzer::visit(VariantTypeNode& expr)
 {
     Object_ptr resolved_type = make_object(VariantType(visit(expr.types)));
-
     return resolved_type;
 }
 
@@ -258,7 +254,6 @@ Object_ptr SemanticAnalyzer::visit(RecordTypeNode& node)
         WaspStage::Semantics,
         "Record types are not yet supported."
     );
-    return nullptr;
 }
 
 Object_ptr SemanticAnalyzer::visit(TemplateAngularTypeNode& node)

@@ -179,7 +179,8 @@ bool are_equal_types(Object_ptr left, Object_ptr right)
             {
                 return l->name == r->name;
             },
-            [](const GenericType_ptr& l, const GenericType_ptr& r)
+            [](const TemplateParameterType_ptr& l,
+               const TemplateParameterType_ptr& r)
             {
                 return l->name == r->name;
             },
@@ -335,7 +336,7 @@ std::string stringify_object(Object_ptr value)
             {
                 return "type alias: " + alias->name;
             },
-            [](const GenericType_ptr& gen) -> std::string
+            [](const TemplateParameterType_ptr& gen) -> std::string
             {
                 return "generic type: " + gen->name;
             },
@@ -406,13 +407,11 @@ std::string stringify_object(Object_ptr value)
             },
 
             // Callables and Modules
-            [](const std::shared_ptr<FunctionBlueprintObject>& func)
-                -> std::string
+            [](const std::shared_ptr<FunctionBlueprintObject>& func) -> std::string
             {
                 return "<Static Function " + func->name + ">";
             },
-            [](const std::shared_ptr<FunctionRuntimeObject>& func)
-                -> std::string
+            [](const std::shared_ptr<FunctionRuntimeObject>& func) -> std::string
             {
                 return "<Runtime function " + func->blueprint->name + ">";
             },
@@ -626,7 +625,7 @@ std::string mangle_object(Object_ptr value)
             {
                 return "a" + std::to_string(alias->name.length()) + alias->name;
             },
-            [](const GenericType_ptr& gen) -> std::string
+            [](const TemplateParameterType_ptr& gen) -> std::string
             {
                 return "G" + std::to_string(gen->name.length()) + gen->name;
             },

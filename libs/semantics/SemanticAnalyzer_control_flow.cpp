@@ -93,10 +93,6 @@ void SemanticAnalyzer::visit(ElseBranch& statement)
     leave_scope();
 }
 
-void SemanticAnalyzer::visit(Pass& statement)
-{
-}
-
 // ---------------------------------------------------------------------------
 // Loops
 // ---------------------------------------------------------------------------
@@ -111,7 +107,7 @@ void SemanticAnalyzer::visit(SimpleLoop& statement)
 
 void SemanticAnalyzer::visit(ForInLoop& loop_stmt)
 {
-    Object_ptr iterable_type = visit(loop_stmt.iterable_expression);
+    Object_ptr iterable_type = visit(loop_stmt.iterable);
     type_system->expect_iterable_type(current_scope, iterable_type);
 
     Object_ptr element_type = type_system->extract_iterable_element_type(
