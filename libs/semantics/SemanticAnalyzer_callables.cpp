@@ -1,7 +1,5 @@
 #include <cstddef>
-#include <memory>
 #include <string>
-#include <vector>
 
 #include "AST.h"
 #include "Doctor.h"

@@ -10,10 +10,8 @@
 
 #include <cctype>
 #include <ctime>
-#include <memory>
 #include <string>
 #include <variant>
-#include <vector>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -103,6 +101,120 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
     );
 }
 
+ObjectStringMap SemanticAnalyzer::deduce_template_arguments(
+    Signature_ptr signature,
+    const ObjectVector& argument_types
+)
+{
+    ObjectStringMap substitutions;
+
+    for (size_t i = 0; i < signature->parameter_types.size(); ++i)
+    {
+        auto param_type = signature->parameter_types[i];
+
+        // Peel back the layers to find the template parameter
+        while (param_type->is<TypeAlias_ptr>())
+        {
+            param_type = param_type->as<TypeAlias_ptr>()->underlying_type;
+        }
+
+        if (auto* generic_ptr = param_type->try_as<TemplateParameterType_ptr>())
+        {
+            substitutions[(*generic_ptr)->name] = argument_types[i];
+        }
+    }
+
+    return substitutions;
+}
+
+Symbol_ptr SemanticAnalyzer::monomorphize_callable_template(
+    Symbol_ptr blueprint_symbol,
+    const ObjectStringMap& substitutions,
+    const std::string& specialized_name
+)
+{
+    auto& function_data = blueprint_symbol->get_payload_as<FunctionData>();
+
+    ASTCloner cloner(substitutions);
+    Statement_ptr specialized_stmt = cloner.clone(function_data.function_definition);
+
+    Symbol_ptr specialized_symbol = nullptr;
+
+    SymbolScope_ptr previous_scope = current_scope;
+    current_scope = function_data.definition_scope;
+
+    std::visit(
+        overloaded{
+            [&](FunctionDefinition& def)
+            {
+                def.name = specialized_name;
+                def.template_params.clear();
+                hoist_function_definition(def);
+                visit(def);
+                specialized_symbol = def.symbol;
+            },
+            [&](OperatorDefinition& def)
+            {
+                def.name = specialized_name;
+                def.template_params.clear();
+                hoist_function_definition(def);
+                visit(def);
+                specialized_symbol = def.symbol;
+            },
+            [&](auto&)
+            {
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Expected a function or operator definition"
+                );
+            }
+        },
+        specialized_stmt->data
+    );
+
+    current_scope = previous_scope;
+
+    pending_templates.push_back(specialized_stmt);
+
+    return specialized_symbol;
+}
+
+Object_ptr SemanticAnalyzer::resolve_implicit_template(
+    Call& call,
+    Symbol_ptr function_symbol,
+    Signature_ptr signature,
+    const ObjectVector& argument_types
+)
+{
+    ObjectStringMap substitutions = deduce_template_arguments(
+        signature,
+        argument_types
+    );
+
+    ObjectVector deduced_args;
+    for (const auto& name : signature->expected_generic_names_order)
+    {
+        deduced_args.push_back(substitutions[name]);
+    }
+
+    std::string specialized_name = function_symbol->name + "_" +
+                                   mangle_object(deduced_args);
+
+    Symbol_ptr specialized_symbol = monomorphize_callable_template(
+        function_symbol,
+        substitutions,
+        specialized_name
+    );
+
+    call.overload_index = 0;
+    Identifier specialized_id(specialized_name);
+    call.callable->data = specialized_id;
+
+    return unwrap_completely(
+        specialized_symbol->get_type()->as<Signature_ptr>()->return_type
+    );
+}
+
 Object_ptr SemanticAnalyzer::resolve_standard_overload(
     Call& call,
     Symbol_ptr overload_symbol,
@@ -123,8 +235,20 @@ Object_ptr SemanticAnalyzer::resolve_standard_overload(
         argument_types
     );
 
+    auto signature = function_symbol->get_type()->as<Signature_ptr>();
+
+    if (!signature->expected_generic_names_order.empty())
+    {
+        return resolve_implicit_template(
+            call,
+            function_symbol,
+            signature,
+            argument_types
+        );
+    }
+
     call.overload_index = overload_index;
-    return function_symbol->get_type()->as<Signature_ptr>()->return_type;
+    return signature->return_type;
 }
 
 Object_ptr SemanticAnalyzer::call_method(

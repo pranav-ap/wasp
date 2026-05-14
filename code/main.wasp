@@ -29,4 +29,4 @@ fun greet(a: T)
 greet<int>(2)
 greet<str>('hi')
 
-
+greet(2)

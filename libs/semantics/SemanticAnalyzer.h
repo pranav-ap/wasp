@@ -64,9 +64,25 @@ private:
     void hoist_signatures(StatementVector& statements);
 
     std::pair<ObjectStringMap, StringVector> evaluate_template_params(
-        const std::vector<FieldDefinition>& generic_fields
+        const std::vector<FieldDefinition>& template_params
     );
 
+    Symbol_ptr monomorphize_callable_template(
+        Symbol_ptr blueprint_symbol,
+        const ObjectStringMap& substitutions,
+        const std::string& specialized_name
+    );
+    Object_ptr resolve_implicit_template(
+        Call& call,
+        Symbol_ptr function_symbol,
+        Signature_ptr signature,
+        const ObjectVector& argument_types
+    );
+
+    ObjectStringMap deduce_template_arguments(
+        Signature_ptr signature,
+        const ObjectVector& argument_types
+    );
     void hoist_function_definition(AbstractCallable& def);
 
     void analyze_callable(
@@ -77,7 +93,7 @@ private:
     );
 
     void analyze_template_parameter_constructor(
-        TemplateParameterType_ptr generic,
+        TemplateParameterType_ptr template_param,
         const ObjectVector& argument_types
     );
 

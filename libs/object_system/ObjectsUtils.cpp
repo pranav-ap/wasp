@@ -655,4 +655,32 @@ Object_ptr unwrap_type_alias(Object_ptr type)
     return type;
 }
 
+Object_ptr unwrap_completely(Object_ptr type)
+{
+    Doctor::get().fatal_if_nullptr(
+        type,
+        WaspStage::Semantics,
+        "Attempted to unwrap a null type pointer"
+    );
+
+    while (true)
+    {
+        if (type->is<TypeAlias_ptr>())
+        {
+            type = type->as<TypeAlias_ptr>()->underlying_type;
+            continue;
+        }
+
+        if (auto* generic_ptr = type->try_as<TemplateParameterType_ptr>())
+        {
+            type = (*generic_ptr)->constraint_type;
+            continue;
+        }
+
+        break;
+    }
+
+    return type;
+}
+
 } // namespace Wasp
