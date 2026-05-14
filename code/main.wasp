@@ -16,19 +16,14 @@ fun foo(a: int)
     a = a + 1
     a.repr()
 
-foo(5)
-
-let name: str = 'jon'
-name.repr()
-let greeting: str = 'hello {name}'
-greeting.repr()
+foo(3)
 
 
 template
     T: int | str
 
 fun greet(a: T)
-    let num = 1
+    let num = 5
     num.repr()
 
 greet<int>(2)

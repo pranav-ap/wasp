@@ -76,6 +76,11 @@ private:
         bool is_static
     );
 
+    void analyze_template_parameter_constructor(
+        TemplateParameterType_ptr generic,
+        const ObjectVector& argument_types
+    );
+
     void visit(ExpressionStatement& statement);
     void visit(FunctionDefinition& statement);
     void visit(OperatorDefinition& statement);

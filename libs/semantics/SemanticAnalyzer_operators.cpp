@@ -61,8 +61,6 @@ Object_ptr SemanticAnalyzer::evaluate_operator(
     const ObjectVector& operand_types
 )
 {
-    bool needs_overload_resolution = false;
-
     for (const auto& type : operand_types)
     {
         Object_ptr actual_type = type;
@@ -74,18 +72,12 @@ Object_ptr SemanticAnalyzer::evaluate_operator(
 
         if (actual_type->is_any_of<ClassType_ptr, TraitType_ptr, VariantType>())
         {
-            needs_overload_resolution = true;
-            break;
+            return resolve_operator_overload(
+                expr,
+                get_operator_name(fixity, op_type),
+                operand_types
+            );
         }
-    }
-
-    if (needs_overload_resolution)
-    {
-        return resolve_operator_overload(
-            expr,
-            get_operator_name(fixity, op_type),
-            operand_types
-        );
     }
 
     if (operand_types.size() == 1)
