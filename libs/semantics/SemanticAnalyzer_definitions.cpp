@@ -1,15 +1,12 @@
 #include <functional>
 #include <memory>
 #include <string>
-#include <vector>
 
 #include "AST.h"
 #include "Doctor.h"
 #include "Objects.h"
 #include "SemanticAnalyzer.h"
 #include "Statement.h"
-#include "SymbolScope.h"
-#include "Workspace.h"
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -30,26 +27,9 @@ void SemanticAnalyzer::visit(TypeAliasDefinition& def)
     );
 
     auto type_alias_type = type_alias_obj->as<TypeAlias_ptr>();
-    bool has_generics = !def.template_params.empty();
-
-    if (has_generics)
-    {
-        enter_scope(ScopeType::TEMPLATE);
-        for (const auto& [name, generic_type] : type_alias_type->generics)
-        {
-            current_scope->define(
-                SymbolFactory::create_template_parameter(name, generic_type)
-            );
-        }
-    }
 
     Object_ptr aliased_type = visit(def.ref_type);
     type_alias_type->underlying_type = aliased_type;
-
-    if (has_generics)
-    {
-        leave_scope();
-    }
 }
 
 void SemanticAnalyzer::visit(EnumDefinition& def)

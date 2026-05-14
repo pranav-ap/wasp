@@ -240,7 +240,12 @@ void SemanticAnalyzer::hoist_import(Import& stmt)
 void SemanticAnalyzer::hoist_function_definition(AbstractCallable& def)
 {
     auto [generics, ordered_names] = evaluate_template_params(def.template_params);
-    bool has_generics = prepare_generic_scope(generics);
+
+    for (const auto& [name, generic_type] : generics)
+    {
+        auto symbol = SymbolFactory::create_template_parameter(name, generic_type);
+        current_scope->define(symbol);
+    }
 
     Object_ptr return_type = def.return_type ? visit(def.return_type)
                                              : workspace->pool->get_none_type();
@@ -249,11 +254,6 @@ void SemanticAnalyzer::hoist_function_definition(AbstractCallable& def)
     for (const auto& [name, type_node] : def.parameters)
     {
         param_types.push_back(visit(type_node));
-    }
-
-    if (has_generics)
-    {
-        leave_scope();
     }
 
     auto signature = make_object(
@@ -281,40 +281,23 @@ void SemanticAnalyzer::hoist_function_definition(AbstractCallable& def)
 }
 
 std::pair<ObjectStringMap, StringVector> SemanticAnalyzer::evaluate_template_params(
-    const std::vector<FieldDefinition>& generic_fields
+    const std::vector<FieldDefinition>& template_params
 )
 {
-    ObjectStringMap generics_map;
+    ObjectStringMap template_params_map;
     StringVector ordered_names;
 
-    for (const auto& field : generic_fields)
+    for (const auto& field : template_params)
     {
-        auto generic_type = make_object(
+        auto template_param_type = make_object(
             std::make_shared<TemplateParameterType>(field.name, visit(field.type))
         );
-        generics_map[field.name] = generic_type;
+
+        template_params_map[field.name] = template_param_type;
         ordered_names.push_back(field.name);
     }
 
-    return {generics_map, ordered_names};
-}
-
-bool SemanticAnalyzer::prepare_generic_scope(const ObjectStringMap& generics)
-{
-    if (generics.empty())
-    {
-        return false;
-    }
-
-    enter_scope(ScopeType::TEMPLATE);
-
-    for (const auto& [name, generic_type] : generics)
-    {
-        auto symbol = SymbolFactory::create_template_parameter(name, generic_type);
-        current_scope->define(symbol);
-    }
-
-    return true;
+    return {template_params_map, ordered_names};
 }
 
 } // namespace Wasp

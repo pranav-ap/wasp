@@ -12,7 +12,6 @@
 #include <ctime>
 #include <memory>
 #include <string>
-#include <vector>
 
 namespace Wasp
 {
@@ -40,8 +39,7 @@ Object_ptr SemanticAnalyzer::resolve_operator_overload(
             "' is not overloaded but used as an operator."
     );
 
-    auto overloads = operator_symbol->get_payload_as<OverloadsData>()
-                         .get_overloads();
+    auto overloads = operator_symbol->get_overloads();
 
     auto [function_symbol, overload_index] = type_system
                                                  ->get_best_function_symbol(
@@ -63,16 +61,31 @@ Object_ptr SemanticAnalyzer::evaluate_operator(
     const ObjectVector& operand_types
 )
 {
+    bool needs_overload_resolution = false;
+
     for (const auto& type : operand_types)
     {
-        if (type->is_any_of<ClassType_ptr, TraitType_ptr>())
+        Object_ptr actual_type = type;
+
+        if (auto generic = try_unwrap_ptr<TemplateParameterType_ptr>(type))
         {
-            return resolve_operator_overload(
-                expr,
-                get_operator_name(fixity, op_type),
-                operand_types
-            );
+            actual_type = generic->constraint_type;
         }
+
+        if (actual_type->is_any_of<ClassType_ptr, TraitType_ptr, VariantType>())
+        {
+            needs_overload_resolution = true;
+            break;
+        }
+    }
+
+    if (needs_overload_resolution)
+    {
+        return resolve_operator_overload(
+            expr,
+            get_operator_name(fixity, op_type),
+            operand_types
+        );
     }
 
     if (operand_types.size() == 1)

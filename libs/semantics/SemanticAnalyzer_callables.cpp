@@ -29,10 +29,19 @@ void SemanticAnalyzer::analyze_callable(
 )
 {
     auto signature = def.symbol->get_type()->as<Signature_ptr>();
-    bool has_generics = prepare_generic_scope(signature->generics);
 
     enter_scope(scope_type);
     return_type_stack.push_back(signature->return_type);
+
+    auto [template_params, ordered_names] = evaluate_template_params(
+        def.template_params
+    );
+
+    for (const auto& [name, generic_type] : template_params)
+    {
+        auto symbol = SymbolFactory::create_template_parameter(name, generic_type);
+        current_scope->define(symbol);
+    }
 
     // Bind Context ('my' or 'our') for Methods
     if (context_type)
@@ -40,7 +49,7 @@ void SemanticAnalyzer::analyze_callable(
         auto context_sym = SymbolFactory::create_variable(
             is_static ? "our" : "my",
             context_type,
-            !def.is_pure, // Context is immutable in pure methods
+            !def.is_pure,
             current_scope->get_closure_depth(),
             current_scope->get_lexical_depth()
         );
@@ -59,6 +68,7 @@ void SemanticAnalyzer::analyze_callable(
             current_scope->get_closure_depth(),
             current_scope->get_lexical_depth()
         );
+
         def.parameter_symbols.push_back(current_scope->define(param_symbol));
     }
 
@@ -74,10 +84,6 @@ void SemanticAnalyzer::analyze_callable(
 
     return_type_stack.pop_back();
     leave_scope();
-    if (has_generics)
-    {
-        leave_scope();
-    }
 }
 
 void SemanticAnalyzer::visit(FunctionDefinition& def)

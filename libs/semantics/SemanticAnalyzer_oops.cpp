@@ -31,6 +31,8 @@ void SemanticAnalyzer::visit(TraitDefinition& def)
 
 void SemanticAnalyzer::analyze_oops_definition(AbstractOopsDefinition& def)
 {
+    enter_scope(ScopeType::CLASS);
+
     auto type_obj = def.symbol->get_type();
     BaseOOPType_ptr oop_type;
 
@@ -43,7 +45,13 @@ void SemanticAnalyzer::analyze_oops_definition(AbstractOopsDefinition& def)
         oop_type = trait_type;
     }
 
-    bool has_generics = prepare_generic_scope(oop_type->generics);
+    auto [generics, ordered_names] = evaluate_template_params(def.template_params);
+
+    for (const auto& [name, generic_type] : generics)
+    {
+        auto symbol = SymbolFactory::create_template_parameter(name, generic_type);
+        current_scope->define(symbol);
+    }
 
     // --- Pass 0: Structure Filling ---
     for (auto& stmt : def.members)
@@ -130,10 +138,7 @@ void SemanticAnalyzer::analyze_oops_definition(AbstractOopsDefinition& def)
         }
     }
 
-    if (has_generics)
-    {
-        leave_scope();
-    }
+    leave_scope();
 }
 
 } // namespace Wasp

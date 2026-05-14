@@ -1,7 +1,7 @@
 import my.types expose *
 
 # template
-#     T: Int
+#     T: Int | String
 
 # infix + (left: T, right: T) => T
 #     return T(left.value + right.value)

@@ -91,8 +91,6 @@ private:
     void visit(Placeholder& statement);
     void visit(Return& statement);
 
-    bool prepare_generic_scope(const ObjectStringMap& generics);
-
     // =========================================================================
     // Expression Analysis
     // =========================================================================
