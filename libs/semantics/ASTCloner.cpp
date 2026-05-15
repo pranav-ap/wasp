@@ -397,7 +397,9 @@ StatementVariant ASTCloner::clone_stmt_data(const StatementVariant& data)
                 {
                     param.second = clone(param.second);
                 }
+
                 wipe_callable(c);
+
                 return c;
             },
 
@@ -505,7 +507,11 @@ StatementVariant ASTCloner::clone_stmt_data(const StatementVariant& data)
                 if (n.expression.has_value())
                 {
                     auto return_value = clone(n.expression.value());
-                    return Return(return_value);
+
+                    if (return_value)
+                    {
+                        return Return(return_value);
+                    }
                 }
 
                 return Return();

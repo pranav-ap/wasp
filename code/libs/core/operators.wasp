@@ -1,17 +1,17 @@
 import my.types expose *
 
-# template
-#     T: Int | String
+template
+    T: Int | String
 
-# infix + (left: T, right: T) => T
-#     return T(left.value + right.value)
-
-
-infix + (left: Int, right: Int) => Int
-    return Int(left.value + right.value)
+infix + (left: T, right: T) => T
+    return T(left.value + right.value)
 
 
-infix + (left: String, right: String) => String
-    return String(left.value + right.value)
+# infix + (left: Int, right: Int) => Int
+#     return Int(left.value + right.value)
+
+
+# infix + (left: String, right: String) => String
+#     return String(left.value + right.value)
 
 

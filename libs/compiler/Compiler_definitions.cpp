@@ -11,7 +11,6 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
-
 void Compiler::visit(TypeAliasDefinition& def)
 {
     int physical_index = get_or_add_local_index(def.symbol);
@@ -19,11 +18,7 @@ void Compiler::visit(TypeAliasDefinition& def)
     if (physical_index != -1)
     {
         emit(OpCode::LOAD_NONE);
-        emit(
-            OpCode::SET_LOCAL,
-            physical_index,
-            "compile-time alias: " + def.name
-        );
+        emit(OpCode::SET_LOCAL, physical_index, "compile-time alias: " + def.name);
     }
 }
 

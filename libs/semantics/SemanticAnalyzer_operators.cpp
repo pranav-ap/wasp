@@ -105,11 +105,13 @@ Object_ptr SemanticAnalyzer::try_resolve_custom_operator(
         {
             auto signature = candidate->get_type()->as<Signature_ptr>();
 
-            if (type_system->assignable(
-                    current_scope,
-                    signature->parameter_types,
-                    operand_types
-                ))
+            bool is_assignable = type_system->assignable(
+                current_scope,
+                signature->parameter_types,
+                operand_types
+            );
+
+            if (is_assignable)
             {
                 return resolve_operator_overload(
                     expr,

@@ -41,8 +41,14 @@ private:
     {
         wipe_resolvable(node);
         node.parameter_symbols.clear();
+
         node.context_symbol = nullptr;
         node.group_symbol = nullptr;
+
+        if (!substitutions.empty())
+        {
+            node.template_params.clear();
+        }
     }
 };
 

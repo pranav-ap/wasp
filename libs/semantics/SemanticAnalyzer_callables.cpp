@@ -57,11 +57,14 @@ void SemanticAnalyzer::analyze_callable(
 
     // Bind Parameters
     def.parameter_symbols.clear();
+
     for (size_t i = 0; i < def.parameters.size(); ++i)
     {
+        Object_ptr actual_type = visit(def.parameters[i].second);
+
         auto param_symbol = SymbolFactory::create_variable(
             def.parameters[i].first,
-            signature->parameter_types[i],
+            actual_type,
             !def.is_pure,
             current_scope->get_closure_depth(),
             current_scope->get_lexical_depth()
@@ -148,7 +151,7 @@ void SemanticAnalyzer::visit(Return& statement)
 void SemanticAnalyzer::visit(Placeholder& statement)
 {
     Doctor::get().assert(
-        statement.type == TokenType::NATIVE,
+        statement.type == TokenType::NATIVE || statement.type == TokenType::PASS,
         WaspStage::Semantics,
         "At this point, I only expected to see 'native' placeholders"
     );
