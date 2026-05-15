@@ -128,9 +128,15 @@ void SemanticAnalyzer::visit(Return& statement)
     );
 
     Object_ptr expected = return_type_stack.back();
-    Object_ptr actual = statement.expression
-                            ? visit(statement.expression.value())
-                            : workspace->pool->get_none_type();
+    expected = unwrap_completely(expected);
+
+    Object_ptr actual = workspace->pool->get_none_type();
+
+    if (statement.expression)
+    {
+        actual = visit(statement.expression.value());
+        actual = unwrap_completely(actual);
+    }
 
     Doctor::get().assert(
         type_system->assignable(current_scope, expected, actual),

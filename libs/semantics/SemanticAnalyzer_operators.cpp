@@ -16,42 +16,111 @@
 namespace Wasp
 {
 
-Object_ptr SemanticAnalyzer::resolve_operator_overload(
+Object_ptr SemanticAnalyzer::try_monomorphize_operator(
     OperatorExpression& expr,
-    const std::string& operator_name,
+    Symbol_ptr function_symbol,
+    Signature_ptr signature,
     const ObjectVector& operand_types
 )
 {
-    Symbol_ptr operator_symbol = current_scope->lookup(operator_name);
+    if (signature->expected_generic_names_order.empty())
+    {
+        return nullptr;
+    }
 
-    Doctor::get().fatal_if_nullptr(
-        operator_symbol,
-        WaspStage::Semantics,
-        "Undefined operator '" + operator_name + "'."
+    ObjectStringMap substitutions = deduce_template_arguments(
+        signature,
+        operand_types
     );
 
-    operator_symbol = operator_symbol->resolve();
+    ObjectVector deduced_args;
+    for (const auto& name : signature->expected_generic_names_order)
+    {
+        deduced_args.push_back(substitutions[name]);
+    }
 
-    Doctor::get().assert(
-        operator_symbol->payload_is<OverloadsData>(),
-        WaspStage::Semantics,
-        "Operator '" + operator_name +
-            "' is not overloaded but used as an operator."
+    std::string specialized_name = function_symbol->name + "_" +
+                                   mangle_object(deduced_args);
+
+    Symbol_ptr specialized_group_symbol = monomorphize_callable_template(
+        function_symbol,
+        substitutions,
+        specialized_name
     );
 
+    expr.symbol = specialized_group_symbol;
+    expr.overload_index = 0;
+
+    auto specialized_overloads = specialized_group_symbol->get_overloads();
+    return unwrap_completely(
+        specialized_overloads[0]->get_type()->as<Signature_ptr>()->return_type
+    );
+}
+
+Object_ptr SemanticAnalyzer::resolve_operator_overload(
+    OperatorExpression& expr,
+    Symbol_ptr operator_symbol,
+    const ObjectVector& operand_types
+)
+{
     auto overloads = operator_symbol->get_overloads();
 
-    auto [function_symbol, overload_index] = type_system
-                                                 ->get_best_function_symbol(
-                                                     current_scope,
-                                                     overloads,
-                                                     operand_types
-                                                 );
+    auto [function_symbol, overload_index] = type_system->get_best_function_symbol(
+        current_scope,
+        overloads,
+        operand_types
+    );
+
+    auto signature = function_symbol->get_type()->as<Signature_ptr>();
+
+    auto specialized_type = try_monomorphize_operator(
+        expr,
+        function_symbol,
+        signature,
+        operand_types
+    );
+
+    if (specialized_type)
+    {
+        return specialized_type;
+    }
 
     expr.symbol = operator_symbol;
     expr.overload_index = overload_index;
 
     return function_symbol->get_type()->as<Signature_ptr>()->return_type;
+}
+
+Object_ptr SemanticAnalyzer::try_resolve_custom_operator(
+    OperatorExpression& expr,
+    Symbol_ptr operator_symbol,
+    const ObjectVector& operand_types
+)
+{
+    if (operator_symbol->payload_is<OverloadsData>())
+    {
+        auto overloads = operator_symbol->get_overloads();
+
+        for (const auto& candidate : overloads)
+        {
+            auto signature = candidate->get_type()->as<Signature_ptr>();
+
+            if (type_system->assignable(
+                    current_scope,
+                    signature->parameter_types,
+                    operand_types
+                ))
+            {
+                return resolve_operator_overload(
+                    expr,
+                    operator_symbol,
+                    operand_types
+                );
+            }
+        }
+    }
+
+    return nullptr;
 }
 
 Object_ptr SemanticAnalyzer::evaluate_operator(
@@ -61,22 +130,19 @@ Object_ptr SemanticAnalyzer::evaluate_operator(
     const ObjectVector& operand_types
 )
 {
-    for (const auto& type : operand_types)
+    std::string op_name = get_operator_name(fixity, op_type);
+
+    if (auto symbol = current_scope->lookup(op_name))
     {
-        Object_ptr actual_type = type;
+        auto resolved_type = try_resolve_custom_operator(
+            expr,
+            symbol->resolve(),
+            operand_types
+        );
 
-        if (auto generic = try_unwrap_ptr<TemplateParameterType_ptr>(type))
+        if (resolved_type)
         {
-            actual_type = generic->constraint_type;
-        }
-
-        if (actual_type->is_any_of<ClassType_ptr, TraitType_ptr, VariantType>())
-        {
-            return resolve_operator_overload(
-                expr,
-                get_operator_name(fixity, op_type),
-                operand_types
-            );
+            return resolved_type;
         }
     }
 

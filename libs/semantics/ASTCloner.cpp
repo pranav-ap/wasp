@@ -25,26 +25,61 @@ namespace Wasp
 
 std::string get_raw_type_name(Object_ptr obj)
 {
-    if (auto cls = try_unwrap_ptr<ClassType_ptr>(obj))
-    {
-        return cls->name;
-    }
-    if (auto trt = try_unwrap_ptr<TraitType_ptr>(obj))
-    {
-        return trt->name;
-    }
-    if (auto alias = try_unwrap_ptr<TypeAlias_ptr>(obj))
-    {
-        return alias->name;
-    }
-    if (auto gen = try_unwrap_ptr<TemplateParameterType_ptr>(obj))
-    {
-        return gen->name;
-    }
+    Doctor::get().fatal_if_nullptr(
+        obj,
+        WaspStage::Semantics,
+        "Cannot get raw type name of nullptr type"
+    );
 
-    Doctor::get().fatal(
-        WaspStage::Compiler,
-        "Attempted to substitute an unnamed/invalid type in AST Cloner."
+    return std::visit(
+        overloaded{
+            [](const ClassType_ptr& c)
+            {
+                return c->name;
+            },
+            [](const TraitType_ptr& t)
+            {
+                return t->name;
+            },
+            [](const TypeAlias_ptr& a)
+            {
+                return get_raw_type_name(a->underlying_type);
+            },
+            [](const TemplateParameterType_ptr& g)
+            {
+                return g->name;
+            },
+
+            [](const IntType&)
+            {
+                return std::string("@int");
+            },
+            [](const FloatType&)
+            {
+                return std::string("@float");
+            },
+            [](const StringType&)
+            {
+                return std::string("@string");
+            },
+            [](const BooleanType&)
+            {
+                return std::string("@bool");
+            },
+            [](const AnyType&)
+            {
+                return std::string("@any");
+            },
+
+            [](const auto&) -> std::string
+            {
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Failed to get raw name of type during AST cloning"
+                );
+            }
+        },
+        obj->value
     );
 }
 
@@ -174,13 +209,6 @@ ExpressionVariant ASTCloner::clone_expr_data(const ExpressionVariant& data)
                 return InterpolatedString{clone(n.parts)};
             },
 
-            // [&](const Identifier& id) -> ExpressionVariant
-            // {
-            //     auto c = id;
-            //     wipe_resolvable(c);
-            //     return c;
-            // },
-
             [&](const Identifier& id) -> ExpressionVariant
             {
                 auto c = id;
@@ -190,18 +218,10 @@ ExpressionVariant ASTCloner::clone_expr_data(const ExpressionVariant& data)
                 {
                     Object_ptr concrete_type = it->second;
 
-                    int c_depth = id.symbol ? id.symbol->closure_depth : 0;
-                    int l_depth = id.symbol ? id.symbol->lexical_depth : 0;
-
-                    // "T" acts as a type. By turning it into a TypeAlias,
-                    // the Semantic Analyzer will safely resolve it to the concrete
-                    // type!
-                    c.symbol = SymbolFactory::create_type_alias(
-                        id.name,
-                        concrete_type,
-                        c_depth,
-                        l_depth
-                    );
+                    if (concrete_type)
+                    {
+                        c.name = get_raw_type_name(concrete_type);
+                    }
                 }
 
                 return c;
@@ -225,7 +245,12 @@ ExpressionVariant ASTCloner::clone_expr_data(const ExpressionVariant& data)
 
             [&](const Constructor& c) -> ExpressionVariant
             {
-                return Constructor(clone(c.construtable), clone(c.values));
+                auto new_constructor = Constructor(
+                    clone(c.construtable),
+                    clone(c.values)
+                );
+
+                return new_constructor;
             },
 
             [&](const TemplateAngular& ta) -> ExpressionVariant
@@ -477,7 +502,13 @@ StatementVariant ASTCloner::clone_stmt_data(const StatementVariant& data)
             },
             [&](const Return& n) -> StatementVariant
             {
-                return Return(n.expression ? clone(*n.expression) : nullptr);
+                if (n.expression.has_value())
+                {
+                    auto return_value = clone(n.expression.value());
+                    return Return(return_value);
+                }
+
+                return Return();
             }
         },
         data
@@ -516,7 +547,6 @@ TypeAnnotationVariant ASTCloner::clone_type_data(const TypeAnnotationVariant& da
 
                     if (concrete_type)
                     {
-                        // Safely extract "int" instead of "class type: Int"
                         c.name = get_raw_type_name(concrete_type);
                     }
                 }

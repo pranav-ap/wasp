@@ -219,6 +219,12 @@ private:
         TemplateParameterType_ptr template_parameter_type
     );
 
+    Object_ptr try_monomorphize_operator(
+        OperatorExpression& expr,
+        Symbol_ptr function_symbol,
+        Signature_ptr signature,
+        const ObjectVector& operand_types
+    );
     Object_ptr call_template_function(
         Call& call,
         TemplateAngular& concrete_template,
@@ -227,7 +233,13 @@ private:
 
     Object_ptr resolve_operator_overload(
         OperatorExpression& expr,
-        const std::string& operator_name,
+        Symbol_ptr operator_symbol,
+        const ObjectVector& operand_types
+    );
+
+    Object_ptr try_resolve_custom_operator(
+        OperatorExpression& expr,
+        Symbol_ptr operator_symbol,
         const ObjectVector& operand_types
     );
 
