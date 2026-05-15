@@ -91,9 +91,6 @@ void Compiler::visit(FunctionDefinition& def)
 
     if (!def.template_params.empty())
     {
-        // 2. Pad the runtime module so the slot isn't left empty
-        emit(OpCode::LOAD_NONE);
-        emit(OpCode::SET_LOCAL, physical_index, "pad generic fun " + def.name);
         return;
     }
 
@@ -119,9 +116,6 @@ void Compiler::visit(OperatorDefinition& def)
 
     if (!def.template_params.empty())
     {
-        // 2. Pad the runtime module for generic blueprints
-        emit(OpCode::LOAD_NONE);
-        emit(OpCode::SET_LOCAL, physical_index, "pad generic operator " + def.name);
         return;
     }
 

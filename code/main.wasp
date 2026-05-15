@@ -2,31 +2,33 @@ import core.io expose *
 import core.types expose *
 import core.operators expose *
 
-let x: int = 1
-x.repr()
+# fun foo(a: int)
+#     a = a + 1
+#     a.repr()
 
-let y: int = 2
-y.repr()
-
-let z: int = x + y
-z.repr()
+# foo(3)
 
 
-fun foo(a: int)
-    a = a + 1
-    a.repr()
+# template
+#     T: int | str
 
-foo(3)
+# fun greet(a: T)
+#     let num = 33
+#     num.repr()
 
+# greet<int>(2)
+# greet<str>('hi')
 
-template
-    T: int | str
+# greet(2)
 
-fun greet(a: T)
-    let num = 33
-    num.repr()
+# let x: int = 1
+# x.repr()
 
-greet<int>(2)
-greet<str>('hi')
+# let y: int = 2
+# y.repr()
 
-greet(2)
+# let z: int = x + y
+# z.repr()
+
+let horse: str = 1 + 'horse'
+horse.repr()
