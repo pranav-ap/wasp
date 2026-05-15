@@ -187,6 +187,12 @@ std::tuple<std::string, std::vector<std::string>, StatementVector> Parser::
         }
         token_pipe.expect_n_indents(body_indent);
 
+        if (token_pipe.consume_optional(TokenType::COMMENT))
+        {
+            token_pipe.advance_pointer();
+            continue;
+        }
+
         if (token_pipe.consume_optional(TokenType::FUN))
         {
             members.push_back(

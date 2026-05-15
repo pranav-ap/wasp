@@ -63,14 +63,31 @@ std::tuple<Symbol_ptr, int> TypeSystem::get_best_function_symbol(
     for (size_t i = 0; i < candidates.size(); ++i)
     {
         auto type = candidates[i]->get_type();
-        if (type && type->is<Signature_ptr>())
+
+        Doctor::get().fatal_if_nullptr(
+            type,
+            WaspStage::Semantics,
+            "Candidate '" + candidates[i]->name + "' is missing a type"
+        );
+
+        Doctor::get().assert(
+            type->is<Signature_ptr>(),
+            WaspStage::Semantics,
+            "Candidate '" + candidates[i]->name + "' should have a Signature type"
+        );
+
+        auto signature = type->as<Signature_ptr>();
+
+        bool is_assignable = assignable(
+            scope,
+            signature->parameter_types,
+            argument_types
+        );
+
+        if (is_assignable)
         {
-            auto sig = type->as<Signature_ptr>();
-            if (assignable(scope, sig->parameter_types, argument_types))
-            {
-                valid_matches.push_back(candidates[i]);
-                match_indices.push_back(static_cast<int>(i));
-            }
+            valid_matches.push_back(candidates[i]);
+            match_indices.push_back(static_cast<int>(i));
         }
     }
 

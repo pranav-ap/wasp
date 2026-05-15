@@ -30,5 +30,9 @@ import core.operators expose *
 # let z: int = x + y
 # z.repr()
 
-let horse: str = 1 + 'horse'
-horse.repr()
+# let horse: str = 1 + 'horse'
+# horse.repr()
+
+class Foo
+    # gfoo
+    a: int
