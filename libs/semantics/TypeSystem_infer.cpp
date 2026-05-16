@@ -38,18 +38,8 @@ bool TypeSystem::equal(
         return true;
     }
 
-    Object_ptr t1 = type_1;
-    Object_ptr t2 = type_2;
-
-    // Resolve Aliases
-    if (t1->is<TypeAlias_ptr>())
-    {
-        t1 = unwrap_type_alias(t1);
-    }
-    if (t2->is<TypeAlias_ptr>())
-    {
-        t2 = unwrap_type_alias(t2);
-    }
+    Object_ptr t1 = resolve_type(type_1, false);
+    Object_ptr t2 = resolve_type(type_2, false);
 
     if (t1 == t2)
     {
@@ -250,63 +240,55 @@ bool TypeSystem::assignable(
         return false;
     }
 
-    // Resolve Aliases
-    if (lhs_type->is<TypeAlias_ptr>())
-    {
-        return assignable(scope, unwrap_type_alias(lhs_type), rhs_type);
-    }
+    Object_ptr lhs = resolve_type(lhs_type, false);
+    Object_ptr rhs = resolve_type(rhs_type, false);
 
-    if (rhs_type->is<TypeAlias_ptr>())
-    {
-        return assignable(scope, lhs_type, unwrap_type_alias(rhs_type));
-    }
-
-    if (equal(scope, lhs_type, rhs_type))
+    if (equal(scope, lhs, rhs))
     {
         return true;
     }
 
     // Generics
-    if (rhs_type->is<TemplateParameterType_ptr>())
+    if (rhs->is<TemplateParameterType_ptr>())
     {
         return assignable(
             scope,
-            lhs_type,
-            rhs_type->as<TemplateParameterType_ptr>()->constraint_type
+            lhs,
+            rhs->as<TemplateParameterType_ptr>()->constraint_type
         );
     }
-    if (lhs_type->is<TemplateParameterType_ptr>())
+    if (lhs->is<TemplateParameterType_ptr>())
     {
         return assignable(
             scope,
-            lhs_type->as<TemplateParameterType_ptr>()->constraint_type,
-            rhs_type
+            lhs->as<TemplateParameterType_ptr>()->constraint_type,
+            rhs
         );
     }
 
     // Variants
-    if (rhs_type->is<VariantType>())
+    if (rhs->is<VariantType>())
     {
-        auto rhs_var = rhs_type->as<VariantType>();
+        auto rhs_var = rhs->as<VariantType>();
         return std::all_of(
             rhs_var.types.begin(),
             rhs_var.types.end(),
             [&](Object_ptr t)
             {
-                return assignable(scope, lhs_type, t);
+                return assignable(scope, lhs, t);
             }
         );
     }
 
-    if (lhs_type->is<VariantType>())
+    if (lhs->is<VariantType>())
     {
-        auto lhs_var = lhs_type->as<VariantType>();
+        auto lhs_var = lhs->as<VariantType>();
         return std::any_of(
             lhs_var.types.begin(),
             lhs_var.types.end(),
             [&](Object_ptr t)
             {
-                return assignable(scope, t, rhs_type);
+                return assignable(scope, t, rhs);
             }
         );
     }
@@ -317,23 +299,8 @@ bool TypeSystem::assignable(
             {
                 return true;
             },
-            [](IntType const&, IntType const&)
-            {
-                return true;
-            },
-            [](FloatType const&, FloatType const&)
-            {
-                return true;
-            },
-            [](BooleanType const&, BooleanType const&)
-            {
-                return true;
-            },
-            [](StringType const&, StringType const&)
-            {
-                return true;
-            },
 
+            // Literals assigned to Primitives
             [](IntType const&, LiteralType const& r)
             {
                 return r.value->is<IntObject>();
@@ -353,10 +320,10 @@ bool TypeSystem::assignable(
 
             [](LiteralType const& l, LiteralType const& r)
             {
-                // equal() would have already returned true
                 return false;
             },
 
+            // Collections
             [&](ListType const& t1, ListType const& t2)
             {
                 return assignable(scope, t1.element_type, t2.element_type);
@@ -380,8 +347,8 @@ bool TypeSystem::assignable(
                 return false;
             }
         },
-        lhs_type->value,
-        rhs_type->value
+        lhs->value,
+        rhs->value
     );
 }
 
@@ -410,6 +377,27 @@ bool TypeSystem::assignable(
 // Inference
 // ============================================================================
 
+ObjectStringMap TypeSystem::infer_template_arguments(
+    Signature_ptr signature,
+    const ObjectVector& argument_types
+)
+{
+    ObjectStringMap substitutions;
+
+    for (size_t i = 0; i < signature->parameter_types.size(); ++i)
+    {
+        auto param_type = signature->parameter_types[i];
+        param_type = resolve_type(param_type, false);
+
+        if (auto* generic_ptr = param_type->try_as<TemplateParameterType_ptr>())
+        {
+            substitutions[(*generic_ptr)->name] = argument_types[i];
+        }
+    }
+
+    return substitutions;
+}
+
 Object_ptr TypeSystem::infer(
     SymbolScope_ptr scope,
     Object_ptr left_type,
@@ -417,22 +405,8 @@ Object_ptr TypeSystem::infer(
     Object_ptr right_type
 )
 {
-    if (left_type->is<TypeAlias_ptr>())
-    {
-        left_type = left_type->as<TypeAlias_ptr>()->underlying_type;
-    }
-    if (right_type->is<TypeAlias_ptr>())
-    {
-        right_type = right_type->as<TypeAlias_ptr>()->underlying_type;
-    }
-    if (left_type->is<TemplateParameterType_ptr>())
-    {
-        left_type = left_type->as<TemplateParameterType_ptr>()->constraint_type;
-    }
-    if (right_type->is<TemplateParameterType_ptr>())
-    {
-        right_type = right_type->as<TemplateParameterType_ptr>()->constraint_type;
-    }
+    left_type = resolve_type(left_type, true);
+    right_type = resolve_type(right_type, true);
 
     if (left_type->is<VariantType>())
     {
@@ -554,15 +528,7 @@ Object_ptr TypeSystem::infer(
     TokenType op
 )
 {
-    if (operand_type->is<TypeAlias_ptr>())
-    {
-        operand_type = operand_type->as<TypeAlias_ptr>()->underlying_type;
-    }
-    if (operand_type->is<TemplateParameterType_ptr>())
-    {
-        operand_type = operand_type->as<TemplateParameterType_ptr>()
-                           ->constraint_type;
-    }
+    operand_type = resolve_type(operand_type, true);
 
     if (operand_type->is<VariantType>())
     {

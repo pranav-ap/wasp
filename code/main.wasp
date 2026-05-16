@@ -2,37 +2,43 @@ import core.io expose *
 import core.types expose *
 import core.operators expose *
 
-# fun foo(a: int)
-#     a = a + 1
-#     a.repr()
 
-# foo(3)
+template
+    T: int | str
+
+fun greet(a: T)
+    let num = 33
+    num.repr()
+
+fun greet(a: int)
+    let num = 22
+    num.repr()
+
+# works
+greet<int>(2)
+greet<str>('hi')
+
+# ambiguous call
+greet(2)
 
 
-# template
-#     T: int | str
+fun foo(a: int)
+    a = a + 1
+    a.repr()
 
-# fun greet(a: T)
-#     let num = 33
-#     num.repr()
+foo(3)
 
-# greet<int>(2)
-# greet<str>('hi')
 
-# greet(2)
 
-# let x: int = 1
-# x.repr()
+let x: int = 1
+x.repr()
 
-# let y: int = 2
-# y.repr()
+let y: int = 2
+y.repr()
 
-# let z: int = x + y
-# z.repr()
+let z: int = x + y
+z.repr()
 
-# let horse: str = 1 + 'horse'
-# horse.repr()
+let horse: str = 1 + 'horse' + 2
+horse.repr()
 
-class Foo
-    # gfoo
-    a: int

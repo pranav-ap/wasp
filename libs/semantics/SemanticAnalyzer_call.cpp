@@ -101,32 +101,6 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
     );
 }
 
-ObjectStringMap SemanticAnalyzer::deduce_template_arguments(
-    Signature_ptr signature,
-    const ObjectVector& argument_types
-)
-{
-    ObjectStringMap substitutions;
-
-    for (size_t i = 0; i < signature->parameter_types.size(); ++i)
-    {
-        auto param_type = signature->parameter_types[i];
-
-        // Peel back the layers to find the template parameter
-        while (param_type->is<TypeAlias_ptr>())
-        {
-            param_type = param_type->as<TypeAlias_ptr>()->underlying_type;
-        }
-
-        if (auto* generic_ptr = param_type->try_as<TemplateParameterType_ptr>())
-        {
-            substitutions[(*generic_ptr)->name] = argument_types[i];
-        }
-    }
-
-    return substitutions;
-}
-
 Symbol_ptr SemanticAnalyzer::monomorphize_callable_template(
     Symbol_ptr blueprint_symbol,
     const ObjectStringMap& substitutions,
@@ -187,7 +161,7 @@ Object_ptr SemanticAnalyzer::resolve_implicit_template(
     const ObjectVector& argument_types
 )
 {
-    ObjectStringMap substitutions = deduce_template_arguments(
+    ObjectStringMap substitutions = type_system->infer_template_arguments(
         signature,
         argument_types
     );
@@ -232,7 +206,7 @@ Object_ptr SemanticAnalyzer::resolve_standard_overload(
 
     auto candidates = overload_symbol->get_overloads();
 
-    auto [function_symbol, overload_index] = type_system->get_best_function_symbol(
+    auto [function_symbol, raw_index] = type_system->get_best_function_symbol(
         current_scope,
         candidates,
         argument_types
@@ -250,7 +224,24 @@ Object_ptr SemanticAnalyzer::resolve_standard_overload(
         );
     }
 
-    call.overload_index = overload_index;
+    int runtime_index = 0;
+
+    for (const auto& candidate : candidates)
+    {
+        if (candidate == function_symbol)
+        {
+            break;
+        }
+
+        auto cand_sig = candidate->get_type()->as<Signature_ptr>();
+
+        if (cand_sig->expected_generic_names_order.empty())
+        {
+            runtime_index++;
+        }
+    }
+
+    call.overload_index = runtime_index;
     return signature->return_type;
 }
 

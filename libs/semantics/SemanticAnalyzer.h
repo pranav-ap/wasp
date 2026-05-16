@@ -12,6 +12,7 @@
 #include "Workspace.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -79,10 +80,6 @@ private:
         const ObjectVector& argument_types
     );
 
-    ObjectStringMap deduce_template_arguments(
-        Signature_ptr signature,
-        const ObjectVector& argument_types
-    );
     void hoist_function_definition(AbstractCallable& def);
 
     void analyze_callable(
@@ -219,12 +216,13 @@ private:
         TemplateParameterType_ptr template_parameter_type
     );
 
-    Object_ptr try_monomorphize_operator(
+    std::optional<Object_ptr> try_monomorphize_operator(
         OperatorExpression& expr,
         Symbol_ptr function_symbol,
         Signature_ptr signature,
         const ObjectVector& operand_types
     );
+
     Object_ptr call_template_function(
         Call& call,
         TemplateAngular& concrete_template,

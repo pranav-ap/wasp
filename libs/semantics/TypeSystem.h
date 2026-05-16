@@ -22,35 +22,9 @@ struct TypeSystem
 
     TypeSystem(ConstantPool_ptr pool) : pool(pool) {};
 
-    SymbolVector::iterator find_matching_signature(
-        SymbolScope_ptr scope,
-        SymbolVector& target_vector,
-        const ObjectVector& parameter_types
-    );
-
-    std::tuple<Symbol_ptr, int> get_best_function_symbol(
-        SymbolScope_ptr scope,
-        const SymbolVector& candidates,
-        const ObjectVector& argument_types
-    ) const;
-
-    std::tuple<Object_ptr, int> get_best_function_object(
-        SymbolScope_ptr scope,
-        const ObjectVector& candidates,
-        const ObjectVector& argument_types
-    ) const;
-
-    void validate_new_function_overload(
-        SymbolScope_ptr scope,
-        std::string& function_name,
-        const Symbol_ptr new_func_symbol
-    );
-
-    void validate_new_method_overload(
-        SymbolScope_ptr scope,
-        ObjectVector existing_overloads,
-        const Symbol_ptr new_method_symbol
-    );
+    // =========================================================================
+    // Type Equality & Assignability
+    // =========================================================================
 
     bool equal(
         SymbolScope_ptr scope,
@@ -82,6 +56,15 @@ struct TypeSystem
         const ObjectVector& type_vector_2
     ) const;
 
+    // =========================================================================
+    // Type Inference & Extraction
+    // =========================================================================
+
+    ObjectStringMap infer_template_arguments(
+        Signature_ptr signature,
+        const ObjectVector& argument_types
+    );
+
     Object_ptr infer(
         SymbolScope_ptr scope,
         Object_ptr left_type,
@@ -98,6 +81,54 @@ struct TypeSystem
         const Object_ptr type
     ) const;
 
+    // =========================================================================
+    // Overload Resolution & Selection
+    // =========================================================================
+
+    SymbolVector::iterator find_matching_signature(
+        SymbolScope_ptr scope,
+        SymbolVector& target_vector,
+        const ObjectVector& parameter_types
+    );
+
+    std::tuple<Symbol_ptr, int> get_best_function_symbol(
+        SymbolScope_ptr scope,
+        const SymbolVector& candidates,
+        const ObjectVector& argument_types
+    ) const;
+
+    std::tuple<Object_ptr, int> get_best_function_object(
+        SymbolScope_ptr scope,
+        const ObjectVector& candidates,
+        const ObjectVector& argument_types
+    ) const;
+
+    // =========================================================================
+    // Validation
+    // =========================================================================
+
+    void validate_new_function_overload(
+        SymbolScope_ptr scope,
+        std::string& function_name,
+        const Symbol_ptr new_func_symbol
+    );
+
+    void validate_new_method_overload(
+        SymbolScope_ptr scope,
+        ObjectVector existing_overloads,
+        const Symbol_ptr new_method_symbol
+    );
+
+    // =========================================================================
+    // Generics & Templates
+    // =========================================================================
+
+    struct SpecializationResult
+    {
+        ObjectVector signatures;
+        std::vector<int> original_indices;
+    };
+
     StringVector get_generics_declaration_order(const Object_ptr& base) const;
 
     std::vector<std::pair<Symbol_ptr, int>> filter_by_generic_arity(
@@ -110,18 +141,14 @@ struct TypeSystem
         const ObjectStringMap& substitutions
     ) const;
 
-    struct SpecializationResult
-    {
-        ObjectVector signatures;
-        std::vector<int> original_indices;
-    };
-
     SpecializationResult specialize_candidates(
         const std::vector<std::pair<Symbol_ptr, int>>& candidates,
         const ObjectVector& generic_args
     ) const;
 
+    // =========================================================================
     // Type Checks
+    // =========================================================================
 
     bool is_boolean_type(const Object_ptr type) const;
     bool is_number_type(const Object_ptr type) const;
@@ -129,12 +156,20 @@ struct TypeSystem
     bool is_float_type(const Object_ptr type) const;
     bool is_string_type(const Object_ptr type) const;
     bool is_none_type(const Object_ptr type) const;
-    bool is_condition_type(SymbolScope_ptr scope, const Object_ptr condition_type) const;
-    bool is_spreadable_type(SymbolScope_ptr scope, const Object_ptr condition_type) const;
+    bool is_condition_type(
+        SymbolScope_ptr scope,
+        const Object_ptr condition_type
+    ) const;
+    bool is_spreadable_type(
+        SymbolScope_ptr scope,
+        const Object_ptr condition_type
+    ) const;
     bool is_iterable_type(SymbolScope_ptr scope, const Object_ptr type) const;
     bool is_key_type(SymbolScope_ptr scope, const Object_ptr type) const;
 
+    // =========================================================================
     // Assertions
+    // =========================================================================
 
     void expect_boolean_type(const Object_ptr type) const;
     void expect_number_type(const Object_ptr type) const;
@@ -142,15 +177,33 @@ struct TypeSystem
     void expect_float_type(const Object_ptr type) const;
     void expect_string_type(const Object_ptr type) const;
     void expect_none_type(const Object_ptr type) const;
-    void expect_condition_type(SymbolScope_ptr scope, const Object_ptr condition_type) const;
-    void expect_spreadable_type(SymbolScope_ptr scope, const Object_ptr condition_type) const;
+    void expect_condition_type(
+        SymbolScope_ptr scope,
+        const Object_ptr condition_type
+    ) const;
+    void expect_spreadable_type(
+        SymbolScope_ptr scope,
+        const Object_ptr condition_type
+    ) const;
     void expect_iterable_type(SymbolScope_ptr scope, const Object_ptr type) const;
     void expect_key_type(SymbolScope_ptr scope, const Object_ptr type) const;
 
+    // =========================================================================
     // Utilities
+    // =========================================================================
 
-    bool any_eq(SymbolScope_ptr scope, const ObjectVector& vec, const Object_ptr x) const;
-    ObjectVector remove_duplicates(SymbolScope_ptr scope, const ObjectVector& vec) const;
+    bool any_eq(
+        SymbolScope_ptr scope,
+        const ObjectVector& vec,
+        const Object_ptr x
+    ) const;
+
+    ObjectVector remove_duplicates(
+        SymbolScope_ptr scope,
+        const ObjectVector& vec
+    ) const;
+
+    Object_ptr resolve_type(Object_ptr type, bool resolve_generics = false) const;
 };
 
 using TypeSystem_ptr = std::shared_ptr<TypeSystem>;

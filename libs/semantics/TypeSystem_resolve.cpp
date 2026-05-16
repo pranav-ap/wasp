@@ -97,6 +97,36 @@ std::tuple<Symbol_ptr, int> TypeSystem::get_best_function_symbol(
         "No matching signature found"
     );
 
+    // ========================================================================
+    // Tie-Breaker: Concrete > Template
+    // ========================================================================
+    if (valid_matches.size() > 1)
+    {
+        Symbol_ptr best_concrete = nullptr;
+        int best_concrete_index = -1;
+        int concrete_count = 0;
+
+        for (size_t i = 0; i < valid_matches.size(); ++i)
+        {
+            auto signature = valid_matches[i]->get_type()->as<Signature_ptr>();
+
+            // If the signature has no expected generics, it is purely concrete
+            if (signature->expected_generic_names_order.empty())
+            {
+                concrete_count++;
+                best_concrete = valid_matches[i];
+                best_concrete_index = match_indices[i];
+            }
+        }
+
+        if (concrete_count == 1)
+        {
+            return {best_concrete, best_concrete_index};
+        }
+
+        Doctor::get().fatal(WaspStage::Semantics, "Ambiguous call");
+    }
+
     Doctor::get()
         .assert(valid_matches.size() == 1, WaspStage::Semantics, "Ambiguous call");
 
@@ -485,4 +515,20 @@ Object_ptr TypeSystem::substitute_generics(
 
     return substitute_internal(substitute_internal, type);
 }
+
+Object_ptr TypeSystem::resolve_type(Object_ptr type, bool resolve_generics) const
+{
+    while (type && type->is<TypeAlias_ptr>())
+    {
+        type = type->as<TypeAlias_ptr>()->underlying_type;
+    }
+
+    if (resolve_generics && type && type->is<TemplateParameterType_ptr>())
+    {
+        type = type->as<TemplateParameterType_ptr>()->constraint_type;
+    }
+
+    return type;
+}
+
 } // namespace Wasp

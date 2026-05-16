@@ -1,5 +1,4 @@
 #include "AST.h"
-#include "Doctor.h"
 #include "Expression.h"
 #include "Objects.h"
 #include "SemanticAnalyzer.h"
@@ -11,12 +10,13 @@
 #include <cctype>
 #include <ctime>
 #include <memory>
+#include <optional>
 #include <string>
 
 namespace Wasp
 {
 
-Object_ptr SemanticAnalyzer::try_monomorphize_operator(
+std::optional<Object_ptr> SemanticAnalyzer::try_monomorphize_operator(
     OperatorExpression& expr,
     Symbol_ptr function_symbol,
     Signature_ptr signature,
@@ -25,18 +25,23 @@ Object_ptr SemanticAnalyzer::try_monomorphize_operator(
 {
     if (signature->expected_generic_names_order.empty())
     {
-        return nullptr;
+        return std::nullopt;
     }
 
-    ObjectStringMap substitutions = deduce_template_arguments(
+    ObjectStringMap substitutions = type_system->infer_template_arguments(
         signature,
         operand_types
     );
 
+    if (substitutions.size() != signature->expected_generic_names_order.size())
+    {
+        return std::nullopt;
+    }
+
     ObjectVector deduced_args;
     for (const auto& name : signature->expected_generic_names_order)
     {
-        deduced_args.push_back(substitutions[name]);
+        deduced_args.push_back(substitutions.at(name));
     }
 
     std::string specialized_name = function_symbol->name + "_" +
@@ -65,7 +70,7 @@ Object_ptr SemanticAnalyzer::resolve_operator_overload(
 {
     auto overloads = operator_symbol->get_overloads();
 
-    auto [function_symbol, overload_index] = type_system->get_best_function_symbol(
+    auto [function_symbol, raw_index] = type_system->get_best_function_symbol(
         current_scope,
         overloads,
         operand_types
@@ -73,6 +78,9 @@ Object_ptr SemanticAnalyzer::resolve_operator_overload(
 
     auto signature = function_symbol->get_type()->as<Signature_ptr>();
 
+    // 1. If it's a template, instantiate it.
+    // (try_monomorphize_operator already handles setting expr.overload_index = 0
+    // internally)
     auto specialized_type = try_monomorphize_operator(
         expr,
         function_symbol,
@@ -80,15 +88,35 @@ Object_ptr SemanticAnalyzer::resolve_operator_overload(
         operand_types
     );
 
-    if (specialized_type)
+    if (specialized_type.has_value())
     {
-        return specialized_type;
+        return specialized_type.value();
+    }
+
+    // ========================================================================
+    // 2. It's a concrete operator! Calculate the Runtime Index
+    // ========================================================================
+    int runtime_index = 0;
+    for (const auto& candidate : overloads)
+    {
+        if (candidate == function_symbol)
+        {
+            break; // Found our winner, stop counting
+        }
+
+        auto cand_sig = candidate->get_type()->as<Signature_ptr>();
+
+        // Only count it if it's concrete (templates are stripped by the VM)
+        if (cand_sig->expected_generic_names_order.empty())
+        {
+            runtime_index++;
+        }
     }
 
     expr.symbol = operator_symbol;
-    expr.overload_index = overload_index;
+    expr.overload_index = runtime_index;
 
-    return function_symbol->get_type()->as<Signature_ptr>()->return_type;
+    return signature->return_type;
 }
 
 Object_ptr SemanticAnalyzer::try_resolve_custom_operator(
