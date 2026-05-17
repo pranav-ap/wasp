@@ -68,7 +68,7 @@ Object_ptr SemanticAnalyzer::define_variable(Assignment& assign)
         resolved_type = explicit_type;
     }
 
-    if (Symbol_ptr hoisted_symbol = current_scope->lookup(symbol_name))
+    if (Symbol_ptr hoisted_symbol = current_scope->lookup_local(symbol_name))
     {
         Doctor::get().assert(
             hoisted_symbol->get_type() == nullptr,

@@ -192,6 +192,18 @@ Symbol_ptr SymbolScope::define_method(Symbol_ptr new_symbol)
     return new_symbol;
 }
 
+Symbol_ptr SymbolScope::lookup_local(const std::string& name) const
+{
+    auto it = symbols.find(name);
+
+    if (it != symbols.end())
+    {
+        return it->second;
+    }
+
+    return nullptr;
+}
+
 Symbol_ptr SymbolScope::lookup(const std::string& name) const
 {
     const SymbolScope* current = this;

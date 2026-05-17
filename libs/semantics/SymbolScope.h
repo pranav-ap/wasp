@@ -48,6 +48,7 @@ public:
 
     Symbol_ptr define(Symbol_ptr symbol);
     Symbol_ptr lookup(const std::string& name) const;
+    Symbol_ptr lookup_local(const std::string& name) const;
 
     bool contains_in_current_scope(const std::string& name) const;
     bool contains_in_any_scope(const std::string& name) const;

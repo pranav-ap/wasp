@@ -3,44 +3,44 @@ import core.types expose *
 import core.operators expose *
 
 
-# template
-#     T: int | str
+template
+    T: int | str
 
-# fun greet(a: T)
-#     let num = 33
-#     num.repr()
+fun greet(a: T)
+    let num = 33
+    num.repr()
 
-# fun greet(a: int)
-#     let num = 22
-#     num.repr()
+fun greet(a: int)
+    let num = 22
+    num.repr()
 
-# # works
-# greet<int>(2)
-# greet<str>('hi')
+# works
+greet<int>(2)
+greet<str>('hi')
 
-# # ambiguous call
-# greet(2)
-
-
-# fun foo(a: int)
-#     a = a + 1
-#     a.repr()
-
-# foo(3)
+# ambiguous call
+greet(2)
 
 
+fun foo(a: int)
+    a = a + 1
+    a.repr()
 
-# let x: int = 1
-# x.repr()
+foo(3)
 
-# let y: int = 2
-# y.repr()
 
-# let z: int = x + y
-# z.repr()
 
-# let horse: str = 1 + 'horse' + 2
-# horse.repr()
+let x: int = 1
+x.repr()
+
+let y: int = 2
+y.repr()
+
+let z: int = x + y
+z.repr()
+
+let horse: str = 1 + 'horse' + 2
+horse.repr()
 
 template
     T: int | float

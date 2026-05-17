@@ -145,7 +145,7 @@ void SemanticAnalyzer::visit(Placeholder& statement)
     Doctor::get().assert(
         statement.type == TokenType::NATIVE || statement.type == TokenType::PASS,
         WaspStage::Semantics,
-        "At this point, I only expected to see 'native' placeholders"
+        "Expected 'native' or 'pass' placeholder"
     );
 
     Doctor::get().fatal_if_nullptr(
@@ -154,14 +154,16 @@ void SemanticAnalyzer::visit(Placeholder& statement)
         "Current module is nullptr while analyzing native statement"
     );
 
-    std::string path = current_module->absolute_filepath.generic_string();
+    if (statement.type == TokenType::NATIVE)
+    {
+        std::string path = current_module->absolute_filepath.generic_string();
 
-    Doctor::get().assert(
-        path.find("/libs/core/") != std::string::npos,
-        WaspStage::Semantics,
-        "The 'native' keyword is strictly reserved for internal core "
-        "libraries."
-    );
+        Doctor::get().assert(
+            path.find("/libs/core/") != std::string::npos,
+            WaspStage::Semantics,
+            "The 'native' keyword is strictly reserved for internal core libraries."
+        );
+    }
 }
 
 } // namespace Wasp
