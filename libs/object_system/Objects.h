@@ -730,4 +730,6 @@ bool are_equal_types_unordered(
 
 Object_ptr convert_type(Object_ptr type, Object_ptr operand);
 Object_ptr unwrap_type_alias(Object_ptr type);
+Object_ptr unwrap_completely(Object_ptr type);
+
 } // namespace Wasp

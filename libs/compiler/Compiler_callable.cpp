@@ -86,12 +86,13 @@ void Compiler::compile_function_closure(
 
 void Compiler::visit(FunctionDefinition& def)
 {
+    // 1. ALWAYS allocate the index to stay synced with Semantic Analyzer
+    int physical_index = get_or_add_local_index(def.group_symbol);
+
     if (!def.template_params.empty())
     {
         return;
     }
-
-    int physical_index = get_or_add_local_index(def.group_symbol);
 
     if (def.symbol->is_native())
     {
@@ -110,12 +111,13 @@ void Compiler::visit(FunctionDefinition& def)
 
 void Compiler::visit(OperatorDefinition& def)
 {
+    // 1. ALWAYS allocate the index
+    int physical_index = get_or_add_local_index(def.group_symbol);
+
     if (!def.template_params.empty())
     {
         return;
     }
-
-    int physical_index = get_or_add_local_index(def.group_symbol);
 
     if (def.symbol->is_native())
     {

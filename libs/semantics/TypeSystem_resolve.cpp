@@ -63,14 +63,31 @@ std::tuple<Symbol_ptr, int> TypeSystem::get_best_function_symbol(
     for (size_t i = 0; i < candidates.size(); ++i)
     {
         auto type = candidates[i]->get_type();
-        if (type && type->is<Signature_ptr>())
+
+        Doctor::get().fatal_if_nullptr(
+            type,
+            WaspStage::Semantics,
+            "Candidate '" + candidates[i]->name + "' is missing a type"
+        );
+
+        Doctor::get().assert(
+            type->is<Signature_ptr>(),
+            WaspStage::Semantics,
+            "Candidate '" + candidates[i]->name + "' should have a Signature type"
+        );
+
+        auto signature = type->as<Signature_ptr>();
+
+        bool is_assignable = assignable(
+            scope,
+            signature->parameter_types,
+            argument_types
+        );
+
+        if (is_assignable)
         {
-            auto sig = type->as<Signature_ptr>();
-            if (assignable(scope, sig->parameter_types, argument_types))
-            {
-                valid_matches.push_back(candidates[i]);
-                match_indices.push_back(static_cast<int>(i));
-            }
+            valid_matches.push_back(candidates[i]);
+            match_indices.push_back(static_cast<int>(i));
         }
     }
 
@@ -79,6 +96,36 @@ std::tuple<Symbol_ptr, int> TypeSystem::get_best_function_symbol(
         WaspStage::Semantics,
         "No matching signature found"
     );
+
+    // ========================================================================
+    // Tie-Breaker: Concrete > Template
+    // ========================================================================
+    if (valid_matches.size() > 1)
+    {
+        Symbol_ptr best_concrete = nullptr;
+        int best_concrete_index = -1;
+        int concrete_count = 0;
+
+        for (size_t i = 0; i < valid_matches.size(); ++i)
+        {
+            auto signature = valid_matches[i]->get_type()->as<Signature_ptr>();
+
+            // If the signature has no expected generics, it is purely concrete
+            if (signature->expected_generic_names_order.empty())
+            {
+                concrete_count++;
+                best_concrete = valid_matches[i];
+                best_concrete_index = match_indices[i];
+            }
+        }
+
+        if (concrete_count == 1)
+        {
+            return {best_concrete, best_concrete_index};
+        }
+
+        Doctor::get().fatal(WaspStage::Semantics, "Ambiguous call");
+    }
 
     Doctor::get()
         .assert(valid_matches.size() == 1, WaspStage::Semantics, "Ambiguous call");
@@ -468,4 +515,20 @@ Object_ptr TypeSystem::substitute_generics(
 
     return substitute_internal(substitute_internal, type);
 }
+
+Object_ptr TypeSystem::resolve_type(Object_ptr type, bool resolve_generics) const
+{
+    while (type && type->is<TypeAlias_ptr>())
+    {
+        type = type->as<TypeAlias_ptr>()->underlying_type;
+    }
+
+    if (resolve_generics && type && type->is<TemplateParameterType_ptr>())
+    {
+        type = type->as<TemplateParameterType_ptr>()->constraint_type;
+    }
+
+    return type;
+}
+
 } // namespace Wasp

@@ -505,7 +505,7 @@ std::string mangle_object(Object_ptr value)
             },
             [](const NamedDefinitionType& obj) -> std::string
             {
-                return "D" + std::to_string(obj.name.length()) + obj.name;
+                return "D" + obj.name;
             },
             [](const Signature_ptr&) -> std::string
             {
@@ -530,7 +530,7 @@ std::string mangle_object(Object_ptr value)
             },
             [](const StringObject& obj) -> std::string
             {
-                return "Os" + std::to_string(obj.value.length()) + obj.value;
+                return "Os" + obj.value;
             },
             [](const BooleanObject& obj) -> std::string
             {
@@ -606,28 +606,27 @@ std::string mangle_object(Object_ptr value)
 
             [](const ModuleType_ptr& mod) -> std::string
             {
-                return "M" + std::to_string(mod->name.length()) + mod->name;
+                return "M" + mod->name;
             },
             [](const ClassType_ptr& cls) -> std::string
             {
-                return "C" + std::to_string(cls->name.length()) + cls->name;
+                return "C" + cls->name;
             },
             [](const TraitType_ptr& trt) -> std::string
             {
-                return "T" + std::to_string(trt->name.length()) + trt->name;
+                return "T" + trt->name;
             },
             [](const EnumType_ptr& enum_type) -> std::string
             {
-                return "E" + std::to_string(enum_type->name.length()) +
-                       enum_type->name;
+                return "E" + enum_type->name;
             },
             [](const TypeAlias_ptr& alias) -> std::string
             {
-                return "a" + std::to_string(alias->name.length()) + alias->name;
+                return "a" + alias->name;
             },
             [](const TemplateParameterType_ptr& gen) -> std::string
             {
-                return "G" + std::to_string(gen->name.length()) + gen->name;
+                return "G" + gen->name;
             },
 
             [](const auto&) -> std::string
@@ -650,6 +649,34 @@ Object_ptr unwrap_type_alias(Object_ptr type)
     while (type->is<TypeAlias_ptr>())
     {
         type = type->as<TypeAlias_ptr>()->underlying_type;
+    }
+
+    return type;
+}
+
+Object_ptr unwrap_completely(Object_ptr type)
+{
+    Doctor::get().fatal_if_nullptr(
+        type,
+        WaspStage::Semantics,
+        "Attempted to unwrap a null type pointer"
+    );
+
+    while (true)
+    {
+        if (type->is<TypeAlias_ptr>())
+        {
+            type = type->as<TypeAlias_ptr>()->underlying_type;
+            continue;
+        }
+
+        if (auto* generic_ptr = type->try_as<TemplateParameterType_ptr>())
+        {
+            type = (*generic_ptr)->constraint_type;
+            continue;
+        }
+
+        break;
     }
 
     return type;

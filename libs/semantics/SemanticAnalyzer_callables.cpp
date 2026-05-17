@@ -1,7 +1,5 @@
 #include <cstddef>
-#include <memory>
 #include <string>
-#include <vector>
 
 #include "AST.h"
 #include "Doctor.h"
@@ -59,11 +57,14 @@ void SemanticAnalyzer::analyze_callable(
 
     // Bind Parameters
     def.parameter_symbols.clear();
+
     for (size_t i = 0; i < def.parameters.size(); ++i)
     {
+        Object_ptr actual_type = visit(def.parameters[i].second);
+
         auto param_symbol = SymbolFactory::create_variable(
             def.parameters[i].first,
-            signature->parameter_types[i],
+            actual_type,
             !def.is_pure,
             current_scope->get_closure_depth(),
             current_scope->get_lexical_depth()
@@ -101,22 +102,14 @@ void SemanticAnalyzer::visit(FunctionDefinition& def)
 
 void SemanticAnalyzer::visit(OperatorDefinition& def)
 {
-    if (def.fixity == TokenType::INFIX)
-    {
-        Doctor::get().assert(
-            def.parameters.size() == 2,
-            WaspStage::Semantics,
-            "Infix operator '" + def.name + "' must have 2 parameters."
-        );
-    }
-    else
-    {
-        Doctor::get().assert(
-            def.parameters.size() == 1,
-            WaspStage::Semantics,
-            "Unary operator '" + def.name + "' must have 1 parameter."
-        );
-    }
+    size_t expected = def.fixity == TokenType::INFIX ? 2 : 1;
+
+    Doctor::get().assert(
+        def.parameters.size() == expected,
+        WaspStage::Semantics,
+        "Operator '" + def.name + "' must have " + std::to_string(expected) +
+            " parameter(s)."
+    );
 
     analyze_callable(def, ScopeType::PURE_FUNCTION, nullptr, false);
 }
@@ -130,9 +123,15 @@ void SemanticAnalyzer::visit(Return& statement)
     );
 
     Object_ptr expected = return_type_stack.back();
-    Object_ptr actual = statement.expression
-                            ? visit(statement.expression.value())
-                            : workspace->pool->get_none_type();
+    expected = unwrap_completely(expected);
+
+    Object_ptr actual = workspace->pool->get_none_type();
+
+    if (statement.expression)
+    {
+        actual = visit(statement.expression.value());
+        actual = unwrap_completely(actual);
+    }
 
     Doctor::get().assert(
         type_system->assignable(current_scope, expected, actual),
@@ -144,7 +143,7 @@ void SemanticAnalyzer::visit(Return& statement)
 void SemanticAnalyzer::visit(Placeholder& statement)
 {
     Doctor::get().assert(
-        statement.type == TokenType::NATIVE,
+        statement.type == TokenType::NATIVE || statement.type == TokenType::PASS,
         WaspStage::Semantics,
         "At this point, I only expected to see 'native' placeholders"
     );

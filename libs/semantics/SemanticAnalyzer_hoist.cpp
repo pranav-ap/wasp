@@ -130,6 +130,14 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
                         def,
                         def.symbol->get_type()->as<ClassType_ptr>()
                     );
+
+                    if (!def.template_params.empty())
+                    {
+                        auto& class_data = def.symbol->get_payload_as<ClassData>();
+                        ASTCloner cloner;
+                        class_data.definition = cloner.clone(make_statement(def));
+                        class_data.definition_scope = current_scope;
+                    }
                 },
                 [&](TraitDefinition& def)
                 {
@@ -137,6 +145,14 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
                         def,
                         def.symbol->get_type()->as<TraitType_ptr>()
                     );
+
+                    if (!def.template_params.empty())
+                    {
+                        auto& trait_data = def.symbol->get_payload_as<TraitData>();
+                        ASTCloner cloner;
+                        trait_data.definition = cloner.clone(make_statement(def));
+                        trait_data.definition_scope = current_scope;
+                    }
                 },
                 [&](FunctionDefinition& def)
                 {

@@ -12,6 +12,7 @@
 #include "Workspace.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -64,7 +65,19 @@ private:
     void hoist_signatures(StatementVector& statements);
 
     std::pair<ObjectStringMap, StringVector> evaluate_template_params(
-        const std::vector<FieldDefinition>& generic_fields
+        const std::vector<FieldDefinition>& template_params
+    );
+
+    Symbol_ptr monomorphize_callable_template(
+        Symbol_ptr blueprint_symbol,
+        const ObjectStringMap& substitutions,
+        const std::string& specialized_name
+    );
+    Object_ptr resolve_implicit_template(
+        Call& call,
+        Symbol_ptr function_symbol,
+        Signature_ptr signature,
+        const ObjectVector& argument_types
     );
 
     void hoist_function_definition(AbstractCallable& def);
@@ -77,7 +90,7 @@ private:
     );
 
     void analyze_template_parameter_constructor(
-        TemplateParameterType_ptr generic,
+        TemplateParameterType_ptr template_param,
         const ObjectVector& argument_types
     );
 
@@ -203,6 +216,19 @@ private:
         TemplateParameterType_ptr template_parameter_type
     );
 
+    Symbol_ptr monomorphize_class_template(
+        Symbol_ptr blueprint_symbol,
+        const ObjectStringMap& substitutions,
+        const std::string& specialized_name
+    );
+
+    std::optional<Object_ptr> try_monomorphize_operator(
+        OperatorExpression& expr,
+        Symbol_ptr function_symbol,
+        Signature_ptr signature,
+        const ObjectVector& operand_types
+    );
+
     Object_ptr call_template_function(
         Call& call,
         TemplateAngular& concrete_template,
@@ -211,7 +237,13 @@ private:
 
     Object_ptr resolve_operator_overload(
         OperatorExpression& expr,
-        const std::string& operator_name,
+        Symbol_ptr operator_symbol,
+        const ObjectVector& operand_types
+    );
+
+    Object_ptr try_resolve_custom_operator(
+        OperatorExpression& expr,
+        Symbol_ptr operator_symbol,
         const ObjectVector& operand_types
     );
 

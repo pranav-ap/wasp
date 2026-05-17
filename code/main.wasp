@@ -2,31 +2,64 @@ import core.io expose *
 import core.types expose *
 import core.operators expose *
 
-let x: int = 1
-x.repr()
 
-let y: int = 2
-y.repr()
+# template
+#     T: int | str
 
-let z: int = x + y
-z.repr()
+# fun greet(a: T)
+#     let num = 33
+#     num.repr()
+
+# fun greet(a: int)
+#     let num = 22
+#     num.repr()
+
+# # works
+# greet<int>(2)
+# greet<str>('hi')
+
+# # ambiguous call
+# greet(2)
 
 
-fun foo(a: int)
-    a = a + 1
-    a.repr()
+# fun foo(a: int)
+#     a = a + 1
+#     a.repr()
 
-foo(3)
+# foo(3)
 
+
+
+# let x: int = 1
+# x.repr()
+
+# let y: int = 2
+# y.repr()
+
+# let z: int = x + y
+# z.repr()
+
+# let horse: str = 1 + 'horse' + 2
+# horse.repr()
 
 template
-    T: int | str
+    T: int | float
 
-fun greet(a: T)
-    let num = 5
-    num.repr()
+class Printer
+    value: T
 
-greet<int>(2)
-greet<str>('hi')
+    fun echo(a: int)
+        let x = 5
+        x.repr()
 
+    fun echo()
+        let x = 5
+        x.repr()
+
+
+let p = Printer<int>(25)
+p.echo()
+
+let q = Printer(25)
+q.echo()
 

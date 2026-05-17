@@ -293,7 +293,23 @@ Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
             substitutions[names[i]] = angular_arguments[i];
         }
 
-        return type_system->substitute_generics(base, substitutions);
+        std::string specialized_name = target_symbol->name + "_" +
+                                       mangle_object(angular_arguments);
+
+        if (auto existing_symbol = current_scope->lookup(specialized_name))
+        {
+            node.symbol = existing_symbol->resolve();
+            return node.symbol->get_type();
+        }
+
+        Symbol_ptr specialized_class = monomorphize_class_template(
+            target_symbol,
+            substitutions,
+            specialized_name
+        );
+
+        node.symbol = specialized_class;
+        return specialized_class->get_type();
     }
 
     // Case B: Template Functions (Overloads)

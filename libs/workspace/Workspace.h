@@ -5,7 +5,6 @@
 #include "ConstantPool.h"
 #include "NativeRegistry.h"
 #include "Objects.h"
-#include "Statement.h"
 
 #include <filesystem>
 #include <map>
@@ -88,14 +87,25 @@ struct VariableData : public TypedData
     }
 };
 
-struct ClassData : public TypedData
+struct OopsData : public TypedData
 {
-    using TypedData::TypedData;
+    Statement_ptr definition;
+    SymbolScope_ptr definition_scope;
+
+    OopsData(Object_ptr type)
+        : TypedData(std::move(type)), definition(nullptr), definition_scope(nullptr)
+    {
+    }
 };
 
-struct TraitData : public TypedData
+struct ClassData : public OopsData
 {
-    using TypedData::TypedData;
+    using OopsData::OopsData;
+};
+
+struct TraitData : public OopsData
+{
+    using OopsData::OopsData;
 };
 
 struct TemplateParameterData : public TypedData

@@ -31,9 +31,6 @@ class String
     fun repr()
         print(my.value)
 
-    fun repr2()
-        print(my.value)
-
 
 # --------------------------
 # Aliases for the Core Four
