@@ -101,6 +101,101 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
     );
 }
 
+Object_ptr SemanticAnalyzer::resolve_standard_overload(
+    Call& call,
+    Symbol_ptr overload_symbol,
+    const ObjectVector& argument_types
+)
+{
+    Doctor::get().assert(
+        overload_symbol->payload_is<OverloadsData>(),
+        WaspStage::Semantics,
+        "Symbol must hold function overloads."
+    );
+
+    auto candidates = overload_symbol->get_overloads();
+
+    auto [function_symbol, raw_index] = type_system->get_best_function_symbol(
+        current_scope,
+        candidates,
+        argument_types
+    );
+
+    auto signature = function_symbol->get_type()->as<Signature_ptr>();
+
+    if (!signature->expected_generic_names_order.empty())
+    {
+        return resolve_implicit_template(
+            call,
+            function_symbol,
+            signature,
+            argument_types
+        );
+    }
+
+    // Count number of concrete functions before the winner
+
+    int runtime_index = 0;
+
+    for (const auto& candidate : candidates)
+    {
+        if (candidate == function_symbol)
+        {
+            break;
+        }
+
+        auto cand_sig = candidate->get_type()->as<Signature_ptr>();
+
+        if (cand_sig->expected_generic_names_order.empty())
+        {
+            runtime_index++;
+        }
+    }
+
+    call.overload_index = runtime_index;
+    return signature->return_type;
+}
+
+Object_ptr SemanticAnalyzer::resolve_implicit_template(
+    Call& call,
+    Symbol_ptr function_symbol,
+    Signature_ptr signature,
+    const ObjectVector& argument_types
+)
+{
+    ObjectStringMap substitutions = type_system->infer_template_arguments(
+        signature,
+        argument_types
+    );
+
+    ObjectVector deduced_args;
+    for (const auto& name : signature->expected_generic_names_order)
+    {
+        deduced_args.push_back(substitutions[name]);
+    }
+
+    std::string specialized_name = function_symbol->name + "_" +
+                                   mangle_object(deduced_args);
+
+    Symbol_ptr specialized_group_symbol = monomorphize_callable_template(
+        function_symbol,
+        substitutions,
+        specialized_name
+    );
+
+    call.overload_index = 0;
+
+    Identifier specialized_id(specialized_name);
+    specialized_id.symbol = specialized_group_symbol;
+    call.callable->data = specialized_id;
+
+    auto overloads = specialized_group_symbol->get_overloads();
+
+    return unwrap_completely(
+        overloads[0]->get_type()->as<Signature_ptr>()->return_type
+    );
+}
+
 Symbol_ptr SemanticAnalyzer::monomorphize_callable_template(
     Symbol_ptr blueprint_symbol,
     const ObjectStringMap& substitutions,
@@ -152,97 +247,6 @@ Symbol_ptr SemanticAnalyzer::monomorphize_callable_template(
     pending_templates.push_back(specialized_stmt);
 
     return specialized_group_symbol;
-}
-
-Object_ptr SemanticAnalyzer::resolve_implicit_template(
-    Call& call,
-    Symbol_ptr function_symbol,
-    Signature_ptr signature,
-    const ObjectVector& argument_types
-)
-{
-    ObjectStringMap substitutions = type_system->infer_template_arguments(
-        signature,
-        argument_types
-    );
-
-    ObjectVector deduced_args;
-    for (const auto& name : signature->expected_generic_names_order)
-    {
-        deduced_args.push_back(substitutions[name]);
-    }
-
-    std::string specialized_name = function_symbol->name + "_" +
-                                   mangle_object(deduced_args);
-
-    Symbol_ptr specialized_group_symbol = monomorphize_callable_template(
-        function_symbol,
-        substitutions,
-        specialized_name
-    );
-
-    call.overload_index = 0;
-    Identifier specialized_id(specialized_name);
-    specialized_id.symbol = specialized_group_symbol;
-    call.callable->data = specialized_id;
-
-    auto overloads = specialized_group_symbol->get_overloads();
-    return unwrap_completely(
-        overloads[0]->get_type()->as<Signature_ptr>()->return_type
-    );
-}
-
-Object_ptr SemanticAnalyzer::resolve_standard_overload(
-    Call& call,
-    Symbol_ptr overload_symbol,
-    const ObjectVector& argument_types
-)
-{
-    Doctor::get().assert(
-        overload_symbol->payload_is<OverloadsData>(),
-        WaspStage::Semantics,
-        "Symbol must hold function overloads."
-    );
-
-    auto candidates = overload_symbol->get_overloads();
-
-    auto [function_symbol, raw_index] = type_system->get_best_function_symbol(
-        current_scope,
-        candidates,
-        argument_types
-    );
-
-    auto signature = function_symbol->get_type()->as<Signature_ptr>();
-
-    if (!signature->expected_generic_names_order.empty())
-    {
-        return resolve_implicit_template(
-            call,
-            function_symbol,
-            signature,
-            argument_types
-        );
-    }
-
-    int runtime_index = 0;
-
-    for (const auto& candidate : candidates)
-    {
-        if (candidate == function_symbol)
-        {
-            break;
-        }
-
-        auto cand_sig = candidate->get_type()->as<Signature_ptr>();
-
-        if (cand_sig->expected_generic_names_order.empty())
-        {
-            runtime_index++;
-        }
-    }
-
-    call.overload_index = runtime_index;
-    return signature->return_type;
 }
 
 Object_ptr SemanticAnalyzer::call_template_function(

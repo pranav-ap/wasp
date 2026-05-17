@@ -102,22 +102,14 @@ void SemanticAnalyzer::visit(FunctionDefinition& def)
 
 void SemanticAnalyzer::visit(OperatorDefinition& def)
 {
-    if (def.fixity == TokenType::INFIX)
-    {
-        Doctor::get().assert(
-            def.parameters.size() == 2,
-            WaspStage::Semantics,
-            "Infix operator '" + def.name + "' must have 2 parameters."
-        );
-    }
-    else
-    {
-        Doctor::get().assert(
-            def.parameters.size() == 1,
-            WaspStage::Semantics,
-            "Unary operator '" + def.name + "' must have 1 parameter."
-        );
-    }
+    size_t expected = def.fixity == TokenType::INFIX ? 2 : 1;
+
+    Doctor::get().assert(
+        def.parameters.size() == expected,
+        WaspStage::Semantics,
+        "Operator '" + def.name + "' must have " + std::to_string(expected) +
+            " parameter(s)."
+    );
 
     analyze_callable(def, ScopeType::PURE_FUNCTION, nullptr, false);
 }

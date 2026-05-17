@@ -73,6 +73,20 @@ Object_ptr SemanticAnalyzer::visit(Constructor& constructor)
             "Constructor Arguments Count Mismatch for class '" + cls->name + "'."
         );
 
+        for (size_t i = 0; i < argument_types.size(); ++i)
+        {
+            const std::string& field_name = cls->fields[i];
+            Object_ptr expected_type = cls->member_types.at(field_name);
+
+            Doctor::get().assert(
+                type_system
+                    ->assignable(current_scope, expected_type, argument_types[i]),
+                WaspStage::Semantics,
+                "Type mismatch in constructor for field '" + field_name +
+                    "' of class '" + cls->name + "'."
+            );
+        }
+
         return target_type;
     }
 

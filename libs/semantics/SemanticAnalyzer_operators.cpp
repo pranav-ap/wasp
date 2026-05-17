@@ -16,49 +16,33 @@
 namespace Wasp
 {
 
-std::optional<Object_ptr> SemanticAnalyzer::try_monomorphize_operator(
-    OperatorExpression& expr,
-    Symbol_ptr function_symbol,
-    Signature_ptr signature,
-    const ObjectVector& operand_types
-)
+Object_ptr SemanticAnalyzer::visit(Prefix& expr)
 {
-    if (signature->expected_generic_names_order.empty())
-    {
-        return std::nullopt;
-    }
-
-    ObjectStringMap substitutions = type_system->infer_template_arguments(
-        signature,
-        operand_types
+    return evaluate_operator(
+        expr,
+        TokenType::PREFIX,
+        expr.op.type,
+        {visit(expr.operand)}
     );
+}
 
-    if (substitutions.size() != signature->expected_generic_names_order.size())
-    {
-        return std::nullopt;
-    }
-
-    ObjectVector deduced_args;
-    for (const auto& name : signature->expected_generic_names_order)
-    {
-        deduced_args.push_back(substitutions.at(name));
-    }
-
-    std::string specialized_name = function_symbol->name + "_" +
-                                   mangle_object(deduced_args);
-
-    Symbol_ptr specialized_group_symbol = monomorphize_callable_template(
-        function_symbol,
-        substitutions,
-        specialized_name
+Object_ptr SemanticAnalyzer::visit(Infix& expr)
+{
+    return evaluate_operator(
+        expr,
+        TokenType::INFIX,
+        expr.op.type,
+        {visit(expr.left), visit(expr.right)}
     );
+}
 
-    expr.symbol = specialized_group_symbol;
-    expr.overload_index = 0;
-
-    auto specialized_overloads = specialized_group_symbol->get_overloads();
-    return unwrap_completely(
-        specialized_overloads[0]->get_type()->as<Signature_ptr>()->return_type
+Object_ptr SemanticAnalyzer::visit(Postfix& expr)
+{
+    return evaluate_operator(
+        expr,
+        TokenType::POSTFIX,
+        expr.op.type,
+        {visit(expr.operand)}
     );
 }
 
@@ -119,34 +103,78 @@ Object_ptr SemanticAnalyzer::resolve_operator_overload(
     return signature->return_type;
 }
 
+std::optional<Object_ptr> SemanticAnalyzer::try_monomorphize_operator(
+    OperatorExpression& expr,
+    Symbol_ptr function_symbol,
+    Signature_ptr signature,
+    const ObjectVector& operand_types
+)
+{
+    if (signature->expected_generic_names_order.empty())
+    {
+        return std::nullopt;
+    }
+
+    ObjectStringMap substitutions = type_system->infer_template_arguments(
+        signature,
+        operand_types
+    );
+
+    if (substitutions.size() != signature->expected_generic_names_order.size())
+    {
+        return std::nullopt;
+    }
+
+    ObjectVector deduced_args;
+    for (const auto& name : signature->expected_generic_names_order)
+    {
+        deduced_args.push_back(substitutions.at(name));
+    }
+
+    std::string specialized_name = function_symbol->name + "_" +
+                                   mangle_object(deduced_args);
+
+    Symbol_ptr specialized_group_symbol = monomorphize_callable_template(
+        function_symbol,
+        substitutions,
+        specialized_name
+    );
+
+    expr.symbol = specialized_group_symbol;
+    expr.overload_index = 0;
+
+    auto specialized_overloads = specialized_group_symbol->get_overloads();
+    return unwrap_completely(
+        specialized_overloads[0]->get_type()->as<Signature_ptr>()->return_type
+    );
+}
+
 Object_ptr SemanticAnalyzer::try_resolve_custom_operator(
     OperatorExpression& expr,
     Symbol_ptr operator_symbol,
     const ObjectVector& operand_types
 )
 {
-    if (operator_symbol->payload_is<OverloadsData>())
+    if (!operator_symbol->payload_is<OverloadsData>())
     {
-        auto overloads = operator_symbol->get_overloads();
+        return nullptr;
+    }
 
-        for (const auto& candidate : overloads)
+    auto overloads = operator_symbol->get_overloads();
+
+    for (const auto& candidate : overloads)
+    {
+        auto signature = candidate->get_type()->as<Signature_ptr>();
+
+        bool is_assignable = type_system->assignable(
+            current_scope,
+            signature->parameter_types,
+            operand_types
+        );
+
+        if (is_assignable)
         {
-            auto signature = candidate->get_type()->as<Signature_ptr>();
-
-            bool is_assignable = type_system->assignable(
-                current_scope,
-                signature->parameter_types,
-                operand_types
-            );
-
-            if (is_assignable)
-            {
-                return resolve_operator_overload(
-                    expr,
-                    operator_symbol,
-                    operand_types
-                );
-            }
+            return resolve_operator_overload(expr, operator_symbol, operand_types);
         }
     }
 
@@ -183,36 +211,6 @@ Object_ptr SemanticAnalyzer::evaluate_operator(
 
     return type_system
         ->infer(current_scope, operand_types[0], op_type, operand_types[1]);
-}
-
-Object_ptr SemanticAnalyzer::visit(Prefix& expr)
-{
-    return evaluate_operator(
-        expr,
-        TokenType::PREFIX,
-        expr.op.type,
-        {visit(expr.operand)}
-    );
-}
-
-Object_ptr SemanticAnalyzer::visit(Infix& expr)
-{
-    return evaluate_operator(
-        expr,
-        TokenType::INFIX,
-        expr.op.type,
-        {visit(expr.left), visit(expr.right)}
-    );
-}
-
-Object_ptr SemanticAnalyzer::visit(Postfix& expr)
-{
-    return evaluate_operator(
-        expr,
-        TokenType::POSTFIX,
-        expr.op.type,
-        {visit(expr.operand)}
-    );
 }
 
 } // namespace Wasp

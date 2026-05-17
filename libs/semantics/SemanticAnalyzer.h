@@ -216,6 +216,12 @@ private:
         TemplateParameterType_ptr template_parameter_type
     );
 
+    Symbol_ptr monomorphize_class_template(
+        Symbol_ptr blueprint_symbol,
+        const ObjectStringMap& substitutions,
+        const std::string& specialized_name
+    );
+
     std::optional<Object_ptr> try_monomorphize_operator(
         OperatorExpression& expr,
         Symbol_ptr function_symbol,
