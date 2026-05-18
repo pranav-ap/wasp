@@ -61,7 +61,9 @@ void VM::execute_instantiate(CallFrame* frame)
     instance_memory
         .insert(instance_memory.end(), blueprint->members.begin(), blueprint->members.end());
 
-    auto instance = make_object(std::make_shared<InstanceObject>(std::move(instance_memory)));
+    auto instance = make_object(
+        std::make_shared<ClassInstanceObject>(std::move(instance_memory))
+    );
     push_to_stack(instance);
 }
 

@@ -22,7 +22,20 @@ using ObjectVector = std::vector<Object_ptr>;
 using ObjectStringMap = std::map<std::string, Object_ptr>;
 using ObjectIntMap = std::map<int, Object_ptr>;
 
+using IntVector = std::vector<int>;
 using StringVector = std::vector<std::string>;
+
+// ============================================================================
+// Helpers
+// =============================================================================
+
+struct OverloadCoordinate
+{
+    int member_index;
+    int overload_index;
+};
+
+using OverloadCoordinateVector = std::vector<OverloadCoordinate>;
 
 // ============================================================================
 // Other
@@ -52,12 +65,6 @@ struct AnyType
 
 struct NoneType
 {
-};
-
-struct NamedDefinitionType
-{
-    std::string name;
-    NamedDefinitionType(std::string name) : name(std::move(name)) {};
 };
 
 // ============================================================================
@@ -103,8 +110,8 @@ using TemplateParameterType_ptr = std::shared_ptr<TemplateParameterType>;
 
 struct TemplatableType
 {
-    ObjectStringMap generics;
-    StringVector expected_generic_names_order;
+    ObjectStringMap template_parameter_types;
+    StringVector ordered_template_parameter_names;
 };
 
 // ============================================================================
@@ -149,12 +156,12 @@ struct Signature : public TemplatableType
     Signature(
         ObjectVector parameter_types,
         Object_ptr return_type,
-        ObjectStringMap generics,
-        StringVector ordered_generic_names
+        ObjectStringMap template_parameter_types,
+        StringVector ordered_template_parameter_names
     )
         : TemplatableType(
-              std::move(generics),
-              std::move(ordered_generic_names)
+              std::move(template_parameter_types),
+              std::move(ordered_template_parameter_names)
           ),
           parameter_types(std::move(parameter_types)),
           return_type(std::move(return_type))
@@ -221,6 +228,8 @@ struct BaseOOPType : public BaseMemberedType, public TemplatableType
     StringVector statics;
     ObjectVector traits;
 
+    std::map<std::string, OverloadCoordinateVector> itables;
+
     explicit BaseOOPType(
         std::string name,
         ObjectStringMap members = {},
@@ -228,12 +237,15 @@ struct BaseOOPType : public BaseMemberedType, public TemplatableType
         StringVector methods = {},
         StringVector pures = {},
         StringVector statics = {},
-        ObjectStringMap generics = {},
-        StringVector ordered_generic_names = {},
+        ObjectStringMap template_parameter_types = {},
+        StringVector ordered_template_parameter_names = {},
         ObjectVector traits = {}
     )
         : BaseMemberedType(std::move(name), std::move(members)),
-          TemplatableType(std::move(generics), std::move(ordered_generic_names)),
+          TemplatableType(
+              std::move(template_parameter_types),
+              std::move(ordered_template_parameter_names)
+          ),
           fields(std::move(fields)), methods(std::move(methods)),
           pures(std::move(pures)), statics(std::move(statics)),
           traits(std::move(traits))
@@ -309,12 +321,12 @@ struct TypeAlias : public TemplatableType
     TypeAlias(
         std::string name,
         Object_ptr underlying_type = nullptr,
-        ObjectStringMap generics = {},
-        StringVector expected_generic_names_order = {}
+        ObjectStringMap template_parameters = {},
+        StringVector ordered_template_parameter_names = {}
     )
         : TemplatableType(
-              std::move(generics),
-              std::move(expected_generic_names_order)
+              std::move(template_parameters),
+              std::move(ordered_template_parameter_names)
           ),
           name(std::move(name)), underlying_type(std::move(underlying_type))
     {
@@ -439,18 +451,6 @@ struct VariantObject
 // Action Objects
 // ============================================================================
 
-struct BreakObject
-{
-};
-
-struct ContinueObject
-{
-};
-
-struct RedoObject
-{
-};
-
 struct ReturnObject
 {
     std::optional<Object_ptr> value;
@@ -498,11 +498,6 @@ struct FunctionRuntimeObject
     )
         : blueprint(std::move(blueprint)), upvalues(std::move(upvalues))
     {
-    }
-
-    void set_upvalue(int index, Object_ptr value)
-    {
-        upvalues[index] = std::move(value);
     }
 };
 
@@ -570,6 +565,7 @@ struct ModuleObject : public MemberedCompositeObject
 struct ClassBlueprintObject : public MemberedCompositeObject
 {
     int fields_count;
+    std::map<std::string, OverloadCoordinateVector> itables;
 
     ClassBlueprintObject(ObjectVector members = {}, int fields_count = 0)
         : MemberedCompositeObject(std::move(members)),
@@ -578,9 +574,20 @@ struct ClassBlueprintObject : public MemberedCompositeObject
     }
 };
 
-struct InstanceObject : public MemberedCompositeObject
+struct ClassInstanceObject : public MemberedCompositeObject
 {
     using MemberedCompositeObject::MemberedCompositeObject;
+};
+
+struct TraitInstanceObject
+{
+    Object_ptr class_instance;
+    OverloadCoordinateVector itable;
+
+    TraitInstanceObject(Object_ptr class_instance, OverloadCoordinateVector itable)
+        : class_instance(std::move(class_instance)), itable(itable)
+    {
+    }
 };
 
 // ============================================================================
@@ -612,13 +619,11 @@ struct Object
 
         std::shared_ptr<ModuleObject>,
         std::shared_ptr<ClassBlueprintObject>,
-        std::shared_ptr<InstanceObject>,
+        std::shared_ptr<ClassInstanceObject>,
+        std::shared_ptr<TraitInstanceObject>,
 
         std::shared_ptr<ObjectOverloadList>,
 
-        std::shared_ptr<BreakObject>,
-        std::shared_ptr<ContinueObject>,
-        std::shared_ptr<RedoObject>,
         std::shared_ptr<ReturnObject>,
         std::shared_ptr<ErrorObject>,
 
@@ -626,7 +631,6 @@ struct Object
 
         NoneType,
         LiteralType,
-        NamedDefinitionType,
 
         AnyType,
         IntType,
@@ -734,5 +738,7 @@ bool are_equal_types_unordered(
 Object_ptr convert_type(Object_ptr type, Object_ptr operand);
 Object_ptr unwrap_type_alias(Object_ptr type);
 Object_ptr unwrap_completely(Object_ptr type);
+
+std::string get_canonical_trait_name(const ObjectVector& traits);
 
 } // namespace Wasp

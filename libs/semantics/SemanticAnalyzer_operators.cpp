@@ -91,7 +91,7 @@ Object_ptr SemanticAnalyzer::resolve_operator_overload(
         auto cand_sig = candidate->get_type()->as<Signature_ptr>();
 
         // Only count it if it's concrete (templates are stripped by the VM)
-        if (cand_sig->expected_generic_names_order.empty())
+        if (cand_sig->ordered_template_parameter_names.empty())
         {
             runtime_index++;
         }
@@ -110,7 +110,7 @@ std::optional<Object_ptr> SemanticAnalyzer::try_monomorphize_operator(
     const ObjectVector& operand_types
 )
 {
-    if (signature->expected_generic_names_order.empty())
+    if (signature->ordered_template_parameter_names.empty())
     {
         return std::nullopt;
     }
@@ -120,13 +120,13 @@ std::optional<Object_ptr> SemanticAnalyzer::try_monomorphize_operator(
         operand_types
     );
 
-    if (substitutions.size() != signature->expected_generic_names_order.size())
+    if (substitutions.size() != signature->ordered_template_parameter_names.size())
     {
         return std::nullopt;
     }
 
     ObjectVector deduced_args;
-    for (const auto& name : signature->expected_generic_names_order)
+    for (const auto& name : signature->ordered_template_parameter_names)
     {
         deduced_args.push_back(substitutions.at(name));
     }

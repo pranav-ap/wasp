@@ -56,6 +56,11 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                         {
                             return call_method(call, ma, argument_types, class_type);
                         },
+                        // [&](TraitType_ptr trait_type) -> Object_ptr
+                        // {
+                        //     return call_method(call, ma, argument_types,
+                        //     trait_type);
+                        // },
                         [&](ModuleType_ptr module_type) -> Object_ptr
                         {
                             auto member_symbol = get_module_member_symbol(ma);
@@ -123,7 +128,7 @@ Object_ptr SemanticAnalyzer::resolve_standard_overload(
 
     auto signature = function_symbol->get_type()->as<Signature_ptr>();
 
-    if (!signature->expected_generic_names_order.empty())
+    if (!signature->ordered_template_parameter_names.empty())
     {
         return resolve_implicit_template(
             call,
@@ -146,7 +151,7 @@ Object_ptr SemanticAnalyzer::resolve_standard_overload(
 
         auto cand_sig = candidate->get_type()->as<Signature_ptr>();
 
-        if (cand_sig->expected_generic_names_order.empty())
+        if (cand_sig->ordered_template_parameter_names.empty())
         {
             runtime_index++;
         }
@@ -169,7 +174,7 @@ Object_ptr SemanticAnalyzer::resolve_implicit_template(
     );
 
     ObjectVector deduced_args;
-    for (const auto& name : signature->expected_generic_names_order)
+    for (const auto& name : signature->ordered_template_parameter_names)
     {
         deduced_args.push_back(substitutions[name]);
     }
@@ -307,7 +312,7 @@ Object_ptr SemanticAnalyzer::call_template_function(
     ObjectStringMap substitutions;
     auto expected_names = blueprint_symbol->get_type()
                               ->as<Signature_ptr>()
-                              ->expected_generic_names_order;
+                              ->ordered_template_parameter_names;
 
     for (size_t i = 0; i < expected_names.size(); ++i)
     {

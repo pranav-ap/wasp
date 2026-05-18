@@ -342,6 +342,18 @@ bool TypeSystem::assignable(
                        assignable(scope, t1.value_type, t2.value_type);
             },
 
+            [&](TraitType_ptr const lhs_trait, ClassType_ptr const rhs_class)
+            {
+                for (const auto& trait_obj : rhs_class->traits)
+                {
+                    if (are_equal_types(make_object(lhs_trait), trait_obj))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            },
+
             [](const auto&, const auto&)
             {
                 return false;

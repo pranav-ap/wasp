@@ -158,7 +158,9 @@ void NativeRegistry::load_stdlib()
         [this](const std::vector<Object_ptr>& args)
         {
             auto instance_ptr = args[0];
-            auto& instance = std::get<std::shared_ptr<InstanceObject>>(instance_ptr->value);
+            auto& instance = std::get<std::shared_ptr<ClassInstanceObject>>(
+                instance_ptr->value
+            );
 
             Object_ptr name_obj = instance->members[0];
             std::cout << "Hello! I am " << std::get<StringObject>(name_obj->value).value << "!"

@@ -131,8 +131,8 @@ void SemanticAnalyzer::analyze_oops_definition(AbstractOopsDefinition& def)
                     param_types,
                     f->return_type ? visit(f->return_type)
                                    : workspace->pool->get_none_type(),
-                    oop_type->generics,
-                    oop_type->expected_generic_names_order
+                    oop_type->template_parameter_types,
+                    oop_type->ordered_template_parameter_names
                 )
             );
 
@@ -154,6 +154,48 @@ void SemanticAnalyzer::analyze_oops_definition(AbstractOopsDefinition& def)
         {
             ScopeType st = f->is_pure ? ScopeType::PURE_METHOD : ScopeType::METHOD;
             analyze_callable(*f, st, type_obj, f->is_static);
+        }
+    }
+
+    // --- Pass 4: Trait Conformance Checking ---
+    for (const auto& trait_obj : oop_type->traits)
+    {
+        auto trait = trait_obj->as<TraitType_ptr>();
+
+        for (const std::string& required_method_name : trait->methods)
+        {
+            Doctor::get().assert(
+                oop_type->contains_member(required_method_name),
+                WaspStage::Semantics,
+                "Class '" + oop_type->name +
+                    "' fails to implement required method '" + required_method_name +
+                    "' from trait '" + trait->name + "'."
+            );
+
+            auto trait_overloads = trait->get_overloads(required_method_name);
+            auto class_overloads = oop_type->get_overloads(required_method_name);
+
+            for (const auto& trait_sig : trait_overloads)
+            {
+                bool signature_matched = false;
+
+                for (const auto& class_sig : class_overloads)
+                {
+                    if (type_system->assignable(current_scope, trait_sig, class_sig))
+                    {
+                        signature_matched = true;
+                        break;
+                    }
+                }
+
+                Doctor::get().assert(
+                    signature_matched,
+                    WaspStage::Semantics,
+                    "Signature mismatch in class '" + oop_type->name +
+                        "' for method '" + required_method_name +
+                        "' required by trait '" + trait->name + "'."
+                );
+            }
         }
     }
 
@@ -194,8 +236,8 @@ Symbol_ptr SemanticAnalyzer::monomorphize_class_template(
                 );
 
                 auto class_type = type->as<ClassType_ptr>();
-                class_type->generics.clear();
-                class_type->expected_generic_names_order.clear();
+                class_type->template_parameter_types.clear();
+                class_type->ordered_template_parameter_names.clear();
 
                 visit(def);
 

@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 #include <variant>
+#include <vector>
 
 #define MAKE_OBJECT_VARIANT(x) std::make_shared<Object>(x)
 #define VOID std::make_shared<Object>(std::make_shared<ReturnObject>())
@@ -155,10 +156,6 @@ bool are_equal_types(Object_ptr left, Object_ptr right)
                        are_equal_types(l->return_type, r->return_type);
             },
 
-            [](const NamedDefinitionType& l, const NamedDefinitionType& r)
-            {
-                return l.name == r.name;
-            },
             [](const ModuleType_ptr& l, const ModuleType_ptr& r)
             {
                 return l->name == r->name;
@@ -233,10 +230,6 @@ std::string stringify_object(Object_ptr value)
             [](const AnyType&) -> std::string
             {
                 return "any type";
-            },
-            [](const NamedDefinitionType& obj) -> std::string
-            {
-                return "named definition: " + obj.name;
             },
             [](const Signature_ptr&) -> std::string
             {
@@ -435,7 +428,7 @@ std::string stringify_object(Object_ptr value)
             },
 
             // Instances
-            [](const std::shared_ptr<InstanceObject>&) -> std::string
+            [](const std::shared_ptr<ClassInstanceObject>&) -> std::string
             {
                 return "<instance object>";
             },
@@ -448,18 +441,6 @@ std::string stringify_object(Object_ptr value)
             [](const std::shared_ptr<ErrorObject>& obj) -> std::string
             {
                 return "error: " + obj->message;
-            },
-            [](const std::shared_ptr<RedoObject>&) -> std::string
-            {
-                return "redo";
-            },
-            [](const std::shared_ptr<BreakObject>&) -> std::string
-            {
-                return "break";
-            },
-            [](const std::shared_ptr<ContinueObject>&) -> std::string
-            {
-                return "continue";
             },
 
             // Fallback for anything missed
@@ -502,10 +483,6 @@ std::string mangle_object(Object_ptr value)
             [](const AnyType&) -> std::string
             {
                 return "A";
-            },
-            [](const NamedDefinitionType& obj) -> std::string
-            {
-                return "D" + obj.name;
             },
             [](const Signature_ptr&) -> std::string
             {
@@ -680,6 +657,38 @@ Object_ptr unwrap_completely(Object_ptr type)
     }
 
     return type;
+}
+
+std::string get_canonical_trait_name(const ObjectVector& traits)
+{
+    std::vector<std::string> names;
+
+    for (const auto& trait_obj : traits)
+    {
+        Doctor::get().assert(
+            trait_obj->is<TraitType_ptr>(),
+            WaspStage::Semantics,
+            "Expected trait object in get_canonical_trait_name"
+        );
+
+        auto trait = trait_obj->as<TraitType_ptr>();
+        names.push_back(trait->name);
+    }
+
+    if (names.empty())
+    {
+        return "";
+    }
+
+    std::sort(names.begin(), names.end());
+
+    std::string canonical_name = names[0];
+    for (size_t i = 1; i < names.size(); ++i)
+    {
+        canonical_name += "&" + names[i];
+    }
+
+    return canonical_name;
 }
 
 } // namespace Wasp

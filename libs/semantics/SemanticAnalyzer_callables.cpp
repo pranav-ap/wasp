@@ -143,9 +143,10 @@ void SemanticAnalyzer::visit(Return& statement)
 void SemanticAnalyzer::visit(Placeholder& statement)
 {
     Doctor::get().assert(
-        statement.type == TokenType::NATIVE || statement.type == TokenType::PASS,
+        statement.type == TokenType::NATIVE || statement.type == TokenType::PASS ||
+            statement.type == TokenType::REQUIRED,
         WaspStage::Semantics,
-        "Expected 'native' or 'pass' placeholder"
+        "Expected 'native', 'pass', or 'required' placeholder"
     );
 
     Doctor::get().fatal_if_nullptr(

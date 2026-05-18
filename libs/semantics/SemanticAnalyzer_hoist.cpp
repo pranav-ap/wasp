@@ -116,8 +116,8 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
             def.template_params
         );
 
-        type_ptr->generics = std::move(template_params);
-        type_ptr->expected_generic_names_order = std::move(ordered_names);
+        type_ptr->template_parameter_types = std::move(template_params);
+        type_ptr->ordered_template_parameter_names = std::move(ordered_names);
     };
 
     for (auto& stmt_ptr : statements)
