@@ -182,7 +182,13 @@ std::tuple<std::string, TypeAnnotationVector, StatementVector> Parser::
         {
             break;
         }
+
         token_pipe.expect_n_indents(body_indent);
+
+        if (token_pipe.consume_optional(TokenType::PASS))
+        {
+            return {std::move(name), std::move(traits), std::move(members)};
+        }
 
         if (token_pipe.consume_optional(TokenType::COMMENT))
         {
