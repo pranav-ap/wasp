@@ -55,7 +55,25 @@ void SemanticAnalyzer::analyze_oops_definition(AbstractOopsDefinition& def)
         current_scope->define(symbol);
     }
 
-    // --- Pass 0: Structure Filling ---
+    // ========================================================================
+    // --- Pass 0: Trait Resolution ---
+    // ========================================================================
+    for (const auto& trait_annotation : def.traits)
+    {
+        Object_ptr resolved_type = visit(trait_annotation);
+        resolved_type = unwrap_completely(resolved_type);
+
+        Doctor::get().assert(
+            resolved_type->is<TraitType_ptr>(),
+            WaspStage::Semantics,
+            "A class or trait can only implement/inherit from a Trait."
+        );
+
+        auto trait_type = resolved_type->as<TraitType_ptr>();
+        oop_type->traits.push_back(make_object(trait_type));
+    }
+
+    // --- Pass 1: Structure Filling ---
     for (auto& stmt : def.members)
     {
         if (auto* f = stmt->try_as<FieldDefinition>())
@@ -97,7 +115,7 @@ void SemanticAnalyzer::analyze_oops_definition(AbstractOopsDefinition& def)
         }
     }
 
-    // --- Pass 1: Hoisting Signatures ---
+    // --- Pass 2: Hoisting Signatures ---
     for (auto& stmt : def.members)
     {
         if (auto* f = stmt->try_as<MethodDefinition>())
@@ -129,13 +147,12 @@ void SemanticAnalyzer::analyze_oops_definition(AbstractOopsDefinition& def)
         }
     }
 
-    // --- Pass 2: Body Analysis ---
+    // --- Pass 3: Body Analysis ---
     for (auto& stmt : def.members)
     {
         if (auto* f = stmt->try_as<MethodDefinition>())
         {
-            ScopeType st = f->is_pure ? ScopeType::PURE_METHOD
-                                      : ScopeType::METHOD;
+            ScopeType st = f->is_pure ? ScopeType::PURE_METHOD : ScopeType::METHOD;
             analyze_callable(*f, st, type_obj, f->is_static);
         }
     }

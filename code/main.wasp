@@ -63,3 +63,12 @@ p.echo()
 let q = Printer(25)
 q.echo()
 
+
+trait Player
+    fun run()
+        let f = 'fast'
+        f.repr()
+
+
+class Jordan is Player
+    pass

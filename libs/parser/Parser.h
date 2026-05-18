@@ -62,7 +62,7 @@ private:
     Statement_ptr parse_template_definition(int indent_level = 0);
 
     // --- OOP & Member Helpers ---
-    std::tuple<std::string, StringVector, StatementVector>
+    std::tuple<std::string, TypeAnnotationVector, StatementVector>
     parse_membered_definition_base(int indent_level);
     EnumDefinition parse_enum_body(std::string name, int indent_level);
     StatementVector parse_name_type_block(int expected_indent);

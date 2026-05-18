@@ -150,7 +150,7 @@ StatementVector Parser::parse_name_type_block(int expected_indent)
 // OOP Definitions
 // ============================================================================
 
-std::tuple<std::string, std::vector<std::string>, StatementVector> Parser::
+std::tuple<std::string, TypeAnnotationVector, StatementVector> Parser::
     parse_membered_definition_base(int indent_level)
 {
     token_pipe.advance_pointer();
@@ -158,16 +158,13 @@ std::tuple<std::string, std::vector<std::string>, StatementVector> Parser::
     auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
     std::string name = name_token.lexeme;
 
-    std::vector<std::string> traits;
+    TypeAnnotationVector traits;
 
     if (token_pipe.consume_optional_in_line(TokenType::IS))
     {
         do
         {
-            auto trait_token = token_pipe.require_in_line(
-                TokenType::IDENTIFIER
-            );
-            traits.push_back(trait_token.lexeme);
+            traits.push_back(parse_type());
         }
         while (token_pipe.consume_optional_in_line(TokenType::AMPERSAND));
     }

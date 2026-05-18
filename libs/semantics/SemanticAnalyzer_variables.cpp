@@ -107,8 +107,7 @@ void SemanticAnalyzer::validate_purity_constraints(
 
     auto scope = current_scope;
 
-    while (scope != nullptr &&
-           scope->get_closure_depth() > target_symbol->closure_depth)
+    while (scope && scope->get_closure_depth() > target_symbol->closure_depth)
     {
         if (scope->get_type() == ScopeType::PURE_FUNCTION ||
             scope->get_type() == ScopeType::PURE_METHOD)

@@ -160,14 +160,14 @@ struct OperatorDefinition : public AbstractCallable
 
 struct AbstractOopsDefinition : public Definition, public Templatable
 {
-    StringVector traits;
+    TypeAnnotationVector traits;
     StatementVector members;
 
     AbstractOopsDefinition() = default;
 
     AbstractOopsDefinition(
         std::string name,
-        StringVector traits,
+        TypeAnnotationVector traits,
         StatementVector members,
         std::vector<FieldDefinition> template_params = {}
     )

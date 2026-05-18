@@ -219,6 +219,7 @@ struct BaseOOPType : public BaseMemberedType, public TemplatableType
     StringVector methods;
     StringVector pures;
     StringVector statics;
+    ObjectVector traits;
 
     explicit BaseOOPType(
         std::string name,
@@ -228,15 +229,14 @@ struct BaseOOPType : public BaseMemberedType, public TemplatableType
         StringVector pures = {},
         StringVector statics = {},
         ObjectStringMap generics = {},
-        StringVector ordered_generic_names = {}
+        StringVector ordered_generic_names = {},
+        ObjectVector traits = {}
     )
         : BaseMemberedType(std::move(name), std::move(members)),
-          TemplatableType(
-              std::move(generics),
-              std::move(ordered_generic_names)
-          ),
+          TemplatableType(std::move(generics), std::move(ordered_generic_names)),
           fields(std::move(fields)), methods(std::move(methods)),
-          pures(std::move(pures)), statics(std::move(statics))
+          pures(std::move(pures)), statics(std::move(statics)),
+          traits(std::move(traits))
     {
     }
 
@@ -248,6 +248,9 @@ struct BaseOOPType : public BaseMemberedType, public TemplatableType
     ObjectVector get_pures() const;
     ObjectVector get_statics() const;
     ObjectVector get_members() const;
+
+    ObjectVector get_traits() const;
+    bool implements_trait(const std::string& trait_name) const;
 
     bool is_pure(const std::string& member_name) const;
     bool is_static(const std::string& member_name) const;

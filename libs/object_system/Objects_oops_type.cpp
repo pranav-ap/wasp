@@ -269,4 +269,23 @@ Object_ptr BaseOOPType::get_member(int member_id) const
     );
 }
 
+ObjectVector BaseOOPType::get_traits() const
+{
+    return traits;
+}
+
+bool BaseOOPType::implements_trait(const std::string& trait_name) const
+{
+    for (const auto& trait_obj : traits)
+    {
+        auto trait_type = trait_obj->as<TraitType_ptr>();
+        if (trait_type->name == trait_name)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 } // namespace Wasp
