@@ -156,7 +156,7 @@ private:
         Call& call,
         MemberAccess& mac,
         const ObjectVector& argument_types,
-        ClassType_ptr class_type
+        OopsType_ptr oops_type
     );
     Object_ptr call_template_method(
         Call& call,

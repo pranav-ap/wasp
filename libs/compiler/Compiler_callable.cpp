@@ -111,7 +111,6 @@ void Compiler::visit(FunctionDefinition& def)
 
 void Compiler::visit(OperatorDefinition& def)
 {
-    // 1. ALWAYS allocate the index
     int physical_index = get_or_add_local_index(def.group_symbol);
 
     if (!def.template_params.empty())

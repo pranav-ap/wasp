@@ -42,15 +42,12 @@ void Compiler::visit(ClassDefinition& def)
 
             if (func->symbol->is_native())
             {
-                std::string mangled = mangle_name(
-                    func->name,
-                    def.name,
-                    func->symbol->module_path
-                );
+                std::string mangled = mangle_name(func->name, def.name, func->symbol->module_path);
 
                 int registry_id = workspace->native_registry->get_native_index(
                     mangled
                 );
+
                 emit(OpCode::GET_NATIVE, registry_id, "load native " + mangled);
             }
             else
@@ -82,6 +79,14 @@ void Compiler::visit(ClassDefinition& def)
         "populate class " + def.name
     );
     emit(OpCode::SET_LOCAL, slot, "update local slot");
+}
+
+void Compiler::visit(TraitDefinition& def)
+{
+    int slot = get_or_add_local_index(def.symbol);
+
+    emit(OpCode::LOAD_NONE, "placeholder for trait " + def.name);
+    emit(OpCode::SET_LOCAL, slot, "init trait in slot");
 }
 
 } // namespace Wasp

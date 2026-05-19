@@ -238,6 +238,7 @@ void SemanticAnalyzer::hoist_import(Import& stmt)
                 pair.alias.value(),
                 exported_symbol
             );
+
             alias_symbol->module_path = module_path;
             current_scope->define(alias_symbol);
             pair.symbol = alias_symbol;

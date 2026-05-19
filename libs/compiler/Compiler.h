@@ -128,6 +128,7 @@ private:
     void visit(FunctionDefinition& statement);
     void visit(OperatorDefinition& def);
     void visit(ClassDefinition& statement);
+    void visit(TraitDefinition& statement);
     void visit(TypeAliasDefinition& statement);
 
     void visit(Return& statement);

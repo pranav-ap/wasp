@@ -49,6 +49,7 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
             [&](MemberAccess& ma) -> Object_ptr
             {
                 Object_ptr left_type = visit(ma.left);
+                left_type = unwrap_completely(left_type);
 
                 return std::visit(
                     overloaded{
@@ -56,11 +57,10 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                         {
                             return call_method(call, ma, argument_types, class_type);
                         },
-                        // [&](TraitType_ptr trait_type) -> Object_ptr
-                        // {
-                        //     return call_method(call, ma, argument_types,
-                        //     trait_type);
-                        // },
+                        [&](TraitType_ptr trait_type) -> Object_ptr
+                        {
+                            return call_method(call, ma, argument_types, trait_type);
+                        },
                         [&](ModuleType_ptr module_type) -> Object_ptr
                         {
                             auto member_symbol = get_module_member_symbol(ma);
@@ -72,8 +72,7 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                                 argument_types
                             );
                         },
-                        [&](TemplateParameterType_ptr template_param_type)
-                            -> Object_ptr
+                        [&](TemplateParameterType_ptr template_param_type) -> Object_ptr
                         {
                             return call_template_method(
                                 call,
@@ -348,7 +347,7 @@ Object_ptr SemanticAnalyzer::call_method(
     Call& call,
     MemberAccess& access,
     const ObjectVector& argument_types,
-    ClassType_ptr class_type
+    OopsType_ptr class_type
 )
 {
     auto method_name = access.right->as<Identifier>().name;
