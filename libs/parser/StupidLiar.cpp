@@ -1,4 +1,4 @@
-#include "Liar.h"
+#include "StupidLiar.h"
 #include "AST.h"
 #include "Statement.h"
 #include "TypeAnnotation.h"
@@ -11,13 +11,13 @@
 namespace Wasp
 {
 
-StatementVector Liar::run(const StatementVector& statements)
+StatementVector StupidLiar::run(const StatementVector& statements)
 {
     StatementVector processed_ast;
 
     for (const auto& stmt : statements)
     {
-        LiarResult result = visit(stmt);
+        StupidLiarResult result = visit(stmt);
 
         if (auto* vec = std::get_if<StatementVector>(&result))
         {
@@ -32,7 +32,7 @@ StatementVector Liar::run(const StatementVector& statements)
     return processed_ast;
 }
 
-LiarResult Liar::visit(Statement_ptr stmt)
+StupidLiarResult StupidLiar::visit(Statement_ptr stmt)
 {
     if (auto* cls = stmt->try_as<ClassDefinition>())
     {
@@ -42,7 +42,7 @@ LiarResult Liar::visit(Statement_ptr stmt)
     return stmt;
 }
 
-LiarResult Liar::visit(ClassDefinition& def)
+StupidLiarResult StupidLiar::visit(ClassDefinition& def)
 {
     StatementVector output;
     StatementVector extracted_functions;
@@ -68,7 +68,7 @@ LiarResult Liar::visit(ClassDefinition& def)
     return output;
 }
 
-Statement_ptr Liar::transform_method_to_function(
+Statement_ptr StupidLiar::transform_method_to_function(
     const std::string& class_name,
     MethodDefinition& method
 )

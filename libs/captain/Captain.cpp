@@ -3,11 +3,12 @@
 #include "DependencyCrawler.h"
 #include "Doctor.h"
 #include "Lexer.h"
-#include "Liar.h"
 #include "Parser.h"
 #include "SemanticAnalyzer.h"
+#include "StupidLiar.h"
 #include "VM.h"
 #include "Workspace.h"
+
 
 #include <filesystem>
 #include <memory>
@@ -80,7 +81,7 @@ void Captain::parse_module(const std::filesystem::path& file_path)
     Parser parser;
     auto stmts = parser.run(tokens);
 
-    Liar liar;
+    StupidLiar liar;
     // stmts = liar.run(stmts);
 
     auto module = std::make_shared<Module>(abs_path, stmts);

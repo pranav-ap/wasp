@@ -8,18 +8,18 @@
 namespace Wasp
 {
 
-using LiarResult = std::variant<Statement_ptr, StatementVector>;
+using StupidLiarResult = std::variant<Statement_ptr, StatementVector>;
 
-class Liar
+class StupidLiar
 {
 public:
-    Liar() = default;
+    StupidLiar() = default;
 
     StatementVector run(const StatementVector& statements);
 
 private:
-    LiarResult visit(Statement_ptr stmt);
-    LiarResult visit(ClassDefinition& def);
+    StupidLiarResult visit(Statement_ptr stmt);
+    StupidLiarResult visit(ClassDefinition& def);
 
     Statement_ptr transform_method_to_function(
         const std::string& class_name,
