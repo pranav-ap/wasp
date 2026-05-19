@@ -1,8 +1,10 @@
 #pragma once
 
+#include "Token.h"
 #include "Workspace.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -31,6 +33,7 @@ class SymbolScope
 private:
     ScopeType type;
     SymbolScope_ptr enclosing_scope;
+    std::optional<TokenType> placeholder = std::nullopt;
 
     int closure_depth;
     int lexical_depth;
@@ -49,6 +52,16 @@ public:
     Symbol_ptr define(Symbol_ptr symbol);
     Symbol_ptr lookup(const std::string& name) const;
     Symbol_ptr lookup_local(const std::string& name) const;
+
+    void mark_as_required()
+    {
+        placeholder = TokenType::REQUIRED;
+    }
+
+    bool is_required() const
+    {
+        return placeholder.has_value() && placeholder.value() == TokenType::REQUIRED;
+    }
 
     bool contains_in_current_scope(const std::string& name) const;
     bool contains_in_any_scope(const std::string& name) const;

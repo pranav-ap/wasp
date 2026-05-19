@@ -278,7 +278,7 @@ Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
     node.symbol = target_symbol;
 
     // Case A: Template Classes
-    if (target_symbol->payload_is<ClassData>())
+    if (target_symbol->payload_is<OopsData>())
     {
         Object_ptr base = target_symbol->get_type();
         auto names = type_system->get_generics_declaration_order(base);

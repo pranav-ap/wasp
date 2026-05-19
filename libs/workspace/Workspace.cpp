@@ -102,11 +102,7 @@ Object_ptr Symbol::get_type()
             {
                 return d.type;
             },
-            [](const ClassData& d)
-            {
-                return d.type;
-            },
-            [](const TraitData& d)
+            [](const OopsData& d)
             {
                 return d.type;
             },
@@ -163,11 +159,7 @@ void Symbol::set_type(Object_ptr new_type)
             {
                 d.type = new_type;
             },
-            [&](ClassData& d)
-            {
-                d.type = new_type;
-            },
-            [&](TraitData& d)
+            [&](OopsData& d)
             {
                 d.type = new_type;
             },
@@ -213,6 +205,26 @@ void Symbol::mark_as_native()
                 Doctor::get().fatal(
                     WaspStage::Semantics,
                     "Only functions and methods can be marked as native"
+                );
+            }
+        },
+        payload
+    );
+}
+
+void Symbol::mark_as_required()
+{
+    std::visit(
+        ::overloaded{
+            [&](CallableData& d)
+            {
+                d.required_in_class = true;
+            },
+            [](auto&)
+            {
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Only methods can be marked as required"
                 );
             }
         },
@@ -274,13 +286,9 @@ std::string Symbol::to_string() const
     {
         payload_type = "Module";
     }
-    else if (payload_is<ClassData>())
+    else if (payload_is<OopsData>())
     {
         payload_type = "Class";
-    }
-    else if (payload_is<TraitData>())
-    {
-        payload_type = "Trait";
     }
     else if (payload_is<TemplateParameterData>())
     {
@@ -351,7 +359,7 @@ Symbol_ptr SymbolFactory::create_function(
         std::move(name),
         closure_depth,
         lexical_depth,
-        CallableData(std::move(type), is_native)
+        CallableData(std::move(type), is_native, false)
     );
 
     return symbol;
@@ -370,7 +378,7 @@ Symbol_ptr SymbolFactory::create_method(
         std::move(name),
         closure_depth,
         lexical_depth,
-        CallableData(std::move(type), is_native)
+        CallableData(std::move(type), is_native, true)
     );
 
     return symbol;
@@ -387,7 +395,7 @@ Symbol_ptr SymbolFactory::create_overloads(std::string name, int closure_depth, 
     );
 }
 
-Symbol_ptr SymbolFactory::create_class(
+Symbol_ptr SymbolFactory::create_oops(
     std::string name,
     Object_ptr type,
     int closure_depth,
@@ -399,23 +407,7 @@ Symbol_ptr SymbolFactory::create_class(
         std::move(name),
         closure_depth,
         lexical_depth,
-        ClassData{std::move(type)}
-    );
-}
-
-Symbol_ptr SymbolFactory::create_trait(
-    std::string name,
-    Object_ptr type,
-    int closure_depth,
-    int lexical_depth
-)
-{
-    return std::make_shared<Symbol>(
-        symbol_id_counter++,
-        std::move(name),
-        closure_depth,
-        lexical_depth,
-        TraitData{std::move(type)}
+        OopsData{std::move(type)}
     );
 }
 

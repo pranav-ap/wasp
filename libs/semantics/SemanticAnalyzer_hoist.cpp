@@ -49,7 +49,7 @@ void SemanticAnalyzer::hoist_names(StatementVector& statements)
                         std::make_shared<ClassType>(def.name)
                     );
                     def.symbol = current_scope->define(
-                        SymbolFactory::create_class(
+                        SymbolFactory::create_oops(
                             def.name,
                             type,
                             closure_depth,
@@ -63,7 +63,7 @@ void SemanticAnalyzer::hoist_names(StatementVector& statements)
                         std::make_shared<TraitType>(def.name)
                     );
                     def.symbol = current_scope->define(
-                        SymbolFactory::create_trait(
+                        SymbolFactory::create_oops(
                             def.name,
                             type,
                             closure_depth,
@@ -133,7 +133,7 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
 
                     if (!def.template_params.empty())
                     {
-                        auto& class_data = def.symbol->get_payload_as<ClassData>();
+                        auto& class_data = def.symbol->get_payload_as<OopsData>();
                         ASTCloner cloner;
                         class_data.definition = cloner.clone(make_statement(def));
                         class_data.declaration_scope = current_scope;
@@ -148,7 +148,7 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
 
                     if (!def.template_params.empty())
                     {
-                        auto& trait_data = def.symbol->get_payload_as<TraitData>();
+                        auto& trait_data = def.symbol->get_payload_as<OopsData>();
                         ASTCloner cloner;
                         trait_data.definition = cloner.clone(make_statement(def));
                         trait_data.declaration_scope = current_scope;

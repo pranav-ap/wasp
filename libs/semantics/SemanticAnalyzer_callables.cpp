@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <optional>
 #include <string>
 
 #include "AST.h"
@@ -73,11 +74,35 @@ void SemanticAnalyzer::analyze_callable(
         def.parameter_symbols.push_back(current_scope->define(param_symbol));
     }
 
-    if (def.body.size() == 1 && def.body.front()->is<Placeholder>())
+    // Lonely Placeholder Rule
+
+    std::optional<TokenType> placeholder;
+
+    for (const auto& stmt : def.body)
     {
-        if (def.body.front()->as<Placeholder>().type == TokenType::NATIVE)
+        if (stmt->is<Placeholder>())
+        {
+            placeholder = stmt->as<Placeholder>().type;
+            break;
+        }
+    }
+
+    if (placeholder.has_value())
+    {
+        Doctor::get().assert(
+            def.body.size() == 1,
+            WaspStage::Semantics,
+            "The keywords 'native', 'pass' or 'required' must be the only "
+            "statement in the body."
+        );
+
+        if (placeholder == TokenType::NATIVE)
         {
             def.symbol->mark_as_native();
+        }
+        else if (placeholder == TokenType::REQUIRED)
+        {
+            def.symbol->mark_as_required();
         }
     }
 
@@ -116,6 +141,11 @@ void SemanticAnalyzer::visit(OperatorDefinition& def)
 
 void SemanticAnalyzer::visit(Return& statement)
 {
+    if (current_scope->is_required())
+    {
+        return;
+    }
+
     Doctor::get().assert(
         !return_type_stack.empty(),
         WaspStage::Semantics,
@@ -148,6 +178,11 @@ void SemanticAnalyzer::visit(Placeholder& statement)
         WaspStage::Semantics,
         "Expected 'native', 'pass', or 'required' placeholder"
     );
+
+    if (statement.type == TokenType::REQUIRED)
+    {
+        current_scope->mark_as_required();
+    }
 
     Doctor::get().fatal_if_nullptr(
         current_module,

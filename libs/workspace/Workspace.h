@@ -58,8 +58,9 @@ struct CallableData : public TypedData, public NativeData
     bool is_method;
     Statement_ptr definition;
     SymbolScope_ptr declaration_scope;
+    bool required_in_class = false;
 
-    CallableData(Object_ptr type, bool is_native, bool is_method = false)
+    CallableData(Object_ptr type, bool is_native, bool is_method)
         : TypedData(std::move(type)), NativeData(is_native), is_method(is_method),
           definition(nullptr), declaration_scope(nullptr)
     {
@@ -98,16 +99,6 @@ struct OopsData : public TypedData
     }
 };
 
-struct ClassData : public OopsData
-{
-    using OopsData::OopsData;
-};
-
-struct TraitData : public OopsData
-{
-    using OopsData::OopsData;
-};
-
 struct TemplateParameterData : public TypedData
 {
     using TypedData::TypedData;
@@ -138,8 +129,7 @@ using SymbolPayload = std::variant<
     OverloadsData,
     CallableData,
     ModuleData,
-    ClassData,
-    TraitData,
+    OopsData,
     TemplateParameterData,
     EnumData,
     TypeAliasData,
@@ -168,6 +158,7 @@ struct Symbol : public std::enable_shared_from_this<Symbol>
     void set_type(Object_ptr new_type);
 
     void mark_as_native();
+    void mark_as_required();
 
     bool should_be_captured(int usage_depth) const;
 
@@ -189,9 +180,19 @@ struct Symbol : public std::enable_shared_from_this<Symbol>
         return payload_is_any_of<CallableData, OverloadsData>();
     }
 
+    bool is_method() const
+    {
+        if (auto* callable_data = try_get_payload<CallableData>())
+        {
+            return callable_data->is_method;
+        }
+
+        return false;
+    }
+
     bool is_oop_type() const
     {
-        return payload_is_any_of<ClassData, TraitData>();
+        return payload_is_any_of<OopsData>();
     }
 
     template <typename T> bool payload_is() const
@@ -268,14 +269,7 @@ public:
         int lexical_depth = 0
     );
 
-    static Symbol_ptr create_class(
-        std::string name,
-        Object_ptr type = nullptr,
-        int closure_depth = 0,
-        int lexical_depth = 0
-    );
-
-    static Symbol_ptr create_trait(
+    static Symbol_ptr create_oops(
         std::string name,
         Object_ptr type = nullptr,
         int closure_depth = 0,

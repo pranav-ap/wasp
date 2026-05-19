@@ -235,7 +235,7 @@ Symbol_ptr SemanticAnalyzer::monomorphize_class_template(
     const std::string& specialized_name
 )
 {
-    auto& class_data = blueprint_symbol->get_payload_as<ClassData>();
+    auto& class_data = blueprint_symbol->get_payload_as<OopsData>();
 
     ASTCloner cloner(substitutions);
     Statement_ptr specialized_stmt = cloner.clone(class_data.definition);
@@ -254,7 +254,7 @@ Symbol_ptr SemanticAnalyzer::monomorphize_class_template(
 
                 auto type = make_object(std::make_shared<ClassType>(def.name));
                 def.symbol = current_scope->define(
-                    SymbolFactory::create_class(
+                    SymbolFactory::create_oops(
                         def.name,
                         type,
                         current_scope->get_closure_depth(),
