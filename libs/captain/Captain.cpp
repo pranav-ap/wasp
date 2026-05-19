@@ -3,6 +3,7 @@
 #include "DependencyCrawler.h"
 #include "Doctor.h"
 #include "Lexer.h"
+#include "Liar.h"
 #include "Parser.h"
 #include "SemanticAnalyzer.h"
 #include "VM.h"
@@ -78,6 +79,9 @@ void Captain::parse_module(const std::filesystem::path& file_path)
 
     Parser parser;
     auto stmts = parser.run(tokens);
+
+    Liar liar;
+    // stmts = liar.run(stmts);
 
     auto module = std::make_shared<Module>(abs_path, stmts);
     workspace->add_module(abs_path, module);

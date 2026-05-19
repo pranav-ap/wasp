@@ -235,8 +235,6 @@ struct Identifier : public Resolvable
     }
 };
 
-// a.b
-// a.b.c().d
 struct MemberAccess
 {
     Expression_ptr left;
@@ -253,18 +251,6 @@ struct MemberAccess
     }
 };
 
-/*
-foo()
-A()
-a.foo()
-a.foo()
-*/
-
-// process()
-// a.process()
-// a.b.process()
-// create_function()()
-// a.b().c()
 struct Call
 {
     Expression_ptr callable;
