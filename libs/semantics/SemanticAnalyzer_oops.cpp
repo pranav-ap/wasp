@@ -58,10 +58,9 @@ void SemanticAnalyzer::analyze_oops_definition(AbstractOopsDefinition& def, Oops
 {
     enter_scope(ScopeType::CLASS);
 
-    auto [generics, ordered_names] = evaluate_template_params(def.template_params);
-
-    for (const auto& [name, generic_type] : generics)
+    for (const auto& name : oop_type->ordered_template_parameter_names)
     {
+        auto generic_type = oop_type->template_parameter_types.at(name);
         auto symbol = SymbolFactory::create_template_parameter(name, generic_type);
         current_scope->define(symbol);
     }
@@ -69,7 +68,7 @@ void SemanticAnalyzer::analyze_oops_definition(AbstractOopsDefinition& def, Oops
     resolve_traits(def, oop_type);
     fill_oops_member_names(def, oop_type);
     hoist_methods(def, oop_type);
-    // inherit_default_methods(def, oop_type);
+    inherit_default_methods(def, oop_type);
     analyze_methods(def);
     check_trait_conformance(oop_type);
 
@@ -175,7 +174,6 @@ void SemanticAnalyzer::hoist_methods(AbstractOopsDefinition& def, OopsType_ptr o
             f->symbol = SymbolFactory::create_method(
                 f->name,
                 signature,
-                false,
                 current_scope->get_closure_depth(),
                 current_scope->get_lexical_depth()
             );
@@ -274,7 +272,6 @@ void SemanticAnalyzer::inherit_default_methods(AbstractOopsDefinition& def, Oops
                     cloned_method->symbol = SymbolFactory::create_method(
                         cloned_method->name,
                         trait_sig,
-                        false,
                         current_scope->get_closure_depth(),
                         current_scope->get_lexical_depth()
                     );

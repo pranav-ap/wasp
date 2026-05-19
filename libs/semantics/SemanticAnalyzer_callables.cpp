@@ -58,12 +58,9 @@ void SemanticAnalyzer::analyze_callable(
     enter_scope(scope_type);
     return_type_stack.push_back(signature->return_type);
 
-    auto [template_params, ordered_names] = evaluate_template_params(
-        def.template_params
-    );
-
-    for (const auto& [name, generic_type] : template_params)
+    for (const auto& name : signature->ordered_template_parameter_names)
     {
+        auto generic_type = signature->template_parameter_types.at(name);
         auto symbol = SymbolFactory::create_template_parameter(name, generic_type);
         current_scope->define(symbol);
     }
@@ -87,7 +84,7 @@ void SemanticAnalyzer::analyze_callable(
 
     for (size_t i = 0; i < def.parameters.size(); ++i)
     {
-        Object_ptr actual_type = visit(def.parameters[i].second);
+        Object_ptr actual_type = signature->parameter_types[i];
 
         auto param_symbol = SymbolFactory::create_variable(
             def.parameters[i].first,

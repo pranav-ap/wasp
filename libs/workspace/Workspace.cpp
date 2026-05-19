@@ -3,7 +3,6 @@
 #include "Doctor.h"
 #include "NativeRegistry.h"
 #include "Objects.h"
-#include "Token.h"
 
 #include <cstddef>
 #include <filesystem>
@@ -349,7 +348,6 @@ Symbol_ptr SymbolFactory::create_variable(
 Symbol_ptr SymbolFactory::create_function(
     std::string name,
     Object_ptr type,
-    bool is_native,
     int closure_depth,
     int lexical_depth
 )
@@ -359,7 +357,7 @@ Symbol_ptr SymbolFactory::create_function(
         std::move(name),
         closure_depth,
         lexical_depth,
-        CallableData(std::move(type), is_native, false)
+        CallableData(std::move(type), false, false)
     );
 
     return symbol;
@@ -368,7 +366,6 @@ Symbol_ptr SymbolFactory::create_function(
 Symbol_ptr SymbolFactory::create_method(
     std::string name,
     Object_ptr type,
-    bool is_native,
     int closure_depth,
     int lexical_depth
 )
@@ -378,7 +375,7 @@ Symbol_ptr SymbolFactory::create_method(
         std::move(name),
         closure_depth,
         lexical_depth,
-        CallableData(std::move(type), is_native, true)
+        CallableData(std::move(type), false, true)
     );
 
     return symbol;

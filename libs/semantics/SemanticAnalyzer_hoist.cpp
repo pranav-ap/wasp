@@ -130,9 +130,19 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
                 [&](TypeAliasDefinition& def)
                 {
                     auto alias_type = def.symbol->get_type()->as<TypeAlias_ptr>();
-
                     assign_generics(def, alias_type);
+
+                    enter_scope(ScopeType::CLASS);
+
+                    for (const auto& name : alias_type->ordered_template_parameter_names)
+                    {
+                        auto generic_type = alias_type->template_parameter_types.at(name);
+                        auto symbol = SymbolFactory::create_template_parameter(name, generic_type);
+                        current_scope->define(symbol);
+                    }
+
                     alias_type->underlying_type = visit(def.ref_type);
+                    leave_scope();
                 },
                 [&](ClassDefinition& def)
                 {
@@ -297,7 +307,6 @@ void SemanticAnalyzer::hoist_function_definition(AbstractCallable& def)
     auto symbol = SymbolFactory::create_function(
         def.name,
         signature,
-        false,
         current_scope->get_closure_depth(),
         current_scope->get_lexical_depth()
     );

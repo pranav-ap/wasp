@@ -250,7 +250,6 @@ public:
     static Symbol_ptr create_function(
         std::string name,
         Object_ptr type,
-        bool is_native = false,
         int closure_depth = 0,
         int lexical_depth = 0
     );
@@ -258,7 +257,6 @@ public:
     static Symbol_ptr create_method(
         std::string name,
         Object_ptr type,
-        bool is_native = false,
         int closure_depth = 0,
         int lexical_depth = 0
     );
