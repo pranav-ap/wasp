@@ -131,13 +131,11 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
                         def.symbol->get_type()->as<ClassType_ptr>()
                     );
 
-                    if (!def.template_params.empty())
-                    {
                         auto& class_data = def.symbol->get_payload_as<OopsData>();
+
                         ASTCloner cloner;
                         class_data.definition = cloner.clone(make_statement(def));
                         class_data.declaration_scope = current_scope;
-                    }
                 },
                 [&](TraitDefinition& def)
                 {
@@ -146,49 +144,38 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
                         def.symbol->get_type()->as<TraitType_ptr>()
                     );
 
-                    if (!def.template_params.empty())
-                    {
-                        auto& trait_data = def.symbol->get_payload_as<OopsData>();
-                        ASTCloner cloner;
-                        trait_data.definition = cloner.clone(make_statement(def));
-                        trait_data.declaration_scope = current_scope;
-                    }
+                    auto& trait_data = def.symbol->get_payload_as<OopsData>();
+
+                    ASTCloner cloner;
+                    trait_data.definition = cloner.clone(make_statement(def));
+                    trait_data.declaration_scope = current_scope;
                 },
                 [&](FunctionDefinition& def)
                 {
                     hoist_function_definition(def);
 
-                    if (!def.template_params.empty())
-                    {
-                        auto& function_data = def.symbol
-                                                  ->get_payload_as<CallableData>();
+                    auto& function_data = def.symbol->get_payload_as<CallableData>();
 
-                        ASTCloner cloner;
-                        function_data.definition = cloner.clone(make_statement(def));
-
-                        function_data.declaration_scope = current_scope;
-                    }
-
+                    ASTCloner cloner;
+                    function_data.definition = cloner.clone(make_statement(def));
+                    function_data.declaration_scope = current_scope;
                 },
                 [&](OperatorDefinition& def)
                 {
                     hoist_function_definition(def);
 
-                    if (!def.template_params.empty())
-                    {
-                        auto& function_data = def.symbol
-                                                  ->get_payload_as<CallableData>();
+                    auto& function_data = def.symbol->get_payload_as<CallableData>();
 
-                        ASTCloner cloner;
-                        function_data.definition = cloner.clone(make_statement(def));
-                        function_data.declaration_scope = current_scope;
-                    }
+                    ASTCloner cloner;
+                    function_data.definition = cloner.clone(make_statement(def));
+                    function_data.declaration_scope = current_scope;
 
                 },
                 [&](TypeAliasDefinition& def)
                 {
                     auto alias_type = def.symbol->get_type()
                                           ->as<TypeAlias_ptr>();
+
                     assign_generics(def, alias_type);
                     alias_type->underlying_type = visit(def.ref_type);
                 },

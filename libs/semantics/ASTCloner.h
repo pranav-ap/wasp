@@ -15,7 +15,11 @@ class ASTCloner
 public:
     ObjectStringMap substitutions;
 
-    explicit ASTCloner(ObjectStringMap subs = {}) : substitutions(std::move(subs))
+    ASTCloner()
+    {
+    }
+
+    ASTCloner(ObjectStringMap subs) : substitutions(std::move(subs))
     {
     }
 

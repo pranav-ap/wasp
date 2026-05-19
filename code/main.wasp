@@ -45,6 +45,10 @@ class Jordan is Debug & Player
     # Player::play 0, 0 => Jordan::play 1, 0
 
 
+# fun shout(d: Debug)
+#     d.repr()
+
+
 let j = Jordan('jordan')
 let g = j.repr()
 g.repr()

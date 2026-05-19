@@ -146,15 +146,15 @@ bool TypeSystem::equal(
             },
             [&](ClassType_ptr const& c1, ClassType_ptr const& c2)
             {
-                return c1->name == c2->name;
+                return c1->type_id == c2->type_id;
             },
             [&](TraitType_ptr const& t1, TraitType_ptr const& t2)
             {
-                return t1->name == t2->name;
+                return t1->type_id == t2->type_id;
             },
             [&](ModuleType_ptr const& m1, ModuleType_ptr const& m2)
             {
-                return m1->name == m2->name;
+                return m1->type_id == m2->type_id;
             },
             [&](EnumType_ptr const& e1, EnumType_ptr const& e2)
             {

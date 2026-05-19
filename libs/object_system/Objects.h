@@ -165,14 +165,15 @@ using Signature_ptr = std::shared_ptr<Signature>;
 
 struct BaseMemberedType
 {
+    inline static int type_id_counter = 0;
+    int type_id;
+
     std::string name;
     ObjectStringMap member_types;
 
-    explicit BaseMemberedType(
-        std::string name,
-        ObjectStringMap member_types = {}
-    )
-        : name(std::move(name)), member_types(std::move(member_types))
+    explicit BaseMemberedType(std::string name, ObjectStringMap member_types = {})
+        : type_id(type_id_counter++), name(std::move(name)),
+          member_types(std::move(member_types))
     {
     }
 
@@ -212,9 +213,30 @@ struct OverloadCoordinate
 {
     int member_index;
     int overload_index;
+
+    bool operator<(const OverloadCoordinate& other) const
+    {
+        if (member_index != other.member_index)
+        {
+            return member_index < other.member_index;
+        }
+
+        return overload_index < other.overload_index;
+    }
+
+    bool operator==(const OverloadCoordinate& other) const
+    {
+        return member_index == other.member_index &&
+               overload_index == other.overload_index;
+    }
 };
 
-struct BaseOOPType : public BaseMemberedType, public TemplatableType
+// trait coordinate => my coordinate
+using ITable = std::map<OverloadCoordinate, OverloadCoordinate>;
+// trait type id => I Table
+using ITablesMap = std::map<int, ITable>;
+
+struct OopsType : public BaseMemberedType, public TemplatableType
 {
     StringVector fields;
     StringVector methods;
@@ -223,11 +245,9 @@ struct BaseOOPType : public BaseMemberedType, public TemplatableType
 
     ObjectVector traits;
 
-    // trait name => member name => overload index => OverloadCoordinate
-    std::map<std::string, std::map<std::string, std::map<int, OverloadCoordinate>>>
-        itables;
+    ITablesMap itables;
 
-    explicit BaseOOPType(
+    explicit OopsType(
         std::string name,
         ObjectStringMap members = {},
         StringVector fields = {},
@@ -273,18 +293,18 @@ struct BaseOOPType : public BaseMemberedType, public TemplatableType
     bool contains_member(const std::string& member_name) const override;
 };
 
-using BaseOOPType_ptr = std::shared_ptr<BaseOOPType>;
+using OopsType_ptr = std::shared_ptr<OopsType>;
 
-struct ClassType : public BaseOOPType
+struct ClassType : public OopsType
 {
-    using BaseOOPType::BaseOOPType;
+    using OopsType::OopsType;
 };
 
 using ClassType_ptr = std::shared_ptr<ClassType>;
 
-struct TraitType : public BaseOOPType
+struct TraitType : public OopsType
 {
-    using BaseOOPType::BaseOOPType;
+    using OopsType::OopsType;
 };
 
 using TraitType_ptr = std::shared_ptr<TraitType>;
