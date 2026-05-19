@@ -3,16 +3,47 @@ import core.types expose *
 import core.operators expose *
 
 
+
+# symbol id 0
 trait Debug
+    # repr 0, 0
     pure fun repr() => str
         required
 
+    # repr 0, 1
+    pure fun repr(a: int) => str
+        required
 
-class Jordan is Debug
+
+
+# symbol id 2
+trait Player
+    # play 0, 0
+    fun play()
+        required
+
+
+
+# symbol id 1
+class Jordan is Debug & Player
     name: str
 
+    # repr 0, 0
     pure fun repr() => str
         return 'name = {my.name}'
+
+    # repr 0, 1
+    pure fun repr(a: int) => str
+        return 'hi'
+
+    # play 1, 0
+    fun play()
+        pass
+
+    # trait to class mapping
+    # Debug::repr 0, 0 => Jordan::repr 0, 0
+    # Player::play 0, 0 => Jordan::play 1, 0
+
 
 
 let j = Jordan('jordan')

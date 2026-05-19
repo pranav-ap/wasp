@@ -233,7 +233,7 @@ void TypeSystem::validate_new_function_overload(
             group.parents.erase(it);
         }
     }
-    else if (existing->payload_is<FunctionData>())
+    else if (existing->payload_is<CallableData>())
     {
         check_duplicate(existing);
     }

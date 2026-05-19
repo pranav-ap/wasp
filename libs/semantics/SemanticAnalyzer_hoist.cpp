@@ -136,7 +136,7 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
                         auto& class_data = def.symbol->get_payload_as<ClassData>();
                         ASTCloner cloner;
                         class_data.definition = cloner.clone(make_statement(def));
-                        class_data.definition_scope = current_scope;
+                        class_data.declaration_scope = current_scope;
                     }
                 },
                 [&](TraitDefinition& def)
@@ -151,7 +151,7 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
                         auto& trait_data = def.symbol->get_payload_as<TraitData>();
                         ASTCloner cloner;
                         trait_data.definition = cloner.clone(make_statement(def));
-                        trait_data.definition_scope = current_scope;
+                        trait_data.declaration_scope = current_scope;
                     }
                 },
                 [&](FunctionDefinition& def)
@@ -161,14 +161,12 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
                     if (!def.template_params.empty())
                     {
                         auto& function_data = def.symbol
-                                                  ->get_payload_as<FunctionData>();
+                                                  ->get_payload_as<CallableData>();
 
                         ASTCloner cloner;
-                        function_data.function_definition = cloner.clone(
-                            make_statement(def)
-                        );
+                        function_data.definition = cloner.clone(make_statement(def));
 
-                        function_data.definition_scope = current_scope;
+                        function_data.declaration_scope = current_scope;
                     }
 
                 },
@@ -179,13 +177,11 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
                     if (!def.template_params.empty())
                     {
                         auto& function_data = def.symbol
-                                                  ->get_payload_as<FunctionData>();
+                                                  ->get_payload_as<CallableData>();
 
                         ASTCloner cloner;
-                        function_data.function_definition = cloner.clone(
-                            make_statement(def)
-                        );
-                        function_data.definition_scope = current_scope;
+                        function_data.definition = cloner.clone(make_statement(def));
+                        function_data.declaration_scope = current_scope;
                     }
 
                 },

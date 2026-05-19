@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <variant>
@@ -55,9 +56,8 @@ void SemanticAnalyzer::analyze_oops_definition(AbstractOopsDefinition& def)
         current_scope->define(symbol);
     }
 
-    // ========================================================================
     // --- Pass 0: Trait Resolution ---
-    // ========================================================================
+
     for (const auto& trait_annotation : def.traits)
     {
         Object_ptr resolved_type = visit(trait_annotation);
@@ -74,45 +74,58 @@ void SemanticAnalyzer::analyze_oops_definition(AbstractOopsDefinition& def)
     }
 
     // --- Pass 1: Structure Filling ---
+
+    auto push_unique = [](StringVector& vec, const std::string& name)
+    {
+        if (std::find(vec.begin(), vec.end(), name) == vec.end())
+        {
+            vec.push_back(name);
+        }
+    };
+
     for (auto& stmt : def.members)
     {
-        if (auto* f = stmt->try_as<FieldDefinition>())
-        {
-            Doctor::get().assert(
-                std::find(
-                    oop_type->fields.begin(),
-                    oop_type->fields.end(),
-                    f->name
-                ) == oop_type->fields.end(),
-                WaspStage::Semantics,
-                "Duplicate field '" + f->name + "'."
-            );
-            oop_type->fields.push_back(f->name);
-            oop_type->member_types[f->name] = visit(f->type);
-        }
-        else if (auto* m = stmt->try_as<MethodDefinition>())
-        {
-            auto push_unique = [](StringVector& vec, const std::string& name)
-            {
-                if (std::find(vec.begin(), vec.end(), name) == vec.end())
+        std::visit(
+            overloaded{
+                [&](const FieldDefinition& f)
                 {
-                    vec.push_back(name);
+                    Doctor::get().assert(
+                        std::find(
+                            oop_type->fields.begin(),
+                            oop_type->fields.end(),
+                            f.name
+                        ) == oop_type->fields.end(),
+                        WaspStage::Semantics,
+                        "Duplicate field '" + f.name + "'."
+                    );
+
+                    oop_type->fields.push_back(f.name);
+                    oop_type->member_types[f.name] = visit(f.type);
+                },
+                [&](const MethodDefinition& m)
+                {
+                    push_unique(oop_type->methods, m.name);
+
+                    if (m.is_pure)
+                    {
+                        push_unique(oop_type->pures, m.name);
+                    }
+
+                    if (m.is_static)
+                    {
+                        push_unique(oop_type->statics, m.name);
+                    }
+                },
+                [&](const auto&)
+                {
+                    Doctor::get().fatal(
+                        WaspStage::Semantics,
+                        "Invalid OOP body stmt."
+                    );
                 }
-            };
-            push_unique(oop_type->methods, m->name);
-            if (m->is_pure)
-            {
-                push_unique(oop_type->pures, m->name);
-            }
-            if (m->is_static)
-            {
-                push_unique(oop_type->statics, m->name);
-            }
-        }
-        else
-        {
-            Doctor::get().fatal(WaspStage::Semantics, "Invalid OOP body stmt.");
-        }
+            },
+            stmt->data
+        );
     }
 
     // --- Pass 2: Hoisting Signatures ---
@@ -157,7 +170,7 @@ void SemanticAnalyzer::analyze_oops_definition(AbstractOopsDefinition& def)
         }
     }
 
-    // --- Pass 4: Trait Conformance Checking ---
+    // --- Pass 4: Trait Conformance Checking & ITable Generation ---
     for (const auto& trait_obj : oop_type->traits)
     {
         auto trait = trait_obj->as<TraitType_ptr>();
@@ -175,15 +188,22 @@ void SemanticAnalyzer::analyze_oops_definition(AbstractOopsDefinition& def)
             auto trait_overloads = trait->get_overloads(required_method_name);
             auto class_overloads = oop_type->get_overloads(required_method_name);
 
-            for (const auto& trait_sig : trait_overloads)
-            {
-                bool signature_matched = false;
+            int class_member_idx = oop_type->get_member_index(required_method_name);
 
-                for (const auto& class_sig : class_overloads)
+            for (size_t t_idx = 0; t_idx < trait_overloads.size(); ++t_idx)
+            {
+                const auto& trait_sig = trait_overloads[t_idx];
+                bool signature_matched = false;
+                int matched_c_idx = -1;
+
+                for (size_t c_idx = 0; c_idx < class_overloads.size(); ++c_idx)
                 {
+                    const auto& class_sig = class_overloads[c_idx];
+
                     if (type_system->assignable(current_scope, trait_sig, class_sig))
                     {
                         signature_matched = true;
+                        matched_c_idx = static_cast<int>(c_idx);
                         break;
                     }
                 }
@@ -195,6 +215,13 @@ void SemanticAnalyzer::analyze_oops_definition(AbstractOopsDefinition& def)
                         "' for method '" + required_method_name +
                         "' required by trait '" + trait->name + "'."
                 );
+
+                // Populate the 3D map!
+                oop_type->itables[trait->name][required_method_name]
+                                 [static_cast<int>(t_idx)] = OverloadCoordinate{
+                    class_member_idx,
+                    matched_c_idx
+                };
             }
         }
     }
@@ -216,7 +243,7 @@ Symbol_ptr SemanticAnalyzer::monomorphize_class_template(
     Symbol_ptr specialized_symbol = nullptr;
 
     SymbolScope_ptr previous_scope = current_scope;
-    current_scope = class_data.definition_scope;
+    current_scope = class_data.declaration_scope;
 
     std::visit(
         overloaded{

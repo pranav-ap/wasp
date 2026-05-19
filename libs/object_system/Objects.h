@@ -26,18 +26,6 @@ using IntVector = std::vector<int>;
 using StringVector = std::vector<std::string>;
 
 // ============================================================================
-// Helpers
-// =============================================================================
-
-struct OverloadCoordinate
-{
-    int member_index;
-    int overload_index;
-};
-
-using OverloadCoordinateVector = std::vector<OverloadCoordinate>;
-
-// ============================================================================
 // Other
 // ============================================================================
 
@@ -220,15 +208,24 @@ struct ModuleType : public BaseMemberedType
 
 using ModuleType_ptr = std::shared_ptr<ModuleType>;
 
+struct OverloadCoordinate
+{
+    int member_index;
+    int overload_index;
+};
+
 struct BaseOOPType : public BaseMemberedType, public TemplatableType
 {
     StringVector fields;
     StringVector methods;
     StringVector pures;
     StringVector statics;
+
     ObjectVector traits;
 
-    std::map<std::string, OverloadCoordinateVector> itables;
+    // trait name => member name => overload index => OverloadCoordinate
+    std::map<std::string, std::map<std::string, std::map<int, OverloadCoordinate>>>
+        itables;
 
     explicit BaseOOPType(
         std::string name,
@@ -565,7 +562,8 @@ struct ModuleObject : public MemberedCompositeObject
 struct ClassBlueprintObject : public MemberedCompositeObject
 {
     int fields_count;
-    std::map<std::string, OverloadCoordinateVector> itables;
+    std::map<std::string, std::map<std::string, std::map<int, OverloadCoordinate>>>
+        itables;
 
     ClassBlueprintObject(ObjectVector members = {}, int fields_count = 0)
         : MemberedCompositeObject(std::move(members)),
@@ -582,10 +580,13 @@ struct ClassInstanceObject : public MemberedCompositeObject
 struct TraitInstanceObject
 {
     Object_ptr class_instance;
-    OverloadCoordinateVector itable;
+    std::map<std::string, std::map<int, OverloadCoordinate>> itable;
 
-    TraitInstanceObject(Object_ptr class_instance, OverloadCoordinateVector itable)
-        : class_instance(std::move(class_instance)), itable(itable)
+    TraitInstanceObject(
+        Object_ptr class_instance,
+        std::map<std::string, std::map<int, OverloadCoordinate>> itable
+    )
+        : class_instance(std::move(class_instance)), itable(std::move(itable))
     {
     }
 };

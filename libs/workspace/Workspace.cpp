@@ -53,25 +53,20 @@ bool Symbol::is_exportable() const
 
 bool Symbol::is_either_function_or_method() const
 {
-    return payload_is_any_of<FunctionData, MethodData>();
+    return payload_is_any_of<CallableData>();
 }
 
 bool Symbol::is_native() const
 {
-    if (auto* func_data = try_get_payload<FunctionData>())
+    if (auto* func_data = try_get_payload<CallableData>())
     {
         return func_data->is_native;
-    }
-
-    if (auto* meth_data = try_get_payload<MethodData>())
-    {
-        return meth_data->is_native;
     }
 
     return false;
 }
 
-bool Symbol::is_generic() const
+bool Symbol::is_template_parameter() const
 {
     return payload_is<TemplateParameterData>();
 }
@@ -103,11 +98,7 @@ Object_ptr Symbol::get_type()
             {
                 return d.type;
             },
-            [](const FunctionData& d)
-            {
-                return d.type;
-            },
-            [](const MethodData& d)
+            [](const CallableData& d)
             {
                 return d.type;
             },
@@ -168,11 +159,7 @@ void Symbol::set_type(Object_ptr new_type)
             {
                 d.type = new_type;
             },
-            [&](FunctionData& d)
-            {
-                d.type = new_type;
-            },
-            [&](MethodData& d)
+            [&](CallableData& d)
             {
                 d.type = new_type;
             },
@@ -217,11 +204,7 @@ void Symbol::mark_as_native()
 {
     std::visit(
         ::overloaded{
-            [&](FunctionData& d)
-            {
-                d.is_native = true;
-            },
-            [&](MethodData& d)
+            [&](CallableData& d)
             {
                 d.is_native = true;
             },
@@ -283,13 +266,9 @@ std::string Symbol::to_string() const
     {
         payload_type = "OverloadsGroup";
     }
-    else if (payload_is<FunctionData>())
+    else if (payload_is<CallableData>())
     {
-        payload_type = "Function";
-    }
-    else if (payload_is<MethodData>())
-    {
-        payload_type = "Method";
+        payload_type = "Callable";
     }
     else if (payload_is<ModuleData>())
     {
@@ -372,9 +351,9 @@ Symbol_ptr SymbolFactory::create_function(
         std::move(name),
         closure_depth,
         lexical_depth,
-        FunctionData(is_native)
+        CallableData(std::move(type), is_native)
     );
-    symbol->set_type(std::move(type));
+
     return symbol;
 }
 
@@ -391,9 +370,9 @@ Symbol_ptr SymbolFactory::create_method(
         std::move(name),
         closure_depth,
         lexical_depth,
-        MethodData(is_native)
+        CallableData(std::move(type), is_native)
     );
-    symbol->set_type(std::move(type));
+
     return symbol;
 }
 

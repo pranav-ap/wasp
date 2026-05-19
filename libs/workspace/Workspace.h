@@ -34,34 +34,34 @@ using Workspace_ptr = std::shared_ptr<Workspace>;
 struct TypedData
 {
     Object_ptr type;
-    TypedData(Object_ptr type = nullptr) : type(std::move(type))
+
+    explicit TypedData(Object_ptr type = nullptr) : type(std::move(type))
     {
     }
 };
 
-struct PossibleNativeData : public TypedData
+struct NativeData
 {
     bool is_native;
-    PossibleNativeData(bool is_native) : TypedData(nullptr), is_native(is_native)
+
+    explicit NativeData(bool is_native = false) : is_native(is_native)
     {
     }
 };
 
-struct FunctionData : public PossibleNativeData
-{
-    Statement_ptr function_definition;
-    SymbolScope_ptr definition_scope;
+// ============================================================================
+// Symbol Payloads
+// ============================================================================
 
-    FunctionData(bool is_native)
-        : PossibleNativeData(is_native), function_definition(nullptr),
-          definition_scope(nullptr)
-    {
-    }
-};
-
-struct MethodData : public PossibleNativeData
+struct CallableData : public TypedData, public NativeData
 {
-    MethodData(bool is_native) : PossibleNativeData(is_native)
+    bool is_method;
+    Statement_ptr definition;
+    SymbolScope_ptr declaration_scope;
+
+    CallableData(Object_ptr type, bool is_native, bool is_method = false)
+        : TypedData(std::move(type)), NativeData(is_native), is_method(is_method),
+          definition(nullptr), declaration_scope(nullptr)
     {
     }
 };
@@ -74,13 +74,13 @@ struct OverloadsData : public TypedData
     OverloadsData() = default;
 
     const SymbolVector& get_overloads() const;
-
     std::vector<std::pair<Symbol_ptr, int>> get_overloads_with_indices() const;
 };
 
 struct VariableData : public TypedData
 {
     bool is_mutable;
+
     VariableData(Object_ptr type, bool is_mutable)
         : TypedData(std::move(type)), is_mutable(is_mutable)
     {
@@ -90,10 +90,10 @@ struct VariableData : public TypedData
 struct OopsData : public TypedData
 {
     Statement_ptr definition;
-    SymbolScope_ptr definition_scope;
+    SymbolScope_ptr declaration_scope;
 
-    OopsData(Object_ptr type)
-        : TypedData(std::move(type)), definition(nullptr), definition_scope(nullptr)
+    explicit OopsData(Object_ptr type)
+        : TypedData(std::move(type)), definition(nullptr), declaration_scope(nullptr)
     {
     }
 };
@@ -120,6 +120,7 @@ struct SymbolAliasData
 
 struct TypeAliasData : public TypedData
 {
+    using TypedData::TypedData;
 };
 
 struct ModuleData
@@ -135,8 +136,7 @@ struct EnumData : public TypedData
 using SymbolPayload = std::variant<
     VariableData,
     OverloadsData,
-    FunctionData,
-    MethodData,
+    CallableData,
     ModuleData,
     ClassData,
     TraitData,
@@ -162,7 +162,7 @@ struct Symbol : public std::enable_shared_from_this<Symbol>
     bool is_exportable() const;
     bool is_either_function_or_method() const;
     bool is_native() const;
-    bool is_generic() const;
+    bool is_template_parameter() const;
 
     Object_ptr get_type();
     void set_type(Object_ptr new_type);
@@ -186,7 +186,7 @@ struct Symbol : public std::enable_shared_from_this<Symbol>
 
     bool is_callable_payload() const
     {
-        return payload_is_any_of<FunctionData, MethodData, OverloadsData>();
+        return payload_is_any_of<CallableData, OverloadsData>();
     }
 
     bool is_oop_type() const

@@ -105,7 +105,11 @@ Symbol_ptr SemanticAnalyzer::resolve_target_symbol(Expression_ptr target)
 Object_ptr SemanticAnalyzer::visit(Identifier& identifier)
 {
     Symbol_ptr symbol = current_scope->lookup(identifier.name);
-    Doctor::get().fatal_if_nullptr(symbol, WaspStage::Semantics);
+    Doctor::get().fatal_if_nullptr(
+        symbol,
+        WaspStage::Semantics,
+        "Undefined identifier: " + identifier.name
+    );
 
     bind_identifier(identifier, symbol);
     return symbol->get_type();

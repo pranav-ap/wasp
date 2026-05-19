@@ -207,15 +207,15 @@ Symbol_ptr SemanticAnalyzer::monomorphize_callable_template(
     const std::string& specialized_name
 )
 {
-    auto& function_data = blueprint_symbol->get_payload_as<FunctionData>();
+    auto& function_data = blueprint_symbol->get_payload_as<CallableData>();
 
     ASTCloner cloner(substitutions);
-    Statement_ptr specialized_stmt = cloner.clone(function_data.function_definition);
+    Statement_ptr specialized_stmt = cloner.clone(function_data.definition);
 
     Symbol_ptr specialized_group_symbol = nullptr;
 
     SymbolScope_ptr previous_scope = current_scope;
-    current_scope = function_data.definition_scope;
+    current_scope = function_data.declaration_scope;
 
     std::visit(
         overloaded{
@@ -303,9 +303,9 @@ Object_ptr SemanticAnalyzer::call_template_function(
     Symbol_ptr blueprint_symbol = candidates[winning_index];
 
     Doctor::get().assert(
-        blueprint_symbol->payload_is<FunctionData>(),
+        blueprint_symbol->payload_is<CallableData>(),
         WaspStage::Semantics,
-        "Resolved template symbol does not contain FunctionData."
+        "Resolved template symbol does not contain CallableData."
     );
 
     // Build the substitutions map
