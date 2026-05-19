@@ -184,7 +184,7 @@ constexpr TokenType get_keyword_token_type(const std::string &s) {
   TOKEN_LIST(AS_KW_TYPE_CHECK)
 
 #undef AS_KW_TYPE_CHECK
-  return TokenType::IDENTIFIER; // Return IDENTIFIER if not a keyword
+  return TokenType::IDENTIFIER;
 }
 
 struct Token {

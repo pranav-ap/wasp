@@ -56,8 +56,7 @@ void Compiler::visit(ClassDefinition& def)
                     func->name,
                     func->parameter_symbols,
                     func->body,
-                    func->context_symbol // <--- Now using the context symbol to
-                                         // fix the crash!
+                    func->context_symbol
                 );
             }
             overload_count++;
@@ -83,10 +82,10 @@ void Compiler::visit(ClassDefinition& def)
 
 void Compiler::visit(TraitDefinition& def)
 {
-    int slot = get_or_add_local_index(def.symbol);
+    // int slot = get_or_add_local_index(def.symbol);
 
-    emit(OpCode::LOAD_NONE, "placeholder for trait " + def.name);
-    emit(OpCode::SET_LOCAL, slot, "init trait in slot");
+    // emit(OpCode::LOAD_NONE, "placeholder for trait " + def.name);
+    // emit(OpCode::SET_LOCAL, slot, "init trait in slot");
 }
 
 } // namespace Wasp

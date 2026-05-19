@@ -24,29 +24,39 @@ namespace Wasp
 
 void SemanticAnalyzer::visit(ClassDefinition& def)
 {
-    analyze_oops_definition(def);
+    auto type_obj = def.symbol->get_type();
+    Doctor::get().fatal_if_nullptr(type_obj, WaspStage::Semantics);
+
+    Doctor::get().assert(
+        type_obj->is<ClassType_ptr>(),
+        WaspStage::Semantics,
+        "Expected a class type in the class definition"
+    );
+
+    auto& class_type = type_obj->as<ClassType_ptr>();
+
+    analyze_oops_definition(def, class_type);
 }
 
 void SemanticAnalyzer::visit(TraitDefinition& def)
 {
-    analyze_oops_definition(def);
+    auto type_obj = def.symbol->get_type();
+    Doctor::get().fatal_if_nullptr(type_obj, WaspStage::Semantics);
+
+    Doctor::get().assert(
+        type_obj->is<TraitType_ptr>(),
+        WaspStage::Semantics,
+        "Expected a trait type in the trait definition"
+    );
+
+    auto& trait_type = type_obj->as<TraitType_ptr>();
+
+    analyze_oops_definition(def, trait_type);
 }
 
-void SemanticAnalyzer::analyze_oops_definition(AbstractOopsDefinition& def)
+void SemanticAnalyzer::analyze_oops_definition(AbstractOopsDefinition& def, OopsType_ptr oop_type)
 {
     enter_scope(ScopeType::CLASS);
-
-    auto type_obj = def.symbol->get_type();
-    OopsType_ptr oop_type;
-
-    if (auto class_type = try_unwrap_ptr<ClassType_ptr>(type_obj))
-    {
-        oop_type = class_type;
-    }
-    else if (auto trait_type = try_unwrap_ptr<TraitType_ptr>(type_obj))
-    {
-        oop_type = trait_type;
-    }
 
     auto [generics, ordered_names] = evaluate_template_params(def.template_params);
 
@@ -57,13 +67,122 @@ void SemanticAnalyzer::analyze_oops_definition(AbstractOopsDefinition& def)
     }
 
     resolve_traits(def, oop_type);
-    fill_oop_structure(def, oop_type);
+    fill_oops_member_names(def, oop_type);
     hoist_methods(def, oop_type);
-    inherit_default_methods(def, oop_type);
-    analyze_methods(def, type_obj);
+    // inherit_default_methods(def, oop_type);
+    analyze_methods(def);
     check_trait_conformance(oop_type);
 
     leave_scope();
+}
+
+void SemanticAnalyzer::resolve_traits(AbstractOopsDefinition& def, OopsType_ptr oop_type)
+{
+    for (const auto& trait_annotation : def.traits)
+    {
+        Object_ptr resolved_type = visit(trait_annotation);
+        resolved_type = unwrap_completely(resolved_type);
+
+        Doctor::get().assert(
+            resolved_type->is<TraitType_ptr>(),
+            WaspStage::Semantics,
+            "A Class or Trait can only implement a Trait."
+        );
+
+        auto trait_type = resolved_type->as<TraitType_ptr>();
+        oop_type->traits.push_back(make_object(trait_type));
+    }
+}
+
+void SemanticAnalyzer::fill_oops_member_names(AbstractOopsDefinition& def, OopsType_ptr oop_type)
+{
+    auto push_unique = [](StringVector& vec, const std::string& name)
+    {
+        if (std::find(vec.begin(), vec.end(), name) == vec.end())
+        {
+            vec.push_back(name);
+        }
+    };
+
+    for (auto& stmt : def.members)
+    {
+        std::visit(
+            overloaded{
+                [&](const FieldDefinition& f)
+                {
+                    Doctor::get().assert(
+                        std::find(
+                            oop_type->fields.begin(),
+                            oop_type->fields.end(),
+                            f.name
+                        ) == oop_type->fields.end(),
+                        WaspStage::Semantics,
+                        "Duplicate field '" + f.name + "'."
+                    );
+
+                    oop_type->fields.push_back(f.name);
+                    oop_type->member_types[f.name] = visit(f.type);
+                },
+                [&](const MethodDefinition& m)
+                {
+                    push_unique(oop_type->methods, m.name);
+
+                    if (m.is_pure)
+                    {
+                        push_unique(oop_type->pures, m.name);
+                    }
+
+                    if (m.is_static)
+                    {
+                        push_unique(oop_type->statics, m.name);
+                    }
+                },
+                [&](const auto&)
+                {
+                    Doctor::get().fatal(
+                        WaspStage::Semantics,
+                        "Invalid OOP body stmt."
+                    );
+                }
+            },
+            stmt->data
+        );
+    }
+}
+
+void SemanticAnalyzer::hoist_methods(AbstractOopsDefinition& def, OopsType_ptr oop_type)
+{
+    for (auto& stmt : def.members)
+    {
+        if (auto* f = stmt->try_as<MethodDefinition>())
+        {
+            ObjectVector param_types;
+            for (const auto& [name, type_node] : f->parameters)
+            {
+                param_types.push_back(visit(type_node));
+            }
+
+            auto signature = make_object(
+                std::make_shared<Signature>(
+                    param_types,
+                    f->return_type ? visit(f->return_type)
+                                   : workspace->pool->get_none_type(),
+                    oop_type->template_parameter_types,
+                    oop_type->ordered_template_parameter_names
+                )
+            );
+
+            f->symbol = SymbolFactory::create_method(
+                f->name,
+                signature,
+                false,
+                current_scope->get_closure_depth(),
+                current_scope->get_lexical_depth()
+            );
+
+            oop_type->add_overload(f->name, signature);
+        }
+    }
 }
 
 void SemanticAnalyzer::inherit_default_methods(AbstractOopsDefinition& def, OopsType_ptr oop_type)
@@ -171,123 +290,16 @@ void SemanticAnalyzer::inherit_default_methods(AbstractOopsDefinition& def, Oops
     }
 }
 
-void SemanticAnalyzer::resolve_traits(AbstractOopsDefinition& def, OopsType_ptr oop_type)
+void SemanticAnalyzer::analyze_methods(AbstractOopsDefinition& def)
 {
-    for (const auto& trait_annotation : def.traits)
-    {
-        Object_ptr resolved_type = visit(trait_annotation);
-        resolved_type = unwrap_completely(resolved_type);
+    auto type_obj = def.symbol->get_type();
 
-        Doctor::get().assert(
-            resolved_type->is<TraitType_ptr>(),
-            WaspStage::Semantics,
-            "A class or trait can only implement/inherit from a Trait."
-        );
-
-        auto trait_type = resolved_type->as<TraitType_ptr>();
-        oop_type->traits.push_back(make_object(trait_type));
-    }
-}
-
-void SemanticAnalyzer::fill_oop_structure(AbstractOopsDefinition& def, OopsType_ptr oop_type)
-{
-    auto push_unique = [](StringVector& vec, const std::string& name)
-    {
-        if (std::find(vec.begin(), vec.end(), name) == vec.end())
-        {
-            vec.push_back(name);
-        }
-    };
-
-    for (auto& stmt : def.members)
-    {
-        std::visit(
-            overloaded{
-                [&](const FieldDefinition& f)
-                {
-                    Doctor::get().assert(
-                        std::find(
-                            oop_type->fields.begin(),
-                            oop_type->fields.end(),
-                            f.name
-                        ) == oop_type->fields.end(),
-                        WaspStage::Semantics,
-                        "Duplicate field '" + f.name + "'."
-                    );
-
-                    oop_type->fields.push_back(f.name);
-                    oop_type->member_types[f.name] = visit(f.type);
-                },
-                [&](const MethodDefinition& m)
-                {
-                    push_unique(oop_type->methods, m.name);
-
-                    if (m.is_pure)
-                    {
-                        push_unique(oop_type->pures, m.name);
-                    }
-
-                    if (m.is_static)
-                    {
-                        push_unique(oop_type->statics, m.name);
-                    }
-                },
-                [&](const auto&)
-                {
-                    Doctor::get().fatal(
-                        WaspStage::Semantics,
-                        "Invalid OOP body stmt."
-                    );
-                }
-            },
-            stmt->data
-        );
-    }
-}
-
-void SemanticAnalyzer::hoist_methods(AbstractOopsDefinition& def, OopsType_ptr oop_type)
-{
     for (auto& stmt : def.members)
     {
         if (auto* f = stmt->try_as<MethodDefinition>())
         {
-            ObjectVector param_types;
-            for (const auto& [name, type_node] : f->parameters)
-            {
-                param_types.push_back(visit(type_node));
-            }
-
-            auto signature = make_object(
-                std::make_shared<Signature>(
-                    param_types,
-                    f->return_type ? visit(f->return_type)
-                                   : workspace->pool->get_none_type(),
-                    oop_type->template_parameter_types,
-                    oop_type->ordered_template_parameter_names
-                )
-            );
-
-            f->symbol = SymbolFactory::create_method(
-                f->name,
-                signature,
-                false,
-                current_scope->get_closure_depth(),
-                current_scope->get_lexical_depth()
-            );
-
-            oop_type->add_overload(f->name, signature);
-        }
-    }
-}
-
-void SemanticAnalyzer::analyze_methods(AbstractOopsDefinition& def, Object_ptr type_obj)
-{
-    for (auto& stmt : def.members)
-    {
-        if (auto* f = stmt->try_as<MethodDefinition>())
-        {
-            ScopeType st = f->is_pure ? ScopeType::PURE_METHOD : ScopeType::METHOD;
-            analyze_callable(*f, st, type_obj, f->is_static);
+            ScopeType scope_type = f->is_pure ? ScopeType::PURE_METHOD : ScopeType::METHOD;
+            analyze_callable(*f, scope_type, type_obj, f->is_static);
         }
     }
 }

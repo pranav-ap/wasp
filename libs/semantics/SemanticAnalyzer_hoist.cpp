@@ -48,6 +48,7 @@ void SemanticAnalyzer::hoist_names(StatementVector& statements)
                     auto type = make_object(
                         std::make_shared<ClassType>(def.name)
                     );
+
                     def.symbol = current_scope->define(
                         SymbolFactory::create_oops(
                             def.name,
@@ -62,6 +63,7 @@ void SemanticAnalyzer::hoist_names(StatementVector& statements)
                     auto type = make_object(
                         std::make_shared<TraitType>(def.name)
                     );
+
                     def.symbol = current_scope->define(
                         SymbolFactory::create_oops(
                             def.name,
@@ -91,6 +93,7 @@ void SemanticAnalyzer::hoist_names(StatementVector& statements)
                     auto type = make_object(
                         std::make_shared<EnumType>(def.name)
                     );
+
                     def.symbol = current_scope->define(
                         SymbolFactory::create_enum(
                             def.name,
@@ -124,6 +127,13 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
     {
         std::visit(
             overloaded{
+                [&](TypeAliasDefinition& def)
+                {
+                    auto alias_type = def.symbol->get_type()->as<TypeAlias_ptr>();
+
+                    assign_generics(def, alias_type);
+                    alias_type->underlying_type = visit(def.ref_type);
+                },
                 [&](ClassDefinition& def)
                 {
                     assign_generics(
@@ -131,11 +141,11 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
                         def.symbol->get_type()->as<ClassType_ptr>()
                     );
 
-                        auto& class_data = def.symbol->get_payload_as<OopsData>();
+                    auto& class_data = def.symbol->get_payload_as<OopsData>();
 
-                        ASTCloner cloner;
-                        class_data.definition = cloner.clone(make_statement(def));
-                        class_data.declaration_scope = current_scope;
+                    ASTCloner cloner;
+                    class_data.definition = cloner.clone(make_statement(def));
+                    class_data.declaration_scope = current_scope;
                 },
                 [&](TraitDefinition& def)
                 {
@@ -169,18 +179,8 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
                     ASTCloner cloner;
                     function_data.definition = cloner.clone(make_statement(def));
                     function_data.declaration_scope = current_scope;
-
                 },
-                [&](TypeAliasDefinition& def)
-                {
-                    auto alias_type = def.symbol->get_type()
-                                          ->as<TypeAlias_ptr>();
-
-                    assign_generics(def, alias_type);
-                    alias_type->underlying_type = visit(def.ref_type);
-                },
-                [](auto&)
-                { /* No signature hoisting needed for other statements */ }
+                [](auto&) { /* No signature hoisting needed for other statements */ }
             },
             stmt_ptr->data
         );
@@ -196,6 +196,7 @@ void SemanticAnalyzer::hoist_import(Import& stmt)
         mod->get_name(),
         mod
     );
+
     std::string module_path = mod->get_path();
 
     for (auto& exported_symbol : mod->exports)
@@ -225,11 +226,10 @@ void SemanticAnalyzer::hoist_import(Import& stmt)
     {
         Symbol_ptr exported_symbol = mod->get_member(pair.name);
 
-        Doctor::get().assert(
-            exported_symbol != nullptr,
+        Doctor::get().fatal_if_nullptr(
+            exported_symbol,
             WaspStage::Semantics,
-            "Module '" + mod->get_name() +
-                "' does not export symbol: " + pair.name
+            "Module '" + mod->get_name() + "' does not export symbol: " + pair.name
         );
 
         if (pair.alias.has_value())
@@ -253,11 +253,13 @@ void SemanticAnalyzer::hoist_import(Import& stmt)
     {
         for (const auto& exported_symbol : mod->exports)
         {
-            if (std::find(
-                    stmt.excluded_symbols.begin(),
-                    stmt.excluded_symbols.end(),
-                    exported_symbol->name
-                ) == stmt.excluded_symbols.end())
+            bool not_excluded = std::find(
+                                    stmt.excluded_symbols.begin(),
+                                    stmt.excluded_symbols.end(),
+                                    exported_symbol->name
+                                ) == stmt.excluded_symbols.end();
+
+            if (not_excluded)
             {
                 current_scope->define(exported_symbol);
             }
@@ -267,6 +269,8 @@ void SemanticAnalyzer::hoist_import(Import& stmt)
 
 void SemanticAnalyzer::hoist_function_definition(AbstractCallable& def)
 {
+    enter_scope(ScopeType::FUNCTION);
+
     auto [generics, ordered_names] = evaluate_template_params(def.template_params);
 
     for (const auto& [name, generic_type] : generics)
@@ -284,13 +288,10 @@ void SemanticAnalyzer::hoist_function_definition(AbstractCallable& def)
         param_types.push_back(visit(type_node));
     }
 
+    leave_scope();
+
     auto signature = make_object(
-        std::make_shared<Signature>(
-            param_types,
-            return_type,
-            generics,
-            ordered_names
-        )
+        std::make_shared<Signature>(param_types, return_type, generics, ordered_names)
     );
 
     auto symbol = SymbolFactory::create_function(
@@ -306,26 +307,6 @@ void SemanticAnalyzer::hoist_function_definition(AbstractCallable& def)
 
     def.symbol = symbol;
     def.group_symbol = current_scope->define(symbol);
-}
-
-std::pair<ObjectStringMap, StringVector> SemanticAnalyzer::evaluate_template_params(
-    const std::vector<FieldDefinition>& template_params
-)
-{
-    ObjectStringMap template_params_map;
-    StringVector ordered_names;
-
-    for (const auto& field : template_params)
-    {
-        auto template_param_type = make_object(
-            std::make_shared<TemplateParameterType>(field.name, visit(field.type))
-        );
-
-        template_params_map[field.name] = template_param_type;
-        ordered_names.push_back(field.name);
-    }
-
-    return {template_params_map, ordered_names};
 }
 
 } // namespace Wasp

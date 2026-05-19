@@ -62,9 +62,6 @@ Object_ptr SemanticAnalyzer::resolve_operator_overload(
 
     auto signature = function_symbol->get_type()->as<Signature_ptr>();
 
-    // 1. If it's a template, instantiate it.
-    // (try_monomorphize_operator already handles setting expr.overload_index = 0
-    // internally)
     auto specialized_type = try_monomorphize_operator(
         expr,
         function_symbol,
@@ -77,28 +74,26 @@ Object_ptr SemanticAnalyzer::resolve_operator_overload(
         return specialized_type.value();
     }
 
-    // ========================================================================
-    // 2. It's a concrete operator! Calculate the Runtime Index
-    // ========================================================================
-    int runtime_index = 0;
+    int runtime_overload_index = 0;
+
     for (const auto& candidate : overloads)
     {
         if (candidate == function_symbol)
         {
-            break; // Found our winner, stop counting
+            break;
         }
 
         auto cand_sig = candidate->get_type()->as<Signature_ptr>();
 
-        // Only count it if it's concrete (templates are stripped by the VM)
+        // Only count it if it's concrete
         if (cand_sig->ordered_template_parameter_names.empty())
         {
-            runtime_index++;
+            runtime_overload_index++;
         }
     }
 
     expr.symbol = operator_symbol;
-    expr.overload_index = runtime_index;
+    expr.overload_index = runtime_overload_index;
 
     return signature->return_type;
 }
@@ -144,9 +139,10 @@ std::optional<Object_ptr> SemanticAnalyzer::try_monomorphize_operator(
     expr.overload_index = 0;
 
     auto specialized_overloads = specialized_group_symbol->get_overloads();
-    return unwrap_completely(
-        specialized_overloads[0]->get_type()->as<Signature_ptr>()->return_type
-    );
+    auto return_type = specialized_overloads[0]->get_type()->as<Signature_ptr>()->return_type;
+    return_type = unwrap_completely(return_type);
+
+    return return_type;
 }
 
 Object_ptr SemanticAnalyzer::try_resolve_custom_operator(

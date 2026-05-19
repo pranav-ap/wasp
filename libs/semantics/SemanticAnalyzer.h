@@ -114,11 +114,11 @@ private:
     void hoist_function_definition(AbstractCallable& def);
 
     // OOP Analysis
-    void analyze_oops_definition(AbstractOopsDefinition& def);
+    void analyze_oops_definition(AbstractOopsDefinition& def, OopsType_ptr oop_type);
     void resolve_traits(AbstractOopsDefinition& def, OopsType_ptr oop_type);
-    void fill_oop_structure(AbstractOopsDefinition& def, OopsType_ptr oop_type);
+    void fill_oops_member_names(AbstractOopsDefinition& def, OopsType_ptr oop_type);
     void hoist_methods(AbstractOopsDefinition& def, OopsType_ptr oop_type);
-    void analyze_methods(AbstractOopsDefinition& def, Object_ptr type_obj);
+    void analyze_methods(AbstractOopsDefinition& def);
     void check_trait_conformance(OopsType_ptr oop_type);
     void inherit_default_methods(AbstractOopsDefinition& def, OopsType_ptr oop_type);
 

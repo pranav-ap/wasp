@@ -42,12 +42,16 @@ class Jordan is Debug & Player
     fun play()
         pass
 
+    # trait to class mapping
+    # Debug::repr 0, 0 => Jordan::repr 0, 0
+    # Player::play 0, 0 => Jordan::play 1, 0
+
 
 fun shout(d: Debug)
-    d.repr()
+    pass
 
 let j = Jordan('jordan')
 let g = j.repr()
 g.repr()
 
-shout(j)
+# shout(j)

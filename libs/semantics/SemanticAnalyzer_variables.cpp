@@ -109,15 +109,14 @@ void SemanticAnalyzer::validate_purity_constraints(
 
     while (scope && scope->get_closure_depth() > target_symbol->closure_depth)
     {
-        if (scope->get_type() == ScopeType::PURE_FUNCTION ||
-            scope->get_type() == ScopeType::PURE_METHOD)
-        {
-            Doctor::get().fatal(
-                WaspStage::Semantics,
-                "Pure functions cannot mutate outer state variable '" +
-                    target_symbol->name + "'"
-            );
-        }
+        auto scope_type = scope->get_type();
+
+        Doctor::get().assert(
+            scope_type != ScopeType::PURE_FUNCTION && scope_type != ScopeType::PURE_METHOD,
+            WaspStage::Semantics,
+            "Pure functions cannot mutate outer state variable '" + target_symbol->name + "'"
+        );
+
         scope = scope->get_enclosing();
     }
 }

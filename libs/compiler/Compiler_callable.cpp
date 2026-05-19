@@ -55,13 +55,11 @@ void Compiler::compile_function_closure(
 
     func_compiler.enter_scope();
 
-    // 1. Ghost variable fix! Push "my" or "our" so it takes slot 0
     if (context_symbol)
     {
         func_compiler.stack.push_back(context_symbol);
     }
 
-    // 2. Push standard parameters (Slots 1, 2, 3...)
     for (const auto& param_symbol : parameters)
     {
         func_compiler.stack.push_back(param_symbol);
@@ -79,15 +77,22 @@ void Compiler::compile_function_closure(
         std::move(code),
         name
     );
-    emit(OpCode::LOAD_CONST, const_id, "fun " + name);
 
+    emit(OpCode::LOAD_CONST, const_id, "fun " + name);
     emit_closure_upvalues(func_compiler.upvalues);
 }
 
 void Compiler::visit(FunctionDefinition& def)
 {
-    // 1. ALWAYS allocate the index to stay synced with Semantic Analyzer
-    int physical_index = get_or_add_local_index(def.group_symbol);
+    int physical_index = resolve_local(def.group_symbol->id);
+
+    if (physical_index == -1)
+    {
+        physical_index = get_or_add_local_index(def.group_symbol);
+
+        emit(OpCode::BUILD_OVERLOAD_GROUP, 0);
+        emit(OpCode::SET_LOCAL, physical_index);
+    }
 
     if (!def.template_params.empty())
     {

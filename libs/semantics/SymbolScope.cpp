@@ -192,7 +192,7 @@ Symbol_ptr SymbolScope::define_method(Symbol_ptr new_symbol)
 
     symbols[new_symbol->name] = overload_group;
 
-    return new_symbol;
+    return overload_group;
 }
 
 Symbol_ptr SymbolScope::lookup_local(const std::string& name) const
