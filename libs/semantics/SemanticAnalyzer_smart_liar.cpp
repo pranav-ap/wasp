@@ -48,19 +48,13 @@ void SemanticAnalyzer::visit(const Statement_ptr statement)
                     "Unhandled Statement in Semantic Analyzer!"
                 );
             },
-            [&](FieldDefinition&)
-            {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "Field definitions are not valid statements on their own."
-                );
-            },
             [&](auto& stat)
             {
                 using T = std::decay_t<decltype(stat)>;
 
                 if constexpr (
-                    std::is_same_v<T, Import> || std::is_same_v<T, MethodDefinition>
+                    std::is_same_v<T, Import> || std::is_same_v<T, MethodDefinition> ||
+                    std::is_same_v<T, FieldDefinition>
                 )
                 {
                     return;

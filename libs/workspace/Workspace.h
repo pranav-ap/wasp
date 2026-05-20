@@ -297,7 +297,7 @@ public:
 
     static Symbol_ptr create_module(std::string name, Module_ptr mod);
 
-    static Symbol_ptr create_alias(std::string name, Symbol_ptr target);
+    static Symbol_ptr create_symbol_alias(std::string name, Symbol_ptr target);
 };
 
 struct Module

@@ -259,10 +259,12 @@ void SemanticAnalyzer::inherit_default_methods(AbstractOopsDefinition& def, Oops
                         ) == oop_type->methods.end())
                     {
                         oop_type->methods.push_back(method_name);
+
                         if (cloned_method->is_pure)
                         {
                             oop_type->pures.push_back(method_name);
                         }
+
                         if (cloned_method->is_static)
                         {
                             oop_type->statics.push_back(method_name);

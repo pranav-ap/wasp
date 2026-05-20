@@ -216,7 +216,7 @@ void SemanticAnalyzer::hoist_import(Import& stmt)
 
     if (stmt.module_alias.has_value())
     {
-        Symbol_ptr alias_symbol = SymbolFactory::create_alias(
+        Symbol_ptr alias_symbol = SymbolFactory::create_symbol_alias(
             stmt.module_alias.value(),
             module_symbol
         );
@@ -244,7 +244,7 @@ void SemanticAnalyzer::hoist_import(Import& stmt)
 
         if (pair.alias.has_value())
         {
-            Symbol_ptr alias_symbol = SymbolFactory::create_alias(
+            Symbol_ptr alias_symbol = SymbolFactory::create_symbol_alias(
                 pair.alias.value(),
                 exported_symbol
             );

@@ -22,6 +22,7 @@ add_library(
     TypeSystem_infer.cpp
     TypeSystem_boring.cpp
     ASTCloner.cpp
+    SmartLiar.cpp
 )
 
 target_link_libraries(SemanticAnalyzerLib PUBLIC TokenLib ASTLib ObjectSystemLib WorkspaceLib DoctorLib)

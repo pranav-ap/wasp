@@ -467,7 +467,7 @@ Symbol_ptr SymbolFactory::create_module(std::string name, Module_ptr mod)
     );
 }
 
-Symbol_ptr SymbolFactory::create_alias(std::string name, Symbol_ptr target)
+Symbol_ptr SymbolFactory::create_symbol_alias(std::string name, Symbol_ptr target)
 {
     return std::make_shared<Symbol>(
         symbol_id_counter++,

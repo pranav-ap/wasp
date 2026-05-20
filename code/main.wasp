@@ -15,9 +15,6 @@ trait Debug
         pass
 
 
-
-
-
 # symbol id 2
 trait Player
     # play 0, 0
@@ -47,12 +44,12 @@ fun shout(d: Debug)
     d.repr()
 
 
-fun shout(p: Player)
-    p.play()
+# fun shout(p: Player)
+#     p.play()
 
 
 let j = Jordan('jordan')
 let g = j.repr()
 g.repr()
 
-# shout(j)
+shout(j)

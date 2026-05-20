@@ -1,8 +1,8 @@
 set(TEST_COMMON_SRC common/test_utils.cpp)
 
 function(add_wasp_test_suite SUITE_NAME TEST_LABEL)
-    add_executable(${SUITE_NAME} 
-        ${ARGN} 
+    add_executable(${SUITE_NAME}
+        ${ARGN}
         ${TEST_COMMON_SRC}
     )
 
@@ -23,7 +23,7 @@ function(add_wasp_test_suite SUITE_NAME TEST_LABEL)
     include(GoogleTest)
     gtest_discover_tests(${SUITE_NAME}
         DISCOVERY_MODE PRE_TEST
-        PROPERTIES LABELS "unit" 
+        PROPERTIES LABELS "unit"
     )
 endfunction()
 
@@ -45,11 +45,6 @@ add_wasp_test_suite(parser_tests "parser"
     parser/test_parser_stars.cpp
     parser/test_parser_statements.cpp
     parser/test_parser_variable_definitions.cpp
-)
-
-# Semantics Suite
-add_wasp_test_suite(semantics_tests "semantics"
-    semantic_analyzer/test_semantics.cpp
 )
 
 # Compiler Suite

@@ -1,12 +1,17 @@
+#include "AST.h"
+#include "Doctor.h"
+#include "Objects.h"
 #include "SemanticAnalyzer.h"
+#include "Statement.h"
 #include "SymbolScope.h"
 #include "Token.h"
 #include "Workspace.h"
 
-
 #include <ctime>
 #include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -49,6 +54,32 @@ std::string SemanticAnalyzer::get_operator_symbol_name(
 )
 {
     return to_string(fixity) + "_" + to_string(op_type);
+}
+
+std::pair<ObjectStringMap, StringVector> SemanticAnalyzer::evaluate_template_params(
+    const std::vector<FieldDefinition>& template_params
+)
+{
+    ObjectStringMap template_params_map;
+    StringVector ordered_names;
+
+    for (const auto& field : template_params)
+    {
+        auto template_param_type = make_object(
+            std::make_shared<TemplateParameterType>(field.name, visit(field.type))
+        );
+
+        Doctor::get().assert(
+            !template_params_map.contains(field.name),
+            WaspStage::Semantics,
+            "Duplicate template parameter name '" + field.name + "'."
+        );
+
+        template_params_map[field.name] = template_param_type;
+        ordered_names.push_back(field.name);
+    }
+
+    return {template_params_map, ordered_names};
 }
 
 } // namespace Wasp

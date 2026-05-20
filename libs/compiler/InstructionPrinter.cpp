@@ -14,7 +14,7 @@
 
 #define OPCODE_WIDTH 18
 #define OPERAND_WIDTH 5
-#define METADATA_WIDTH 15
+#define METADATA_WIDTH 25
 
 using std::byte;
 using std::setw;

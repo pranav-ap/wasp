@@ -19,29 +19,36 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-void Compiler::visit(Return& statement)
+void Compiler::visit(FunctionDefinition& def)
 {
-    if (statement.expression.has_value())
+    int physical_index = resolve_local(def.group_symbol->id);
+
+    if (physical_index == -1)
     {
-        visit(statement.expression.value());
+        physical_index = get_or_add_local_index(def.group_symbol);
+
+        emit(OpCode::BUILD_OVERLOAD_GROUP, 0);
+        emit(OpCode::SET_LOCAL, physical_index);
+    }
+
+    if (!def.template_params.empty())
+    {
+        return;
+    }
+
+    if (def.symbol->is_native())
+    {
+        std::string mangled = mangle_name(def.name, "", def.symbol->module_path);
+        int registry_id = workspace->native_registry->get_native_index(mangled);
+        emit(OpCode::GET_NATIVE, registry_id, mangled);
     }
     else
     {
-        emit(OpCode::LOAD_NONE);
+        compile_function_closure(def.name, def.parameter_symbols, def.body, nullptr);
     }
 
-    emit(OpCode::RETURN);
-}
-
-void Compiler::emit_closure_upvalues(const std::vector<Upvalue>& upvalues)
-{
-    emit(OpCode::MAKE_FUNCTION, static_cast<int>(upvalues.size()));
-
-    for (const auto& uv : upvalues)
-    {
-        emit_raw_byte(uv.is_local_to_parent ? std::byte{1} : std::byte{0});
-        emit_raw_byte(static_cast<std::byte>(uv.index));
-    }
+    std::string label = (def.is_pure ? "pure fun " : "fun ") + def.name;
+    emit(OpCode::STORE_FUNCTION_OVERLOAD, physical_index, label);
 }
 
 void Compiler::compile_function_closure(
@@ -79,62 +86,27 @@ void Compiler::compile_function_closure(
     );
 
     emit(OpCode::LOAD_CONST, const_id, "fun " + name);
-    emit_closure_upvalues(func_compiler.upvalues);
+    emit(OpCode::MAKE_FUNCTION, static_cast<int>(func_compiler.upvalues.size()));
+
+    for (const auto& uv : func_compiler.upvalues)
+    {
+        emit_raw_byte(uv.is_local_to_parent ? std::byte{1} : std::byte{0});
+        emit_raw_byte(static_cast<std::byte>(uv.index));
+    }
 }
 
-void Compiler::visit(FunctionDefinition& def)
+void Compiler::visit(Return& statement)
 {
-    int physical_index = resolve_local(def.group_symbol->id);
-
-    if (physical_index == -1)
+    if (statement.expression.has_value())
     {
-        physical_index = get_or_add_local_index(def.group_symbol);
-
-        emit(OpCode::BUILD_OVERLOAD_GROUP, 0);
-        emit(OpCode::SET_LOCAL, physical_index);
-    }
-
-    if (!def.template_params.empty())
-    {
-        return;
-    }
-
-    if (def.symbol->is_native())
-    {
-        std::string mangled = mangle_name(def.name, "", def.symbol->module_path);
-        int registry_id = workspace->native_registry->get_native_index(mangled);
-        emit(OpCode::GET_NATIVE, registry_id, mangled);
+        visit(statement.expression.value());
     }
     else
     {
-        compile_function_closure(def.name, def.parameter_symbols, def.body, nullptr);
+        emit(OpCode::LOAD_NONE);
     }
 
-    std::string label = (def.is_pure ? "pure fun " : "fun ") + def.name;
-    emit(OpCode::STORE_FUNCTION_OVERLOAD, physical_index, label);
-}
-
-void Compiler::visit(OperatorDefinition& def)
-{
-    int physical_index = get_or_add_local_index(def.group_symbol);
-
-    if (!def.template_params.empty())
-    {
-        return;
-    }
-
-    if (def.symbol->is_native())
-    {
-        std::string mangled = mangle_name(def.name, "", def.symbol->module_path);
-        int registry_id = workspace->native_registry->get_native_index(mangled);
-        emit(OpCode::GET_NATIVE, registry_id, mangled);
-    }
-    else
-    {
-        compile_function_closure(def.name, def.parameter_symbols, def.body, nullptr);
-    }
-
-    emit(OpCode::STORE_FUNCTION_OVERLOAD, physical_index, "operator " + def.name);
+    emit(OpCode::RETURN);
 }
 
 } // namespace Wasp

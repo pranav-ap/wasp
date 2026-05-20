@@ -415,6 +415,14 @@ template <typename T> inline Statement_ptr make_statement(T&& data)
     return std::make_shared<Statement>(std::forward<T>(data));
 }
 
+template <typename T> inline Statement_ptr make_statement(T&& data, Token start, Token end)
+{
+    auto stmt = std::make_shared<Statement>(std::forward<T>(data));
+    stmt->start_token = start;
+    stmt->end_token = end;
+    return stmt;
+}
+
 inline std::string get_operator_name(TokenType fixity, TokenType op_type)
 {
     std::string fix;

@@ -80,12 +80,4 @@ void Compiler::visit(ClassDefinition& def)
     emit(OpCode::SET_LOCAL, slot, "update local slot");
 }
 
-void Compiler::visit(TraitDefinition& def)
-{
-    // int slot = get_or_add_local_index(def.symbol);
-
-    // emit(OpCode::LOAD_NONE, "placeholder for trait " + def.name);
-    // emit(OpCode::SET_LOCAL, slot, "init trait in slot");
-}
-
 } // namespace Wasp

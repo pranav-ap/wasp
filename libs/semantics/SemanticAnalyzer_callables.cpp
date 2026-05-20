@@ -2,7 +2,6 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "AST.h"
@@ -199,26 +198,6 @@ void SemanticAnalyzer::visit(Placeholder& statement)
             "The 'native' keyword is strictly reserved for internal core libraries."
         );
     }
-}
-
-std::pair<ObjectStringMap, StringVector> SemanticAnalyzer::evaluate_template_params(
-    const std::vector<FieldDefinition>& template_params
-)
-{
-    ObjectStringMap template_params_map;
-    StringVector ordered_names;
-
-    for (const auto& field : template_params)
-    {
-        auto template_param_type = make_object(
-            std::make_shared<TemplateParameterType>(field.name, visit(field.type))
-        );
-
-        template_params_map[field.name] = template_param_type;
-        ordered_names.push_back(field.name);
-    }
-
-    return {template_params_map, ordered_names};
 }
 
 } // namespace Wasp
