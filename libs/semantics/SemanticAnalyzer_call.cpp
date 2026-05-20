@@ -73,15 +73,6 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                                 argument_types
                             );
                         },
-                        [&](TemplateParameterType_ptr template_param_type) -> Object_ptr
-                        {
-                            return call_template_method(
-                                call,
-                                ma,
-                                argument_types,
-                                template_param_type
-                            );
-                        },
                         [&](auto&) -> Object_ptr
                         {
                             Doctor::get().fatal(
@@ -409,19 +400,6 @@ Object_ptr SemanticAnalyzer::call_method(
     call.is_method_call = true;
 
     return signature_obj->as<Signature_ptr>()->return_type;
-}
-
-Object_ptr SemanticAnalyzer::call_template_method(
-    Call& call,
-    MemberAccess& access,
-    const ObjectVector& argument_types,
-    TemplateParameterType_ptr template_parameter_type
-)
-{
-    Doctor::get().fatal(
-        WaspStage::Semantics,
-        "Calling template methods is not yet implemented."
-    );
 }
 
 } // namespace Wasp

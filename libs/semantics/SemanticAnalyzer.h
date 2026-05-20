@@ -160,12 +160,6 @@ private:
         const ObjectVector& argument_types,
         OopsType_ptr oops_type
     );
-    Object_ptr call_template_method(
-        Call& call,
-        MemberAccess& access,
-        const ObjectVector& argument_types,
-        TemplateParameterType_ptr template_parameter_type
-    );
     Object_ptr call_template_function(
         Call& call,
         TemplateAngular& concrete_template,
