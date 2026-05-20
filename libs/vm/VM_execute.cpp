@@ -267,7 +267,7 @@ void VM::execute_member(OpCode op, CallFrame* frame)
 
         Doctor::get().fatal_if_nullptr(obj, WaspStage::VM, "Cannot read property of null.");
 
-        push_to_stack(perform_get_member(obj, member_index));
+        push_to_stack(execute_GET_MEMBER(obj, member_index));
     }
     else if (op == OpCode::SET_MEMBER)
     {
@@ -276,12 +276,12 @@ void VM::execute_member(OpCode op, CallFrame* frame)
 
         Doctor::get().fatal_if_nullptr(obj, WaspStage::VM, "Cannot set property on null.");
 
-        perform_set_member(obj, member_index, val);
+        execute_SET_MEMBER(obj, member_index, val);
         push_to_stack(val);
     }
 }
 
-Object_ptr VM::perform_get_member(Object_ptr obj, int member_index)
+Object_ptr VM::execute_GET_MEMBER(Object_ptr obj, int member_index)
 {
     return std::visit(
         overloaded{
@@ -291,19 +291,17 @@ Object_ptr VM::perform_get_member(Object_ptr obj, int member_index)
             },
             [&](std::shared_ptr<ClassInstanceObject>& class_inst) -> Object_ptr
             {
-                // Access the instance's fields
                 Doctor::get().assert(
                     member_index >= 0 && member_index < static_cast<int>(class_inst->fields.size()),
                     WaspStage::VM,
                     "Field index out of bounds!"
                 );
+
                 return class_inst->fields[member_index];
             },
             [&](std::shared_ptr<TraitInstanceObject>& trait_inst) -> Object_ptr
             {
-                // To get a property from a boxed trait, unwrap it to the class instance
-                // and recall perform_get_member!
-                return perform_get_member(trait_inst->class_instance, member_index);
+                return execute_GET_MEMBER(trait_inst->class_instance, member_index);
             },
             [&](auto&) -> Object_ptr
             {
@@ -311,14 +309,13 @@ Object_ptr VM::perform_get_member(Object_ptr obj, int member_index)
                     WaspStage::VM,
                     "Object of this type does not support reading properties."
                 );
-                return nullptr;
             }
         },
         obj->value
     );
 }
 
-void VM::perform_set_member(Object_ptr obj, int member_index, Object_ptr value)
+void VM::execute_SET_MEMBER(Object_ptr obj, int member_index, Object_ptr value)
 {
     std::visit(
         overloaded{
@@ -333,11 +330,12 @@ void VM::perform_set_member(Object_ptr obj, int member_index, Object_ptr value)
                     WaspStage::VM,
                     "Field index out of bounds!"
                 );
+
                 class_inst->fields[member_index] = value;
             },
             [&](std::shared_ptr<TraitInstanceObject>& trait_inst)
             {
-                perform_set_member(trait_inst->class_instance, member_index, value);
+                execute_SET_MEMBER(trait_inst->class_instance, member_index, value);
             },
             [&](auto&)
             {
@@ -582,64 +580,8 @@ void VM::execute_RETURN(CallFrame* frame)
 }
 
 // ================================================
-// Module
+// Class
 // ================================================
-
-void VM::execute_import_module(CallFrame* frame)
-{
-    int module_index = static_cast<int>(frame->consume_byte());
-
-    auto target_module = workspace->get_module(module_index);
-
-    Doctor::get().fatal_if_nullptr(
-        target_module,
-        WaspStage::VM,
-        "Module not found at registry index: " + std::to_string(module_index)
-    );
-
-    void* blueprint_ptr = target_module->blueprint.get();
-    if (evaluated_modules.contains(blueprint_ptr))
-    {
-        push_to_stack(evaluated_modules.at(blueprint_ptr));
-        return;
-    }
-
-    auto module_func = std::make_shared<FunctionRuntimeObject>(
-        target_module->blueprint
-    );
-
-    size_t stack_base_pointer = stack.size();
-    frames.emplace_back(module_func, stack_base_pointer);
-}
-
-void VM::execute_exit_module(CallFrame* frame)
-{
-    int export_count = static_cast<int>(frame->consume_byte());
-    ObjectVector exported_members(export_count);
-
-    for (int i = export_count - 1; i >= 0; i--)
-    {
-        exported_members[i] = pop_from_stack();
-    }
-
-    auto exports = std::make_shared<ModuleObject>(
-        frame->function->blueprint->name,
-        std::move(exported_members)
-    );
-
-    auto module_obj = make_object(exports);
-
-    void* blueprint_ptr = frame->function->blueprint.get();
-    evaluated_modules[blueprint_ptr] = module_obj;
-
-    // Cleanup the frame
-    size_t bp = frame->base_pointer;
-    stack.erase(stack.begin() + bp, stack.end());
-    frames.pop_back();
-
-    // Make module object available to importer
-    push_to_stack(module_obj);
-}
 
 void VM::execute_BUILD_OVERLOAD_GROUP(CallFrame* frame)
 {
@@ -693,6 +635,64 @@ void VM::execute_INSTANTIATE(CallFrame* frame)
     );
 
     push_to_stack(instance);
+}
+
+// ================================================
+// Module
+// ================================================
+
+void VM::execute_import_module(CallFrame* frame)
+{
+    int module_index = static_cast<int>(frame->consume_byte());
+
+    auto target_module = workspace->get_module(module_index);
+
+    Doctor::get().fatal_if_nullptr(
+        target_module,
+        WaspStage::VM,
+        "Module not found at registry index: " + std::to_string(module_index)
+    );
+
+    void* blueprint_ptr = target_module->blueprint.get();
+    if (evaluated_modules.contains(blueprint_ptr))
+    {
+        push_to_stack(evaluated_modules.at(blueprint_ptr));
+        return;
+    }
+
+    auto module_func = std::make_shared<FunctionRuntimeObject>(target_module->blueprint);
+
+    size_t stack_base_pointer = stack.size();
+    frames.emplace_back(module_func, stack_base_pointer);
+}
+
+void VM::execute_exit_module(CallFrame* frame)
+{
+    int export_count = static_cast<int>(frame->consume_byte());
+    ObjectVector exported_members(export_count);
+
+    for (int i = export_count - 1; i >= 0; i--)
+    {
+        exported_members[i] = pop_from_stack();
+    }
+
+    auto exports = std::make_shared<ModuleObject>(
+        frame->function->blueprint->name,
+        std::move(exported_members)
+    );
+
+    auto module_obj = make_object(exports);
+
+    void* blueprint_ptr = frame->function->blueprint.get();
+    evaluated_modules[blueprint_ptr] = module_obj;
+
+    // Cleanup the frame
+    size_t bp = frame->base_pointer;
+    stack.erase(stack.begin() + bp, stack.end());
+    frames.pop_back();
+
+    // Make module object available to importer
+    push_to_stack(module_obj);
 }
 
 } // namespace Wasp

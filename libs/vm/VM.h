@@ -66,8 +66,8 @@ private:
     void execute_member(OpCode op, CallFrame* frame);
     void execute_BOX(CallFrame* frame);
 
-    Object_ptr perform_get_member(Object_ptr obj, int member_index);
-    void perform_set_member(Object_ptr obj, int member_index, Object_ptr value);
+    Object_ptr execute_GET_MEMBER(Object_ptr obj, int member_index);
+    void execute_SET_MEMBER(Object_ptr obj, int member_index, Object_ptr value);
 
     // --- Dispatch & OOPS ---
     void execute_BUILD_FUNCTION(CallFrame* frame);
