@@ -158,27 +158,36 @@ void VM::run(FunctionBlueprintObject_ptr function_object)
             // FUNCTION
 
         case OpCode::BUILD_FUNCTION: {
-            execute_make_function(frame);
+            execute_BUILD_FUNCTION(frame);
             break;
         }
 
         case OpCode::STORE_FUNCTION_OVERLOAD: {
-            execute_store_function_overload(frame);
+            execute_STORE_FUNCTION_OVERLOAD(frame);
             break;
         }
 
         case OpCode::GET_FUNCTION: {
-            execute_resolve_function(frame);
+            execute_GET_FUNCTION(frame);
             break;
         }
 
+        case OpCode::GET_CLASS_METHOD: {
+            execute_GET_CLASS_METHOD(frame);
+            break;
+        }
+
+        case OpCode::GET_TRAIT_METHOD: {
+            execute_GET_TRAIT_METHOD(frame);
+            break;
+        }
         case OpCode::CALL: {
-            execute_call(frame);
+            execute_CALL(frame);
             break;
         }
 
         case OpCode::RETURN: {
-            execute_return(frame);
+            execute_RETURN(frame);
 
             if (frames.empty())
             {
@@ -189,7 +198,7 @@ void VM::run(FunctionBlueprintObject_ptr function_object)
         }
 
         case OpCode::BUILD_OVERLOAD_GROUP: {
-            execute_build_overload_group(frame);
+            execute_BUILD_OVERLOAD_GROUP(frame);
             break;
         }
 
@@ -207,22 +216,17 @@ void VM::run(FunctionBlueprintObject_ptr function_object)
         }
 
         case OpCode::BUILD_CLASS: {
-            execute_build_class(frame);
+            execute_BUILD_CLASS(frame);
             break;
         }
 
         case OpCode::INSTANTIATE: {
-            execute_instantiate(frame);
+            execute_INSTANTIATE(frame);
             break;
         }
 
         case OpCode::BOX: {
-            execute_box(frame);
-            break;
-        }
-
-        case OpCode::GET_TRAIT_METHOD: {
-            execute_get_trait_method(frame);
+            execute_BOX(frame);
             break;
         }
 

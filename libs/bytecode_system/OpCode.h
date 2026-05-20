@@ -83,7 +83,7 @@ using ByteVector = std::vector<std::byte>;
     /* --- Classes --- */                                                                          \
     X(BUILD_OVERLOAD_GROUP, 1) /* [closures...] -> [overload group] | <number of overloads> */     \
     X(PUSH_EMPTY_OVERLOAD_GROUP, 0)                                                                \
-    X(BUILD_CLASS, 2) /* [overload groups...] -> [Class BP] | <methods count> */                   \
+    X(BUILD_CLASS, 1) /* [overload groups...] -> [Class BP] | <methods count> */                   \
     X(PUSH_EMPTY_CLASS_BLUEPRINT, 0)                                                               \
     X(INSTANTIATE, 1) /* [args..., Class BP] -> [instance] | <args count> */                       \
     X(BOX, 1)                                                                                      \

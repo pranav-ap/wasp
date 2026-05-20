@@ -234,6 +234,8 @@ private:
         const std::vector<Expression_ptr>& arguments
     );
 
+    void desugar_call(Expression_ptr expr);
+
     // Type Utilities
     Object_ptr collapse_types(const ObjectVector& types);
     Symbol_ptr get_core_symbol(const std::string& type_name);

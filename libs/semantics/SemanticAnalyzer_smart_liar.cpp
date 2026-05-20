@@ -173,7 +173,53 @@ Object_ptr SemanticAnalyzer::visit(const Expression_ptr expr)
         }
     }
 
+    if (expr->is<Call>())
+    {
+        desugar_call(expr);
+    }
+
     return resolved_type;
+}
+
+void SemanticAnalyzer::desugar_call(Expression_ptr expr)
+{
+    Doctor::get().fatal_if_nullptr(expr, WaspStage::Semantics);
+
+    Doctor::get().assert(
+        expr->is<Call>(),
+        WaspStage::Semantics,
+        "Expected a Call expression for desugar_call."
+    );
+
+    Call call = expr->as<Call>();
+
+    if (call.is_method_call)
+    {
+        auto& ma = call.callable->as<MemberAccess>();
+
+        MethodCall mc;
+        mc.callable = call.callable;
+        mc.arguments = std::move(call.arguments);
+        mc.overload_index = call.overload_index;
+
+        mc.instance = ma.left;
+        mc.method_index = ma.member_index;
+        mc.is_trait_dispatch = ma.is_trait_dispatch;
+
+        expr->data = std::move(mc);
+    }
+    else
+    {
+        // Standard function call
+        FunctionCall fc;
+        fc.callable = call.callable;
+        fc.arguments = std::move(call.arguments);
+        fc.overload_index = call.overload_index;
+
+        expr->data = std::move(fc);
+    }
+
+    expr->is_desugared = true;
 }
 
 void SemanticAnalyzer::desugar_literal(
@@ -264,10 +310,13 @@ void SemanticAnalyzer::desugar_overloaded_operator(
 
     bind_identifier(id_node->as<Identifier>(), operator_symbol);
 
-    Call call_node{id_node, arguments};
-    call_node.overload_index = overload_index;
+    FunctionCall func_call;
+    func_call.callable = id_node;
+    func_call.arguments = arguments;
+    func_call.overload_index = overload_index;
 
-    expr->data = std::move(call_node);
+    expr->data = std::move(func_call);
+    expr->is_desugared = true;
 }
 
 } // namespace Wasp

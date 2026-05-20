@@ -4,10 +4,10 @@ import core.operators expose *
 
 
 trait Debug
-    pure fun repr() => str
+    pure fun repr2() => str
         required
 
-    pure fun repr(a: int) => str
+    pure fun repr2(a: int) => str
         pass
 
 
@@ -19,10 +19,10 @@ trait Player
 class Jordan is Debug & Player
     name: str
 
-    pure fun repr() => str
+    pure fun repr2() => str
         return 'name = {my.name}'
 
-    pure fun repr(a: int) => str
+    pure fun repr2(a: int) => str
         return 'hi'
 
     fun play()
@@ -31,11 +31,8 @@ class Jordan is Debug & Player
 
 
 fun shout(d: Debug)
-    let y = d.repr()
+    let y = d.repr2()
     y.repr()
 
 let j = Jordan('jordan')
-let g = j.repr()
-g.repr()
-
 shout(j)

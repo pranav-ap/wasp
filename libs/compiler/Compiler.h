@@ -151,7 +151,9 @@ private:
     void visit(Identifier& expr);
     void visit(MemberAccess& expr);
 
-    void visit(Call& expr);
+    void visit(FunctionCall& expr);
+    void visit(MethodCall& expr);
+
     void visit(Constructor& expr);
 
     void visit(Prefix& expr);

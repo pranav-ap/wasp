@@ -78,6 +78,13 @@ struct InterpolatedString
     ExpressionVector parts;
 };
 
+struct Box
+{
+    // TODO : only supports single trait for now, will need to be extended for multiple traits
+    Expression_ptr expr;
+    int trait_type_id;
+};
+
 struct OperatorExpression : public Resolvable
 {
     int overload_index = -1;
@@ -258,16 +265,37 @@ struct Call
     ExpressionVector arguments;
 
     bool is_method_call = false;
-
-    int overload_index;
+    bool is_trait_dispatch = false;
+    int trait_type_id = -1;
+    int overload_index = -1;
 
     Call() = default;
 
     Call(Expression_ptr callable, ExpressionVector arguments)
-        : callable(callable), arguments(std::move(arguments)),
-          overload_index(-1)
+        : callable(callable), arguments(std::move(arguments))
     {
     }
+};
+
+struct SugarCall
+{
+    Expression_ptr callable;
+    ExpressionVector arguments;
+    int overload_index = -1;
+};
+
+struct FunctionCall : public SugarCall
+{
+};
+
+struct MethodCall : public SugarCall
+{
+    Expression_ptr instance;
+
+    int method_index = -1;
+
+    bool is_trait_dispatch = false;
+    int trait_type_id = -1;
 };
 
 struct Constructor
@@ -326,12 +354,6 @@ struct RangeLiteral
     }
 };
 
-struct Box
-{
-    Expression_ptr expr;
-    int trait_type_id;
-};
-
 // Expression
 
 using ExpressionVariant = std::variant<
@@ -352,6 +374,9 @@ using ExpressionVariant = std::variant<
     Box,
 
     Call,
+    FunctionCall,
+    MethodCall,
+
     Constructor,
     TemplateAngular,
 
