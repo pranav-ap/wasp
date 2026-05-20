@@ -126,7 +126,6 @@ private:
     void visit(Import& statement);
 
     void visit(FunctionDefinition& statement);
-    void visit(OperatorDefinition& def);
     void visit(ClassDefinition& statement);
     void visit(TypeAliasDefinition& statement);
 
@@ -171,13 +170,13 @@ private:
     void visit(ElseTernaryBranch& expr);
 
     void visit(TemplateAngular& expr);
+    void visit(Box& node);
 
     // -----------------------------------------------------------------------
     // UTILS
     // -----------------------------------------------------------------------
 
     int get_or_add_local_index(const Symbol_ptr& symbol);
-    void emit_closure_upvalues(const std::vector<Upvalue>& upvalues);
 
     void set_current_block(BlockId block_id)
     {

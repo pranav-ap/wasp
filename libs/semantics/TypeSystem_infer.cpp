@@ -33,6 +33,7 @@ bool TypeSystem::equal(
     {
         return false;
     }
+
     if (type_1 == type_2)
     {
         return true;
@@ -46,7 +47,6 @@ bool TypeSystem::equal(
         return true;
     }
 
-    // Special Case: Variants
     if (t1->is<VariantType>() && t2->is<VariantType>())
     {
         return equal_unordered(
@@ -56,7 +56,6 @@ bool TypeSystem::equal(
         );
     }
 
-    // Special Case: Generics
     if (t1->is<TemplateParameterType_ptr>() && t2->is<TemplateParameterType_ptr>())
     {
         auto g1 = t1->as<TemplateParameterType_ptr>();
@@ -64,117 +63,7 @@ bool TypeSystem::equal(
         return equal(scope, g1->constraint_type, g2->constraint_type);
     }
 
-    return std::visit(
-        ::overloaded{
-            [&](AnyType const&, AnyType const&)
-            {
-                return true;
-            },
-            [&](IntType const&, IntType const&)
-            {
-                return true;
-            },
-            [&](FloatType const&, FloatType const&)
-            {
-                return true;
-            },
-            [&](BooleanType const&, BooleanType const&)
-            {
-                return true;
-            },
-            [&](StringType const&, StringType const&)
-            {
-                return true;
-            },
-            [&](NoneType const&, NoneType const&)
-            {
-                return true;
-            },
-
-            [&](LiteralType const& l1, LiteralType const& l2)
-            {
-                return std::visit(
-                    ::overloaded{
-                        [](IntObject const& v1, IntObject const& v2)
-                        {
-                            return v1.value == v2.value;
-                        },
-                        [](FloatObject const& v1, FloatObject const& v2)
-                        {
-                            return v1.value == v2.value;
-                        },
-                        [](BooleanObject const& v1, BooleanObject const& v2)
-                        {
-                            return v1.value == v2.value;
-                        },
-                        [](StringObject const& v1, StringObject const& v2)
-                        {
-                            return v1.value == v2.value;
-                        },
-                        [](const auto&, const auto&)
-                        {
-                            return false; // Mismatched literal types
-                        }
-                    },
-                    l1.value->value,
-                    l2.value->value
-                );
-            },
-
-            [&](ListType const& l1, ListType const& l2)
-            {
-                return equal(scope, l1.element_type, l2.element_type);
-            },
-            [&](SetType const& s1, SetType const& s2)
-            {
-                return equal(scope, s1.element_type, s2.element_type);
-            },
-            [&](TupleType const& t1, TupleType const& t2)
-            {
-                return equal(scope, t1.element_types, t2.element_types);
-            },
-            [&](MapType const& m1, MapType const& m2)
-            {
-                return equal(scope, m1.key_type, m2.key_type) &&
-                       equal(scope, m1.value_type, m2.value_type);
-            },
-
-            [&](Signature_ptr const& s1, Signature_ptr const& s2)
-            {
-                return equal(scope, s1->parameter_types, s2->parameter_types) &&
-                       equal(scope, s1->return_type, s2->return_type);
-            },
-            [&](ClassType_ptr const& c1, ClassType_ptr const& c2)
-            {
-                return c1->name == c2->name;
-            },
-            [&](TraitType_ptr const& t1, TraitType_ptr const& t2)
-            {
-                return t1->name == t2->name;
-            },
-            [&](ModuleType_ptr const& m1, ModuleType_ptr const& m2)
-            {
-                return m1->name == m2->name;
-            },
-            [&](EnumType_ptr const& e1, EnumType_ptr const& e2)
-            {
-                auto get_root = [](const std::string& name)
-                {
-                    size_t pos = name.find('.');
-                    return pos == std::string::npos ? name
-                                                    : name.substr(0, pos);
-                };
-                return get_root(e1->name) == get_root(e2->name);
-            },
-
-            [](const auto&, const auto&)
-            {
-                return false;
-            }
-        },
-        t1->value,
-        t2->value
-    );
+    return are_equal_types(t1, t2);
 }
 
 bool TypeSystem::equal(
@@ -340,6 +229,19 @@ bool TypeSystem::assignable(
             {
                 return assignable(scope, t1.key_type, t2.key_type) &&
                        assignable(scope, t1.value_type, t2.value_type);
+            },
+
+            [&](TraitType_ptr const lhs_trait, ClassType_ptr const rhs_class)
+            {
+                for (const auto& trait_obj : rhs_class->traits)
+                {
+                    if (are_equal_types(make_object(lhs->value), trait_obj))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
             },
 
             [](const auto&, const auto&)

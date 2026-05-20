@@ -1,5 +1,8 @@
 #include <cstddef>
+#include <memory>
+#include <optional>
 #include <string>
+#include <vector>
 
 #include "AST.h"
 #include "Doctor.h"
@@ -19,6 +22,29 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
+void SemanticAnalyzer::visit(FunctionDefinition& def)
+{
+    analyze_callable(
+        def,
+        def.is_pure ? ScopeType::PURE_FUNCTION : ScopeType::FUNCTION,
+        nullptr,
+        false
+    );
+}
+
+void SemanticAnalyzer::visit(OperatorDefinition& def)
+{
+    size_t expected = def.fixity == TokenType::INFIX ? 2 : 1;
+
+    Doctor::get().assert(
+        def.parameters.size() == expected,
+        WaspStage::Semantics,
+        "Operator '" + def.name + "' must have " + std::to_string(expected) + " parameter(s)."
+    );
+
+    analyze_callable(def, ScopeType::PURE_FUNCTION, nullptr, false);
+}
+
 void SemanticAnalyzer::analyze_callable(
     AbstractCallable& def,
     ScopeType scope_type,
@@ -31,12 +57,9 @@ void SemanticAnalyzer::analyze_callable(
     enter_scope(scope_type);
     return_type_stack.push_back(signature->return_type);
 
-    auto [template_params, ordered_names] = evaluate_template_params(
-        def.template_params
-    );
-
-    for (const auto& [name, generic_type] : template_params)
+    for (const auto& name : signature->ordered_template_parameter_names)
     {
+        auto generic_type = signature->template_parameter_types.at(name);
         auto symbol = SymbolFactory::create_template_parameter(name, generic_type);
         current_scope->define(symbol);
     }
@@ -60,7 +83,7 @@ void SemanticAnalyzer::analyze_callable(
 
     for (size_t i = 0; i < def.parameters.size(); ++i)
     {
-        Object_ptr actual_type = visit(def.parameters[i].second);
+        Object_ptr actual_type = signature->parameter_types[i];
 
         auto param_symbol = SymbolFactory::create_variable(
             def.parameters[i].first,
@@ -73,11 +96,35 @@ void SemanticAnalyzer::analyze_callable(
         def.parameter_symbols.push_back(current_scope->define(param_symbol));
     }
 
-    if (def.body.size() == 1 && def.body.front()->is<Placeholder>())
+    // Lonely Placeholder Rule
+
+    std::optional<TokenType> placeholder;
+
+    for (const auto& stmt : def.body)
     {
-        if (def.body.front()->as<Placeholder>().type == TokenType::NATIVE)
+        if (stmt->is<Placeholder>())
+        {
+            placeholder = stmt->as<Placeholder>().type;
+            break;
+        }
+    }
+
+    if (placeholder.has_value())
+    {
+        Doctor::get().assert(
+            def.body.size() == 1,
+            WaspStage::Semantics,
+            "The keywords 'native', 'pass' or 'required' must be the only "
+            "statement in the body."
+        );
+
+        if (placeholder == TokenType::NATIVE)
         {
             def.symbol->mark_as_native();
+        }
+        else if (placeholder == TokenType::REQUIRED)
+        {
+            def.symbol->mark_as_required();
         }
     }
 
@@ -90,32 +137,13 @@ void SemanticAnalyzer::analyze_callable(
     leave_scope();
 }
 
-void SemanticAnalyzer::visit(FunctionDefinition& def)
-{
-    analyze_callable(
-        def,
-        def.is_pure ? ScopeType::PURE_FUNCTION : ScopeType::FUNCTION,
-        nullptr,
-        false
-    );
-}
-
-void SemanticAnalyzer::visit(OperatorDefinition& def)
-{
-    size_t expected = def.fixity == TokenType::INFIX ? 2 : 1;
-
-    Doctor::get().assert(
-        def.parameters.size() == expected,
-        WaspStage::Semantics,
-        "Operator '" + def.name + "' must have " + std::to_string(expected) +
-            " parameter(s)."
-    );
-
-    analyze_callable(def, ScopeType::PURE_FUNCTION, nullptr, false);
-}
-
 void SemanticAnalyzer::visit(Return& statement)
 {
+    if (current_scope->is_required())
+    {
+        return;
+    }
+
     Doctor::get().assert(
         !return_type_stack.empty(),
         WaspStage::Semantics,
@@ -143,10 +171,16 @@ void SemanticAnalyzer::visit(Return& statement)
 void SemanticAnalyzer::visit(Placeholder& statement)
 {
     Doctor::get().assert(
-        statement.type == TokenType::NATIVE || statement.type == TokenType::PASS,
+        statement.type == TokenType::NATIVE || statement.type == TokenType::PASS ||
+            statement.type == TokenType::REQUIRED,
         WaspStage::Semantics,
-        "Expected 'native' or 'pass' placeholder"
+        "Expected 'native', 'pass', or 'required' placeholder"
     );
+
+    if (statement.type == TokenType::REQUIRED)
+    {
+        current_scope->mark_as_required();
+    }
 
     Doctor::get().fatal_if_nullptr(
         current_module,

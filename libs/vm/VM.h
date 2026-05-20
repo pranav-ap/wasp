@@ -74,9 +74,12 @@ class VM
     void execute_import_module(CallFrame* frame);
     void execute_exit_module(CallFrame* frame);
 
+    void execute_get_trait_method(CallFrame* frame);
     void execute_member(OpCode op, CallFrame* frame);
     Object_ptr perform_get_member(Object_ptr obj, int member_index);
     void perform_set_member(Object_ptr obj, int member_index, Object_ptr value);
+
+    void execute_box(CallFrame* frame);
 
     // --- Internal Math & Logic ---
     Object_ptr perform_unary_negative(Object_ptr obj);

@@ -49,12 +49,18 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
             [&](MemberAccess& ma) -> Object_ptr
             {
                 Object_ptr left_type = visit(ma.left);
+                left_type = unwrap_completely(left_type);
 
                 return std::visit(
                     overloaded{
                         [&](ClassType_ptr class_type) -> Object_ptr
                         {
                             return call_method(call, ma, argument_types, class_type);
+                        },
+                        [&](TraitType_ptr trait_type) -> Object_ptr
+                        {
+                            ma.is_trait_dispatch = true;
+                            return call_method(call, ma, argument_types, trait_type);
                         },
                         [&](ModuleType_ptr module_type) -> Object_ptr
                         {
@@ -67,8 +73,7 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                                 argument_types
                             );
                         },
-                        [&](TemplateParameterType_ptr template_param_type)
-                            -> Object_ptr
+                        [&](TemplateParameterType_ptr template_param_type) -> Object_ptr
                         {
                             return call_template_method(
                                 call,
@@ -101,6 +106,25 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
     );
 }
 
+Expression_ptr SemanticAnalyzer::try_box_expression(
+    Expression_ptr expr,
+    Object_ptr actual_type,
+    Object_ptr expected_type
+)
+{
+    if (expected_type->is<TraitType_ptr>() && actual_type->is<ClassType_ptr>())
+    {
+        if (type_system->assignable(current_scope, expected_type, actual_type))
+        {
+            auto trait = expected_type->as<TraitType_ptr>();
+            int trait_type_id = trait->type_id;
+            return make_expression(Box{expr, trait_type_id});
+        }
+    }
+
+    return expr;
+}
+
 Object_ptr SemanticAnalyzer::resolve_standard_overload(
     Call& call,
     Symbol_ptr overload_symbol,
@@ -123,7 +147,16 @@ Object_ptr SemanticAnalyzer::resolve_standard_overload(
 
     auto signature = function_symbol->get_type()->as<Signature_ptr>();
 
-    if (!signature->expected_generic_names_order.empty())
+    for (size_t i = 0; i < call.arguments.size(); ++i)
+    {
+        call.arguments[i] = try_box_expression(
+            call.arguments[i],
+            argument_types[i],
+            signature->parameter_types[i]
+        );
+    }
+
+    if (!signature->ordered_template_parameter_names.empty())
     {
         return resolve_implicit_template(
             call,
@@ -146,7 +179,7 @@ Object_ptr SemanticAnalyzer::resolve_standard_overload(
 
         auto cand_sig = candidate->get_type()->as<Signature_ptr>();
 
-        if (cand_sig->expected_generic_names_order.empty())
+        if (cand_sig->ordered_template_parameter_names.empty())
         {
             runtime_index++;
         }
@@ -169,7 +202,7 @@ Object_ptr SemanticAnalyzer::resolve_implicit_template(
     );
 
     ObjectVector deduced_args;
-    for (const auto& name : signature->expected_generic_names_order)
+    for (const auto& name : signature->ordered_template_parameter_names)
     {
         deduced_args.push_back(substitutions[name]);
     }
@@ -202,15 +235,15 @@ Symbol_ptr SemanticAnalyzer::monomorphize_callable_template(
     const std::string& specialized_name
 )
 {
-    auto& function_data = blueprint_symbol->get_payload_as<FunctionData>();
+    auto& function_data = blueprint_symbol->get_payload_as<CallableData>();
 
     ASTCloner cloner(substitutions);
-    Statement_ptr specialized_stmt = cloner.clone(function_data.function_definition);
+    Statement_ptr specialized_stmt = cloner.clone(function_data.definition);
 
     Symbol_ptr specialized_group_symbol = nullptr;
 
     SymbolScope_ptr previous_scope = current_scope;
-    current_scope = function_data.definition_scope;
+    current_scope = function_data.declaration_scope;
 
     std::visit(
         overloaded{
@@ -298,16 +331,16 @@ Object_ptr SemanticAnalyzer::call_template_function(
     Symbol_ptr blueprint_symbol = candidates[winning_index];
 
     Doctor::get().assert(
-        blueprint_symbol->payload_is<FunctionData>(),
+        blueprint_symbol->payload_is<CallableData>(),
         WaspStage::Semantics,
-        "Resolved template symbol does not contain FunctionData."
+        "Resolved template symbol does not contain CallableData."
     );
 
     // Build the substitutions map
     ObjectStringMap substitutions;
     auto expected_names = blueprint_symbol->get_type()
                               ->as<Signature_ptr>()
-                              ->expected_generic_names_order;
+                              ->ordered_template_parameter_names;
 
     for (size_t i = 0; i < expected_names.size(); ++i)
     {
@@ -343,19 +376,18 @@ Object_ptr SemanticAnalyzer::call_method(
     Call& call,
     MemberAccess& access,
     const ObjectVector& argument_types,
-    ClassType_ptr class_type
+    OopsType_ptr oops_type
 )
 {
     auto method_name = access.right->as<Identifier>().name;
 
     Doctor::get().assert(
-        class_type->contains_member(method_name),
+        oops_type->contains_member(method_name),
         WaspStage::Semantics,
-        "Method '" + method_name + "()' does not exist on class '" +
-            class_type->name + "'."
+        "Method '" + method_name + "()' does not exist on class '" + oops_type->name + "'."
     );
 
-    auto member = class_type->get_member(method_name);
+    auto member = oops_type->get_member(method_name);
 
     Doctor::get().assert(
         member->is<ObjectOverloadList_ptr>(),
@@ -371,7 +403,7 @@ Object_ptr SemanticAnalyzer::call_method(
         argument_types
     );
 
-    access.member_index = class_type->get_member_index(method_name);
+    access.member_index = oops_type->get_member_index(method_name);
     call.overload_index = overload_index;
 
     call.is_method_call = true;

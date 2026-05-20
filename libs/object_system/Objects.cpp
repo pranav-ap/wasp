@@ -25,7 +25,14 @@ namespace Wasp
 
 Object_ptr StringObject::get_iter()
 {
-    ObjectVector vec = to_vector(value);
+    ObjectVector vec;
+    vec.reserve(value.size());
+
+    for (char ch : value)
+    {
+        vec.push_back(MAKE_OBJECT_VARIANT(StringObject(std::string(1, ch))));
+    }
+
     return MAKE_SHARED_OBJECT_VARIANT(IteratorObject, vec);
 }
 
@@ -294,7 +301,7 @@ bool Object::is_type_object() const
            is<VariantType>() || is<Signature_ptr>() || is<ModuleType_ptr>() ||
            is<ClassType_ptr>() || is<TraitType_ptr>() || is<EnumType_ptr>() ||
            is<TypeAlias_ptr>() || is<TemplateParameterType_ptr>() ||
-           is<LiteralType>() || is<NamedDefinitionType>();
+           is<LiteralType>();
 }
 
 bool Object::is_runtime_value() const
@@ -302,9 +309,6 @@ bool Object::is_runtime_value() const
     // A runtime value is anything that isn't a type, an empty state,
     // an overload group, or a control-flow action object.
     return !is_type_object() && !is<std::monostate>() &&
-           !is<std::shared_ptr<BreakObject>>() &&
-           !is<std::shared_ptr<ContinueObject>>() &&
-           !is<std::shared_ptr<RedoObject>>() &&
            !is<std::shared_ptr<ReturnObject>>() &&
            !is<std::shared_ptr<ErrorObject>>() &&
            !is<std::shared_ptr<ObjectOverloadList>>();

@@ -7,7 +7,7 @@ add_library(
     SemanticAnalyzer_exports.cpp
     SemanticAnalyzer_types.cpp
     SemanticAnalyzer_hoist.cpp
-    SemanticAnalyzer_ast_transforms.cpp
+    SemanticAnalyzer_smart_liar.cpp
     SemanticAnalyzer_constructor.cpp
     SemanticAnalyzer_resolvers.cpp
     SemanticAnalyzer_literals.cpp
@@ -22,6 +22,7 @@ add_library(
     TypeSystem_infer.cpp
     TypeSystem_boring.cpp
     ASTCloner.cpp
+    SmartLiar.cpp
 )
 
 target_link_libraries(SemanticAnalyzerLib PUBLIC TokenLib ASTLib ObjectSystemLib WorkspaceLib DoctorLib)

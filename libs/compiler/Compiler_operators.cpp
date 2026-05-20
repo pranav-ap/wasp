@@ -54,6 +54,9 @@ void Compiler::visit(Infix& expr)
     case TokenType::MOD:
         emit(OpCode::MOD);
         break;
+    case TokenType::POWER:
+        emit(OpCode::POW);
+        break;
     case TokenType::EQUAL_EQUAL:
         emit(OpCode::EQ);
         break;
@@ -71,6 +74,12 @@ void Compiler::visit(Infix& expr)
         break;
     case TokenType::LESSER_THAN_EQUAL:
         emit(OpCode::LE);
+        break;
+    case TokenType::AND:
+        emit(OpCode::LOGICAL_AND);
+        break;
+    case TokenType::OR:
+        emit(OpCode::LOGICAL_OR);
         break;
     default:
         Doctor::get().fatal(

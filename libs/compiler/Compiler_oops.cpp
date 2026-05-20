@@ -24,8 +24,11 @@ void Compiler::visit(ClassDefinition& def)
     emit(OpCode::PUSH_EMPTY_CLASS_BLUEPRINT, "class " + def.name);
     emit(OpCode::SET_LOCAL, slot, "init class in slot");
 
-    auto class_type = def.symbol->get_type()->as<ClassType_ptr>();
+    auto class_type_obj = def.symbol->get_type();
+    auto class_type = class_type_obj->as<ClassType_ptr>();
     int unique_method_count = 0;
+
+    int class_type_pool_id = workspace->pool->allocate_type(class_type_obj);
 
     for (const std::string& method_name : class_type->methods)
     {
@@ -42,15 +45,12 @@ void Compiler::visit(ClassDefinition& def)
 
             if (func->symbol->is_native())
             {
-                std::string mangled = mangle_name(
-                    func->name,
-                    def.name,
-                    func->symbol->module_path
-                );
+                std::string mangled = mangle_name(func->name, def.name, func->symbol->module_path);
 
                 int registry_id = workspace->native_registry->get_native_index(
                     mangled
                 );
+
                 emit(OpCode::GET_NATIVE, registry_id, "load native " + mangled);
             }
             else
@@ -59,8 +59,7 @@ void Compiler::visit(ClassDefinition& def)
                     func->name,
                     func->parameter_symbols,
                     func->body,
-                    func->context_symbol // <--- Now using the context symbol to
-                                         // fix the crash!
+                    func->context_symbol
                 );
             }
             overload_count++;
@@ -73,6 +72,8 @@ void Compiler::visit(ClassDefinition& def)
         );
         unique_method_count++;
     }
+
+    emit(OpCode::LOAD_CONST, class_type_pool_id, "load class type from pool");
 
     emit(OpCode::GET_LOCAL, slot, "load blueprint for population");
     emit(

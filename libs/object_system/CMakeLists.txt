@@ -3,8 +3,9 @@ add_library(
     Objects.cpp
     Objects_oops_object.cpp
     Objects_oops_type.cpp
+    Objects_mangle.cpp
     ConstantPool.cpp
-    ObjectsUtils.cpp
+    Objects_utils.cpp
     NativeRegistry.cpp
 )
 

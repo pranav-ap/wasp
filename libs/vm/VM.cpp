@@ -216,6 +216,16 @@ void VM::run(FunctionBlueprintObject_ptr function_object)
             break;
         }
 
+        case OpCode::BOX: {
+            execute_box(frame);
+            break;
+        }
+
+        case OpCode::GET_TRAIT_METHOD: {
+            execute_get_trait_method(frame);
+            break;
+        }
+
         default: {
             Doctor::get().fatal(
                 WaspStage::VM,

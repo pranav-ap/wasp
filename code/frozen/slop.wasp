@@ -1,0 +1,74 @@
+import core.io expose *
+import core.types expose *
+import core.operators expose *
+
+
+template
+    T: int | str
+
+fun greet(a: T)
+    let num = 33
+    num.repr()
+
+fun greet(a: int)
+    let num = 22
+    num.repr()
+
+# works
+greet<int>(2)
+greet<str>('hi')
+
+# ambiguous call
+greet(2)
+
+
+fun foo(a: int)
+    a = a + 1
+    a.repr()
+
+foo(3)
+
+
+
+let x: int = 1
+x.repr()
+
+let y: int = 2
+y.repr()
+
+let z: int = x + y
+z.repr()
+
+let horse: str = 1 + 'horse' + 2
+horse.repr()
+
+template
+    T: int | float
+
+class Printer
+    value: T
+
+    fun echo(a: int)
+        let x = 5
+        x.repr()
+
+    fun echo()
+        let x = 5
+        x.repr()
+
+
+let p = Printer<int>(25)
+p.echo()
+
+let q = Printer(25)
+q.echo()
+
+
+trait Player
+    fun run()
+        let f = 'fast'
+        f.repr()
+
+
+class Jordan is Player
+    pass

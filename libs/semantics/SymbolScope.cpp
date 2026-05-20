@@ -40,13 +40,16 @@ Symbol_ptr SymbolScope::define(Symbol_ptr symbol)
         "Cannot define a null symbol"
     );
 
-    if (symbol->payload_is<FunctionData>())
+    if (symbol->payload_is<CallableData>())
     {
+        auto& symbol_payload = symbol->get_payload_as<CallableData>();
+
+        if (symbol_payload.is_method)
+        {
+            return define_method(symbol);
+        }
+
         return define_function(symbol);
-    }
-    else if (symbol->payload_is<MethodData>())
-    {
-        return define_method(symbol);
     }
     else if (symbol->payload_is<OverloadsData>())
     {
@@ -101,7 +104,7 @@ Symbol_ptr SymbolScope::define(Symbol_ptr symbol)
 Symbol_ptr SymbolScope::define_function(Symbol_ptr new_symbol)
 {
     Doctor::get().assert(
-        new_symbol->payload_is<FunctionData>(),
+        new_symbol->payload_is<CallableData>(),
         WaspStage::Semantics,
         "Expected a function or function template symbol"
     );
@@ -159,9 +162,9 @@ Symbol_ptr SymbolScope::define_function(Symbol_ptr new_symbol)
 Symbol_ptr SymbolScope::define_method(Symbol_ptr new_symbol)
 {
     Doctor::get().assert(
-        new_symbol->payload_is<MethodData>(),
+        new_symbol->payload_is<CallableData>(),
         WaspStage::Semantics,
-        "Expected a method symbol"
+        "Expected a callable symbol"
     );
 
     if (contains_in_current_scope(new_symbol->name))
@@ -189,7 +192,7 @@ Symbol_ptr SymbolScope::define_method(Symbol_ptr new_symbol)
 
     symbols[new_symbol->name] = overload_group;
 
-    return new_symbol;
+    return overload_group;
 }
 
 Symbol_ptr SymbolScope::lookup_local(const std::string& name) const

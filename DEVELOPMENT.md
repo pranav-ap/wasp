@@ -1,5 +1,11 @@
 # Wasp
 
+## Building
+
+```bash
+clear && cmake --build build
+```
+
 ## Building and Testing
 
 **Clean Build and Test**

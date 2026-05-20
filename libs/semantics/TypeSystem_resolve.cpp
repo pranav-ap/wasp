@@ -111,7 +111,7 @@ std::tuple<Symbol_ptr, int> TypeSystem::get_best_function_symbol(
             auto signature = valid_matches[i]->get_type()->as<Signature_ptr>();
 
             // If the signature has no expected generics, it is purely concrete
-            if (signature->expected_generic_names_order.empty())
+            if (signature->ordered_template_parameter_names.empty())
             {
                 concrete_count++;
                 best_concrete = valid_matches[i];
@@ -233,7 +233,7 @@ void TypeSystem::validate_new_function_overload(
             group.parents.erase(it);
         }
     }
-    else if (existing->payload_is<FunctionData>())
+    else if (existing->payload_is<CallableData>())
     {
         check_duplicate(existing);
     }
@@ -297,7 +297,7 @@ std::vector<std::pair<Symbol_ptr, int>> TypeSystem::filter_by_generic_arity(
         }
 
         auto sig = type->as<Signature_ptr>();
-        if (sig->expected_generic_names_order.size() == expected_generic_count)
+        if (sig->ordered_template_parameter_names.size() == expected_generic_count)
         {
             candidates.push_back({overloads[i], i});
         }
@@ -438,11 +438,11 @@ Object_ptr TypeSystem::substitute_generics(
                     bool first = true, any_sub = false;
                     ObjectStringMap rem_gen;
                     StringVector rem_names;
-                    for (const auto& gn : cls->expected_generic_names_order)
+                    for (const auto& gn : cls->ordered_template_parameter_names)
                     {
                         if (!substitutions.contains(gn))
                         {
-                            rem_gen[gn] = cls->generics.at(gn);
+                            rem_gen[gn] = cls->template_parameter_types.at(gn);
                             rem_names.push_back(gn);
                         }
                         else

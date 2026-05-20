@@ -105,7 +105,11 @@ Symbol_ptr SemanticAnalyzer::resolve_target_symbol(Expression_ptr target)
 Object_ptr SemanticAnalyzer::visit(Identifier& identifier)
 {
     Symbol_ptr symbol = current_scope->lookup(identifier.name);
-    Doctor::get().fatal_if_nullptr(symbol, WaspStage::Semantics);
+    Doctor::get().fatal_if_nullptr(
+        symbol,
+        WaspStage::Semantics,
+        "Undefined identifier: " + identifier.name
+    );
 
     bind_identifier(identifier, symbol);
     return symbol->get_type();
@@ -274,7 +278,7 @@ Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
     node.symbol = target_symbol;
 
     // Case A: Template Classes
-    if (target_symbol->payload_is<ClassData>())
+    if (target_symbol->payload_is<OopsData>())
     {
         Object_ptr base = target_symbol->get_type();
         auto names = type_system->get_generics_declaration_order(base);

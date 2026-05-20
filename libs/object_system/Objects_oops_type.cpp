@@ -62,7 +62,7 @@ void ModuleType::set_member(int member_id, Object_ptr value)
     member_types[ordered_keys[member_id]] = std::move(value);
 }
 
-void BaseOOPType::add_overload(const std::string& member_name, Object_ptr overload)
+void OopsType::add_overload(const std::string& member_name, Object_ptr overload)
 {
     if (!member_types.contains(member_name))
     {
@@ -75,7 +75,7 @@ void BaseOOPType::add_overload(const std::string& member_name, Object_ptr overlo
     overload_list->add_overload(std::move(overload));
 }
 
-ObjectVector BaseOOPType::get_overloads(const std::string& member_name) const
+ObjectVector OopsType::get_overloads(const std::string& member_name) const
 {
     Doctor::get().assert(
         contains_member(member_name) &&
@@ -88,7 +88,7 @@ ObjectVector BaseOOPType::get_overloads(const std::string& member_name) const
     return overload_list->overloads;
 }
 
-ObjectVector BaseOOPType::get_fields() const
+ObjectVector OopsType::get_fields() const
 {
     ObjectVector res;
     for (const auto& n : fields)
@@ -98,7 +98,7 @@ ObjectVector BaseOOPType::get_fields() const
     return res;
 }
 
-ObjectVector BaseOOPType::get_methods() const
+ObjectVector OopsType::get_methods() const
 {
     ObjectVector res;
     for (const auto& n : methods)
@@ -108,7 +108,7 @@ ObjectVector BaseOOPType::get_methods() const
     return res;
 }
 
-ObjectVector BaseOOPType::get_pures() const
+ObjectVector OopsType::get_pures() const
 {
     ObjectVector res;
     for (const auto& n : pures)
@@ -118,7 +118,7 @@ ObjectVector BaseOOPType::get_pures() const
     return res;
 }
 
-ObjectVector BaseOOPType::get_statics() const
+ObjectVector OopsType::get_statics() const
 {
     ObjectVector res;
     for (const auto& n : statics)
@@ -128,7 +128,7 @@ ObjectVector BaseOOPType::get_statics() const
     return res;
 }
 
-ObjectVector BaseOOPType::get_members() const
+ObjectVector OopsType::get_members() const
 {
     ObjectVector res = get_fields();
     ObjectVector m = get_methods();
@@ -137,7 +137,7 @@ ObjectVector BaseOOPType::get_members() const
     return res;
 }
 
-bool BaseOOPType::is_pure(const std::string& member_name) const
+bool OopsType::is_pure(const std::string& member_name) const
 {
     Doctor::get().assert(
         contains_member(member_name),
@@ -147,7 +147,7 @@ bool BaseOOPType::is_pure(const std::string& member_name) const
     return std::find(pures.begin(), pures.end(), member_name) != pures.end();
 }
 
-bool BaseOOPType::is_static(const std::string& member_name) const
+bool OopsType::is_static(const std::string& member_name) const
 {
     Doctor::get().assert(
         contains_member(member_name),
@@ -157,7 +157,7 @@ bool BaseOOPType::is_static(const std::string& member_name) const
     return std::find(statics.begin(), statics.end(), member_name) != statics.end();
 }
 
-bool BaseOOPType::contains_member(const std::string& member_name) const
+bool OopsType::contains_member(const std::string& member_name) const
 {
     bool in_fields = std::find(fields.begin(), fields.end(), member_name) !=
                      fields.end();
@@ -171,7 +171,7 @@ bool BaseOOPType::contains_member(const std::string& member_name) const
     return in_fields || in_methods || in_pures || in_statics;
 }
 
-Object_ptr BaseOOPType::get_member(const std::string& member_name) const
+Object_ptr OopsType::get_member(const std::string& member_name) const
 {
     Doctor::get().assert(
         contains_member(member_name),
@@ -182,7 +182,7 @@ Object_ptr BaseOOPType::get_member(const std::string& member_name) const
     return member_types.at(member_name);
 }
 
-void BaseOOPType::set_member(const std::string& member_name, Object_ptr value)
+void OopsType::set_member(const std::string& member_name, Object_ptr value)
 {
     Doctor::get().assert(
         contains_member(member_name),
@@ -194,7 +194,7 @@ void BaseOOPType::set_member(const std::string& member_name, Object_ptr value)
     member_types[member_name] = std::move(value);
 }
 
-int BaseOOPType::get_member_index(const std::string& member_name) const
+int OopsType::get_member_index(const std::string& member_name) const
 {
     Doctor::get().assert(
         contains_member(member_name),
@@ -233,7 +233,7 @@ int BaseOOPType::get_member_index(const std::string& member_name) const
     return res;
 }
 
-Object_ptr BaseOOPType::get_member(int member_id) const
+Object_ptr OopsType::get_member(int member_id) const
 {
     auto check_section = [&](const StringVector& vec, int& id) -> Object_ptr
     {
@@ -269,12 +269,12 @@ Object_ptr BaseOOPType::get_member(int member_id) const
     );
 }
 
-ObjectVector BaseOOPType::get_traits() const
+ObjectVector OopsType::get_traits() const
 {
     return traits;
 }
 
-bool BaseOOPType::implements_trait(const std::string& trait_name) const
+bool OopsType::implements_trait(const std::string& trait_name) const
 {
     for (const auto& trait_obj : traits)
     {

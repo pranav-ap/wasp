@@ -235,8 +235,6 @@ struct Identifier : public Resolvable
     }
 };
 
-// a.b
-// a.b.c().d
 struct MemberAccess
 {
     Expression_ptr left;
@@ -244,6 +242,7 @@ struct MemberAccess
 
     int member_index = -1;
     bool is_enum_value = false;
+    bool is_trait_dispatch = false;
 
     MemberAccess() = default;
 
@@ -253,18 +252,6 @@ struct MemberAccess
     }
 };
 
-/*
-foo()
-A()
-a.foo()
-a.foo()
-*/
-
-// process()
-// a.process()
-// a.b.process()
-// create_function()()
-// a.b().c()
 struct Call
 {
     Expression_ptr callable;
@@ -339,6 +326,12 @@ struct RangeLiteral
     }
 };
 
+struct Box
+{
+    Expression_ptr expr;
+    int trait_type_id;
+};
+
 // Expression
 
 using ExpressionVariant = std::variant<
@@ -355,6 +348,8 @@ using ExpressionVariant = std::variant<
     DotLiteral,
     Identifier,
     MemberAccess,
+
+    Box,
 
     Call,
     Constructor,

@@ -29,17 +29,21 @@ void VM::execute_build_overload_group(CallFrame* frame)
 
 void VM::execute_build_class(CallFrame* frame)
 {
-    int num_methods = std::to_integer<int>(frame->consume_byte());
-    int num_fields = std::to_integer<int>(frame->consume_byte());
+    int num_methods = static_cast<int>(frame->consume_byte());
+    int num_fields = static_cast<int>(frame->consume_byte());
 
-    Object_ptr preallocated_obj = pop_from_stack();
+    Object_ptr blueprint_obj = pop_from_stack();
+    Object_ptr class_type_obj = pop_from_stack();
     ObjectVector methods = pop_n_from_stack(num_methods);
 
-    auto blueprint = preallocated_obj->as<std::shared_ptr<ClassBlueprintObject>>();
+    auto blueprint = blueprint_obj->as<std::shared_ptr<ClassBlueprintObject>>();
+    auto class_type = class_type_obj->as<std::shared_ptr<ClassType>>();
+
     blueprint->members = std::move(methods);
     blueprint->fields_count = num_fields;
+    blueprint->itables = class_type->itables;
 
-    push_to_stack(preallocated_obj);
+    push_to_stack(blueprint_obj);
 }
 
 void VM::execute_instantiate(CallFrame* frame)
@@ -61,7 +65,10 @@ void VM::execute_instantiate(CallFrame* frame)
     instance_memory
         .insert(instance_memory.end(), blueprint->members.begin(), blueprint->members.end());
 
-    auto instance = make_object(std::make_shared<InstanceObject>(std::move(instance_memory)));
+    auto instance = make_object(
+        std::make_shared<ClassInstanceObject>(blueprint, std::move(instance_memory))
+    );
+
     push_to_stack(instance);
 }
 
