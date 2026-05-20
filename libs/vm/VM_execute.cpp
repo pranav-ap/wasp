@@ -289,13 +289,29 @@ Object_ptr VM::perform_get_member(Object_ptr obj, int member_index)
             {
                 return mod->get_member(member_index);
             },
+            [&](std::shared_ptr<ClassInstanceObject>& class_inst) -> Object_ptr
+            {
+                // Access the instance's fields
+                Doctor::get().assert(
+                    member_index >= 0 && member_index < static_cast<int>(class_inst->fields.size()),
+                    WaspStage::VM,
+                    "Field index out of bounds!"
+                );
+                return class_inst->fields[member_index];
+            },
+            [&](std::shared_ptr<TraitInstanceObject>& trait_inst) -> Object_ptr
+            {
+                // To get a property from a boxed trait, unwrap it to the class instance
+                // and recall perform_get_member!
+                return perform_get_member(trait_inst->class_instance, member_index);
+            },
             [&](auto&) -> Object_ptr
             {
                 Doctor::get().fatal(
                     WaspStage::VM,
-                    "Object of this type does not support reading "
-                    "properties."
+                    "Object of this type does not support reading properties."
                 );
+                return nullptr;
             }
         },
         obj->value
@@ -310,7 +326,19 @@ void VM::perform_set_member(Object_ptr obj, int member_index, Object_ptr value)
             {
                 mod->set_member(member_index, value);
             },
-
+            [&](std::shared_ptr<ClassInstanceObject>& class_inst)
+            {
+                Doctor::get().assert(
+                    member_index >= 0 && member_index < static_cast<int>(class_inst->fields.size()),
+                    WaspStage::VM,
+                    "Field index out of bounds!"
+                );
+                class_inst->fields[member_index] = value;
+            },
+            [&](std::shared_ptr<TraitInstanceObject>& trait_inst)
+            {
+                perform_set_member(trait_inst->class_instance, member_index, value);
+            },
             [&](auto&)
             {
                 Doctor::get().fatal(WaspStage::VM, "Object does not support setting properties.");
@@ -628,13 +656,24 @@ void VM::execute_BUILD_CLASS(CallFrame* frame)
 
     Object_ptr blueprint_obj = pop_from_stack();
     Object_ptr class_type_obj = pop_from_stack();
-    ObjectVector methods = pop_n_from_stack(num_methods);
+    ObjectVector popped_methods = pop_n_from_stack(num_methods);
 
     auto class_type = class_type_obj->as<std::shared_ptr<ClassType>>();
-
     auto blueprint = blueprint_obj->as<std::shared_ptr<ClassBlueprintObject>>();
 
-    blueprint->methods = std::move(methods);
+    // 1. Get the number of fields so we know how much to offset the methods
+    // (If your ClassType doesn't have a get_fields() method, use class_type->fields.size())
+    int num_fields = static_cast<int>(class_type->get_fields().size());
+
+    // 2. Resize the blueprint's methods array to cover the highest absolute index
+    blueprint->methods.resize(num_fields + num_methods);
+
+    // 3. Place the methods exactly where the GET_CLASS_METHOD opcode expects them
+    for (int i = 0; i < num_methods; ++i)
+    {
+        blueprint->methods[num_fields + i] = std::move(popped_methods[i]);
+    }
+
     blueprint->itables = class_type->itables;
 
     push_to_stack(blueprint_obj);
@@ -646,12 +685,6 @@ void VM::execute_INSTANTIATE(CallFrame* frame)
 
     Object_ptr blueprint_obj = pop_from_stack();
     ObjectVector fields = pop_n_from_stack(num_fields);
-
-    Doctor::get().assert(
-        blueprint_obj->is<std::shared_ptr<ClassBlueprintObject>>(),
-        WaspStage::VM,
-        "OpCode::INSTANTIATE expects a ClassBlueprintObject on the stack!"
-    );
 
     auto blueprint = blueprint_obj->as<std::shared_ptr<ClassBlueprintObject>>();
 
