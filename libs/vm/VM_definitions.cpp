@@ -80,7 +80,7 @@ void VM::execute_make_function(CallFrame* frame)
     Doctor::get().assert(
         blueprint_obj->is<std::shared_ptr<FunctionBlueprintObject>>(),
         WaspStage::VM,
-        "MAKE_FUNCTION expects a FunctionBlueprintObject on the stack"
+        "BUILD_FUNCTION expects a FunctionBlueprintObject on the stack"
     );
 
     auto blueprint = blueprint_obj->as<std::shared_ptr<FunctionBlueprintObject>>();
@@ -170,7 +170,7 @@ void VM::execute_resolve_function(CallFrame* frame)
     Doctor::get().assert(
         obj->is<std::shared_ptr<ObjectOverloadList>>(),
         WaspStage::VM,
-        "RESOLVE_FUNCTION expects an Overload Group or Function on the stack!"
+        "GET_FUNCTION expects an Overload Group or Function on the stack!"
     );
 
     auto group = obj->as<std::shared_ptr<ObjectOverloadList>>();

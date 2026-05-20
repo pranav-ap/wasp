@@ -74,7 +74,7 @@ void VM::run(FunctionBlueprintObject_ptr function_object)
         }
             // Constants
 
-        case OpCode::LOAD_CONST:
+        case OpCode::LOAD_CONSTANT:
         case OpCode::LOAD_TRUE:
         case OpCode::LOAD_FALSE:
         case OpCode::LOAD_NONE: {
@@ -157,7 +157,7 @@ void VM::run(FunctionBlueprintObject_ptr function_object)
         }
             // FUNCTION
 
-        case OpCode::MAKE_FUNCTION: {
+        case OpCode::BUILD_FUNCTION: {
             execute_make_function(frame);
             break;
         }
@@ -167,7 +167,7 @@ void VM::run(FunctionBlueprintObject_ptr function_object)
             break;
         }
 
-        case OpCode::RESOLVE_FUNCTION: {
+        case OpCode::GET_FUNCTION: {
             execute_resolve_function(frame);
             break;
         }

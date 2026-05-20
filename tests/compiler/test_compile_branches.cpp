@@ -29,14 +29,14 @@ if true then 3 else 1
         B(Wasp::OpCode::JUMP),          B(12), B(0),
 
         B(Wasp::OpCode::PUSH_SCOPE),
-        B(Wasp::OpCode::LOAD_CONST),    B(val_3),
+        B(Wasp::OpCode::LOAD_CONSTANT),    B(val_3),
         B(Wasp::OpCode::POP_SCOPE_KEEP_TOS),
         B(Wasp::OpCode::POP_SCOPE_KEEP_TOS),
         B(Wasp::OpCode::JUMP),          B(28), B(0),
 
         B(Wasp::OpCode::POP_SCOPE),
         B(Wasp::OpCode::PUSH_SCOPE),
-        B(Wasp::OpCode::LOAD_CONST),    B(val_1),
+        B(Wasp::OpCode::LOAD_CONSTANT),    B(val_1),
         B(Wasp::OpCode::POP_SCOPE_KEEP_TOS),
         B(Wasp::OpCode::JUMP),          B(28), B(0),
 
@@ -72,14 +72,14 @@ if let x = true then 3 else 1
         B(Wasp::OpCode::JUMP),          B(16), B(0),
 
         B(Wasp::OpCode::PUSH_SCOPE),
-        B(Wasp::OpCode::LOAD_CONST),    B(val_3),
+        B(Wasp::OpCode::LOAD_CONSTANT),    B(val_3),
         B(Wasp::OpCode::POP_SCOPE_KEEP_TOS),
         B(Wasp::OpCode::POP_SCOPE_KEEP_TOS),
         B(Wasp::OpCode::JUMP),          B(32), B(0),
 
         B(Wasp::OpCode::POP_SCOPE),
         B(Wasp::OpCode::PUSH_SCOPE),
-        B(Wasp::OpCode::LOAD_CONST),    B(val_1),
+        B(Wasp::OpCode::LOAD_CONSTANT),    B(val_1),
         B(Wasp::OpCode::POP_SCOPE_KEEP_TOS),
         B(Wasp::OpCode::JUMP),          B(32), B(0),
 
@@ -117,7 +117,7 @@ else
         B(Wasp::OpCode::JUMP_IF_FALSE), B(19), B(0),
         B(Wasp::OpCode::JUMP),          B(12), B(0),
 
-        B(Wasp::OpCode::LOAD_CONST),    B(val_25),
+        B(Wasp::OpCode::LOAD_CONSTANT),    B(val_25),
         B(Wasp::OpCode::POP),
         B(Wasp::OpCode::POP_SCOPE),
         B(Wasp::OpCode::JUMP),          B(23), B(0),
@@ -132,14 +132,14 @@ else
         B(Wasp::OpCode::JUMP_IF_FALSE), B(41), B(0),
         B(Wasp::OpCode::JUMP),          B(34), B(0),
 
-        B(Wasp::OpCode::LOAD_CONST),    B(val_25),
+        B(Wasp::OpCode::LOAD_CONSTANT),    B(val_25),
         B(Wasp::OpCode::POP),
         B(Wasp::OpCode::POP_SCOPE),
         B(Wasp::OpCode::JUMP),          B(50), B(0),
 
         B(Wasp::OpCode::POP_SCOPE),
         B(Wasp::OpCode::PUSH_SCOPE),
-        B(Wasp::OpCode::LOAD_CONST),    B(val_25),
+        B(Wasp::OpCode::LOAD_CONSTANT),    B(val_25),
         B(Wasp::OpCode::POP),
         B(Wasp::OpCode::POP_SCOPE),
         B(Wasp::OpCode::JUMP),          B(50), B(0),

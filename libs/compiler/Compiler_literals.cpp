@@ -16,25 +16,17 @@ namespace Wasp
 
 void Compiler::visit(IntegerLiteral& expr)
 {
-    emit(
-        OpCode::LOAD_CONST,
-        workspace->pool->allocate(expr.value),
-        std::to_string(expr.value)
-    );
+    emit(OpCode::LOAD_CONSTANT, workspace->pool->allocate(expr.value), std::to_string(expr.value));
 }
 
 void Compiler::visit(FloatLiteral& expr)
 {
-    emit(
-        OpCode::LOAD_CONST,
-        workspace->pool->allocate(expr.value),
-        std::to_string(expr.value)
-    );
+    emit(OpCode::LOAD_CONSTANT, workspace->pool->allocate(expr.value), std::to_string(expr.value));
 }
 
 void Compiler::visit(StringLiteral& expr)
 {
-    emit(OpCode::LOAD_CONST, workspace->pool->allocate(expr.value), expr.value);
+    emit(OpCode::LOAD_CONSTANT, workspace->pool->allocate(expr.value), expr.value);
 }
 
 void Compiler::visit(BooleanLiteral& expr)

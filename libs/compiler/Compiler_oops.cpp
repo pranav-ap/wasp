@@ -73,7 +73,7 @@ void Compiler::visit(ClassDefinition& def)
         unique_method_count++;
     }
 
-    emit(OpCode::LOAD_CONST, class_type_pool_id, "load class type from pool");
+    emit(OpCode::LOAD_CONSTANT, class_type_pool_id, "load class type from pool");
 
     emit(OpCode::GET_LOCAL, slot, "load blueprint for population");
     emit(

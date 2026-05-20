@@ -30,7 +30,7 @@ void Compiler::visit(Call& expr)
         visit(expr.callable);
 
         int resolve_idx = expr.overload_index == -1 ? 0 : expr.overload_index;
-        emit(OpCode::RESOLVE_FUNCTION, resolve_idx);
+        emit(OpCode::GET_FUNCTION, resolve_idx);
     }
 
     int total_arguments = static_cast<int>(expr.arguments.size());

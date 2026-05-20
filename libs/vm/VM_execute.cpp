@@ -24,7 +24,7 @@ void VM::execute_constant(OpCode op, CallFrame* frame)
 {
     switch (op)
     {
-    case OpCode::LOAD_CONST: {
+    case OpCode::LOAD_CONSTANT: {
         push_to_stack(workspace->pool->get(static_cast<int>(frame->consume_byte())));
         break;
     }

@@ -165,7 +165,7 @@ void InstructionPrinter::print_bytecode(const CodeObject& code, std::ostream& ou
         out << "   " << std::right << setw(4) << std::setfill('0') << index << std::setfill(' ')
             << " │ ";
 
-        if (op == OpCode::MAKE_FUNCTION)
+        if (op == OpCode::BUILD_FUNCTION)
         {
             int upvalue_count = std::to_integer<int>(data[index + 1]);
 

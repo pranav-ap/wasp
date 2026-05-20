@@ -325,7 +325,7 @@ void Compiler::resolve_jumps_in_block(
     {
         OpCode op = static_cast<OpCode>(data[ip]);
 
-        if (op == OpCode::MAKE_FUNCTION)
+        if (op == OpCode::BUILD_FUNCTION)
         {
             ip += 2 + (static_cast<int>(data[ip + 1]) * 2);
             continue;
