@@ -59,6 +59,7 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                         },
                         [&](TraitType_ptr trait_type) -> Object_ptr
                         {
+                            ma.is_trait_dispatch = true;
                             return call_method(call, ma, argument_types, trait_type);
                         },
                         [&](ModuleType_ptr module_type) -> Object_ptr
@@ -105,6 +106,25 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
     );
 }
 
+Expression_ptr SemanticAnalyzer::try_box_expression(
+    Expression_ptr expr,
+    Object_ptr actual_type,
+    Object_ptr expected_type
+)
+{
+    if (expected_type->is<TraitType_ptr>() && actual_type->is<ClassType_ptr>())
+    {
+        if (type_system->assignable(current_scope, expected_type, actual_type))
+        {
+            auto trait = expected_type->as<TraitType_ptr>();
+            int trait_type_id = trait->type_id;
+            return make_expression(Box{expr, trait_type_id});
+        }
+    }
+
+    return expr;
+}
+
 Object_ptr SemanticAnalyzer::resolve_standard_overload(
     Call& call,
     Symbol_ptr overload_symbol,
@@ -126,6 +146,15 @@ Object_ptr SemanticAnalyzer::resolve_standard_overload(
     );
 
     auto signature = function_symbol->get_type()->as<Signature_ptr>();
+
+    for (size_t i = 0; i < call.arguments.size(); ++i)
+    {
+        call.arguments[i] = try_box_expression(
+            call.arguments[i],
+            argument_types[i],
+            signature->parameter_types[i]
+        );
+    }
 
     if (!signature->ordered_template_parameter_names.empty())
     {
@@ -347,19 +376,18 @@ Object_ptr SemanticAnalyzer::call_method(
     Call& call,
     MemberAccess& access,
     const ObjectVector& argument_types,
-    OopsType_ptr class_type
+    OopsType_ptr oops_type
 )
 {
     auto method_name = access.right->as<Identifier>().name;
 
     Doctor::get().assert(
-        class_type->contains_member(method_name),
+        oops_type->contains_member(method_name),
         WaspStage::Semantics,
-        "Method '" + method_name + "()' does not exist on class '" +
-            class_type->name + "'."
+        "Method '" + method_name + "()' does not exist on class '" + oops_type->name + "'."
     );
 
-    auto member = class_type->get_member(method_name);
+    auto member = oops_type->get_member(method_name);
 
     Doctor::get().assert(
         member->is<ObjectOverloadList_ptr>(),
@@ -375,7 +403,7 @@ Object_ptr SemanticAnalyzer::call_method(
         argument_types
     );
 
-    access.member_index = class_type->get_member_index(method_name);
+    access.member_index = oops_type->get_member_index(method_name);
     call.overload_index = overload_index;
 
     call.is_method_call = true;

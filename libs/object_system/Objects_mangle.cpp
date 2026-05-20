@@ -25,199 +25,10 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-// ============================================================================
-// Vector Converters
-// ============================================================================
-
-ObjectVector to_vector(std::string text)
-{
-    ObjectVector vec;
-    vec.reserve(text.size());
-
-    for (char ch : text)
-    {
-        vec.push_back(MAKE_OBJECT_VARIANT(StringObject(std::string(1, ch))));
-    }
-
-    return vec;
-}
-
-// ============================================================================
-// Equality Checks
-// ============================================================================
-
-bool are_equal_types(ObjectVector left_vector, ObjectVector right_vector)
-{
-    if (left_vector.size() != right_vector.size())
-        return false;
-
-    return std::equal(
-        left_vector.begin(),
-        left_vector.end(),
-        right_vector.begin(),
-        right_vector.end(),
-        [](Object_ptr l, Object_ptr r)
-        {
-            return are_equal_types(l, r);
-        }
-    );
-}
-
-bool are_equal_types_unordered(ObjectVector left_vector, ObjectVector right_vector)
-{
-    if (left_vector.size() != right_vector.size())
-        return false;
-
-    return std::is_permutation(
-        left_vector.begin(),
-        left_vector.end(),
-        right_vector.begin(),
-        right_vector.end(),
-        [](Object_ptr l, Object_ptr r)
-        {
-            return are_equal_types(l, r);
-        }
-    );
-}
-
-bool are_equal_types(Object_ptr left, Object_ptr right)
-{
-    if (!left || !right)
-    {
-        return false;
-    }
-
-    if (left == right)
-    {
-        return true;
-    }
-
-    return std::visit(
-        overloaded{
-            [](const LiteralType& l, const LiteralType& r)
-            {
-                return std::visit(
-                    overloaded{
-                        [](const IntObject& v1, const IntObject& v2)
-                        {
-                            return v1.value == v2.value;
-                        },
-                        [](const FloatObject& v1, const FloatObject& v2)
-                        {
-                            return v1.value == v2.value;
-                        },
-                        [](const BooleanObject& v1, const BooleanObject& v2)
-                        {
-                            return v1.value == v2.value;
-                        },
-                        [](const StringObject& v1, const StringObject& v2)
-                        {
-                            return v1.value == v2.value;
-                        },
-                        // Mismatched literal types
-                        [](const auto&, const auto&)
-                        {
-                            return false;
-                        }
-                    },
-                    l.value->value,
-                    r.value->value
-                );
-            },
-
-            [](const ListType& l, const ListType& r)
-            {
-                return are_equal_types(l.element_type, r.element_type);
-            },
-            [](const TupleType& l, const TupleType& r)
-            {
-                return are_equal_types(l.element_types, r.element_types);
-            },
-            [](const SetType& l, const SetType& r)
-            {
-                return are_equal_types(l.element_type, r.element_type);
-            },
-            [](const VariantType& l, const VariantType& r)
-            {
-                return are_equal_types_unordered(l.types, r.types);
-            },
-            [](const MapType& l, const MapType& r)
-            {
-                return are_equal_types(l.key_type, r.key_type) &&
-                       are_equal_types(l.value_type, r.value_type);
-            },
-
-            [](const Signature_ptr& l, const Signature_ptr& r)
-            {
-                return are_equal_types(
-                           l->parameter_types,
-                           r->parameter_types
-                       ) &&
-                       are_equal_types(l->return_type, r->return_type);
-            },
-
-            [](const ModuleType_ptr& l, const ModuleType_ptr& r)
-            {
-                return l->name == r->name;
-            },
-            [](const ClassType_ptr& l, const ClassType_ptr& r)
-            {
-                return l->name == r->name;
-            },
-            [](const TraitType_ptr& l, const TraitType_ptr& r)
-            {
-                return l->name == r->name;
-            },
-            [](const EnumType_ptr& l, const EnumType_ptr& r)
-            {
-                return l->name == r->name;
-            },
-            [](const TypeAlias_ptr& l, const TypeAlias_ptr& r)
-            {
-                return l->name == r->name;
-            },
-            [](const TemplateParameterType_ptr& l,
-               const TemplateParameterType_ptr& r)
-            {
-                return l->name == r->name;
-            },
-
-            // Catch-all for identical types that don't need manual value
-            // checking
-            // e.g., IntType, FloatType, AnyType
-            []<typename T>(const T&, const T&)
-            {
-                return true;
-            },
-
-            // Default - Types don't match
-            [](const auto&, const auto&)
-            {
-                return false;
-            }
-
-        },
-        left->value,
-        right->value
-    );
-}
-
-// ============================================================================
-// Utils
-// ============================================================================
-
-Object_ptr convert_type(Object_ptr type, Object_ptr operand)
-{
-    Doctor::get().fatal(WaspStage::VM, "convert_type is not implemented yet");
-}
-
 std::string stringify_object(Object_ptr value)
 {
-    Doctor::get().fatal_if_nullptr(
-        value,
-        WaspStage::VM,
-        "Attempted to stringify a null object pointer"
-    );
+    Doctor::get()
+        .fatal_if_nullptr(value, WaspStage::VM, "Attempted to stringify a null object pointer");
 
     return std::visit(
         overloaded{
@@ -385,8 +196,7 @@ std::string stringify_object(Object_ptr value)
                 auto it = obj->pairs.begin();
                 while (it != obj->pairs.end())
                 {
-                    res += stringify_object(it->first) + ": " +
-                           stringify_object(it->second);
+                    res += stringify_object(it->first) + ": " + stringify_object(it->second);
                     if (++it != obj->pairs.end())
                     {
                         res += ", ";
@@ -467,11 +277,8 @@ std::string mangle_object(const ObjectVector& values)
 
 std::string mangle_object(Object_ptr value)
 {
-    Doctor::get().fatal_if_nullptr(
-        value,
-        WaspStage::VM,
-        "Attempted to mangle a null object pointer"
-    );
+    Doctor::get()
+        .fatal_if_nullptr(value, WaspStage::VM, "Attempted to mangle a null object pointer");
 
     return std::visit(
         overloaded{
@@ -613,50 +420,6 @@ std::string mangle_object(Object_ptr value)
         },
         value->value
     );
-}
-
-Object_ptr unwrap_type_alias(Object_ptr type)
-{
-    Doctor::get().fatal_if_nullptr(
-        type,
-        WaspStage::Semantics,
-        "Attempted to unwrap a null type pointer"
-    );
-
-    while (type->is<TypeAlias_ptr>())
-    {
-        type = type->as<TypeAlias_ptr>()->underlying_type;
-    }
-
-    return type;
-}
-
-Object_ptr unwrap_completely(Object_ptr type)
-{
-    Doctor::get().fatal_if_nullptr(
-        type,
-        WaspStage::Semantics,
-        "Attempted to unwrap a null type pointer"
-    );
-
-    while (true)
-    {
-        if (type->is<TypeAlias_ptr>())
-        {
-            type = type->as<TypeAlias_ptr>()->underlying_type;
-            continue;
-        }
-
-        if (auto* generic_ptr = type->try_as<TemplateParameterType_ptr>())
-        {
-            type = (*generic_ptr)->constraint_type;
-            continue;
-        }
-
-        break;
-    }
-
-    return type;
 }
 
 std::string get_canonical_trait_name(const ObjectVector& traits)

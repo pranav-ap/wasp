@@ -27,11 +27,12 @@ using ByteVector = std::vector<std::byte>;
     X(LOAD_NONE, 0)  /* [] -> [none] */                                                            \
                                                                                                    \
     /* --- Variables & Scoping --- */                                                              \
-    X(SET_LOCAL, 1)          /* [val] -> [] | <Symbol ID> (Assign to existing local) */            \
-    X(GET_LOCAL, 1)          /* [] -> [val] | <Symbol ID> (Read local onto stack) */               \
-    X(GET_NATIVE, 1)         /* [] -> [val] | <Symbol ID> */                                       \
-    X(SET_MEMBER, 1)         /* [obj, val] -> [] | <Member ID>  */                                 \
-    X(GET_MEMBER, 1)         /* [obj] -> [val] | <Member ID>  */                                   \
+    X(SET_LOCAL, 1)  /* [val] -> [] | <Symbol ID> (Assign to existing local) */                    \
+    X(GET_LOCAL, 1)  /* [] -> [val] | <Symbol ID> (Read local onto stack) */                       \
+    X(GET_NATIVE, 1) /* [] -> [val] | <Symbol ID> */                                               \
+    X(SET_MEMBER, 1) /* [obj, val] -> [] | <Member ID>  */                                         \
+    X(GET_MEMBER, 1) /* [obj] -> [val] | <Member ID>  */                                           \
+    X(GET_TRAIT_METHOD, 2)                                                                         \
     X(PUSH_SCOPE, 0)         /* Enter new lexical block scope */                                   \
     X(POP_SCOPE, 0)          /* Exit current lexical block scope */                                \
     X(POP_SCOPE_KEEP_TOS, 0) /* Exit current lexical block scope, preserving Top Of Stack */       \
@@ -54,7 +55,7 @@ using ByteVector = std::vector<std::byte>;
     X(PUSH_EMPTY_CLASS_BLUEPRINT, 0)                                                               \
     X(INSTANTIATE, 1) /* [class blueprint, args...] -> [instance] | <number of args> */            \
                                                                                                    \
-    X(CAST_TO_TRAIT, 1)                                                                            \
+    X(BOX, 1)                                                                                      \
     X(BUILD_TEMPLATE, 1)                                                                           \
     /* --- Arithmetic --- */                                                                       \
     X(NEGATE, 0) /* [a] -> [-a] */                                                                 \

@@ -170,6 +170,7 @@ private:
     void visit(ElseTernaryBranch& expr);
 
     void visit(TemplateAngular& expr);
+    void visit(Box& node);
 
     // -----------------------------------------------------------------------
     // UTILS

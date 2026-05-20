@@ -242,6 +242,7 @@ struct MemberAccess
 
     int member_index = -1;
     bool is_enum_value = false;
+    bool is_trait_dispatch = false;
 
     MemberAccess() = default;
 
@@ -325,6 +326,12 @@ struct RangeLiteral
     }
 };
 
+struct Box
+{
+    Expression_ptr expr;
+    int trait_type_id;
+};
+
 // Expression
 
 using ExpressionVariant = std::variant<
@@ -341,6 +348,8 @@ using ExpressionVariant = std::variant<
     DotLiteral,
     Identifier,
     MemberAccess,
+
+    Box,
 
     Call,
     Constructor,

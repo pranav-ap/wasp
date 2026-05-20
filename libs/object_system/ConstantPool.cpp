@@ -176,26 +176,12 @@ namespace Wasp
         return id;
     }
 
-    int ConstantPool::allocate_function_definition(FunctionBlueprintObject_ptr func_obj)
-    {
-        int id = objects.size();
-        objects.push_back(MAKE_OBJECT_VARIANT(func_obj));
-        return id;
-    }
-
     int ConstantPool::allocate_function_definition(CodeObject code, std::string name)
     {
         auto func_obj = std::make_shared<FunctionBlueprintObject>(std::move(code), std::move(name));
 
-        return allocate_function_definition(func_obj);
-    }
-
-    int ConstantPool::allocate_class_definition(Object_ptr class_obj)
-    {
         int id = objects.size();
-
-        objects.push_back(class_obj);
-
+        objects.push_back(MAKE_OBJECT_VARIANT(func_obj));
         return id;
     }
 }

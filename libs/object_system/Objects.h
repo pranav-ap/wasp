@@ -582,30 +582,33 @@ struct ModuleObject : public MemberedCompositeObject
 struct ClassBlueprintObject : public MemberedCompositeObject
 {
     int fields_count;
-    std::map<std::string, std::map<std::string, std::map<int, OverloadCoordinate>>>
-        itables;
+    ITablesMap itables;
 
     ClassBlueprintObject(ObjectVector members = {}, int fields_count = 0)
-        : MemberedCompositeObject(std::move(members)),
-          fields_count(fields_count)
+        : MemberedCompositeObject(std::move(members)), fields_count(fields_count)
+
     {
     }
 };
 
+using ClassBlueprintObject_ptr = std::shared_ptr<ClassBlueprintObject>;
+
 struct ClassInstanceObject : public MemberedCompositeObject
 {
-    using MemberedCompositeObject::MemberedCompositeObject;
+    ClassBlueprintObject_ptr blueprint;
+
+    ClassInstanceObject(ClassBlueprintObject_ptr bp, ObjectVector members)
+        : MemberedCompositeObject(std::move(members)), blueprint(std::move(bp))
+    {
+    }
 };
 
 struct TraitInstanceObject
 {
     Object_ptr class_instance;
-    std::map<std::string, std::map<int, OverloadCoordinate>> itable;
+    ITable itable;
 
-    TraitInstanceObject(
-        Object_ptr class_instance,
-        std::map<std::string, std::map<int, OverloadCoordinate>> itable
-    )
+    TraitInstanceObject(Object_ptr class_instance, ITable itable)
         : class_instance(std::move(class_instance)), itable(std::move(itable))
     {
     }
@@ -746,8 +749,6 @@ inline bool is_numeric_type(Object_ptr type)
 std::string stringify_object(Object_ptr value);
 std::string mangle_object(Object_ptr value);
 std::string mangle_object(const ObjectVector& values);
-
-ObjectVector to_vector(std::string text);
 
 bool are_equal_types(Object_ptr left, Object_ptr right);
 bool are_equal_types(ObjectVector left_vector, ObjectVector right_vector);

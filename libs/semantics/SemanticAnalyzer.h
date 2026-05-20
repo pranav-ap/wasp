@@ -131,12 +131,14 @@ private:
     );
     void validate_purity_constraints(Symbol_ptr target_symbol) const;
 
-    // Resolvers
-    Object_ptr resolve_literal(
-        Resolvable& expr,
-        const std::string& type_name,
-        Object_ptr type_obj
+    Expression_ptr try_box_expression(
+        Expression_ptr expr,
+        Object_ptr actual_type,
+        Object_ptr expected_type
     );
+
+    // Resolvers
+    Object_ptr resolve_literal(Resolvable& expr, const std::string& type_name, Object_ptr type_obj);
     Symbol_ptr resolve_target_symbol(Expression_ptr target);
     Object_ptr resolve_member_access(
         MemberAccess& expr,

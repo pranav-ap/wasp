@@ -264,8 +264,7 @@ void VM::execute_member(OpCode op, CallFrame* frame)
     {
         Object_ptr obj = pop_from_stack();
 
-        Doctor::get()
-            .fatal_if_nullptr(obj, WaspStage::VM, "Cannot read property of null.");
+        Doctor::get().fatal_if_nullptr(obj, WaspStage::VM, "Cannot read property of null.");
 
         push_to_stack(perform_get_member(obj, member_index));
     }
@@ -274,8 +273,7 @@ void VM::execute_member(OpCode op, CallFrame* frame)
         Object_ptr val = pop_from_stack();
         Object_ptr obj = pop_from_stack();
 
-        Doctor::get()
-            .fatal_if_nullptr(obj, WaspStage::VM, "Cannot set property on null.");
+        Doctor::get().fatal_if_nullptr(obj, WaspStage::VM, "Cannot set property on null.");
 
         perform_set_member(obj, member_index, val);
         push_to_stack(val);
@@ -298,6 +296,23 @@ Object_ptr VM::perform_get_member(Object_ptr obj, int member_index)
             [&](std::shared_ptr<ClassBlueprintObject>& class_obj) -> Object_ptr
             {
                 return class_obj->get_member(member_index - class_obj->fields_count);
+            },
+            [&](std::shared_ptr<ObjectOverloadList>& overload_list) -> Object_ptr
+            {
+                Doctor::get().assert(
+                    member_index >= 0 &&
+                        member_index < static_cast<int>(overload_list->overloads.size()),
+                    WaspStage::VM,
+                    "Overload index out of bounds."
+                );
+                return overload_list->overloads[member_index];
+            },
+            [&](std::shared_ptr<TraitInstanceObject>& trait) -> Object_ptr
+            {
+                // Trait method dispatch is handled explicitly by GET_TRAIT_METHOD.
+                // If we get here, it's a direct field access on a boxed object.
+                // We simply forward it to the underlying class instance.
+                return perform_get_member(trait->class_instance, member_index);
             },
             [&](auto&) -> Object_ptr
             {
@@ -326,16 +341,79 @@ void VM::perform_set_member(Object_ptr obj, int member_index, Object_ptr value)
                 instance->set_member(member_index, value);
             },
 
+            [&](std::shared_ptr<TraitInstanceObject>& trait)
+            {
+                // Forward field setter to the underlying class instance
+                perform_set_member(trait->class_instance, member_index, value);
+            },
+
             [&](auto&)
             {
-                Doctor::get().fatal(
-                    WaspStage::VM,
-                    "Object does not support setting properties."
-                );
+                Doctor::get().fatal(WaspStage::VM, "Object does not support setting properties.");
             }
         },
         obj->value
     );
+}
+
+// Boxing
+
+void VM::execute_box(CallFrame* frame)
+{
+    int trait_id = static_cast<int>(frame->consume_byte());
+    Object_ptr instance_obj = pop_from_stack();
+
+    auto class_instance = instance_obj->as<std::shared_ptr<ClassInstanceObject>>();
+    Doctor::get().fatal_if_nullptr(class_instance, WaspStage::VM);
+
+    auto itable = class_instance->blueprint->itables.at(trait_id);
+    auto boxed = make_object(std::make_shared<TraitInstanceObject>(instance_obj, itable));
+
+    push_to_stack(boxed);
+}
+
+// Trait Dispatch
+
+void VM::execute_get_trait_method(CallFrame* frame)
+{
+    int trait_member_idx = static_cast<int>(frame->consume_byte());
+    int trait_overload_idx = static_cast<int>(frame->consume_byte());
+
+    Object_ptr boxed_obj = pop_from_stack();
+
+    // 1. Unwrap the trait instance
+    auto trait_inst = boxed_obj->as<std::shared_ptr<TraitInstanceObject>>();
+    Doctor::get().fatal_if_nullptr(trait_inst, WaspStage::VM, "Expected boxed trait on stack.");
+
+    // 2. Look up the translation coordinates
+    OverloadCoordinate trait_coord{trait_member_idx, trait_overload_idx};
+
+    Doctor::get().assert(
+        trait_inst->itable.find(trait_coord) != trait_inst->itable.end(),
+        WaspStage::VM,
+        "Trait ITable is missing the requested overload coordinate."
+    );
+
+    OverloadCoordinate class_coord = trait_inst->itable.at(trait_coord);
+
+    // 3. Get the concrete class instance
+    auto class_inst = trait_inst->class_instance->as<std::shared_ptr<ClassInstanceObject>>();
+
+    // 4. Fetch the actual function directly using the mapped coordinates
+    auto member_list = class_inst->get_member(class_coord.member_index);
+    auto overload_list = member_list->as<std::shared_ptr<ObjectOverloadList>>();
+
+    Doctor::get().assert(
+        class_coord.overload_index >= 0 &&
+            class_coord.overload_index < static_cast<int>(overload_list->overloads.size()),
+        WaspStage::VM,
+        "Mapped overload index out of bounds."
+    );
+
+    auto concrete_method = overload_list->overloads[class_coord.overload_index];
+
+    // 5. Push the resolved function onto the stack for the CALL opcode to consume
+    push_to_stack(concrete_method);
 }
 
 // ------------------------------------------------

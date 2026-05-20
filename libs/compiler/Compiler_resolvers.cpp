@@ -69,4 +69,11 @@ void Compiler::visit(TemplateAngular& expr)
     visit(expr.target);
 }
 
+void Compiler::visit(Box& node)
+{
+    // Push class instance onto stack
+    visit(node.expr);
+    emit(OpCode::BOX, node.trait_type_id);
+}
+
 } // namespace Wasp

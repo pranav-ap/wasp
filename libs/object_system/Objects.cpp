@@ -25,7 +25,14 @@ namespace Wasp
 
 Object_ptr StringObject::get_iter()
 {
-    ObjectVector vec = to_vector(value);
+    ObjectVector vec;
+    vec.reserve(value.size());
+
+    for (char ch : value)
+    {
+        vec.push_back(MAKE_OBJECT_VARIANT(StringObject(std::string(1, ch))));
+    }
+
     return MAKE_SHARED_OBJECT_VARIANT(IteratorObject, vec);
 }
 
