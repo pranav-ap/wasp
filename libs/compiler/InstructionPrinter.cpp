@@ -188,6 +188,25 @@ void InstructionPrinter::print_bytecode(const CodeObject& code, std::ostream& ou
             index += 2 + (upvalue_count * 2);
             continue;
         }
+        else if (op == OpCode::UNPACK_MODULE_MEMBERS)
+        {
+            int module_slot = std::to_integer<int>(data[index + 1]);
+            int count = std::to_integer<int>(data[index + 2]);
+
+            out << std::left << setw(OPCODE_WIDTH) << "UNPACK_MODULE" << " " << std::right
+                << setw(OPERAND_WIDTH) << module_slot << " " << std::left << setw(METADATA_WIDTH)
+                << ("count: " + std::to_string(count)) << "\n";
+
+            for (int i = 0; i < count; i++)
+            {
+                int member_idx = std::to_integer<int>(data[index + 3 + i]);
+                out << "        │ " << std::left << setw(OPCODE_WIDTH) << "  MEMBER_IDX"
+                    << " " << std::right << setw(OPERAND_WIDTH) << member_idx << "\n";
+            }
+
+            index += 3 + count;
+            continue;
+        }
 
         auto instruction = code.instruction_at(index);
         int arity = get_opcode_arity(op);

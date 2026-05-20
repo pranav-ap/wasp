@@ -3,6 +3,7 @@
 #include "Objects.h"
 #include "OpCode.h"
 
+#include <cstddef>
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -227,6 +228,21 @@ void VM::run(FunctionBlueprintObject_ptr function_object)
 
         case OpCode::BOX: {
             execute_BOX(frame);
+            break;
+        }
+
+        case OpCode::UNPACK_MODULE_MEMBERS: {
+            int module_slot = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
+            int count = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
+
+            Object_ptr module_obj = stack[frame->base_pointer + module_slot];
+
+            // Loop through the remaining bytes to fetch each member
+            for (int i = 0; i < count; i++)
+            {
+                int member_index = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
+                push_to_stack(execute_GET_MEMBER(module_obj, member_index));
+            }
             break;
         }
 

@@ -72,7 +72,8 @@ using ByteVector = std::vector<std::byte>;
     X(POP_SCOPE, 0)                                                                                \
     X(POP_SCOPE_KEEP_TOS, 0)                                                                       \
     /* --- Module --- */                                                                           \
-    X(IMPORT_MODULE, 1) /* <module index> */                                                       \
+    X(IMPORT_MODULE, 1)         /* <module index> */                                               \
+    X(UNPACK_MODULE_MEMBERS, 2) /* <module slot> <count> | followed by <count> member indices */   \
     /* --- Functions --- */                                                                        \
     X(BUILD_FUNCTION, 1)          /* [CodeObject] -> [Func BP] | <upvalues count> */               \
     X(STORE_FUNCTION_OVERLOAD, 1) /* [Func BP] -> [] | <Overload Group Symbol ID> */               \
