@@ -3,42 +3,42 @@ import core.types expose *
 import core.operators expose *
 
 
-# trait Debug
-#     pure fun repr() => str
-#         required
+trait Debug
+    pure fun repr() => str
+        required
 
-#     pure fun repr(a: int) => str
-#         pass
-
-
-# trait Player
-#     fun play()
-#         required
+    pure fun repr(a: int) => str
+        pass
 
 
-# class Jordan is Debug & Player
-#     name: str
-
-#     pure fun repr() => str
-#         return 'name = {my.name}'
-
-#     pure fun repr(a: int) => str
-#         return 'hi'
-
-#     fun play()
-#         let k = 9
-#         k.repr()
+trait Player
+    fun play()
+        required
 
 
-# fun shout(d: Debug)
-#     let y = d.repr()
-#     y.repr()
+class Jordan is Debug & Player
+    name: str
 
-# let j = Jordan('jordan')
-# let g = j.repr()
-# g.repr()
+    pure fun repr() => str
+        return 'name = {my.name}'
 
-# shout(j)
+    pure fun repr(a: int) => str
+        return 'hi'
+
+    fun play()
+        let k = 9
+        k.repr()
+
+
+fun shout(d: Debug)
+    let y = d.repr()
+    y.repr()
+
+let j = Jordan('jordan')
+let g = j.repr()
+g.repr()
+
+shout(j)
 
 
 enum Status

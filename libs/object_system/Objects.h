@@ -375,7 +375,11 @@ struct BooleanObject
 struct StringObject : public IterableAbstractObject
 {
     std::string value;
-    StringObject(std::string value) : value(std::move(value)) {};
+
+    StringObject(std::string value) : value(std::move(value))
+    {
+    }
+
     Object_ptr get_iter() override;
 };
 
@@ -404,6 +408,8 @@ struct BaseArrayObject
     BaseArrayObject(ObjectVector values = {}) : values(std::move(values))
     {
     }
+
+    virtual ~BaseArrayObject() = default;
 
     int get_length() const
     {
