@@ -126,6 +126,11 @@ struct VariantType
     ObjectVector types;
 };
 
+struct IntersectionType
+{
+    ObjectVector types;
+};
+
 struct MapType
 {
     Object_ptr key_type;
@@ -676,6 +681,7 @@ struct Object
         SetType,
         MapType,
         VariantType,
+        IntersectionType,
 
         Signature_ptr,
 

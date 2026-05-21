@@ -33,79 +33,90 @@ TypeAnnotationVector Parser::parse_types()
 
 TypeAnnotation_ptr Parser::parse_type()
 {
-    vector<TypeAnnotation_ptr> variant_types;
+    return parse_variant_type();
+}
 
-    while (true)
+TypeAnnotation_ptr Parser::parse_variant_type()
+{
+    std::vector<TypeAnnotation_ptr> types;
+    types.push_back(parse_intersection_type());
+
+    while (token_pipe.consume_optional_in_line(TokenType::VERTICAL_BAR))
     {
-        TypeAnnotation_ptr type;
+        types.push_back(parse_intersection_type());
+    }
 
-        bool is_native = token_pipe.consume_optional_in_line(TokenType::AT_SIGN)
-                             .has_value();
+    if (types.size() > 1)
+    {
+        return make_type_annotation(std::make_shared<VariantTypeNode>(std::move(types)));
+    }
 
-        if (token_pipe.consume_optional_in_line(TokenType::OPEN_SQUARE_BRACKET))
-        {
-            type = parse_list_type();
-        }
-        else if (
-            token_pipe.consume_optional_in_line(TokenType::OPEN_CURLY_BRACE)
-        )
-        {
-            type = parse_set_or_map_type();
-        }
-        else if (
-            token_pipe.consume_optional_in_line(TokenType::OPEN_PARENTHESIS)
-        )
-        {
-            type = parse_tuple_or_fun_type();
-        }
-        else
-        {
-            type = consume_datatype_word();
+    return types.front();
+}
 
-            if (token_pipe.consume_optional_in_line(TokenType::LESSER_THAN))
+TypeAnnotation_ptr Parser::parse_intersection_type()
+{
+    std::vector<TypeAnnotation_ptr> types;
+    types.push_back(parse_base_type());
+
+    while (token_pipe.consume_optional_in_line(TokenType::AMPERSAND))
+    {
+        types.push_back(parse_base_type());
+    }
+
+    if (types.size() > 1)
+    {
+        return make_type_annotation(std::make_shared<IntersectionTypeNode>(std::move(types)));
+    }
+
+    return types.front();
+}
+
+TypeAnnotation_ptr Parser::parse_base_type()
+{
+    TypeAnnotation_ptr type;
+    bool is_native = token_pipe.consume_optional_in_line(TokenType::AT_SIGN).has_value();
+
+    if (token_pipe.consume_optional_in_line(TokenType::OPEN_SQUARE_BRACKET))
+    {
+        type = parse_list_type();
+    }
+    else if (token_pipe.consume_optional_in_line(TokenType::OPEN_CURLY_BRACE))
+    {
+        type = parse_set_or_map_type();
+    }
+    else if (token_pipe.consume_optional_in_line(TokenType::OPEN_PARENTHESIS))
+    {
+        type = parse_tuple_or_fun_type();
+    }
+    else
+    {
+        type = consume_datatype_word();
+
+        if (token_pipe.consume_optional_in_line(TokenType::LESSER_THAN))
+        {
+            std::vector<TypeAnnotation_ptr> generic_args;
+
+            do
             {
-                vector<TypeAnnotation_ptr> generic_args;
-
-                do
-                {
-                    generic_args.push_back(parse_type());
-                }
-                while (token_pipe.consume_optional_in_line(TokenType::COMMA));
-
-                token_pipe.require(TokenType::GREATER_THAN);
-
-                type = make_type_annotation(
-                    std::make_shared<TemplateAngularTypeNode>(
-                        type,
-                        std::move(generic_args)
-                    )
-                );
+                generic_args.push_back(parse_type());
             }
+            while (token_pipe.consume_optional_in_line(TokenType::COMMA));
+
+            token_pipe.require(TokenType::GREATER_THAN);
+
+            type = make_type_annotation(
+                std::make_shared<TemplateAngularTypeNode>(type, std::move(generic_args))
+            );
         }
-
-        if (is_native)
-        {
-            type = make_type_annotation(NativeTypeNode(type));
-        }
-
-        variant_types.push_back(type);
-
-        if (token_pipe.consume_optional_in_line(TokenType::VERTICAL_BAR))
-        {
-            continue;
-        }
-
-        break;
     }
 
-    if (variant_types.size() > 1)
+    if (is_native)
     {
-        return make_type_annotation(
-            std::make_shared<VariantTypeNode>(std::move(variant_types))
-        );
+        type = make_type_annotation(NativeTypeNode(type));
     }
 
-    return std::move(variant_types.front());
+    return type;
 }
 
 TypeAnnotation_ptr Parser::consume_datatype_word()

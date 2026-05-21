@@ -165,11 +165,17 @@ std::tuple<std::string, TypeAnnotationVector, StatementVector> Parser::
 
     if (token_pipe.consume_optional_in_line(TokenType::IS))
     {
-        do
+        auto t = parse_type();
+
+        if (t->is<std::shared_ptr<IntersectionTypeNode>>())
         {
-            traits.push_back(parse_type());
+            auto& intersection = t->as<std::shared_ptr<IntersectionTypeNode>>();
+            traits = std::move(intersection->types);
         }
-        while (token_pipe.consume_optional_in_line(TokenType::AMPERSAND));
+        else
+        {
+            traits.push_back(std::move(t));
+        }
     }
 
     token_pipe.require_in_line(TokenType::EOL);

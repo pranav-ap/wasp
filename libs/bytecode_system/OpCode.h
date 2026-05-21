@@ -33,7 +33,6 @@ using ByteVector = std::vector<std::byte>;
     X(GE, 0)                                                                                       \
     X(LOGICAL_AND, 0)                                                                              \
     X(LOGICAL_OR, 0)                                                                               \
-    X(COALESCE, 0)                                                                                 \
     /* --- Control Flow --- */                                                                     \
     X(JUMP, 2)          /* <address> */                                                            \
     X(JUMP_IF_FALSE, 2) /* <address> */                                                            \

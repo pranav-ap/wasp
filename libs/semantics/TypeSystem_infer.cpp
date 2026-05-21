@@ -56,6 +56,15 @@ bool TypeSystem::equal(
         );
     }
 
+    if (t1->is<IntersectionType>() && t2->is<IntersectionType>())
+    {
+        return equal_unordered(
+            scope,
+            t1->as<IntersectionType>().types,
+            t2->as<IntersectionType>().types
+        );
+    }
+
     if (t1->is<TemplateParameterType_ptr>() && t2->is<TemplateParameterType_ptr>())
     {
         auto g1 = t1->as<TemplateParameterType_ptr>();
@@ -178,6 +187,34 @@ bool TypeSystem::assignable(
             [&](Object_ptr t)
             {
                 return assignable(scope, t, rhs);
+            }
+        );
+    }
+
+    // Intersection Types
+
+    if (lhs->is<IntersectionType>())
+    {
+        auto lhs_int = lhs->as<IntersectionType>();
+        return std::all_of(
+            lhs_int.types.begin(),
+            lhs_int.types.end(),
+            [&](Object_ptr t)
+            {
+                return assignable(scope, t, rhs);
+            }
+        );
+    }
+
+    if (rhs->is<IntersectionType>())
+    {
+        auto rhs_int = rhs->as<IntersectionType>();
+        return std::any_of(
+            rhs_int.types.begin(),
+            rhs_int.types.end(),
+            [&](Object_ptr t)
+            {
+                return assignable(scope, lhs, t);
             }
         );
     }
@@ -319,6 +356,15 @@ Object_ptr TypeSystem::infer(
         }
         return std::make_shared<Object>(VariantType{result_types});
     }
+    if (left_type->is<IntersectionType>())
+    {
+        ObjectVector result_types;
+        for (const auto& t : left_type->as<IntersectionType>().types)
+        {
+            result_types.push_back(infer(scope, t, op, right_type));
+        }
+        return std::make_shared<Object>(IntersectionType{result_types});
+    }
 
     if (right_type->is<VariantType>())
     {
@@ -328,6 +374,16 @@ Object_ptr TypeSystem::infer(
             result_types.push_back(infer(scope, left_type, op, t));
         }
         return std::make_shared<Object>(VariantType{result_types});
+    }
+
+    if (right_type->is<IntersectionType>())
+    {
+        ObjectVector result_types;
+        for (const auto& t : right_type->as<IntersectionType>().types)
+        {
+            result_types.push_back(infer(scope, left_type, op, t));
+        }
+        return std::make_shared<Object>(IntersectionType{result_types});
     }
 
     switch (op)
@@ -440,6 +496,16 @@ Object_ptr TypeSystem::infer(
             result_types.push_back(infer(scope, t, op));
         }
         return std::make_shared<Object>(VariantType{result_types});
+    }
+
+    if (operand_type->is<IntersectionType>())
+    {
+        ObjectVector result_types;
+        for (const auto& t : operand_type->as<IntersectionType>().types)
+        {
+            result_types.push_back(infer(scope, t, op));
+        }
+        return std::make_shared<Object>(IntersectionType{result_types});
     }
 
     switch (op)

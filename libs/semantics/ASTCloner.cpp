@@ -610,6 +610,10 @@ TypeAnnotationVariant ASTCloner::clone_type_data(const TypeAnnotationVariant& da
             {
                 return std::make_shared<VariantTypeNode>(clone(n->types));
             },
+            [&](const std::shared_ptr<IntersectionTypeNode>& n) -> TypeAnnotationVariant
+            {
+                return std::make_shared<IntersectionTypeNode>(clone(n->types));
+            },
             [&](const std::shared_ptr<FunctionTypeNode>& n) -> TypeAnnotationVariant
             {
                 return std::make_shared<FunctionTypeNode>(

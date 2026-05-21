@@ -101,6 +101,7 @@ private:
     Object_ptr visit(SetTypeNode& expr);
     Object_ptr visit(MapTypeNode& expr);
     Object_ptr visit(VariantTypeNode& expr);
+    Object_ptr visit(IntersectionTypeNode& expr);
     Object_ptr visit(FunctionTypeNode& expr);
     Object_ptr visit(RecordTypeNode& expr);
     Object_ptr visit(TemplateAngularTypeNode& node);

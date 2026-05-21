@@ -55,13 +55,13 @@ let xxx = Status.Okay
 xxx.repr()
 
 
-x?.run()
-x!.run()
+# x?.run()
+# x!.run()
 
 
-pure fun catch(e: DivisionByZeroError)
-    pass
+# pure fun catch(e: DivisionByZeroError)
+#     pass
 
 
-raise DivisionByZeroError()
+# raise DivisionByZeroError()
 
