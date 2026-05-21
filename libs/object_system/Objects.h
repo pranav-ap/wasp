@@ -316,12 +316,13 @@ using TraitType_ptr = std::shared_ptr<TraitType>;
 struct EnumType
 {
     std::string name;
-    std::map<std::string, int> members;
-    std::map<std::string, std::shared_ptr<EnumType>> nested_enums;
+    StringVector members;
 
     EnumType(std::string name) : name(std::move(name))
     {
     }
+
+    int get_value(const std::vector<std::string>& path) const;
 };
 
 using EnumType_ptr = std::shared_ptr<EnumType>;

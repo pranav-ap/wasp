@@ -22,4 +22,15 @@ void Compiler::visit(TypeAliasDefinition& def)
     }
 }
 
+void Compiler::visit(EnumDefinition& def)
+{
+    int physical_index = get_or_add_local_index(def.symbol);
+
+    if (physical_index != -1)
+    {
+        emit(OpCode::LOAD_NONE);
+        emit(OpCode::SET_LOCAL, physical_index, "compile-time enum: " + def.name);
+    }
+}
+
 } // namespace Wasp

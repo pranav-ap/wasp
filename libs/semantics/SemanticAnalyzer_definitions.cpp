@@ -1,6 +1,6 @@
-#include <functional>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "AST.h"
 #include "Doctor.h"
@@ -32,37 +32,39 @@ void SemanticAnalyzer::visit(TypeAliasDefinition& def)
     type_alias_type->underlying_type = aliased_type;
 }
 
+void collect_enum_names(
+    const EnumDefinition& def,
+    const std::string& prefix,
+    StringVector& out_list
+)
+{
+    std::string current_prefix = prefix.empty() ? def.name : prefix + "." + def.name;
+
+    // Add current members
+    for (const auto& member : def.members)
+    {
+        out_list.push_back(current_prefix + "." + member);
+    }
+
+    // Recurse into nested enums
+    for (const auto& nested : def.nested_enums)
+    {
+        collect_enum_names(nested, current_prefix, out_list);
+    }
+}
+
 void SemanticAnalyzer::visit(EnumDefinition& def)
 {
-    int global_enum_value = 0;
+    StringVector full_names;
+    collect_enum_names(def, "", full_names);
 
-    std::function<EnumType_ptr(const EnumDefinition&, const std::string&)>
-        build_enum = [&](const EnumDefinition& e_def,
-                         const std::string& prefix) -> EnumType_ptr
-    {
-        std::string current_name = prefix.empty() ? e_def.name
-                                                  : prefix + "." + e_def.name;
-        auto enum_type = std::make_shared<EnumType>(current_name);
+    auto enum_type_obj = def.symbol->get_type();
+    Doctor::get().fatal_if_nullptr(enum_type_obj, WaspStage::Semantics);
 
-        for (const auto& [name, old_val] : e_def.members)
-        {
-            enum_type->members[current_name + "." + name] = global_enum_value++;
-        }
+    auto enum_type = enum_type_obj->as<EnumType_ptr>();
+    Doctor::get().fatal_if_nullptr(enum_type, WaspStage::Semantics);
 
-        for (const auto& nested_def : e_def.nested_enums)
-        {
-            enum_type->nested_enums
-                [current_name + "." + nested_def.name] = build_enum(
-                nested_def,
-                current_name
-            );
-        }
-
-        return enum_type;
-    };
-
-    auto enum_type = build_enum(def, "");
-    def.symbol->set_type(make_object(enum_type));
+    enum_type->members = std::move(full_names);
 }
 
 } // namespace Wasp

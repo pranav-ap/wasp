@@ -128,6 +128,7 @@ private:
     void visit(FunctionDefinition& statement);
     void visit(ClassDefinition& statement);
     void visit(TypeAliasDefinition& statement);
+    void visit(EnumDefinition& statement);
 
     void visit(Return& statement);
 

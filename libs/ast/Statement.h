@@ -198,31 +198,21 @@ struct TypeAliasDefinition : public Definition, public Templatable
         TypeAnnotation_ptr ref,
         std::vector<FieldDefinition> gen = {}
     )
-        : Definition(std::move(name)), Templatable(std::move(gen)),
-          ref_type(std::move(ref))
+        : Definition(std::move(name)), Templatable(std::move(gen)), ref_type(std::move(ref))
     {
     }
 };
 
 struct EnumDefinition : public Definition
 {
-    std::map<std::string, int> members;
+    StringVector members;
     std::vector<EnumDefinition> nested_enums;
 
     EnumDefinition() = default;
 
-    EnumDefinition(
-        std::string name,
-        const StringVector& list,
-        std::vector<EnumDefinition> nested = {}
-    )
-        : Definition(std::move(name)), nested_enums(std::move(nested))
+    EnumDefinition(std::string name, StringVector members, std::vector<EnumDefinition> nested = {})
+        : Definition(std::move(name)), members(std::move(members)), nested_enums(std::move(nested))
     {
-        int i = 0;
-        for (const auto& m : list)
-        {
-            members.emplace(m, i++);
-        }
     }
 };
 

@@ -67,17 +67,20 @@ EnumDefinition Parser::parse_enum_body(std::string name, int indent_level)
         {
             break;
         }
+
         token_pipe.expect_n_indents(indent_level);
 
         if (token_pipe.consume_optional(TokenType::ENUM))
         {
             auto nested_name = token_pipe.require_in_line(TokenType::IDENTIFIER)
                                    .lexeme;
+
             token_pipe.require_in_line(TokenType::EOL);
 
             nested_enums.push_back(
                 parse_enum_body(nested_name, indent_level + 1)
             );
+
             continue;
         }
 

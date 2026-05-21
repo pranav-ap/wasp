@@ -146,7 +146,7 @@ Object_ptr SemanticAnalyzer::visit(const Expression_ptr expr)
         {
             Symbol_ptr sym = infix.symbol;
             int idx = infix.overload_index;
-            std::vector<Expression_ptr> args = {infix.left, infix.right};
+            ExpressionVector args = {infix.left, infix.right};
             desugar_overloaded_operator(expr, sym, idx, args);
         }
     }
@@ -157,7 +157,7 @@ Object_ptr SemanticAnalyzer::visit(const Expression_ptr expr)
         {
             Symbol_ptr sym = prefix.symbol;
             int idx = prefix.overload_index;
-            std::vector<Expression_ptr> args = {prefix.operand};
+            ExpressionVector args = {prefix.operand};
             desugar_overloaded_operator(expr, sym, idx, args);
         }
     }
@@ -168,7 +168,7 @@ Object_ptr SemanticAnalyzer::visit(const Expression_ptr expr)
         {
             Symbol_ptr sym = postfix.symbol;
             int idx = postfix.overload_index;
-            std::vector<Expression_ptr> args = {postfix.operand};
+            ExpressionVector args = {postfix.operand};
             desugar_overloaded_operator(expr, sym, idx, args);
         }
     }
@@ -177,8 +177,59 @@ Object_ptr SemanticAnalyzer::visit(const Expression_ptr expr)
     {
         desugar_call(expr);
     }
+    else if (expr->is<MemberAccess>())
+    {
+        desugar_member_access(expr);
+    }
 
     return resolved_type;
+}
+
+void SemanticAnalyzer::desugar_member_access(Expression_ptr expr)
+{
+    Doctor::get().fatal_if_nullptr(expr, WaspStage::Semantics);
+
+    Doctor::get().assert(
+        expr->is<MemberAccess>(),
+        WaspStage::Semantics,
+        "Expected a MemberAccess expression for desugar_member_access."
+    );
+
+    auto& ma = expr->as<MemberAccess>();
+
+    if (!ma.is_enum_value)
+    {
+        return;
+    }
+
+    Symbol_ptr alias_symbol = get_core_symbol("int");
+    Object_ptr actual_type = unwrap_type_alias(alias_symbol->get_type());
+    auto class_type = actual_type->as<ClassType_ptr>();
+
+    Symbol_ptr class_symbol = current_scope->lookup(class_type->name);
+
+    Doctor::get().fatal_if_nullptr(
+        class_symbol,
+        WaspStage::Semantics,
+        "Runtime class symbol '" + class_type->name + "' not found."
+    );
+
+    Identifier id(class_symbol->name);
+    id.symbol = class_symbol;
+    id.must_be_captured = class_symbol->should_be_captured(current_scope->get_closure_depth());
+
+    auto id_node = make_expression(id, expr->start_token, expr->end_token, true);
+    bind_identifier(id_node->as<Identifier>(), class_symbol);
+
+    auto literal_child = make_expression(
+        IntegerLiteral{ma.member_index},
+        expr->start_token,
+        expr->end_token,
+        true
+    );
+
+    expr->data = Constructor(id_node, {literal_child});
+    expr->is_desugared = true;
 }
 
 void SemanticAnalyzer::desugar_call(Expression_ptr expr)
@@ -298,7 +349,7 @@ void SemanticAnalyzer::desugar_overloaded_operator(
     const Expression_ptr& expr,
     Symbol_ptr operator_symbol,
     int overload_index,
-    const std::vector<Expression_ptr>& arguments
+    const ExpressionVector& arguments
 )
 {
     auto id_node = make_expression(
