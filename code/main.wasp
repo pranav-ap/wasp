@@ -53,3 +53,15 @@ Status.Alive.Totally
 
 let xxx = Status.Okay
 xxx.repr()
+
+
+x?.run()
+x!.run()
+
+
+pure fun catch(e: DivisionByZeroError)
+    pass
+
+
+raise DivisionByZeroError()
+

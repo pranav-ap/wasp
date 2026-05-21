@@ -165,7 +165,6 @@ private:
     void visit(TupleLiteral& expr);
     void visit(MapLiteral& expr);
     void visit(SetLiteral& expr);
-    void visit(RangeLiteral& expr);
 
     void visit(Assignment& expr);
 

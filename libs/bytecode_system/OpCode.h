@@ -43,7 +43,6 @@ using ByteVector = std::vector<std::byte>;
     X(BUILD_TUPLE, 1) /* Number of items to pop */                                                 \
     X(BUILD_MAP, 1)   /* Number of key-value pairs */                                              \
     X(BUILD_SET, 1)   /* Number of items to pop */                                                 \
-    X(BUILD_RANGE, 1)                                                                              \
     /* --- Collections & Iteration --- */                                                          \
     X(GET_ITER, 0) /* [iterable] -> [iterator] | Get iterator from iterable */                     \
     /* --- Diagnostics --- */                                                                      \
