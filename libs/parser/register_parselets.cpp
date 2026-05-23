@@ -98,6 +98,8 @@ namespace Wasp
             std::make_shared<CallParselet>()
         );
 
+        register_parselet(TokenType::AT_SIGN, std::make_shared<NativeExpressionParselet>());
+
         auto assignment_parselet = std::make_shared<AssignmentParselet>();
         register_parselet(TokenType::EQUAL, assignment_parselet);
         register_parselet(TokenType::PLUS_EQUAL, assignment_parselet);

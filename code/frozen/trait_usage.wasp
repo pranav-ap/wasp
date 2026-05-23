@@ -1,30 +1,44 @@
-from core.io import print
+import core.io expose *
+import core.types expose *
+import core.operators expose *
 
-trait Logger
-    fun log(message: str)
+
+trait Debug
+    pure fun repr() => str
+        required
+
+    pure fun repr(a: int) => str
         pass
 
-    fun log(message: str, code: int)
-        pass
 
-trait Alertable
-    fun alert(admin_email: str)
-        pass
+trait Player
+    fun play()
+        required
 
 
-class SystemLogger is Logger & Alertable
-    fun log(message: str)
-        print('[INFO] ' + message)
+class Jordan is Debug & Player
+    name: str
 
-    fun log(message: str, code: int)
-        print('[CODE ' + code + '] ' + message)
+    pure fun repr() => str
+        return 'name = {my.name}'
 
-    fun alert(admin_email: str)
-        print('--> ALERT EMAIL SENT TO: ' + admin_email)
+    pure fun repr(a: int) => str
+        return 'hi'
+
+    fun play()
+        let k = 9
+        k.repr()
 
 
-let l = SystemLogger()
+fun shout(d: Debug)
+    let y = d.repr()
+    y.repr()
 
-l.log('Booting up')
-l.log('Disk full', 503)
-l.alert('admin@wasp-lang.dev')
+
+let j = Jordan('jordan')
+let g = j.repr()
+g.repr()
+
+
+shout(j)
+

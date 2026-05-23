@@ -5,7 +5,6 @@
 #include "Objects.h"
 #include "Statement.h"
 #include "TypeAnnotation.h"
-#include "Workspace.h"
 
 #include <map>
 #include <memory>
@@ -49,7 +48,6 @@ std::string get_raw_type_name(Object_ptr obj)
             {
                 return g->name;
             },
-
             [](const IntType&)
             {
                 return std::string("@int");
@@ -89,12 +87,8 @@ Expression_ptr ASTCloner::clone(const Expression_ptr& expr)
     {
         return nullptr;
     }
-    auto cloned = make_expression(
-        clone_expr_data(expr->data),
-        expr->start_token,
-        expr->end_token,
-        expr->is_desugared
-    );
+
+    auto cloned = make_expression(clone_expr_data(expr->data), expr->is_desugared);
     return cloned;
 }
 
@@ -104,9 +98,8 @@ Statement_ptr ASTCloner::clone(const Statement_ptr& stmt)
     {
         return nullptr;
     }
+
     auto cloned = make_statement(clone_stmt_data(stmt->data));
-    cloned->start_token = stmt->start_token;
-    cloned->end_token = stmt->end_token;
     return cloned;
 }
 
@@ -116,21 +109,20 @@ TypeAnnotation_ptr ASTCloner::clone(const TypeAnnotation_ptr& type)
     {
         return nullptr;
     }
-    return make_type_annotation(
-        clone_type_data(type->data),
-        type->start_token,
-        type->end_token
-    );
+
+    return make_type_annotation(clone_type_data(type->data));
 }
 
 ExpressionVector ASTCloner::clone(const ExpressionVector& exprs)
 {
     ExpressionVector cloned;
     cloned.reserve(exprs.size());
+
     for (const auto& e : exprs)
     {
         cloned.push_back(clone(e));
     }
+
     return cloned;
 }
 
@@ -138,10 +130,12 @@ StatementVector ASTCloner::clone(const StatementVector& stmts)
 {
     StatementVector cloned;
     cloned.reserve(stmts.size());
+
     for (const auto& s : stmts)
     {
         cloned.push_back(clone(s));
     }
+
     return cloned;
 }
 
@@ -149,10 +143,12 @@ TypeAnnotationVector ASTCloner::clone(const TypeAnnotationVector& types)
 {
     TypeAnnotationVector cloned;
     cloned.reserve(types.size());
+
     for (const auto& t : types)
     {
         cloned.push_back(clone(t));
     }
+
     return cloned;
 }
 
@@ -165,45 +161,36 @@ ExpressionVariant ASTCloner::clone_expr_data(const ExpressionVariant& data)
                 return std::monostate{};
             },
 
-            [&](const IntegerLiteral& n) -> ExpressionVariant
+            [&](const NativeExpression& n) -> ExpressionVariant
             {
                 auto c = n;
-                wipe_resolvable(c);
-                c.constructible = clone(n.constructible);
+                c.expression = clone(n.expression);
                 return c;
+            },
+            [&](const IntegerLiteral& n) -> ExpressionVariant
+            {
+                return IntegerLiteral(n.value);
             },
             [&](const FloatLiteral& n) -> ExpressionVariant
             {
-                auto c = n;
-                wipe_resolvable(c);
-                c.constructible = clone(n.constructible);
-                return c;
+                return FloatLiteral(n.value);
             },
             [&](const StringLiteral& n) -> ExpressionVariant
             {
-                auto c = n;
-                wipe_resolvable(c);
-                c.constructible = clone(n.constructible);
-                return c;
+                return StringLiteral(n.value);
             },
             [&](const BooleanLiteral& n) -> ExpressionVariant
             {
-                auto c = n;
-                wipe_resolvable(c);
-                c.constructible = clone(n.constructible);
-                return c;
+                return BooleanLiteral(n.value);
             },
             [&](const NoneLiteral& n) -> ExpressionVariant
             {
-                return n;
+                return NoneLiteral();
             },
             [&](const DotLiteral& n) -> ExpressionVariant
             {
-                auto c = n;
-                wipe_resolvable(c);
-                return c;
+                return DotLiteral();
             },
-
             [&](const InterpolatedString& n) -> ExpressionVariant
             {
                 return InterpolatedString{clone(n.parts)};
@@ -292,44 +279,38 @@ ExpressionVariant ASTCloner::clone_expr_data(const ExpressionVariant& data)
             [&](const Prefix& n) -> ExpressionVariant
             {
                 auto c = Prefix(n.op, clone(n.operand));
-                c.overload_index = -1;
                 wipe_resolvable(c);
+                c.overload_index = -1;
                 return c;
             },
             [&](const Infix& n) -> ExpressionVariant
             {
                 auto c = Infix(clone(n.left), n.op, clone(n.right));
-                c.overload_index = -1;
                 wipe_resolvable(c);
+                c.overload_index = -1;
                 return c;
             },
             [&](const Postfix& n) -> ExpressionVariant
             {
                 auto c = Postfix(clone(n.operand), n.op);
-                c.overload_index = -1;
                 wipe_resolvable(c);
+                c.overload_index = -1;
                 return c;
             },
 
             [&](const ListLiteral& n) -> ExpressionVariant
             {
                 auto c = ListLiteral(clone(n.expressions));
-                wipe_resolvable(c);
-                c.constructible = clone(n.constructible);
                 return c;
             },
             [&](const TupleLiteral& n) -> ExpressionVariant
             {
                 auto c = TupleLiteral(clone(n.expressions));
-                wipe_resolvable(c);
-                c.constructible = clone(n.constructible);
                 return c;
             },
             [&](const SetLiteral& n) -> ExpressionVariant
             {
                 auto c = SetLiteral(clone(n.expressions));
-                wipe_resolvable(c);
-                c.constructible = clone(n.constructible);
                 return c;
             },
             [&](const MapLiteral& n) -> ExpressionVariant
@@ -340,8 +321,6 @@ ExpressionVariant ASTCloner::clone_expr_data(const ExpressionVariant& data)
                     new_pairs[clone(k)] = clone(v);
                 }
                 auto c = MapLiteral(std::move(new_pairs));
-                wipe_resolvable(c);
-                c.constructible = clone(n.constructible);
                 return c;
             },
 
@@ -558,7 +537,7 @@ TypeAnnotationVariant ASTCloner::clone_type_data(const TypeAnnotationVariant& da
             },
             [&](const NoneTypeNode& n) -> TypeAnnotationVariant
             {
-                return n;
+                return NoneTypeNode();
             },
             [&](const LiteralTypeNode& n) -> TypeAnnotationVariant
             {

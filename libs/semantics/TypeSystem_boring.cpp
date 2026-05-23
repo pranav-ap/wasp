@@ -269,6 +269,11 @@ bool TypeSystem::is_condition_type(
                 );
             },
 
+            [&](ClassType_ptr const& ct)
+            {
+                return ct->name == "Boolean";
+            },
+
             [](const auto&)
             {
                 return false;

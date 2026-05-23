@@ -25,6 +25,8 @@ using ObjectIntMap = std::map<int, Object_ptr>;
 using IntVector = std::vector<int>;
 using StringVector = std::vector<std::string>;
 
+static int type_id_counter = 0;
+
 // ============================================================================
 // Other
 // ============================================================================
@@ -165,20 +167,44 @@ struct Signature : public TemplatableType
 using Signature_ptr = std::shared_ptr<Signature>;
 
 // ============================================================================
+// Enum
+// ============================================================================
+
+struct EnumMemberType
+{
+    int enum_type_id;
+    int value;
+};
+
+struct EnumType
+{
+    int type_id;
+
+    std::string name;
+    StringVector members;
+
+    EnumType(std::string name) : type_id(type_id_counter++), name(std::move(name))
+    {
+    }
+
+    int get_value(const StringVector& path) const;
+};
+
+using EnumType_ptr = std::shared_ptr<EnumType>;
+
+// ============================================================================
 // Membered Types
 // ============================================================================
 
 struct BaseMemberedType
 {
-    inline static int type_id_counter = 0;
     int type_id;
 
     std::string name;
     ObjectStringMap member_types;
 
     explicit BaseMemberedType(std::string name, ObjectStringMap member_types = {})
-        : type_id(type_id_counter++), name(std::move(name)),
-          member_types(std::move(member_types))
+        : type_id(type_id_counter++), name(std::move(name)), member_types(std::move(member_types))
     {
     }
 
@@ -231,8 +257,7 @@ struct OverloadCoordinate
 
     bool operator==(const OverloadCoordinate& other) const
     {
-        return member_index == other.member_index &&
-               overload_index == other.overload_index;
+        return member_index == other.member_index && overload_index == other.overload_index;
     }
 };
 
@@ -313,24 +338,6 @@ struct TraitType : public OopsType
 };
 
 using TraitType_ptr = std::shared_ptr<TraitType>;
-
-// ============================================================================
-// Enum
-// ============================================================================
-
-struct EnumType
-{
-    std::string name;
-    StringVector members;
-
-    EnumType(std::string name) : name(std::move(name))
-    {
-    }
-
-    int get_value(const std::vector<std::string>& path) const;
-};
-
-using EnumType_ptr = std::shared_ptr<EnumType>;
 
 // ============================================================================
 // Alias
@@ -682,7 +689,7 @@ struct Object
         MapType,
         VariantType,
         IntersectionType,
-
+        EnumMemberType,
         Signature_ptr,
 
         ModuleType_ptr,

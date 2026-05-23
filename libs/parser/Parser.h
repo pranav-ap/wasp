@@ -48,6 +48,7 @@ private:
     Statement_ptr parse_expression_statement();
 
     // --- Definitions & Declarations ---
+    Expression_ptr parse_variable_definition(bool is_mutable);
     Statement_ptr parse_function_definition(
         int indent_level,
         bool in_class_block = false,

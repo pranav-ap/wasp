@@ -4,7 +4,6 @@
 #include "Resolvable.h"
 #include "Token.h"
 #include <filesystem>
-#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -26,8 +25,6 @@ struct ExpressionStatement
     {
     }
 };
-
-// --- Core ---
 
 struct Definition : public Resolvable
 {
@@ -396,21 +393,11 @@ using StatementVariant = std::variant<
 struct Statement : public AstNode<StatementVariant>
 {
     using AstNode::AstNode;
-    Token start_token;
-    Token end_token;
 };
 
 template <typename T> inline Statement_ptr make_statement(T&& data)
 {
     return std::make_shared<Statement>(std::forward<T>(data));
-}
-
-template <typename T> inline Statement_ptr make_statement(T&& data, Token start, Token end)
-{
-    auto stmt = std::make_shared<Statement>(std::forward<T>(data));
-    stmt->start_token = start;
-    stmt->end_token = end;
-    return stmt;
 }
 
 inline std::string get_operator_name(TokenType fixity, TokenType op_type)

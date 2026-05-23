@@ -75,6 +75,7 @@ TypeAnnotation_ptr Parser::parse_intersection_type()
 TypeAnnotation_ptr Parser::parse_base_type()
 {
     TypeAnnotation_ptr type;
+
     bool is_native = token_pipe.consume_optional_in_line(TokenType::AT_SIGN).has_value();
 
     if (token_pipe.consume_optional_in_line(TokenType::OPEN_SQUARE_BRACKET))
@@ -174,7 +175,6 @@ TypeAnnotation_ptr Parser::consume_datatype_word()
             token->line,
             token->column
         );
-        return nullptr;
     }
     }
 }

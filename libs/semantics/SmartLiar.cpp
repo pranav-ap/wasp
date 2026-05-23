@@ -109,7 +109,7 @@ SmartLiarResult SmartLiar::visit(OperatorDefinition& def, Statement_ptr original
     func_def.parameter_symbols = std::move(def.parameter_symbols);
     func_def.context_symbol = def.context_symbol;
 
-    return make_statement(func_def, original_stmt->start_token, original_stmt->end_token);
+    return make_statement(func_def);
 }
 
 } // namespace Wasp

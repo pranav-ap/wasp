@@ -2,66 +2,7 @@ import core.io expose *
 import core.types expose *
 import core.operators expose *
 
+let x = 1
+let y = 2
 
-trait Debug
-    pure fun repr() => str
-        required
-
-    pure fun repr(a: int) => str
-        pass
-
-
-trait Player
-    fun play()
-        required
-
-
-class Jordan is Debug & Player
-    name: str
-
-    pure fun repr() => str
-        return 'name = {my.name}'
-
-    pure fun repr(a: int) => str
-        return 'hi'
-
-    fun play()
-        let k = 9
-        k.repr()
-
-
-fun shout(d: Debug)
-    let y = d.repr()
-    y.repr()
-
-let j = Jordan('jordan')
-let g = j.repr()
-g.repr()
-
-shout(j)
-
-
-enum Status
-    Okay
-    enum Alive
-        Barely
-        Totally
-
-
-Status.Alive.Totally
-
-
-let xxx = Status.Okay
-xxx.repr()
-
-
-# x?.run()
-# x!.run()
-
-
-# pure fun catch(e: DivisionByZeroError)
-#     pass
-
-
-# raise DivisionByZeroError()
-
+let z = x + y

@@ -7,5 +7,23 @@ enum Animal
         Pigeon
 
 
+# no support yet
 if Animal.Dog != Animal.Bird.Crow then
     print('hi')
+
+
+
+
+enum Status
+    Okay
+    enum Alive
+        Barely
+        Totally
+
+
+Status.Alive.Totally
+
+
+let xxx = Status.Okay
+xxx.repr()
+

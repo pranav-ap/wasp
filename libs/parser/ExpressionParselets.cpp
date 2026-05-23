@@ -50,7 +50,7 @@ Expression_ptr LiteralParselet::parse(Parser& parser, const Token& token)
         return make_expression(FloatLiteral(value));
     }
     case TokenType::NONE: {
-        return make_expression(NoneLiteral{});
+        return make_expression(NoneLiteral());
     }
     default:
         Doctor::get().fatal(WaspStage::Parser, "Expected a literal value");
@@ -213,18 +213,10 @@ Expression_ptr AssignmentParselet::parse(
             break;
         }
 
-        right = make_expression(
-            Infix(left, op_token, right),
-            left->start_token,
-            right->end_token
-        );
+        right = make_expression(Infix(left, op_token, right));
     }
 
-    return make_expression(
-        Assignment(left, right),
-        left->start_token,
-        right->end_token
-    );
+    return make_expression(Assignment(left, right));
 }
 
 Expression_ptr TernaryConditionParselet::parse(Parser& parser, const Token& token)
@@ -442,11 +434,7 @@ Expression_ptr InterpolatedStringParselet::parse(
 
         if (current->type == TokenType::STRING_LITERAL)
         {
-            node.parts.push_back(make_expression(
-                StringLiteral{current->lexeme},
-                *current,
-                *current
-            ));
+            node.parts.push_back(make_expression(StringLiteral{current->lexeme}));
             parser.token_pipe.advance_pointer();
         }
         else if (current->type == TokenType::OPEN_CURLY_BRACE)
@@ -482,7 +470,14 @@ Expression_ptr InterpolatedStringParselet::parse(
         }
     }
 
-    return make_expression(std::move(node), token, end_token);
+    return make_expression(std::move(node));
+}
+
+Expression_ptr NativeExpressionParselet::parse(Parser& parser, const Token& token)
+{
+    parser.token_pipe.advance_pointer();
+    auto expression = parser.parse_expression();
+    return make_expression(NativeExpression(expression));
 }
 
 // ============================================================================

@@ -1,4 +1,13 @@
-fun print(value:  @bool | @int | @float | @str)
+# print
+
+fun print(value: @bool | @int | @float | @str)
     native
 
+
+fun print(x: bool | int | float | str)
+    print(x.value)
+
+
+fun print(x: Printable)
+    print(x.repr())
 

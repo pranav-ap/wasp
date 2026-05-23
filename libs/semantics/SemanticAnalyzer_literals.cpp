@@ -2,58 +2,34 @@
 #include "Doctor.h"
 #include "Expression.h"
 #include "Objects.h"
-#include "Resolvable.h"
 #include "SemanticAnalyzer.h"
 #include "Workspace.h"
 
 #include <cctype>
 #include <ctime>
-#include <memory>
 #include <string>
 
 namespace Wasp
 {
 
-Symbol_ptr SemanticAnalyzer::get_core_symbol(const std::string& type_name)
-{
-    Symbol_ptr symbol = current_scope->lookup(type_name);
-    Doctor::get().fatal_if_nullptr(
-        symbol,
-        WaspStage::Semantics,
-        "Type '" + type_name + "' not found in scope."
-    );
-
-    return symbol;
-}
-
-Object_ptr SemanticAnalyzer::resolve_literal(
-    Resolvable& expr,
-    const std::string& type_name,
-    Object_ptr type_obj
-)
-{
-    expr.symbol = get_core_symbol(type_name);
-    return type_obj;
-}
-
 Object_ptr SemanticAnalyzer::visit(IntegerLiteral& expr)
 {
-    return resolve_literal(expr, "int", workspace->pool->get_int_type());
+    return workspace->pool->get_int_type();
 }
 
 Object_ptr SemanticAnalyzer::visit(FloatLiteral& expr)
 {
-    return resolve_literal(expr, "float", workspace->pool->get_float_type());
+    return workspace->pool->get_float_type();
 }
 
 Object_ptr SemanticAnalyzer::visit(StringLiteral& expr)
 {
-    return resolve_literal(expr, "str", workspace->pool->get_string_type());
+    return workspace->pool->get_string_type();
 }
 
 Object_ptr SemanticAnalyzer::visit(BooleanLiteral& expr)
 {
-    return resolve_literal(expr, "bool", workspace->pool->get_boolean_type());
+    return workspace->pool->get_boolean_type();
 }
 
 Object_ptr SemanticAnalyzer::visit(NoneLiteral& expr)

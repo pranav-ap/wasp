@@ -1,7 +1,6 @@
 #pragma once
 
 #include "AST.h"
-#include "Token.h"
 
 #include <memory>
 #include <string>
@@ -18,6 +17,7 @@ struct NoneTypeNode
 struct NativeTypeNode
 {
     TypeAnnotation_ptr underlying_type;
+
     explicit NativeTypeNode() = default;
 
     explicit NativeTypeNode(TypeAnnotation_ptr underlying_type)
@@ -157,10 +157,11 @@ struct TemplateAngularTypeNode
 using TypeAnnotationVariant = std::variant<
     std::monostate,
 
+    NativeTypeNode,
+
     NoneTypeNode,
     LiteralTypeNode,
     TypeIdentifierNode,
-    NativeTypeNode,
 
     std::shared_ptr<ListTypeNode>,
     std::shared_ptr<TupleTypeNode>,
@@ -175,27 +176,11 @@ using TypeAnnotationVariant = std::variant<
 struct TypeAnnotation : public AstNode<TypeAnnotationVariant>
 {
     using AstNode::AstNode;
-
-    Token start_token;
-    Token end_token;
 };
 
 template <typename T> inline TypeAnnotation_ptr make_type_annotation(T&& data)
 {
     return std::make_shared<TypeAnnotation>(std::forward<T>(data));
-}
-
-template <typename T>
-inline TypeAnnotation_ptr make_type_annotation(
-    T&& data,
-    Token start_token,
-    Token end_token
-)
-{
-    auto type_node = std::make_shared<TypeAnnotation>(std::forward<T>(data));
-    type_node->start_token = std::move(start_token);
-    type_node->end_token = std::move(end_token);
-    return type_node;
 }
 
 } // namespace Wasp

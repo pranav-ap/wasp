@@ -9,6 +9,7 @@
 #include <cctype>
 #include <ctime>
 #include <memory>
+#include <optional>
 #include <string>
 #include <variant>
 
@@ -124,11 +125,11 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
         "RHS of member access must be an identifier."
     );
 
-    StringVector path = unfurl_member_access(expr);
+    auto enum_type_object = try_resolve_as_enum(expr);
 
-    if (try_resolve_as_enum(expr, path))
+    if (enum_type_object.has_value())
     {
-        return get_core_symbol("int")->get_type();
+        return enum_type_object.value();
     }
 
     Object_ptr left_type = visit(expr.left);
@@ -161,17 +162,19 @@ StringVector SemanticAnalyzer::unfurl_member_access(const MemberAccess& expr)
     return path;
 }
 
-bool SemanticAnalyzer::try_resolve_as_enum(MemberAccess& expr, const StringVector& path)
+std::optional<Object_ptr> SemanticAnalyzer::try_resolve_as_enum(MemberAccess& ma)
 {
+    StringVector path = unfurl_member_access(ma);
+
     if (path.size() < 2)
     {
-        return false;
+        return std::nullopt;
     }
 
     Symbol_ptr base_sym = current_scope->lookup(path.front());
     if (!base_sym || !base_sym->get_type())
     {
-        return false;
+        return std::nullopt;
     }
 
     Object_ptr base_type = base_sym->get_type();
@@ -182,7 +185,7 @@ bool SemanticAnalyzer::try_resolve_as_enum(MemberAccess& expr, const StringVecto
 
     if (!base_type->is<EnumType_ptr>())
     {
-        return false;
+        return std::nullopt;
     }
 
     auto enum_type = base_type->as<EnumType_ptr>();
@@ -190,10 +193,11 @@ bool SemanticAnalyzer::try_resolve_as_enum(MemberAccess& expr, const StringVecto
 
     Doctor::get().assert(value != -1, WaspStage::Semantics, "Enum member not found.");
 
-    expr.member_index = value;
-    expr.is_enum_value = true;
+    ma.is_enum_value = true;
+    ma.enum_member_value = value;
+    ma.enum_type_id = enum_type->type_id;
 
-    return true;
+    return make_object(EnumMemberType(enum_type->type_id, value));
 }
 
 Object_ptr SemanticAnalyzer::resolve_member_access(

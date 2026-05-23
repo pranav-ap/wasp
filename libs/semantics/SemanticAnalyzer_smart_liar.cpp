@@ -115,22 +115,54 @@ Object_ptr SemanticAnalyzer::visit(const Expression_ptr expr)
     if (expr->is<IntegerLiteral>())
     {
         desugar_literal(expr, "int");
-        return get_core_symbol("int")->get_type();
+
+        auto symbol = current_scope->lookup("int");
+        Doctor::get().fatal_if_nullptr(
+            symbol,
+            WaspStage::Semantics,
+            "Runtime class symbol 'int' not found."
+        );
+
+        return symbol->get_type();
     }
     else if (expr->is<FloatLiteral>())
     {
         desugar_literal(expr, "float");
-        return get_core_symbol("float")->get_type();
+
+        auto symbol = current_scope->lookup("float");
+        Doctor::get().fatal_if_nullptr(
+            symbol,
+            WaspStage::Semantics,
+            "Runtime class symbol 'float' not found."
+        );
+
+        return symbol->get_type();
     }
     else if (expr->is<StringLiteral>())
     {
         desugar_literal(expr, "str");
-        return get_core_symbol("str")->get_type();
+
+        auto symbol = current_scope->lookup("str");
+        Doctor::get().fatal_if_nullptr(
+            symbol,
+            WaspStage::Semantics,
+            "Runtime class symbol 'str' not found."
+        );
+
+        return symbol->get_type();
     }
     else if (expr->is<BooleanLiteral>())
     {
         desugar_literal(expr, "bool");
-        return get_core_symbol("bool")->get_type();
+
+        auto symbol = current_scope->lookup("bool");
+        Doctor::get().fatal_if_nullptr(
+            symbol,
+            WaspStage::Semantics,
+            "Runtime class symbol 'bool' not found."
+        );
+
+        return symbol->get_type();
     }
     else if (expr->is<InterpolatedString>())
     {
@@ -202,7 +234,13 @@ void SemanticAnalyzer::desugar_member_access(Expression_ptr expr)
         return;
     }
 
-    Symbol_ptr alias_symbol = get_core_symbol("int");
+    Symbol_ptr alias_symbol = current_scope->lookup("int");
+    Doctor::get().fatal_if_nullptr(
+        alias_symbol,
+        WaspStage::Semantics,
+        "Type alias 'int' not found for enum member desugaring."
+    );
+
     Object_ptr actual_type = unwrap_type_alias(alias_symbol->get_type());
     auto class_type = actual_type->as<ClassType_ptr>();
 
@@ -218,15 +256,48 @@ void SemanticAnalyzer::desugar_member_access(Expression_ptr expr)
     id.symbol = class_symbol;
     id.must_be_captured = class_symbol->should_be_captured(current_scope->get_closure_depth());
 
-    auto id_node = make_expression(id, expr->start_token, expr->end_token, true);
+    auto id_node = make_expression(id, true);
     bind_identifier(id_node->as<Identifier>(), class_symbol);
 
-    auto literal_child = make_expression(
-        IntegerLiteral{ma.member_index},
-        expr->start_token,
-        expr->end_token,
-        true
+    auto literal_child = make_expression(IntegerLiteral{ma.enum_member_value}, true);
+
+    expr->data = Constructor(id_node, {literal_child});
+    expr->is_desugared = true;
+}
+
+void SemanticAnalyzer::desugar_literal(
+    const Expression_ptr& expr,
+    const std::string& type_alias_name
+)
+{
+    // type int
+    Symbol_ptr alias_symbol = current_scope->lookup(type_alias_name);
+    Doctor::get().fatal_if_nullptr(
+        alias_symbol,
+        WaspStage::Semantics,
+        "Type alias '" + type_alias_name + "' not found for literal desugaring."
     );
+
+    Object_ptr actual_type = unwrap_type_alias(alias_symbol->get_type());
+    auto class_type = actual_type->as<ClassType_ptr>();
+
+    // class Int
+    Symbol_ptr class_symbol = current_scope->lookup(class_type->name);
+
+    Doctor::get().fatal_if_nullptr(
+        class_symbol,
+        WaspStage::Semantics,
+        "Runtime class symbol '" + class_type->name + "' not found."
+    );
+
+    Identifier id(class_symbol->name);
+    id.symbol = class_symbol;
+    id.must_be_captured = class_symbol->should_be_captured(current_scope->get_closure_depth());
+
+    auto id_node = make_expression(id, true);
+    bind_identifier(id_node->as<Identifier>(), class_symbol);
+
+    auto literal_child = make_expression(std::move(expr->data), true);
 
     expr->data = Constructor(id_node, {literal_child});
     expr->is_desugared = true;
@@ -273,46 +344,6 @@ void SemanticAnalyzer::desugar_call(Expression_ptr expr)
     expr->is_desugared = true;
 }
 
-void SemanticAnalyzer::desugar_literal(
-    const Expression_ptr& expr,
-    const std::string& type_alias_name
-)
-{
-    // type int
-    Symbol_ptr alias_symbol = get_core_symbol(type_alias_name);
-    Object_ptr actual_type = unwrap_type_alias(alias_symbol->get_type());
-    auto class_type = actual_type->as<ClassType_ptr>();
-
-    // class Int
-    Symbol_ptr class_symbol = current_scope->lookup(class_type->name);
-
-    Doctor::get().fatal_if_nullptr(
-        class_symbol,
-        WaspStage::Semantics,
-        "Runtime class symbol '" + class_type->name + "' not found."
-    );
-
-    Identifier id(class_symbol->name);
-    id.symbol = class_symbol;
-    id.must_be_captured = class_symbol->should_be_captured(
-        current_scope->get_closure_depth()
-    );
-
-    auto id_node = make_expression(id, expr->start_token, expr->end_token, true);
-
-    bind_identifier(id_node->as<Identifier>(), class_symbol);
-
-    auto literal_child = make_expression(
-        std::move(expr->data),
-        expr->start_token,
-        expr->end_token,
-        true
-    );
-
-    expr->data = Constructor(id_node, {literal_child});
-    expr->is_desugared = true;
-}
-
 Object_ptr SemanticAnalyzer::desugar_interpolated_string(const Expression_ptr& expr)
 {
     auto& interp = expr->as<InterpolatedString>();
@@ -330,13 +361,8 @@ Object_ptr SemanticAnalyzer::desugar_interpolated_string(const Expression_ptr& e
         Token plus_token;
         plus_token.type = TokenType::PLUS;
         plus_token.lexeme = "+";
-        plus_token.line = expr->start_token.line;
 
-        root = make_expression(
-            Infix{root, plus_token, interp.parts[i]},
-            expr->start_token,
-            expr->end_token
-        );
+        root = make_expression(Infix{root, plus_token, interp.parts[i]});
     }
 
     expr->data = std::move(root->data);
@@ -352,12 +378,7 @@ void SemanticAnalyzer::desugar_overloaded_operator(
     const ExpressionVector& arguments
 )
 {
-    auto id_node = make_expression(
-        Identifier(operator_symbol->name),
-        expr->start_token,
-        expr->end_token,
-        true
-    );
+    auto id_node = make_expression(Identifier(operator_symbol->name), true);
 
     bind_identifier(id_node->as<Identifier>(), operator_symbol);
 

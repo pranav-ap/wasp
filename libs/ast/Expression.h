@@ -14,14 +14,18 @@
 namespace Wasp
 {
 
-struct BoxableLiteral : public Resolvable
+struct NativeExpression
 {
-    Expression_ptr constructible = nullptr;
+    Expression_ptr expression;
 
-    BoxableLiteral() = default;
+    NativeExpression() = default;
+
+    explicit NativeExpression(Expression_ptr expression) : expression(std::move(expression))
+    {
+    }
 };
 
-struct IntegerLiteral : public BoxableLiteral
+struct IntegerLiteral
 {
     int value;
 
@@ -32,7 +36,7 @@ struct IntegerLiteral : public BoxableLiteral
     }
 };
 
-struct FloatLiteral : public BoxableLiteral
+struct FloatLiteral
 {
     double value;
 
@@ -43,7 +47,7 @@ struct FloatLiteral : public BoxableLiteral
     }
 };
 
-struct StringLiteral : public BoxableLiteral
+struct StringLiteral
 {
     std::string value;
 
@@ -54,7 +58,7 @@ struct StringLiteral : public BoxableLiteral
     }
 };
 
-struct BooleanLiteral : public BoxableLiteral
+struct BooleanLiteral
 {
     bool value;
 
@@ -69,7 +73,7 @@ struct NoneLiteral
 {
 };
 
-struct DotLiteral : public Resolvable
+struct DotLiteral
 {
 };
 
@@ -132,7 +136,7 @@ struct Postfix : public OperatorExpression
     }
 };
 
-struct SequenceLiteral : public BoxableLiteral
+struct SequenceLiteral
 {
     ExpressionVector expressions;
 
@@ -156,7 +160,7 @@ struct SetLiteral : public SequenceLiteral
     using SequenceLiteral::SequenceLiteral;
 };
 
-struct MapLiteral : public BoxableLiteral
+struct MapLiteral
 {
     std::map<Expression_ptr, Expression_ptr> pairs;
 
@@ -248,13 +252,24 @@ struct MemberAccess
     Expression_ptr right;
 
     int member_index = -1;
-    bool is_enum_value = false;
-    bool is_trait_dispatch = false;
 
     MemberAccess() = default;
 
     MemberAccess(Expression_ptr left, Expression_ptr right)
         : left(std::move(left)), right(std::move(right))
+    {
+    }
+};
+
+struct EnumMember
+{
+    int enum_type_id = -1;
+    int enum_member_value = -1;
+
+    EnumMember() = default;
+
+    EnumMember(int enum_type_id, int enum_member_value)
+        : enum_type_id(enum_type_id), enum_member_value(enum_member_value)
     {
     }
 };
@@ -288,14 +303,18 @@ struct FunctionCall : public SugarCall
 {
 };
 
-struct MethodCall : public SugarCall
+struct ClassMethodCall : public SugarCall
+{
+    Expression_ptr instance;
+    int method_index = -1;
+};
+
+struct TraitMethodCall : public SugarCall
 {
     Expression_ptr instance;
 
-    int method_index = -1;
-
-    bool is_trait_dispatch = false;
     int trait_type_id = -1;
+    int method_index = -1;
 };
 
 struct Constructor
@@ -359,6 +378,8 @@ struct RangeLiteral
 using ExpressionVariant = std::variant<
     std::monostate,
 
+    NativeExpression,
+
     IntegerLiteral,
     FloatLiteral,
     StringLiteral,
@@ -368,14 +389,18 @@ using ExpressionVariant = std::variant<
 
     NoneLiteral,
     DotLiteral,
-    Identifier,
-    MemberAccess,
 
     Box,
 
+    Identifier,
+
+    MemberAccess,
+    EnumMember,
+
     Call,
     FunctionCall,
-    MethodCall,
+    ClassMethodCall,
+    TraitMethodCall,
 
     Constructor,
     TemplateAngular,
@@ -398,29 +423,12 @@ using ExpressionVariant = std::variant<
 struct Expression : public AstNode<ExpressionVariant>
 {
     using AstNode::AstNode;
-
-    Token start_token;
-    Token end_token;
-
     bool is_desugared = false;
 };
 
-template <typename T> inline Expression_ptr make_expression(T&& data)
-{
-    return std::make_shared<Expression>(std::forward<T>(data));
-}
-
-template <typename T>
-inline Expression_ptr make_expression(
-    T&& data,
-    Token start_token,
-    Token end_token,
-    bool is_desugared = false
-)
+template <typename T> inline Expression_ptr make_expression(T&& data, bool is_desugared = false)
 {
     auto expr = std::make_shared<Expression>(std::forward<T>(data));
-    expr->start_token = std::move(start_token);
-    expr->end_token = std::move(end_token);
     expr->is_desugared = is_desugared;
     return expr;
 }

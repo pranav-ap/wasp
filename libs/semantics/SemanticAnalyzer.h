@@ -124,7 +124,7 @@ private:
     void inherit_default_methods(AbstractOopsDefinition& def, OopsType_ptr oop_type);
 
     StringVector unfurl_member_access(const MemberAccess& expr);
-    bool try_resolve_as_enum(MemberAccess& expr, const StringVector& path);
+    std::optional<Object_ptr> try_resolve_as_enum(MemberAccess& expr);
 
     // Callable Analysis
     void analyze_callable(
@@ -239,12 +239,10 @@ private:
     );
 
     void desugar_call(Expression_ptr expr);
-
     void desugar_member_access(Expression_ptr expr);
 
     // Type Utilities
     Object_ptr collapse_types(const ObjectVector& types);
-    Symbol_ptr get_core_symbol(const std::string& type_name);
 };
 
 } // namespace Wasp

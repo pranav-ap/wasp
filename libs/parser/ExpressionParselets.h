@@ -160,4 +160,10 @@ namespace Wasp
     public:
         Expression_ptr parse(Parser& parser, const Token& token) override;
     };
+
+    class NativeExpressionParselet : public IPrefixParselet
+    {
+    public:
+        Expression_ptr parse(Parser& parser, const Token& token) override;
+    };
 }

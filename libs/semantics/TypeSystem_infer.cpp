@@ -450,20 +450,15 @@ Object_ptr TypeSystem::infer(
         {
             expect_boolean_type(right_type);
         }
-        else if (left_type->is<EnumType_ptr>())
+        else if (left_type->is<EnumMemberType>() && right_type->is<EnumMemberType>())
         {
+            auto left_enum = left_type->as<EnumMemberType>();
+            auto right_enum = right_type->as<EnumMemberType>();
+
             Doctor::get().assert(
-                equal(scope, left_type, right_type),
+                left_enum.enum_type_id == right_enum.enum_type_id,
                 WaspStage::Semantics,
-                "Enum mismatch"
-            );
-        }
-        else
-        {
-            Doctor::get().fatal(
-                WaspStage::Semantics,
-                "Cannot compare '" + stringify_object(left_type) + "' with '" +
-                    stringify_object(right_type) + "'"
+                "Cannot compare enum members of different types."
             );
         }
         return pool->get_boolean_type();

@@ -1,35 +1,64 @@
 import my.io expose *
 
 # --------------------------
+# Core Traits
+# --------------------------
+
+trait Printable
+    fun repr() => str
+        required
+
+
+trait Truthy
+    fun is_truthy() => @bool
+        required
+
+
+# --------------------------
 # The Core Four
 # --------------------------
 
-class Boolean
+class Boolean is Truthy & Printable
     value: @bool
 
-    fun repr()
-        print(my.value)
+    fun is_truthy() => @bool
+        return my.value
+
+    fun repr() => str
+        return '{my.value}'
 
 
-class Int
+class Int is Truthy & Printable
     value: @int
 
-    fun repr()
-        print(my.value)
+    fun is_truthy() => @bool
+        return my.value > 0
+
+    fun repr() => str
+        return '{my.value}'
 
 
-class Float
+class Float is Truthy & Printable
     value: @float
 
-    fun repr()
-        print(my.value)
+    fun is_truthy() => @bool
+        return my.value > 0
+
+    fun repr() => str
+        return '{my.value}'
 
 
-class String
+class String is Truthy & Printable
     value: @str
 
-    fun repr()
-        print(my.value)
+    fun length() => int
+        native
+
+    fun is_truthy() => @bool
+        return my.length() > 0
+
+    fun repr() => str
+        return '{my.value}'
 
 
 # --------------------------
@@ -41,3 +70,9 @@ type int = Int
 type float = Float
 type str = String
 
+
+# --------------------------
+# Other Aliases
+# --------------------------
+
+type num = int | float
