@@ -255,6 +255,20 @@ bool TypeSystem::is_condition_type(
                 );
             },
 
+            [&](IntersectionType const& t)
+            {
+                // An intersection is a valid condition if ANY of its
+                // possible types are truthy-compatible.
+                return std::any_of(
+                    t.types.begin(),
+                    t.types.end(),
+                    [&](Object_ptr o)
+                    {
+                        return is_condition_type(scope, o);
+                    }
+                );
+            },
+
             [](const auto&)
             {
                 return false;
@@ -288,6 +302,17 @@ bool TypeSystem::is_spreadable_type(
             [&](VariantType const& t)
             {
                 return std::all_of(
+                    t.types.begin(),
+                    t.types.end(),
+                    [&](Object_ptr o)
+                    {
+                        return is_spreadable_type(scope, o);
+                    }
+                );
+            },
+            [&](IntersectionType const& t)
+            {
+                return std::any_of(
                     t.types.begin(),
                     t.types.end(),
                     [&](Object_ptr o)

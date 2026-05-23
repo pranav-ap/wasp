@@ -3,6 +3,7 @@
 #include "Objects.h"
 #include "OpCode.h"
 
+#include <cstddef>
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -74,7 +75,7 @@ void VM::run(FunctionBlueprintObject_ptr function_object)
         }
             // Constants
 
-        case OpCode::LOAD_CONST:
+        case OpCode::LOAD_CONSTANT:
         case OpCode::LOAD_TRUE:
         case OpCode::LOAD_FALSE:
         case OpCode::LOAD_NONE: {
@@ -157,28 +158,37 @@ void VM::run(FunctionBlueprintObject_ptr function_object)
         }
             // FUNCTION
 
-        case OpCode::MAKE_FUNCTION: {
-            execute_make_function(frame);
+        case OpCode::BUILD_FUNCTION: {
+            execute_BUILD_FUNCTION(frame);
             break;
         }
 
         case OpCode::STORE_FUNCTION_OVERLOAD: {
-            execute_store_function_overload(frame);
+            execute_STORE_FUNCTION_OVERLOAD(frame);
             break;
         }
 
-        case OpCode::RESOLVE_FUNCTION: {
-            execute_resolve_function(frame);
+        case OpCode::GET_FUNCTION: {
+            execute_GET_FUNCTION(frame);
             break;
         }
 
+        case OpCode::GET_CLASS_METHOD: {
+            execute_GET_CLASS_METHOD(frame);
+            break;
+        }
+
+        case OpCode::GET_TRAIT_METHOD: {
+            execute_GET_TRAIT_METHOD(frame);
+            break;
+        }
         case OpCode::CALL: {
-            execute_call(frame);
+            execute_CALL(frame);
             break;
         }
 
         case OpCode::RETURN: {
-            execute_return(frame);
+            execute_RETURN(frame);
 
             if (frames.empty())
             {
@@ -189,7 +199,7 @@ void VM::run(FunctionBlueprintObject_ptr function_object)
         }
 
         case OpCode::BUILD_OVERLOAD_GROUP: {
-            execute_build_overload_group(frame);
+            execute_BUILD_OVERLOAD_GROUP(frame);
             break;
         }
 
@@ -207,22 +217,32 @@ void VM::run(FunctionBlueprintObject_ptr function_object)
         }
 
         case OpCode::BUILD_CLASS: {
-            execute_build_class(frame);
+            execute_BUILD_CLASS(frame);
             break;
         }
 
         case OpCode::INSTANTIATE: {
-            execute_instantiate(frame);
+            execute_INSTANTIATE(frame);
             break;
         }
 
         case OpCode::BOX: {
-            execute_box(frame);
+            execute_BOX(frame);
             break;
         }
 
-        case OpCode::GET_TRAIT_METHOD: {
-            execute_get_trait_method(frame);
+        case OpCode::UNPACK_MODULE_MEMBERS: {
+            int module_slot = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
+            int count = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
+
+            Object_ptr module_obj = stack[frame->base_pointer + module_slot];
+
+            // Loop through the remaining bytes to fetch each member
+            for (int i = 0; i < count; i++)
+            {
+                int member_index = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
+                push_to_stack(execute_GET_MEMBER(module_obj, member_index));
+            }
             break;
         }
 

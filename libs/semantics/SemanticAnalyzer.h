@@ -101,6 +101,7 @@ private:
     Object_ptr visit(SetTypeNode& expr);
     Object_ptr visit(MapTypeNode& expr);
     Object_ptr visit(VariantTypeNode& expr);
+    Object_ptr visit(IntersectionTypeNode& expr);
     Object_ptr visit(FunctionTypeNode& expr);
     Object_ptr visit(RecordTypeNode& expr);
     Object_ptr visit(TemplateAngularTypeNode& node);
@@ -121,6 +122,9 @@ private:
     void analyze_methods(AbstractOopsDefinition& def);
     void check_trait_conformance(OopsType_ptr oop_type);
     void inherit_default_methods(AbstractOopsDefinition& def, OopsType_ptr oop_type);
+
+    StringVector unfurl_member_access(const MemberAccess& expr);
+    bool try_resolve_as_enum(MemberAccess& expr, const StringVector& path);
 
     // Callable Analysis
     void analyze_callable(
@@ -233,6 +237,10 @@ private:
         int overload_index,
         const std::vector<Expression_ptr>& arguments
     );
+
+    void desugar_call(Expression_ptr expr);
+
+    void desugar_member_access(Expression_ptr expr);
 
     // Type Utilities
     Object_ptr collapse_types(const ObjectVector& types);

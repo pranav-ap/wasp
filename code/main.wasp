@@ -39,3 +39,29 @@ let g = j.repr()
 g.repr()
 
 shout(j)
+
+
+enum Status
+    Okay
+    enum Alive
+        Barely
+        Totally
+
+
+Status.Alive.Totally
+
+
+let xxx = Status.Okay
+xxx.repr()
+
+
+# x?.run()
+# x!.run()
+
+
+# pure fun catch(e: DivisionByZeroError)
+#     pass
+
+
+# raise DivisionByZeroError()
+

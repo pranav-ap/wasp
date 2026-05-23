@@ -16,25 +16,17 @@ namespace Wasp
 
 void Compiler::visit(IntegerLiteral& expr)
 {
-    emit(
-        OpCode::LOAD_CONST,
-        workspace->pool->allocate(expr.value),
-        std::to_string(expr.value)
-    );
+    emit(OpCode::LOAD_CONSTANT, workspace->pool->allocate(expr.value), std::to_string(expr.value));
 }
 
 void Compiler::visit(FloatLiteral& expr)
 {
-    emit(
-        OpCode::LOAD_CONST,
-        workspace->pool->allocate(expr.value),
-        std::to_string(expr.value)
-    );
+    emit(OpCode::LOAD_CONSTANT, workspace->pool->allocate(expr.value), std::to_string(expr.value));
 }
 
 void Compiler::visit(StringLiteral& expr)
 {
-    emit(OpCode::LOAD_CONST, workspace->pool->allocate(expr.value), expr.value);
+    emit(OpCode::LOAD_CONSTANT, workspace->pool->allocate(expr.value), expr.value);
 }
 
 void Compiler::visit(BooleanLiteral& expr)
@@ -68,38 +60,6 @@ void Compiler::visit(MapLiteral& expr)
         visit(v);
     }
     emit(OpCode::BUILD_MAP, static_cast<int>(expr.pairs.size()));
-}
-
-void Compiler::visit(RangeLiteral& expr)
-{
-    if (expr.start)
-    {
-        visit(expr.start);
-    }
-    else
-    {
-        emit(OpCode::LOAD_NONE);
-    }
-
-    if (expr.end)
-    {
-        visit(expr.end);
-    }
-    else
-    {
-        emit(OpCode::LOAD_NONE);
-    }
-
-    if (expr.step)
-    {
-        visit(expr.step);
-    }
-    else
-    {
-        emit(OpCode::LOAD_NONE);
-    }
-
-    emit(OpCode::BUILD_RANGE, expr.is_inclusive ? 1 : 0);
 }
 
 } // namespace Wasp

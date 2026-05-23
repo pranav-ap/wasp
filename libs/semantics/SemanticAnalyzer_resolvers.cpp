@@ -5,6 +5,7 @@
 #include "SemanticAnalyzer.h"
 #include "Workspace.h"
 
+#include <algorithm>
 #include <cctype>
 #include <ctime>
 #include <memory>
@@ -117,17 +118,82 @@ Object_ptr SemanticAnalyzer::visit(Identifier& identifier)
 
 Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
 {
-    Object_ptr left_type = visit(expr.left);
-
     Doctor::get().assert(
         expr.right->is<Identifier>(),
         WaspStage::Semantics,
         "RHS of member access must be an identifier."
     );
 
-    std::string member_name = expr.right->as<Identifier>().name;
+    StringVector path = unfurl_member_access(expr);
 
-    return resolve_member_access(expr, left_type, member_name);
+    if (try_resolve_as_enum(expr, path))
+    {
+        return get_core_symbol("int")->get_type();
+    }
+
+    Object_ptr left_type = visit(expr.left);
+    return resolve_member_access(expr, left_type, expr.right->as<Identifier>().name);
+}
+
+StringVector SemanticAnalyzer::unfurl_member_access(const MemberAccess& expr)
+{
+    StringVector path = {expr.right->as<Identifier>().name};
+    Expression_ptr current = expr.left;
+
+    while (current && current->is<MemberAccess>())
+    {
+        auto& nested_ma = current->as<MemberAccess>();
+        if (!nested_ma.right->is<Identifier>())
+        {
+            break;
+        }
+
+        path.push_back(nested_ma.right->as<Identifier>().name);
+        current = nested_ma.left;
+    }
+
+    if (current && current->is<Identifier>())
+    {
+        path.push_back(current->as<Identifier>().name);
+    }
+
+    std::reverse(path.begin(), path.end());
+    return path;
+}
+
+bool SemanticAnalyzer::try_resolve_as_enum(MemberAccess& expr, const StringVector& path)
+{
+    if (path.size() < 2)
+    {
+        return false;
+    }
+
+    Symbol_ptr base_sym = current_scope->lookup(path.front());
+    if (!base_sym || !base_sym->get_type())
+    {
+        return false;
+    }
+
+    Object_ptr base_type = base_sym->get_type();
+    if (base_type->is<TypeAlias_ptr>())
+    {
+        base_type = unwrap_type_alias(base_type);
+    }
+
+    if (!base_type->is<EnumType_ptr>())
+    {
+        return false;
+    }
+
+    auto enum_type = base_type->as<EnumType_ptr>();
+    int value = enum_type->get_value(path);
+
+    Doctor::get().assert(value != -1, WaspStage::Semantics, "Enum member not found.");
+
+    expr.member_index = value;
+    expr.is_enum_value = true;
+
+    return true;
 }
 
 Object_ptr SemanticAnalyzer::resolve_member_access(
@@ -154,27 +220,6 @@ Object_ptr SemanticAnalyzer::resolve_member_access(
             {
                 expr.member_index = type->get_member_index(member_name);
                 return type->get_member(member_name);
-            },
-
-            [&](EnumType_ptr type) -> Object_ptr
-            {
-                std::string full_name = type->name + "." + member_name;
-                if (type->nested_enums.contains(full_name))
-                {
-                    return make_object(type->nested_enums.at(full_name));
-                }
-
-                Doctor::get().assert(
-                    type->members.contains(full_name),
-                    WaspStage::Semantics,
-                    "Enum '" + type->name + "' does not contain member '" +
-                        member_name + "'."
-                );
-
-                expr.member_index = type->members.at(full_name);
-                expr.is_enum_value = true;
-
-                return target_type;
             },
 
             [&](TemplateParameterType_ptr type) -> Object_ptr

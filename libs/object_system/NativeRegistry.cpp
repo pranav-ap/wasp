@@ -162,7 +162,8 @@ void NativeRegistry::load_stdlib()
                 instance_ptr->value
             );
 
-            Object_ptr name_obj = instance->members[0];
+            Object_ptr name_obj = instance->get_field(0);
+
             std::cout << "Hello! I am " << std::get<StringObject>(name_obj->value).value << "!"
                       << std::endl;
 

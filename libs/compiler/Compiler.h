@@ -128,6 +128,7 @@ private:
     void visit(FunctionDefinition& statement);
     void visit(ClassDefinition& statement);
     void visit(TypeAliasDefinition& statement);
+    void visit(EnumDefinition& statement);
 
     void visit(Return& statement);
 
@@ -151,7 +152,9 @@ private:
     void visit(Identifier& expr);
     void visit(MemberAccess& expr);
 
-    void visit(Call& expr);
+    void visit(FunctionCall& expr);
+    void visit(MethodCall& expr);
+
     void visit(Constructor& expr);
 
     void visit(Prefix& expr);
@@ -162,7 +165,6 @@ private:
     void visit(TupleLiteral& expr);
     void visit(MapLiteral& expr);
     void visit(SetLiteral& expr);
-    void visit(RangeLiteral& expr);
 
     void visit(Assignment& expr);
 

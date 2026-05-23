@@ -41,17 +41,18 @@ enum Animal
     EXPECT_EQ(enum_def.name, "Animal");
 
     // Check top-level members
-    EXPECT_EQ(enum_def.members.size(), 1);
-    EXPECT_TRUE(enum_def.members.contains("Dog"));
+    ASSERT_EQ(enum_def.members.size(), 1);
+    EXPECT_EQ(enum_def.members[0], "Dog");
 
     // Check nested enums
     ASSERT_EQ(enum_def.nested_enums.size(), 1);
 
     auto& bird_def = enum_def.nested_enums[0];
     EXPECT_EQ(bird_def.name, "Bird");
-    EXPECT_EQ(bird_def.members.size(), 2);
-    EXPECT_TRUE(bird_def.members.contains("Crow"));
-    EXPECT_TRUE(bird_def.members.contains("Pigeon"));
+
+    ASSERT_EQ(bird_def.members.size(), 2);
+    EXPECT_EQ(bird_def.members[0], "Crow");
+    EXPECT_EQ(bird_def.members[1], "Pigeon");
 }
 
 TEST(ParseDefinitions, FunctionDefinitionWithIfElifElse)

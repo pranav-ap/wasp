@@ -60,6 +60,9 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                         [&](TraitType_ptr trait_type) -> Object_ptr
                         {
                             ma.is_trait_dispatch = true;
+                            call.is_trait_dispatch = true;
+                            call.trait_type_id = trait_type->type_id;
+
                             return call_method(call, ma, argument_types, trait_type);
                         },
                         [&](ModuleType_ptr module_type) -> Object_ptr

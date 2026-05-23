@@ -126,6 +126,11 @@ struct VariantType
     ObjectVector types;
 };
 
+struct IntersectionType
+{
+    ObjectVector types;
+};
+
 struct MapType
 {
     Object_ptr key_type;
@@ -316,12 +321,13 @@ using TraitType_ptr = std::shared_ptr<TraitType>;
 struct EnumType
 {
     std::string name;
-    std::map<std::string, int> members;
-    std::map<std::string, std::shared_ptr<EnumType>> nested_enums;
+    StringVector members;
 
     EnumType(std::string name) : name(std::move(name))
     {
     }
+
+    int get_value(const std::vector<std::string>& path) const;
 };
 
 using EnumType_ptr = std::shared_ptr<EnumType>;
@@ -374,7 +380,11 @@ struct BooleanObject
 struct StringObject : public IterableAbstractObject
 {
     std::string value;
-    StringObject(std::string value) : value(std::move(value)) {};
+
+    StringObject(std::string value) : value(std::move(value))
+    {
+    }
+
     Object_ptr get_iter() override;
 };
 
@@ -403,6 +413,8 @@ struct BaseArrayObject
     BaseArrayObject(ObjectVector values = {}) : values(std::move(values))
     {
     }
+
+    virtual ~BaseArrayObject() = default;
 
     int get_length() const
     {
@@ -551,57 +563,38 @@ struct ObjectOverloadList
 
 using ObjectOverloadList_ptr = std::shared_ptr<ObjectOverloadList>;
 
-// ============================================================================
-// Membered Objects
-// ============================================================================
-
-struct MemberedCompositeObject
+struct ClassBlueprintObject
 {
-    ObjectVector members;
-
-    MemberedCompositeObject(ObjectVector members = {})
-        : members(std::move(members))
-    {
-    }
-
-    Object_ptr get_member(int member_id) const;
-    void set_member(int member_id, Object_ptr value);
-    int get_member_count() const;
-};
-
-struct ModuleObject : public MemberedCompositeObject
-{
-    std::string name;
-
-    ModuleObject(std::string name, ObjectVector members)
-        : name(std::move(name)), MemberedCompositeObject(std::move(members))
-    {
-    }
-};
-
-struct ClassBlueprintObject : public MemberedCompositeObject
-{
-    int fields_count;
+    ObjectVector methods;
     ITablesMap itables;
 
-    ClassBlueprintObject(ObjectVector members = {}, int fields_count = 0)
-        : MemberedCompositeObject(std::move(members)), fields_count(fields_count)
+    ClassBlueprintObject() = default;
 
+    ClassBlueprintObject(ObjectVector methods, ITablesMap itables)
+        : methods(std::move(methods)), itables(std::move(itables))
     {
     }
+
+    Object_ptr get_method(int member_id) const;
 };
 
 using ClassBlueprintObject_ptr = std::shared_ptr<ClassBlueprintObject>;
 
-struct ClassInstanceObject : public MemberedCompositeObject
+struct ClassInstanceObject
 {
     ClassBlueprintObject_ptr blueprint;
+    ObjectVector fields;
 
-    ClassInstanceObject(ClassBlueprintObject_ptr bp, ObjectVector members)
-        : MemberedCompositeObject(std::move(members)), blueprint(std::move(bp))
+    ClassInstanceObject(ClassBlueprintObject_ptr blueprint, ObjectVector fields)
+        : blueprint(std::move(blueprint)), fields(std::move(fields))
     {
     }
+
+    Object_ptr get_field(int member_id) const;
+    void set_field(int member_id, Object_ptr value);
 };
+
+using ClassInstanceObject_ptr = std::shared_ptr<ClassInstanceObject>;
 
 struct TraitInstanceObject
 {
@@ -612,6 +605,27 @@ struct TraitInstanceObject
         : class_instance(std::move(class_instance)), itable(std::move(itable))
     {
     }
+};
+
+using TraitInstanceObject_ptr = std::shared_ptr<TraitInstanceObject>;
+
+// ============================================================================
+// Module
+// ============================================================================
+
+struct ModuleObject
+{
+    std::string name;
+    ObjectVector members;
+
+    ModuleObject(std::string name, ObjectVector members)
+        : name(std::move(name)), members(std::move(members))
+    {
+    }
+
+    Object_ptr get_member(int member_id) const;
+    void set_member(int member_id, Object_ptr value);
+    int get_member_count() const;
 };
 
 // ============================================================================
@@ -667,6 +681,7 @@ struct Object
         SetType,
         MapType,
         VariantType,
+        IntersectionType,
 
         Signature_ptr,
 

@@ -29,8 +29,8 @@ fun add(a: int, b: int) => int
         B(Wasp::OpCode::PUSH_EMPTY_OVERLOAD_GROUP),
         B(Wasp::OpCode::SET_LOCAL),               B(var_add),
 
-        B(Wasp::OpCode::LOAD_CONST),              B(func_id),
-        B(Wasp::OpCode::MAKE_FUNCTION),           B(0),
+        B(Wasp::OpCode::LOAD_CONSTANT),              B(func_id),
+        B(Wasp::OpCode::BUILD_FUNCTION),           B(0),
         B(Wasp::OpCode::STORE_FUNCTION_OVERLOAD), B(var_add),
 
         B(Wasp::OpCode::JUMP),                    B(13), B(0),
@@ -87,8 +87,8 @@ fun max(a: int, b: int) => int
         B(Wasp::OpCode::PUSH_EMPTY_OVERLOAD_GROUP),
         B(Wasp::OpCode::SET_LOCAL),               B(max_func_var_id),
 
-        B(Wasp::OpCode::LOAD_CONST),              B(max_func_pool_id),
-        B(Wasp::OpCode::MAKE_FUNCTION),           B(0),
+        B(Wasp::OpCode::LOAD_CONSTANT),              B(max_func_pool_id),
+        B(Wasp::OpCode::BUILD_FUNCTION),           B(0),
         B(Wasp::OpCode::STORE_FUNCTION_OVERLOAD), B(max_func_var_id),
 
         B(Wasp::OpCode::JUMP),                    B(13), B(0),
@@ -163,8 +163,8 @@ fun outer(a: int) => any
         B(Wasp::OpCode::PUSH_EMPTY_OVERLOAD_GROUP),
         B(Wasp::OpCode::SET_LOCAL),               B(outer_func_var_id),
 
-        B(Wasp::OpCode::LOAD_CONST),              B(outer_func_pool_id),
-        B(Wasp::OpCode::MAKE_FUNCTION),           B(0),
+        B(Wasp::OpCode::LOAD_CONSTANT),              B(outer_func_pool_id),
+        B(Wasp::OpCode::BUILD_FUNCTION),           B(0),
         B(Wasp::OpCode::STORE_FUNCTION_OVERLOAD), B(outer_func_var_id),
 
         B(Wasp::OpCode::JUMP),                    B(13), B(0),
@@ -196,10 +196,10 @@ fun outer(a: int) => any
         B(Wasp::OpCode::PUSH_EMPTY_OVERLOAD_GROUP),
         B(Wasp::OpCode::SET_LOCAL),     B(1),
 
-        B(Wasp::OpCode::LOAD_CONST),    B(inner_func_pool_id),
+        B(Wasp::OpCode::LOAD_CONSTANT),    B(inner_func_pool_id),
 
         // 1 upval
-        B(Wasp::OpCode::MAKE_FUNCTION), B(1),
+        B(Wasp::OpCode::BUILD_FUNCTION), B(1),
         B(1), B(0), // is_local=1, idx=0 (It's `a` from the outer params!)
 
         B(Wasp::OpCode::STORE_FUNCTION_OVERLOAD), B(1), // define inner (Slot 1)

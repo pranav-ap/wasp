@@ -94,9 +94,21 @@ struct MapTypeNode
 struct VariantTypeNode
 {
     TypeAnnotationVector types;
+
     explicit VariantTypeNode() = default;
 
     explicit VariantTypeNode(TypeAnnotationVector types) : types(std::move(types))
+    {
+    }
+};
+
+struct IntersectionTypeNode
+{
+    TypeAnnotationVector types;
+
+    explicit IntersectionTypeNode() = default;
+
+    explicit IntersectionTypeNode(TypeAnnotationVector types) : types(std::move(types))
     {
     }
 };
@@ -155,6 +167,7 @@ using TypeAnnotationVariant = std::variant<
     std::shared_ptr<SetTypeNode>,
     std::shared_ptr<MapTypeNode>,
     std::shared_ptr<VariantTypeNode>,
+    std::shared_ptr<IntersectionTypeNode>,
     std::shared_ptr<FunctionTypeNode>,
     std::shared_ptr<RecordTypeNode>,
     std::shared_ptr<TemplateAngularTypeNode>>;

@@ -7,8 +7,10 @@
 #include "Workspace.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <memory>
 #include <string>
+#include <vector>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -69,21 +71,22 @@ void Compiler::visit(Import& import_stmt)
     emit(OpCode::IMPORT_MODULE, module_index, "module " + unresolved_module_symbol->name);
     int module_slot = get_or_add_local_index(unresolved_module_symbol);
 
-    // Expose explicit symbols
+    struct ExposedMember
+    {
+        int index;
+        Symbol_ptr symbol;
+    };
+
+    std::vector<ExposedMember> members_to_expose;
+
+    // Explicit symbols
     for (const auto& pair : import_stmt.exposed_symbols)
     {
-        Doctor::get().fatal_if_nullptr(pair.symbol, WaspStage::Compiler);
         auto target_symbol = pair.symbol->resolve();
-
-        emit(OpCode::GET_LOCAL, module_slot, "load module " + resolved_module_symbol->name);
-
         int member_index = module_payload.mod->get_member_index(target_symbol->name);
-        emit(OpCode::GET_MEMBER, member_index, "expose " + target_symbol->name);
-
-        get_or_add_local_index(pair.symbol);
+        members_to_expose.push_back({member_index, pair.symbol});
     }
 
-    // Expose wildcard symbols
     if (import_stmt.expose_all)
     {
         for (const auto& exported_symbol : module_payload.mod->exports)
@@ -94,13 +97,24 @@ void Compiler::visit(Import& import_stmt)
                     exported_symbol->name
                 ) == import_stmt.excluded_symbols.end())
             {
-                emit(OpCode::GET_LOCAL, module_slot, "load module " + resolved_module_symbol->name);
-
                 int member_index = module_payload.mod->get_member_index(exported_symbol->name);
-                emit(OpCode::GET_MEMBER, member_index, "expose * " + exported_symbol->name);
-
-                get_or_add_local_index(exported_symbol);
+                members_to_expose.push_back({member_index, exported_symbol});
             }
+        }
+    }
+
+    if (!members_to_expose.empty())
+    {
+        emit(
+            OpCode::UNPACK_MODULE_MEMBERS,
+            module_slot,
+            static_cast<int>(members_to_expose.size())
+        );
+
+        for (const auto& mem : members_to_expose)
+        {
+            emit_raw_byte(static_cast<std::byte>(mem.index));
+            get_or_add_local_index(mem.symbol);
         }
     }
 }

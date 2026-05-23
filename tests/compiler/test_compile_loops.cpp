@@ -25,9 +25,9 @@ for x in [1, 2, 3] do
         B(Wasp::OpCode::ENTER_MODULE),
 
         B(Wasp::OpCode::PUSH_SCOPE),
-        B(Wasp::OpCode::LOAD_CONST),    B(val_1),
-        B(Wasp::OpCode::LOAD_CONST),    B(val_2),
-        B(Wasp::OpCode::LOAD_CONST),    B(val_3),
+        B(Wasp::OpCode::LOAD_CONSTANT),    B(val_1),
+        B(Wasp::OpCode::LOAD_CONSTANT),    B(val_2),
+        B(Wasp::OpCode::LOAD_CONSTANT),    B(val_3),
         B(Wasp::OpCode::BUILD_LIST),    B(3),
         B(Wasp::OpCode::GET_ITER),
 
@@ -75,7 +75,7 @@ while true do
 
       // --- Body ---
       B(Wasp::OpCode::PUSH_SCOPE),
-      B(Wasp::OpCode::LOAD_CONST),    B(val_25),
+      B(Wasp::OpCode::LOAD_CONSTANT),    B(val_25),
       B(Wasp::OpCode::POP),                        // Expression cleanup
       B(Wasp::OpCode::POP_SCOPE),                  // Pop Body Scope
       B(Wasp::OpCode::POP_SCOPE),                  // Pop Condition Scope
@@ -119,8 +119,8 @@ while true do
       B(Wasp::OpCode::PUSH_SCOPE),
 
       // Expression: 25 + 25
-      B(Wasp::OpCode::LOAD_CONST),    B(val_25),
-      B(Wasp::OpCode::LOAD_CONST),    B(val_25),
+      B(Wasp::OpCode::LOAD_CONSTANT),    B(val_25),
+      B(Wasp::OpCode::LOAD_CONSTANT),    B(val_25),
       B(Wasp::OpCode::ADD),
       B(Wasp::OpCode::POP),
 
@@ -172,8 +172,8 @@ while true do
       B(Wasp::OpCode::PUSH_SCOPE),
 
       // Expression: 25 + 25
-      B(Wasp::OpCode::LOAD_CONST),    B(val_25),
-      B(Wasp::OpCode::LOAD_CONST),    B(val_25),
+      B(Wasp::OpCode::LOAD_CONSTANT),    B(val_25),
+      B(Wasp::OpCode::LOAD_CONSTANT),    B(val_25),
       B(Wasp::OpCode::ADD),
       B(Wasp::OpCode::POP),
 
@@ -220,13 +220,13 @@ while x < 5 do
     std::vector<std::byte> expected_bytes = {
         B(Wasp::OpCode::ENTER_MODULE),
 
-        B(Wasp::OpCode::LOAD_CONST),    B(val_1),
+        B(Wasp::OpCode::LOAD_CONSTANT),    B(val_1),
         B(Wasp::OpCode::SET_LOCAL),     B(0),
         B(Wasp::OpCode::JUMP),          B(8), B(0),
 
         B(Wasp::OpCode::PUSH_SCOPE),
         B(Wasp::OpCode::GET_LOCAL),     B(0),
-        B(Wasp::OpCode::LOAD_CONST),    B(val_5),
+        B(Wasp::OpCode::LOAD_CONSTANT),    B(val_5),
         B(Wasp::OpCode::LT),
         B(Wasp::OpCode::JUMP_IF_FALSE), B(24), B(0),
         B(Wasp::OpCode::JUMP),          B(20), B(0),
@@ -240,9 +240,9 @@ while x < 5 do
 
         B(Wasp::OpCode::PUSH_SCOPE),
         B(Wasp::OpCode::GET_LOCAL),     B(0),
-        B(Wasp::OpCode::LOAD_CONST),    B(val_2),
+        B(Wasp::OpCode::LOAD_CONSTANT),    B(val_2),
         B(Wasp::OpCode::MOD),
-        B(Wasp::OpCode::LOAD_CONST),    B(val_0),
+        B(Wasp::OpCode::LOAD_CONSTANT),    B(val_0),
         B(Wasp::OpCode::EQ),
         B(Wasp::OpCode::JUMP_IF_FALSE), B(50), B(0),
         B(Wasp::OpCode::JUMP),          B(46), B(0),
@@ -254,7 +254,7 @@ while x < 5 do
         B(Wasp::OpCode::JUMP),          B(54), B(0),
 
         B(Wasp::OpCode::GET_LOCAL),     B(0),
-        B(Wasp::OpCode::LOAD_CONST),    B(val_1),
+        B(Wasp::OpCode::LOAD_CONSTANT),    B(val_1),
         B(Wasp::OpCode::ADD),
         B(Wasp::OpCode::SET_LOCAL),     B(0),
         B(Wasp::OpCode::POP),

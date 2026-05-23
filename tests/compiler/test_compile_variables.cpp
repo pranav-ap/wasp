@@ -25,11 +25,11 @@ x + 1
     std::vector<std::byte> expected_bytes = {
         B(Wasp::OpCode::ENTER_MODULE),
 
-        B(Wasp::OpCode::LOAD_CONST),    B(val_42),
+        B(Wasp::OpCode::LOAD_CONSTANT),    B(val_42),
         B(Wasp::OpCode::SET_LOCAL),     B(var_x),
 
         B(Wasp::OpCode::GET_LOCAL),     B(var_x),
-        B(Wasp::OpCode::LOAD_CONST),    B(val_1),
+        B(Wasp::OpCode::LOAD_CONSTANT),    B(val_1),
         B(Wasp::OpCode::ADD),
         B(Wasp::OpCode::POP),
 
@@ -57,11 +57,11 @@ x = x + 1
     std::vector<std::byte> expected_bytes = {
         B(Wasp::OpCode::ENTER_MODULE),
 
-        B(Wasp::OpCode::LOAD_CONST),    B(val_42),
+        B(Wasp::OpCode::LOAD_CONSTANT),    B(val_42),
         B(Wasp::OpCode::SET_LOCAL),     B(var_x),
 
         B(Wasp::OpCode::GET_LOCAL),     B(var_x),
-        B(Wasp::OpCode::LOAD_CONST),    B(val_1),
+        B(Wasp::OpCode::LOAD_CONSTANT),    B(val_1),
         B(Wasp::OpCode::ADD),
         B(Wasp::OpCode::SET_LOCAL),     B(var_x),
         B(Wasp::OpCode::POP),

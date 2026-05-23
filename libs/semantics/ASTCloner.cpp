@@ -245,7 +245,29 @@ ExpressionVariant ASTCloner::clone_expr_data(const ExpressionVariant& data)
                 Call new_call(clone(c.callable), clone(c.arguments));
                 new_call.is_method_call = false;
                 new_call.overload_index = -1;
+                new_call.is_trait_dispatch = false;
                 return new_call;
+            },
+
+            [&](const FunctionCall& fc) -> ExpressionVariant
+            {
+                FunctionCall cloned;
+                cloned.callable = clone(fc.callable);
+                cloned.arguments = clone(fc.arguments);
+                cloned.overload_index = fc.overload_index;
+                return make_expression(std::move(cloned));
+            },
+            [&](const MethodCall& mc) -> ExpressionVariant
+            {
+                MethodCall cloned;
+                cloned.callable = clone(mc.callable);
+                cloned.instance = clone(mc.instance);
+                cloned.arguments = clone(mc.arguments);
+                cloned.method_index = mc.method_index;
+                cloned.is_trait_dispatch = mc.is_trait_dispatch;
+                cloned.trait_type_id = mc.trait_type_id;
+                cloned.overload_index = mc.overload_index;
+                return make_expression(std::move(cloned));
             },
 
             [&](const Constructor& c) -> ExpressionVariant
@@ -543,11 +565,6 @@ TypeAnnotationVariant ASTCloner::clone_type_data(const TypeAnnotationVariant& da
                 return LiteralTypeNode{clone(n.literal)};
             },
 
-            // [&](const TypeIdentifierNode& n) -> TypeAnnotationVariant
-            // {
-            //     return n;
-            // },
-
             [&](const TypeIdentifierNode& n) -> TypeAnnotationVariant
             {
                 auto c = n;
@@ -593,6 +610,10 @@ TypeAnnotationVariant ASTCloner::clone_type_data(const TypeAnnotationVariant& da
             {
                 return std::make_shared<VariantTypeNode>(clone(n->types));
             },
+            [&](const std::shared_ptr<IntersectionTypeNode>& n) -> TypeAnnotationVariant
+            {
+                return std::make_shared<IntersectionTypeNode>(clone(n->types));
+            },
             [&](const std::shared_ptr<FunctionTypeNode>& n) -> TypeAnnotationVariant
             {
                 return std::make_shared<FunctionTypeNode>(
@@ -604,8 +625,7 @@ TypeAnnotationVariant ASTCloner::clone_type_data(const TypeAnnotationVariant& da
             {
                 return std::make_shared<RecordTypeNode>(clone(n->fields));
             },
-            [&](const std::shared_ptr<TemplateAngularTypeNode>& n)
-                -> TypeAnnotationVariant
+            [&](const std::shared_ptr<TemplateAngularTypeNode>& n) -> TypeAnnotationVariant
             {
                 return std::make_shared<TemplateAngularTypeNode>(
                     clone(n->base_node),

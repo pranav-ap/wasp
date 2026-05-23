@@ -56,7 +56,7 @@ void Compiler::visit(MemberAccess& access)
     if (access.is_enum_value)
     {
         int const_id = workspace->pool->allocate(access.member_index);
-        emit(OpCode::LOAD_CONST, const_id);
+        emit(OpCode::LOAD_CONSTANT, const_id);
         return;
     }
 

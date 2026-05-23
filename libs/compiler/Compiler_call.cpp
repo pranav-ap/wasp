@@ -13,32 +13,35 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-void Compiler::visit(Call& expr)
+void Compiler::visit(FunctionCall& expr)
 {
-    MemberAccess* mac = expr.callable->try_as<MemberAccess>();
-    bool is_trait_dispatch = (mac && mac->is_trait_dispatch);
+    visit(expr.callable);
 
-    if (is_trait_dispatch)
+    int resolve_idx = expr.overload_index == -1 ? 0 : expr.overload_index;
+    emit(OpCode::GET_FUNCTION, resolve_idx);
+
+    for (const auto& arg : expr.arguments)
     {
-        visit(mac->left);
-
-        int resolve_idx = expr.overload_index == -1 ? 0 : expr.overload_index;
-        emit(OpCode::GET_TRAIT_METHOD, mac->member_index, resolve_idx);
-    }
-    else
-    {
-        visit(expr.callable);
-
-        int resolve_idx = expr.overload_index == -1 ? 0 : expr.overload_index;
-        emit(OpCode::RESOLVE_FUNCTION, resolve_idx);
+        visit(arg);
     }
 
     int total_arguments = static_cast<int>(expr.arguments.size());
+    emit(OpCode::CALL, total_arguments);
+}
 
-    if (expr.is_method_call)
+void Compiler::visit(MethodCall& expr)
+{
+    visit(expr.instance);
+
+    int resolve_idx = expr.overload_index == -1 ? 0 : expr.overload_index;
+
+    if (expr.is_trait_dispatch)
     {
-        visit(mac->left);
-        total_arguments++;
+        emit(OpCode::GET_TRAIT_METHOD, expr.method_index, resolve_idx);
+    }
+    else
+    {
+        emit(OpCode::GET_CLASS_METHOD, expr.method_index, resolve_idx);
     }
 
     for (const auto& arg : expr.arguments)
@@ -46,7 +49,8 @@ void Compiler::visit(Call& expr)
         visit(arg);
     }
 
-    emit(OpCode::CALL, total_arguments);
+    int total_arguments = static_cast<int>(expr.arguments.size());
+    emit(OpCode::CALL, total_arguments + 1);
 }
 
 } // namespace Wasp

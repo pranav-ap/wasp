@@ -1,12 +1,16 @@
 #include "Objects.h"
 #include "Doctor.h"
 
+#include <algorithm>
 #include <cstddef>
+#include <iterator>
 #include <memory>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <variant>
+#include <vector>
 
 #define MAKE_OBJECT_VARIANT(x) std::make_shared<Object>(x)
 #define MAKE_SHARED_OBJECT_VARIANT(Type, ...)                                       \
@@ -344,6 +348,29 @@ IterableAbstractObject* Object::as_iterable()
     }
 
     return nullptr;
+}
+
+int EnumType::get_value(const std::vector<std::string>& path) const
+{
+    std::stringstream ss;
+
+    for (size_t i = 0; i < path.size(); ++i)
+    {
+        ss << path[i] << (i == path.size() - 1 ? "" : ".");
+    }
+
+    std::string search_path = ss.str();
+    auto it = std::find(members.begin(), members.end(), search_path);
+
+    if (it != members.end())
+    {
+        return static_cast<int>(std::distance(members.begin(), it));
+    }
+
+    Doctor::get().fatal(
+        WaspStage::Semantics,
+        "Enum '" + name + "' does not contain member '" + search_path + "'."
+    );
 }
 
 } // namespace Wasp

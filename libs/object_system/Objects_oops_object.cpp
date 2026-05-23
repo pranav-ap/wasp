@@ -7,29 +7,37 @@
 namespace Wasp
 {
 
-Object_ptr MemberedCompositeObject::get_member(int member_id) const
+Object_ptr ClassBlueprintObject::get_method(int member_id) const
 {
     Doctor::get().assert(
-        member_id >= 0 && member_id < static_cast<int>(members.size()),
+        member_id >= 0 && member_id < static_cast<int>(methods.size()),
         WaspStage::VM,
         "Member index out of bounds!"
     );
-    return members[member_id];
+
+    return methods.at(member_id);
 }
 
-void MemberedCompositeObject::set_member(int member_id, Object_ptr value)
+Object_ptr ClassInstanceObject::get_field(int member_id) const
 {
     Doctor::get().assert(
-        member_id >= 0 && member_id < static_cast<int>(members.size()),
+        member_id >= 0 && member_id < static_cast<int>(fields.size()),
         WaspStage::VM,
         "Member index out of bounds!"
     );
-    members[member_id] = std::move(value);
+
+    return fields.at(member_id);
 }
 
-int MemberedCompositeObject::get_member_count() const
+void ClassInstanceObject::set_field(int member_id, Object_ptr value)
 {
-    return members.size();
+    Doctor::get().assert(
+        member_id >= 0 && member_id < static_cast<int>(fields.size()),
+        WaspStage::VM,
+        "Member index out of bounds!"
+    );
+
+    fields[member_id] = std::move(value);
 }
 
 } // namespace Wasp

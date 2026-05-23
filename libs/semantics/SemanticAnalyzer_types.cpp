@@ -232,6 +232,12 @@ Object_ptr SemanticAnalyzer::visit(VariantTypeNode& expr)
     return resolved_type;
 }
 
+Object_ptr SemanticAnalyzer::visit(IntersectionTypeNode& expr)
+{
+    Object_ptr resolved_type = make_object(IntersectionType(visit(expr.types)));
+    return resolved_type;
+}
+
 Object_ptr SemanticAnalyzer::visit(FunctionTypeNode& expr)
 {
     ObjectVector params = visit(expr.input_types);

@@ -85,8 +85,8 @@ void Compiler::compile_function_closure(
         name
     );
 
-    emit(OpCode::LOAD_CONST, const_id, "fun " + name);
-    emit(OpCode::MAKE_FUNCTION, static_cast<int>(func_compiler.upvalues.size()));
+    emit(OpCode::LOAD_CONSTANT, const_id, "fun " + name);
+    emit(OpCode::BUILD_FUNCTION, static_cast<int>(func_compiler.upvalues.size()));
 
     for (const auto& uv : func_compiler.upvalues)
     {

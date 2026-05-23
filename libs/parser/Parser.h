@@ -93,6 +93,10 @@ private:
     TypeAnnotation_ptr parse_set_or_map_type();
     TypeAnnotation_ptr parse_tuple_or_fun_type();
 
+    TypeAnnotation_ptr parse_base_type();
+    TypeAnnotation_ptr parse_intersection_type();
+    TypeAnnotation_ptr parse_variant_type();
+
     // --- Pratt Parser Registry ---
     std::map<TokenType, IPrefixParselet_ptr> prefix_parselets;
     std::map<TokenType, IInfixParselet_ptr> infix_parselets;
