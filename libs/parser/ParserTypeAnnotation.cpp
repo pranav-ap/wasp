@@ -171,9 +171,7 @@ TypeAnnotation_ptr Parser::consume_datatype_word()
     default: {
         Doctor::get().fatal(
             WaspStage::Parser,
-            "Unexpected token in datatype: " + to_string(token->type),
-            token->line,
-            token->column
+            "Unexpected token in datatype: " + to_string(token->type)
         );
     }
     }

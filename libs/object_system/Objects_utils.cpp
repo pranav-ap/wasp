@@ -107,26 +107,13 @@ bool are_equal_types(Object_ptr left, Object_ptr right)
             },
 
             // Collections
-            [](const ListType& l, const ListType& r)
-            {
-                return are_equal_types(l.element_type, r.element_type);
-            },
-            [](const TupleType& l, const TupleType& r)
-            {
-                return are_equal_types(l.element_types, r.element_types);
-            },
-            [](const SetType& l, const SetType& r)
-            {
-                return are_equal_types(l.element_type, r.element_type);
-            },
             [](const VariantType& l, const VariantType& r)
             {
                 return are_equal_types_unordered(l.types, r.types);
             },
-            [](const MapType& l, const MapType& r)
+            [](const IntersectionType& l, const IntersectionType& r)
             {
-                return are_equal_types(l.key_type, r.key_type) &&
-                       are_equal_types(l.value_type, r.value_type);
+                return are_equal_types_unordered(l.types, r.types);
             },
 
             [](const Signature_ptr& l, const Signature_ptr& r)
@@ -164,7 +151,8 @@ bool are_equal_types(Object_ptr left, Object_ptr right)
                 return are_equal_types(l->underlying_type, r->underlying_type);
             },
 
-            [](const TemplateParameterType_ptr& l, const TemplateParameterType_ptr& r)
+            [](const TemplateParameterType_ptr& l,
+               const TemplateParameterType_ptr& r)
             {
                 return l->name == r->name;
             },

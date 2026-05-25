@@ -13,16 +13,8 @@
 #include <vector>
 
 #define MAKE_OBJECT_VARIANT(x) std::make_shared<Object>(x)
-#define MAKE_SHARED_OBJECT_VARIANT(Type, ...)                                       \
+#define MAKE_SHARED_OBJECT_VARIANT(Type, ...)                                  \
     std::make_shared<Object>(std::make_shared<Type>(__VA_ARGS__))
-#define VOID std::make_shared<Object>(std::make_shared<ReturnObject>())
-#define THROW(message)                                                              \
-    return std::make_shared<Object>(std::make_shared<ErrorObject>(message));
-#define THROW_IF(condition, message)                                                \
-    if (condition)                                                                  \
-    {                                                                               \
-        return std::make_shared<Object>(std::make_shared<ErrorObject>(message));    \
-    }
 
 namespace Wasp
 {
@@ -59,28 +51,36 @@ void IteratorObject::reset_iter()
     index = 0;
 }
 
-Object_ptr ListObject::append(Object_ptr value)
+void ListObject::append(Object_ptr value)
 {
     Doctor::get().fatal_if_nullptr(value, WaspStage::VM);
-    THROW_IF(value->is<std::monostate>(), "Cannot append monostate to a List");
+    Doctor::get().assert(
+        value->is<std::monostate>(),
+        WaspStage::VM,
+        "Cannot append monostate to a List"
+    );
     values.push_back(value);
-    return VOID;
 }
 
-Object_ptr ListObject::prepend(Object_ptr value)
+void ListObject::prepend(Object_ptr value)
 {
     Doctor::get().fatal_if_nullptr(value, WaspStage::VM);
-    THROW_IF(value->is<std::monostate>(), "Cannot prepend monostate to a List");
+    Doctor::get().assert(
+        !value->is<std::monostate>(),
+        WaspStage::VM,
+        "Cannot prepend monostate to a List"
+    );
+
     values.insert(values.begin(), value);
-    return VOID;
 }
 
 Object_ptr ListObject::pop_back()
 {
-    if (values.empty())
-    {
-        THROW("Cannot pop from an empty list");
-    }
+    Doctor::get().assert(
+        !values.empty(),
+        WaspStage::VM,
+        "Cannot pop from an empty list"
+    );
 
     Object_ptr last = values.back();
     values.pop_back();
@@ -89,10 +89,11 @@ Object_ptr ListObject::pop_back()
 
 Object_ptr ListObject::pop_front()
 {
-    if (values.empty())
-    {
-        THROW("Cannot pop from an empty list");
-    }
+    Doctor::get().assert(
+        !values.empty(),
+        WaspStage::VM,
+        "Cannot pop from an empty list"
+    );
 
     Object_ptr first = values.front();
     values.erase(values.begin());
@@ -102,30 +103,48 @@ Object_ptr ListObject::pop_front()
 Object_ptr ListObject::get(Object_ptr index_object)
 {
     Doctor::get().fatal_if_nullptr(index_object, WaspStage::VM);
-    THROW_IF(!index_object->is<IntObject>(), "List indices must be integers");
+    Doctor::get().assert(
+        index_object->is<IntObject>(),
+        WaspStage::VM,
+        "List indices must be integers"
+    );
+
     int index = index_object->as<IntObject>().value;
-    THROW_IF(
-        index < 0 || static_cast<size_t>(index) >= values.size(),
+    Doctor::get().assert(
+        index >= 0 && static_cast<size_t>(index) < values.size(),
+        WaspStage::VM,
         "List index out of range"
     );
 
     return values[index];
 }
 
-Object_ptr ListObject::set(Object_ptr index_object, Object_ptr value)
+void ListObject::set(Object_ptr index_object, Object_ptr value)
 {
     Doctor::get().fatal_if_nullptr(index_object, WaspStage::VM);
     Doctor::get().fatal_if_nullptr(value, WaspStage::VM);
-    THROW_IF(!index_object->is<IntObject>(), "List indices must be integers");
-    THROW_IF(value->is<std::monostate>(), "Cannot set a List element to monostate");
+
+    Doctor::get().assert(
+        index_object->is<IntObject>(),
+        WaspStage::VM,
+        "List indices must be integers"
+    );
+
+    Doctor::get().assert(
+        !value->is<std::monostate>(),
+        WaspStage::VM,
+        "Cannot set a List element to monostate"
+    );
+
     int index = index_object->as<IntObject>().value;
-    THROW_IF(
-        index < 0 || static_cast<size_t>(index) >= values.size(),
+
+    Doctor::get().assert(
+        index >= 0 && static_cast<size_t>(index) < values.size(),
+        WaspStage::VM,
         "List index out of range"
     );
 
     values[index] = value;
-    return VOID;
 }
 
 void ListObject::clear()
@@ -144,31 +163,55 @@ Object_ptr ListObject::get_iter()
     return MAKE_SHARED_OBJECT_VARIANT(IteratorObject, std::move(vec));
 }
 
-Object_ptr MapObject::insert(Object_ptr key, Object_ptr value)
+void MapObject::insert(Object_ptr key, Object_ptr value)
 {
     Doctor::get().fatal_if_nullptr(key, WaspStage::VM);
     Doctor::get().fatal_if_nullptr(value, WaspStage::VM);
-    THROW_IF(key->is<std::monostate>(), "Cannot use monostate as a Map key");
-    THROW_IF(value->is<std::monostate>(), "Cannot use monostate as a Map value");
+
+    Doctor::get().assert(
+        !key->is<std::monostate>(),
+        WaspStage::VM,
+        "Cannot use monostate as a Map key"
+    );
+
+    Doctor::get().assert(
+        !value->is<std::monostate>(),
+        WaspStage::VM,
+        "Cannot use monostate as a Map value"
+    );
 
     const auto& [it, inserted] = pairs.insert({key, value});
-    THROW_IF(!inserted, "Key already exists in the Map");
 
-    return VOID;
+    Doctor::get()
+        .assert(inserted, WaspStage::VM, "Key already exists in the Map");
 }
 
-Object_ptr MapObject::set(Object_ptr key, Object_ptr value)
+void MapObject::set(Object_ptr key, Object_ptr value)
 {
     Doctor::get().fatal_if_nullptr(key, WaspStage::VM);
     Doctor::get().fatal_if_nullptr(value, WaspStage::VM);
-    THROW_IF(key->is<std::monostate>(), "Cannot use monostate as a Map key");
-    THROW_IF(value->is<std::monostate>(), "Cannot use monostate as a Map value");
+
+    Doctor::get().assert(
+        !key->is<std::monostate>(),
+        WaspStage::VM,
+        "Cannot use monostate as a Map key"
+    );
+
+    Doctor::get().assert(
+        !value->is<std::monostate>(),
+        WaspStage::VM,
+        "Cannot use monostate as a Map value"
+    );
 
     auto it = pairs.find(key);
-    THROW_IF(it == pairs.end(), "Key does not exist in the Map");
+
+    Doctor::get().assert(
+        it != pairs.end(),
+        WaspStage::VM,
+        "Key does not exist in the Map"
+    );
 
     it->second = value;
-    return VOID;
 }
 
 int MapObject::get_size()
@@ -179,10 +222,20 @@ int MapObject::get_size()
 Object_ptr MapObject::get_pair(Object_ptr key)
 {
     Doctor::get().fatal_if_nullptr(key, WaspStage::VM);
-    THROW_IF(key->is<std::monostate>(), "Cannot use monostate as a Map key");
+
+    Doctor::get().assert(
+        !key->is<std::monostate>(),
+        WaspStage::VM,
+        "Cannot use monostate as a Map key"
+    );
 
     auto it = pairs.find(key);
-    THROW_IF(it == pairs.end(), "Key does not exist in the Map");
+
+    Doctor::get().assert(
+        it != pairs.end(),
+        WaspStage::VM,
+        "Key does not exist in the Map"
+    );
 
     return MAKE_SHARED_OBJECT_VARIANT(
         TupleObject,
@@ -193,10 +246,19 @@ Object_ptr MapObject::get_pair(Object_ptr key)
 Object_ptr MapObject::get(Object_ptr key)
 {
     Doctor::get().fatal_if_nullptr(key, WaspStage::VM);
-    THROW_IF(key->is<std::monostate>(), "Cannot use monostate as a Map key");
+
+    Doctor::get().assert(
+        !key->is<std::monostate>(),
+        WaspStage::VM,
+        "Cannot use monostate as a Map key"
+    );
 
     auto it = pairs.find(key);
-    THROW_IF(it == pairs.end(), "Key does not exist in the Map");
+    Doctor::get().assert(
+        it != pairs.end(),
+        WaspStage::VM,
+        "Key does not exist in the Map"
+    );
 
     return it->second;
 }
@@ -217,35 +279,52 @@ Object_ptr TupleObject::get(Object_ptr index_object)
 {
     Doctor::get().fatal_if_nullptr(index_object, WaspStage::VM);
 
-    THROW_IF(!index_object->is<IntObject>(), "Tuple indices must be integers");
+    Doctor::get().assert(
+        index_object->is<IntObject>(),
+        WaspStage::VM,
+        "Tuple indices must be integers"
+    );
+
     int index = index_object->as<IntObject>().value;
-    THROW_IF(
-        index < 0 || static_cast<size_t>(index) >= values.size(),
+
+    Doctor::get().assert(
+        index >= 0 && static_cast<size_t>(index) < values.size(),
+        WaspStage::VM,
         "Tuple index out of range"
     );
 
     return values[index];
 }
 
-Object_ptr TupleObject::set(Object_ptr index_object, Object_ptr value)
+void TupleObject::set(Object_ptr index_object, Object_ptr value)
 {
     Doctor::get().fatal_if_nullptr(index_object, WaspStage::VM);
     Doctor::get().fatal_if_nullptr(value, WaspStage::VM);
 
-    THROW_IF(!index_object->is<IntObject>(), "Tuple indices must be integers");
-    THROW_IF(value->is<std::monostate>(), "Cannot set a Tuple element to monostate");
+    Doctor::get().assert(
+        index_object->is<IntObject>(),
+        WaspStage::VM,
+        "Tuple indices must be integers"
+    );
+
+    Doctor::get().assert(
+        !value->is<std::monostate>(),
+        WaspStage::VM,
+        "Cannot set a Tuple element to monostate"
+    );
 
     int index = index_object->as<IntObject>().value;
-    THROW_IF(
-        index < 0 || static_cast<size_t>(index) >= values.size(),
+
+    Doctor::get().assert(
+        index >= 0 && static_cast<size_t>(index) < values.size(),
+        WaspStage::VM,
         "Tuple index out of range"
     );
 
     values[index] = value;
-    return VOID;
 }
 
-Object_ptr TupleObject::set(ObjectVector values)
+void TupleObject::set(ObjectVector values)
 {
     for (const auto& value : values)
     {
@@ -258,7 +337,6 @@ Object_ptr TupleObject::set(ObjectVector values)
     }
 
     this->values = values;
-    return VOID;
 }
 
 ObjectVector SetObject::get()
@@ -266,7 +344,7 @@ ObjectVector SetObject::get()
     return values;
 }
 
-Object_ptr SetObject::set(ObjectVector values)
+void SetObject::set(ObjectVector values)
 {
     for (const auto& value : values)
     {
@@ -279,7 +357,6 @@ Object_ptr SetObject::set(ObjectVector values)
     }
 
     this->values = values;
-    return VOID;
 }
 
 Object_ptr SetObject::get_iter()
@@ -299,10 +376,7 @@ bool VariantObject::has_value()
 
 bool Object::is_type_object() const
 {
-    return is<TypeType>() || is<AnyType>() || is<NoneType>() || is<IntType>() ||
-           is<FloatType>() || is<StringType>() || is<BooleanType>() ||
-           is<ListType>() || is<TupleType>() || is<SetType>() || is<MapType>() ||
-           is<VariantType>() || is<Signature_ptr>() || is<ModuleType_ptr>() ||
+    return is<VariantType>() || is<Signature_ptr>() || is<ModuleType_ptr>() ||
            is<ClassType_ptr>() || is<TraitType_ptr>() || is<EnumType_ptr>() ||
            is<TypeAlias_ptr>() || is<TemplateParameterType_ptr>() ||
            is<LiteralType>();
@@ -313,8 +387,6 @@ bool Object::is_runtime_value() const
     // A runtime value is anything that isn't a type, an empty state,
     // an overload group, or a control-flow action object.
     return !is_type_object() && !is<std::monostate>() &&
-           !is<std::shared_ptr<ReturnObject>>() &&
-           !is<std::shared_ptr<ErrorObject>>() &&
            !is<std::shared_ptr<ObjectOverloadList>>();
 }
 

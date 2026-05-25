@@ -113,15 +113,12 @@ StatementVector Parser::parse_statements_block(int expected_indent_level) {
 
         if (actual_indent_level > expected_indent_level) {
             auto current_token = token_pipe.current();
-            int line = current_token ? current_token->line : 0;
-            int col = current_token ? current_token->column : 0;
 
             Doctor::get().fatal(
                 WaspStage::Parser,
-                "Unexpected indent level. Expected " + std::to_string(expected_indent_level) +
-                    " but got " + std::to_string(actual_indent_level),
-                line,
-                col
+                "Unexpected indent level. Expected " +
+                    std::to_string(expected_indent_level) + " but got " +
+                    std::to_string(actual_indent_level)
             );
         }
 

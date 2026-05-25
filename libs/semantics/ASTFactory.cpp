@@ -1,0 +1,58 @@
+#include "ASTFactory.h"
+#include "AST.h"
+#include "Expression.h"
+#include "Statement.h"
+#include <string>
+
+namespace Wasp
+{
+
+Expression_ptr create_field_definition(
+    const std::string& field_name,
+    TypeAnnotation_ptr type_node
+)
+{
+    auto field_def_node = make_expression(
+        FieldDefinition{field_name, type_node}
+    );
+
+    return field_def_node;
+}
+
+Expression_ptr ASTFactory::create_identifier(const std::string& name)
+{
+    return make_expression(Identifier(name));
+};
+
+Expression_ptr ASTFactory::create_function_call(
+    const std::string& function_name,
+    ExpressionVector arguments
+)
+{
+    auto function_id = create_identifier(function_name);
+    auto call_node = make_expression(Call(function_id, arguments));
+    return call_node;
+}
+
+Expression_ptr ASTFactory::create_method_call(
+    Expression_ptr target,
+    const std::string& method_name,
+    ExpressionVector arguments
+)
+{
+    auto method_id = create_identifier(method_name);
+    auto member_access = make_expression(MemberAccess(target, method_id));
+    auto call_node = make_expression(Call(member_access, arguments));
+    return call_node;
+}
+
+Expression_ptr create_constructor(
+    Expression_ptr construtable,
+    ExpressionVector values = {}
+)
+{
+    auto constructor_node = make_expression(Constructor(construtable, values));
+    return constructor_node;
+}
+
+} // namespace Wasp

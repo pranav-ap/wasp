@@ -372,7 +372,9 @@ struct Import : public Resolvable
 
 using StatementVariant = std::variant<
     std::monostate,
+
     ExpressionStatement,
+
     TypeAliasDefinition,
     EnumDefinition,
     FunctionDefinition,
@@ -381,12 +383,16 @@ using StatementVariant = std::variant<
     FieldDefinition,
     ClassDefinition,
     TraitDefinition,
+
     Import,
+
     IfBranch,
     ElseBranch,
+
     SimpleLoop,
     ForInLoop,
     LoopControl,
+
     Placeholder,
     Return>;
 

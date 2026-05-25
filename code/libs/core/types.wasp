@@ -10,59 +10,90 @@ trait Printable
 
 
 trait Truthy
-    fun is_truthy() => @bool
+    fun is_truthy() => bool
         required
 
 
+trait Hashable
+    pure fun hash() => int
+        required
+
+
+trait Sized
+    fun size() => int
+        required
+
+    fun is_empty() => bool
+        return my.size() == 0
+
 # --------------------------
-# The Core Four
+# The Core Five
 # --------------------------
 
-class Boolean is Truthy & Printable
+class Boolean is Truthy & Printable & Hashable
     value: @bool
 
-    fun is_truthy() => @bool
-        return my.value
+    fun is_truthy() => bool
+        return my
 
     fun repr() => str
         return '{my.value}'
 
+    pure fun hash() => int
+        return if my.value then 1 else 0
 
-class Int is Truthy & Printable
+
+class Int is Truthy & Printable & Hashable
     value: @int
 
-    fun is_truthy() => @bool
+    fun is_truthy() => bool
         return my.value > 0
 
     fun repr() => str
         return '{my.value}'
+
+    pure fun hash() => int
+        return my.value
 
 
 class Float is Truthy & Printable
     value: @float
 
-    fun is_truthy() => @bool
+    fun is_truthy() => bool
         return my.value > 0
 
     fun repr() => str
         return '{my.value}'
 
 
-class String is Truthy & Printable
+class String is Truthy & Printable & Hashable & Sized
     value: @str
 
-    fun length() => int
+    fun size() => int
         native
 
-    fun is_truthy() => @bool
-        return my.length() > 0
+    fun is_truthy() => bool
+        return my.size() > 0
 
     fun repr() => str
         return '{my.value}'
 
+    pure fun hash() => int
+        native
+
+
+class None is Truthy & Printable & Hashable
+    fun is_truthy() => bool
+        return false
+
+    fun repr() => str
+        return 'none'
+
+    pure fun hash() => int
+        return 0
 
 # --------------------------
-# Aliases for the Core Four
+# Aliases for the Core Five
 # --------------------------
 
 type bool = Boolean
@@ -76,3 +107,78 @@ type str = String
 # --------------------------
 
 type num = int | float
+
+
+# --------------------------
+# Composite Types
+# --------------------------
+
+
+template
+    T: any
+class List is Truthy & Sized
+    values: @[T]
+
+    fun size() => int
+        native
+
+    fun is_truthy() => bool
+        return my.size() > 0
+
+
+template
+    T: any
+class Set is Truthy & Sized
+    values: @{T}
+
+    fun size() => int
+        native
+
+    fun is_truthy() => bool
+        return my.size() > 0
+
+
+template
+    K: Hashable
+    V: any
+class Map is Truthy & Sized
+    values: @{K => V}
+
+    fun size() => int
+        native
+
+    fun is_truthy() => bool
+        return my.size() > 0
+
+
+template
+    T: [any]
+class Tuple & Sized
+    values: @(...T)
+
+    fun size() => int
+        native
+
+    fun get(index: int) => T
+        native
+
+
+# --------------------------
+# Algebraic Types
+# --------------------------
+
+template
+    T: ...any
+class Variant
+    values: @(...T)
+    active_index: @int
+
+    fun currently_holds(index: int) => bool
+        return my.active_index == index
+
+
+template
+    T: ...any
+class Intersection
+    values: @(...T)
+

@@ -10,7 +10,6 @@ add_library(
     ParserLooping.cpp
     TokenPipe.cpp
     register_parselets.cpp
-    StupidLiar.cpp
 )
 
 target_link_libraries(ParserLib PUBLIC ASTLib TokenLib DoctorLib)

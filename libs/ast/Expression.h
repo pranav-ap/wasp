@@ -253,6 +253,10 @@ struct MemberAccess
 
     int member_index = -1;
 
+    bool is_enum_value = false;
+    int enum_member_value = -1;
+    int enum_type_id = -1;
+
     MemberAccess() = default;
 
     MemberAccess(Expression_ptr left, Expression_ptr right)
@@ -347,32 +351,6 @@ struct TemplateAngular : public Resolvable
     }
 };
 
-// Others
-
-struct RangeLiteral
-{
-    Expression_ptr start;
-    Expression_ptr end;
-    Expression_ptr step;
-    bool is_inclusive;
-
-    RangeLiteral()
-        : start(nullptr), end(nullptr), step(nullptr), is_inclusive(false)
-    {
-    }
-
-    RangeLiteral(
-        Expression_ptr start,
-        Expression_ptr end,
-        Expression_ptr step,
-        bool is_inclusive
-    )
-        : start(std::move(start)), end(std::move(end)), step(std::move(step)),
-          is_inclusive(is_inclusive)
-    {
-    }
-};
-
 // Expression
 
 using ExpressionVariant = std::variant<
@@ -413,7 +391,6 @@ using ExpressionVariant = std::variant<
     TupleLiteral,
     MapLiteral,
     SetLiteral,
-    RangeLiteral,
 
     Assignment,
 

@@ -4,6 +4,7 @@
 #include "Expression.h"
 #include "Objects.h"
 #include "Resolvable.h"
+#include "Salt.h"
 #include "Statement.h"
 #include "SymbolScope.h"
 #include "Token.h"
@@ -25,13 +26,14 @@ class SemanticAnalyzer
 public:
     SemanticAnalyzer(Workspace_ptr workspace)
         : type_system(std::make_shared<TypeSystem>(workspace->pool)),
-          workspace(workspace) {};
+          salt(std::make_shared<Salt>(workspace)), workspace(workspace) {};
 
     void run(const std::vector<Module_ptr>& build_order);
 
 private:
     Workspace_ptr workspace;
     TypeSystem_ptr type_system;
+    Salt_ptr salt;
     Module_ptr current_module = nullptr;
     SymbolScope_ptr current_scope;
     ObjectVector return_type_stack;
@@ -49,6 +51,7 @@ private:
     // Main Visitors
     void visit(const Statement_ptr statement);
     void visit(StatementVector& statements);
+
     void visit(ExpressionStatement& statement);
     void visit(FunctionDefinition& statement);
     void visit(OperatorDefinition& statement);
@@ -66,27 +69,16 @@ private:
 
     Object_ptr visit(const Expression_ptr expr);
     ObjectVector visit(ExpressionVector expressions);
-    Object_ptr visit(IntegerLiteral& expr);
-    Object_ptr visit(FloatLiteral& expr);
-    Object_ptr visit(StringLiteral& expr);
-    Object_ptr visit(BooleanLiteral& expr);
-    Object_ptr visit(NoneLiteral& expr);
-    Object_ptr visit(InterpolatedString& expr);
-    Object_ptr visit(DotLiteral& expr);
-    Object_ptr visit(ListLiteral& expr);
-    Object_ptr visit(TupleLiteral& expr);
-    Object_ptr visit(MapLiteral& expr);
-    Object_ptr visit(SetLiteral& expr);
-    Object_ptr visit(RangeLiteral& expr);
-    Object_ptr visit(Prefix& expr);
-    Object_ptr visit(Infix& expr);
-    Object_ptr visit(Postfix& expr);
+
     Object_ptr visit(Identifier& expr);
     Object_ptr visit(MemberAccess& expr);
     Object_ptr visit(TemplateAngular& template_instantiation);
+
     Object_ptr visit(Assignment& expr);
+
     Object_ptr visit(IfTernaryBranch& expr);
     Object_ptr visit(ElseTernaryBranch& expr);
+
     Object_ptr visit(Call& expr);
     Object_ptr visit(Constructor& expr);
 
@@ -206,25 +198,6 @@ private:
     Object_ptr mutate_variable(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
     Object_ptr mutate_member(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
 
-    // Operators
-    Object_ptr evaluate_operator(
-        OperatorExpression& expr,
-        TokenType fixity,
-        TokenType op_type,
-        const ObjectVector& operand_types
-    );
-    Object_ptr resolve_operator_overload(
-        OperatorExpression& expr,
-        Symbol_ptr operator_symbol,
-        const ObjectVector& operand_types
-    );
-    Object_ptr try_resolve_custom_operator(
-        OperatorExpression& expr,
-        Symbol_ptr operator_symbol,
-        const ObjectVector& operand_types
-    );
-    std::string get_operator_symbol_name(TokenType fixity, TokenType op_type);
-
     // Desugaring
     void desugar_literal(
         const Expression_ptr& expr,
@@ -242,7 +215,8 @@ private:
     void desugar_member_access(Expression_ptr expr);
 
     // Type Utilities
-    Object_ptr collapse_types(const ObjectVector& types);
+
+    std::string get_operator_symbol_name(TokenType fixity, TokenType op_type);
 };
 
 } // namespace Wasp

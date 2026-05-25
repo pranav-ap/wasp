@@ -8,13 +8,6 @@
 #include <vector>
 
 #define MAKE_OBJECT_VARIANT(x) std::make_shared<Object>(x)
-#define VOID std::make_shared<Object>(std::make_shared<ReturnObject>())
-#define THROW(message) return std::make_shared<Object>(std::make_shared<ErrorObject>(message));
-#define THROW_IF(condition, message)                                                               \
-    if (!(condition))                                                                              \
-    {                                                                                              \
-        return std::make_shared<Object>(std::make_shared<ErrorObject>(message));                   \
-    }
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -46,10 +39,6 @@ std::string stringify_object(Object_ptr value)
             {
                 return "signature type";
             },
-            [](const NoneType&) -> std::string
-            {
-                return "none type";
-            },
 
             // Scalar Objects
             [](const NoneObject&) -> std::string
@@ -79,41 +68,7 @@ std::string stringify_object(Object_ptr value)
                 return "literal type: " + stringify_object(lit.value);
             },
 
-            // Scalar Types
-            [](const IntType&) -> std::string
-            {
-                return "int type";
-            },
-            [](const FloatType&) -> std::string
-            {
-                return "float type";
-            },
-            [](const StringType&) -> std::string
-            {
-                return "string type";
-            },
-            [](const BooleanType&) -> std::string
-            {
-                return "bool type";
-            },
-
             // Composite Types
-            [](const ListType&) -> std::string
-            {
-                return "list type";
-            },
-            [](const TupleType&) -> std::string
-            {
-                return "tuple type";
-            },
-            [](const SetType&) -> std::string
-            {
-                return "set type";
-            },
-            [](const MapType&) -> std::string
-            {
-                return "map type";
-            },
             [](const VariantType&) -> std::string
             {
                 return "variant type";
@@ -210,11 +165,13 @@ std::string stringify_object(Object_ptr value)
             },
 
             // Callables and Modules
-            [](const std::shared_ptr<FunctionBlueprintObject>& func) -> std::string
+            [](const std::shared_ptr<FunctionBlueprintObject>& func)
+                -> std::string
             {
                 return "<Static Function " + func->name + ">";
             },
-            [](const std::shared_ptr<FunctionRuntimeObject>& func) -> std::string
+            [](const std::shared_ptr<FunctionRuntimeObject>& func)
+                -> std::string
             {
                 return "<Runtime function " + func->blueprint->name + ">";
             },
@@ -244,10 +201,6 @@ std::string stringify_object(Object_ptr value)
             },
 
             // Action Objects
-            [](const std::shared_ptr<ReturnObject>&) -> std::string
-            {
-                return "return";
-            },
             [](const std::shared_ptr<ErrorObject>& obj) -> std::string
             {
                 return "error: " + obj->message;
@@ -294,10 +247,6 @@ std::string mangle_object(Object_ptr value)
             [](const Signature_ptr&) -> std::string
             {
                 return "S";
-            },
-            [](const NoneType&) -> std::string
-            {
-                return "N";
             },
 
             [](const NoneObject&) -> std::string
@@ -348,40 +297,6 @@ std::string mangle_object(Object_ptr value)
                     },
                     lit.value->value
                 );
-            },
-
-            [](const IntType&) -> std::string
-            {
-                return "i";
-            },
-            [](const FloatType&) -> std::string
-            {
-                return "f";
-            },
-            [](const StringType&) -> std::string
-            {
-                return "s";
-            },
-            [](const BooleanType&) -> std::string
-            {
-                return "b";
-            },
-
-            [](const ListType&) -> std::string
-            {
-                return "l";
-            },
-            [](const TupleType&) -> std::string
-            {
-                return "t";
-            },
-            [](const SetType&) -> std::string
-            {
-                return "e";
-            },
-            [](const MapType&) -> std::string
-            {
-                return "m";
             },
             [](const VariantType&) -> std::string
             {

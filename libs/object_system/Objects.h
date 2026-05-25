@@ -45,35 +45,7 @@ struct IterableAbstractObject
 // Types
 // ============================================================================
 
-struct TypeType
-{
-};
-
 struct AnyType
-{
-};
-
-struct NoneType
-{
-};
-
-// ============================================================================
-// Scalar Types
-// ============================================================================
-
-struct IntType
-{
-};
-
-struct FloatType
-{
-};
-
-struct StringType
-{
-};
-
-struct BooleanType
 {
 };
 
@@ -108,21 +80,6 @@ struct TemplatableType
 // Composite Types
 // ============================================================================
 
-struct ListType
-{
-    Object_ptr element_type;
-};
-
-struct SetType
-{
-    Object_ptr element_type;
-};
-
-struct TupleType
-{
-    ObjectVector element_types;
-};
-
 struct VariantType
 {
     ObjectVector types;
@@ -131,12 +88,6 @@ struct VariantType
 struct IntersectionType
 {
     ObjectVector types;
-};
-
-struct MapType
-{
-    Object_ptr key_type;
-    Object_ptr value_type;
 };
 
 // ============================================================================
@@ -167,14 +118,8 @@ struct Signature : public TemplatableType
 using Signature_ptr = std::shared_ptr<Signature>;
 
 // ============================================================================
-// Enum
+// Enum Type
 // ============================================================================
-
-struct EnumMemberType
-{
-    int enum_type_id;
-    int value;
-};
 
 struct EnumType
 {
@@ -191,6 +136,12 @@ struct EnumType
 };
 
 using EnumType_ptr = std::shared_ptr<EnumType>;
+
+struct EnumMemberType
+{
+    EnumType_ptr enum_type;
+    int value;
+};
 
 // ============================================================================
 // Membered Types
@@ -268,6 +219,8 @@ using ITablesMap = std::map<int, ITable>;
 
 struct OopsType : public BaseMemberedType, public TemplatableType
 {
+    int type_id;
+
     StringVector fields;
     StringVector methods;
     StringVector pures;
@@ -288,7 +241,8 @@ struct OopsType : public BaseMemberedType, public TemplatableType
         StringVector ordered_template_parameter_names = {},
         ObjectVector traits = {}
     )
-        : BaseMemberedType(std::move(name), std::move(members)),
+        : type_id(type_id_counter++),
+          BaseMemberedType(std::move(name), std::move(members)),
           TemplatableType(
               std::move(template_parameter_types),
               std::move(ordered_template_parameter_names)
@@ -432,12 +386,12 @@ struct BaseArrayObject
 struct ListObject : public BaseArrayObject, public IterableAbstractObject
 {
     using BaseArrayObject::BaseArrayObject;
-    Object_ptr append(Object_ptr value);
-    Object_ptr prepend(Object_ptr value);
+    void append(Object_ptr value);
+    void prepend(Object_ptr value);
     Object_ptr pop_back();
     Object_ptr pop_front();
     Object_ptr get(Object_ptr index);
-    Object_ptr set(Object_ptr index, Object_ptr value);
+    void set(Object_ptr index, Object_ptr value);
     void clear();
     bool is_empty();
     Object_ptr get_iter() override;
@@ -447,15 +401,15 @@ struct TupleObject : public BaseArrayObject
 {
     using BaseArrayObject::BaseArrayObject;
     Object_ptr get(Object_ptr index);
-    Object_ptr set(Object_ptr index, Object_ptr value);
-    Object_ptr set(ObjectVector new_values);
+    void set(Object_ptr index, Object_ptr value);
+    void set(ObjectVector new_values);
 };
 
 struct SetObject : public BaseArrayObject, public IterableAbstractObject
 {
     using BaseArrayObject::BaseArrayObject;
     ObjectVector get();
-    Object_ptr set(ObjectVector new_values);
+    void set(ObjectVector new_values);
     Object_ptr get_iter() override;
 };
 
@@ -468,10 +422,10 @@ struct MapObject : public IterableAbstractObject
     {
     }
 
-    Object_ptr insert(Object_ptr key, Object_ptr value);
+    void insert(Object_ptr key, Object_ptr value);
     Object_ptr get_pair(Object_ptr key);
     Object_ptr get(Object_ptr key);
-    Object_ptr set(Object_ptr key, Object_ptr value);
+    void set(Object_ptr key, Object_ptr value);
     int get_size();
     Object_ptr get_iter() override;
 };
@@ -486,16 +440,6 @@ struct VariantObject
 // ============================================================================
 // Action Objects
 // ============================================================================
-
-struct ReturnObject
-{
-    std::optional<Object_ptr> value;
-
-    ReturnObject(std::optional<Object_ptr> value = std::nullopt)
-        : value(std::move(value))
-    {
-    }
-};
 
 struct ErrorObject
 {
@@ -569,6 +513,10 @@ struct ObjectOverloadList
 };
 
 using ObjectOverloadList_ptr = std::shared_ptr<ObjectOverloadList>;
+
+// ============================================================================
+// Oops
+// ============================================================================
 
 struct ClassBlueprintObject
 {
@@ -669,26 +617,12 @@ struct Object
 
         std::shared_ptr<ObjectOverloadList>,
 
-        std::shared_ptr<ReturnObject>,
-        std::shared_ptr<ErrorObject>,
-
-        TypeType,
-
-        NoneType,
         LiteralType,
-
         AnyType,
-        IntType,
-        FloatType,
-        StringType,
-        BooleanType,
 
-        ListType,
-        TupleType,
-        SetType,
-        MapType,
         VariantType,
         IntersectionType,
+
         EnumMemberType,
         Signature_ptr,
 
@@ -759,9 +693,10 @@ template <typename T> inline T try_unwrap_ptr(Object_ptr obj)
     return obj->as<T>();
 }
 
-inline bool is_numeric_type(Object_ptr type)
+inline bool is_primitive(Object_ptr obj)
 {
-    return type && type->is_any_of<IntType, FloatType>();
+    return obj
+        ->is_any_of<IntObject, FloatObject, BooleanObject, StringObject>();
 }
 
 // ============================================================================

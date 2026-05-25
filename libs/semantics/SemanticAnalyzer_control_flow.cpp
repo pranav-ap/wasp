@@ -1,15 +1,13 @@
+#include "ASTFactory.h"
 #include "Doctor.h"
 #include "Expression.h"
 #include "Objects.h"
 #include "SemanticAnalyzer.h"
 #include "Statement.h"
-
 #include "SymbolScope.h"
 #include "Workspace.h"
 
 #include <ctime>
-#include <memory>
-#include <string>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -19,12 +17,24 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
+
 Object_ptr SemanticAnalyzer::visit(IfTernaryBranch& expr)
 {
     enter_scope(ScopeType::BRANCH);
 
     Object_ptr cond_type = visit(expr.test);
-    type_system->expect_condition_type(current_scope, cond_type);
+
+    Doctor::get().assert(
+        type_system->implements_trait(current_scope, cond_type, "Truthy"),
+        WaspStage::Semantics,
+        "Condition type '" + stringify_object(cond_type) + "' is not truthy"
+    );
+
+    auto sugar = ASTFactory::create_method_call(expr.test, "is_truthy");
+    expr.test = sugar;
+
+    cond_type = visit(expr.test);
+    type_system->expect_boolean_type(cond_type);
 
     Object_ptr then_type = visit(expr.true_expression);
 
@@ -75,7 +85,19 @@ void SemanticAnalyzer::visit(IfBranch& statement)
     enter_scope(ScopeType::BRANCH);
 
     Object_ptr cond_type = visit(statement.test);
-    type_system->expect_condition_type(current_scope, cond_type);
+
+    Doctor::get().assert(
+        type_system->implements_trait(current_scope, cond_type, "Truthy"),
+        WaspStage::Semantics,
+        "Condition type '" + stringify_object(cond_type) + "' is not truthy"
+    );
+
+    auto sugar = ASTFactory::create_method_call(statement.test, "is_truthy");
+    statement.test = sugar;
+
+    // resolves it to `@bool`
+    cond_type = visit(statement.test);
+    type_system->expect_boolean_type(cond_type);
 
     visit(statement.body);
     leave_scope();

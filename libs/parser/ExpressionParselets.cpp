@@ -228,54 +228,6 @@ Expression_ptr TernaryConditionParselet::parse(Parser& parser, const Token& toke
     return parser.parse_ternary_condition(TokenType::IF, condition);
 }
 
-Expression_ptr PrefixRangeParselet::parse(Parser& parser, const Token& token)
-{
-    parser.token_pipe.advance_pointer();
-
-    Expression_ptr end = nullptr;
-    Expression_ptr step = nullptr;
-
-    auto next = parser.token_pipe.current_in_line();
-
-    if (next && next->type != TokenType::EOL && next->type != TokenType::STEP &&
-        next->type != TokenType::CLOSE_PARENTHESIS &&
-        next->type != TokenType::CLOSE_SQUARE_BRACKET &&
-        next->type != TokenType::CLOSE_CURLY_BRACE && next->type != TokenType::COMMA)
-    {
-        end = parser.parse_expression(static_cast<int>(Precedence::RANGE));
-    }
-
-    if (parser.token_pipe.consume_optional_in_line(TokenType::STEP))
-    {
-        step = parser.parse_expression(static_cast<int>(Precedence::RANGE));
-    }
-
-    return make_expression(RangeLiteral(nullptr, end, step, this->is_inclusive));
-}
-
-Expression_ptr InfixRangeParselet::parse(Parser& parser, Expression_ptr left, const Token& token)
-{
-    Expression_ptr end = nullptr;
-    Expression_ptr step = nullptr;
-
-    auto next = parser.token_pipe.current_in_line();
-
-    if (next && next->type != TokenType::EOL && next->type != TokenType::STEP &&
-        next->type != TokenType::CLOSE_PARENTHESIS &&
-        next->type != TokenType::CLOSE_SQUARE_BRACKET &&
-        next->type != TokenType::CLOSE_CURLY_BRACE && next->type != TokenType::COMMA)
-    {
-        end = parser.parse_expression(static_cast<int>(Precedence::RANGE));
-    }
-
-    if (parser.token_pipe.consume_optional_in_line(TokenType::STEP))
-    {
-        step = parser.parse_expression(static_cast<int>(Precedence::RANGE));
-    }
-
-    return make_expression(RangeLiteral(left, end, step, this->is_inclusive));
-}
-
 Expression_ptr PlaceholderDotParselet::parse(Parser& parser, const Token& token)
 {
     parser.token_pipe.advance_pointer();
@@ -507,14 +459,6 @@ int TernaryConditionParselet::get_precedence() const
 int CallParselet::get_precedence() const
 {
     return static_cast<int>(Precedence::CALL);
-}
-int InfixRangeParselet::get_precedence() const
-{
-    return static_cast<int>(Precedence::RANGE);
-}
-int PrefixRangeParselet::get_precedence() const
-{
-    return static_cast<int>(Precedence::RANGE);
 }
 int LesserThanParselet::get_precedence() const
 {

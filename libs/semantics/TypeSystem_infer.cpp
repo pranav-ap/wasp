@@ -19,6 +19,104 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
+Object_ptr TypeSystem::get_least_upper_bound(
+    SymbolScope_ptr scope,
+    ObjectVector types
+) const
+{
+    Doctor::get().assert(
+        !types.empty(),
+        WaspStage::Semantics,
+        "Cannot compute least upper bound of an empty set of types"
+    );
+
+    if (types.size() == 1)
+    {
+        return types[0];
+    }
+
+    Object_ptr unified_type = types[0];
+
+    for (size_t i = 1; i < types.size(); ++i)
+    {
+        if (equal(scope, unified_type, types[i]))
+        {
+            continue;
+        }
+
+        unified_type = get_least_upper_bound(scope, unified_type, types[i]);
+    }
+
+    return unified_type;
+}
+
+Object_ptr TypeSystem::get_least_upper_bound(
+    SymbolScope_ptr scope,
+    Object_ptr a,
+    Object_ptr b
+) const
+{
+    // If they're equal, return either
+    if (equal(scope, a, b))
+    {
+        return a;
+    }
+
+    // Check if one is a subtype of the other
+    if (assignable(scope, b, a))
+    {
+        // a is supertype of b
+        return a;
+    }
+
+    if (assignable(scope, a, b))
+    {
+        // b is supertype of a
+        return b;
+    }
+
+    // Create a variant type containing just these two distinct types
+
+    ObjectVector combined;
+
+    if (a->is<VariantType>())
+    {
+        auto variant_a = a->as<VariantType>();
+
+        for (auto& t : variant_a.types)
+        {
+            combined.push_back(t);
+        }
+    }
+    else
+    {
+        combined.push_back(a);
+    }
+
+    if (b->is<VariantType>())
+    {
+        auto variant_b = b->as<VariantType>();
+
+        for (auto& t : variant_b.types)
+        {
+            combined.push_back(t);
+        }
+    }
+    else
+    {
+        combined.push_back(b);
+    }
+
+    combined = remove_duplicates(scope, combined);
+
+    if (combined.size() == 1)
+    {
+        return combined[0];
+    }
+
+    return make_object(VariantType{combined});
+}
+
 // ============================================================================
 // Equality Checks
 // ============================================================================
@@ -85,6 +183,7 @@ bool TypeSystem::equal(
     {
         return false;
     }
+
     return std::equal(
         type_vector_1.begin(),
         type_vector_1.end(),
@@ -106,6 +205,7 @@ bool TypeSystem::equal_unordered(
     {
         return false;
     }
+
     return std::all_of(
         left_vector.begin(),
         left_vector.end(),
@@ -226,55 +326,23 @@ bool TypeSystem::assignable(
                 return true;
             },
 
-            // Literals assigned to Primitives
-            [](IntType const&, LiteralType const& r)
-            {
-                return r.value->is<IntObject>();
-            },
-            [](FloatType const&, LiteralType const& r)
-            {
-                return r.value->is<FloatObject>();
-            },
-            [](BooleanType const&, LiteralType const& r)
-            {
-                return r.value->is<BooleanObject>();
-            },
-            [](StringType const&, LiteralType const& r)
-            {
-                return r.value->is<StringObject>();
-            },
-
             [](LiteralType const& l, LiteralType const& r)
             {
                 return false;
             },
 
-            // Collections
-            [&](ListType const& t1, ListType const& t2)
-            {
-                return assignable(scope, t1.element_type, t2.element_type);
-            },
-            [&](SetType const& t1, SetType const& t2)
-            {
-                return assignable(scope, t1.element_type, t2.element_type);
-            },
-            [&](TupleType const& t1, TupleType const& t2)
-            {
-                return assignable(scope, t1.element_types, t2.element_types);
-            },
-            [&](MapType const& t1, MapType const& t2)
-            {
-                return assignable(scope, t1.key_type, t2.key_type) &&
-                       assignable(scope, t1.value_type, t2.value_type);
-            },
-
             [&](TraitType_ptr const lhs_trait, ClassType_ptr const rhs_class)
             {
+                int target_id = lhs_trait->type_id;
+
                 for (const auto& trait_obj : rhs_class->traits)
                 {
-                    if (are_equal_types(make_object(lhs->value), trait_obj))
+                    if (auto trait_def = trait_obj->as<TraitType_ptr>())
                     {
-                        return true;
+                        if (trait_def->type_id == target_id)
+                        {
+                            return true;
+                        }
                     }
                 }
 
@@ -301,6 +369,7 @@ bool TypeSystem::assignable(
     {
         return false;
     }
+
     return std::equal(
         type_vector_1.begin(),
         type_vector_1.end(),
@@ -316,27 +385,6 @@ bool TypeSystem::assignable(
 // Inference
 // ============================================================================
 
-ObjectStringMap TypeSystem::infer_template_arguments(
-    Signature_ptr signature,
-    const ObjectVector& argument_types
-)
-{
-    ObjectStringMap substitutions;
-
-    for (size_t i = 0; i < signature->parameter_types.size(); ++i)
-    {
-        auto param_type = signature->parameter_types[i];
-        param_type = resolve_type(param_type, false);
-
-        if (auto* generic_ptr = param_type->try_as<TemplateParameterType_ptr>())
-        {
-            substitutions[(*generic_ptr)->name] = argument_types[i];
-        }
-    }
-
-    return substitutions;
-}
-
 Object_ptr TypeSystem::infer(
     SymbolScope_ptr scope,
     Object_ptr left_type,
@@ -350,19 +398,24 @@ Object_ptr TypeSystem::infer(
     if (left_type->is<VariantType>())
     {
         ObjectVector result_types;
+
         for (const auto& t : left_type->as<VariantType>().types)
         {
             result_types.push_back(infer(scope, t, op, right_type));
         }
+
         return std::make_shared<Object>(VariantType{result_types});
     }
+
     if (left_type->is<IntersectionType>())
     {
         ObjectVector result_types;
+
         for (const auto& t : left_type->as<IntersectionType>().types)
         {
             result_types.push_back(infer(scope, t, op, right_type));
         }
+
         return std::make_shared<Object>(IntersectionType{result_types});
     }
 
@@ -394,22 +447,21 @@ Object_ptr TypeSystem::infer(
             bool left_valid = is_string_type(left_type) || is_number_type(left_type);
             bool right_valid = is_string_type(right_type) ||
                                is_number_type(right_type);
-            if (!left_valid)
-            {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "Invalid concatenation: Left is '" +
-                        stringify_object(left_type) + "'"
-                );
-            }
-            if (!right_valid)
-            {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "Invalid concatenation: Right is '" +
-                        stringify_object(right_type) + "'"
-                );
-            }
+
+            Doctor::get().assert(
+                left_valid,
+                WaspStage::Semantics,
+                "Invalid concatenation: Left is '" +
+                    stringify_object(left_type) + "'"
+            );
+
+            Doctor::get().assert(
+                right_valid,
+                WaspStage::Semantics,
+                "Invalid concatenation: Right is '" +
+                    stringify_object(right_type) + "'"
+            );
+
             return pool->get_string_type();
         }
         [[fallthrough]];
@@ -456,7 +508,7 @@ Object_ptr TypeSystem::infer(
             auto right_enum = right_type->as<EnumMemberType>();
 
             Doctor::get().assert(
-                left_enum.enum_type_id == right_enum.enum_type_id,
+                left_enum.enum_type->type_id == right_enum.enum_type->type_id,
                 WaspStage::Semantics,
                 "Cannot compare enum members of different types."
             );

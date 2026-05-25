@@ -190,9 +190,6 @@ constexpr TokenType get_keyword_token_type(const std::string &s) {
 struct Token {
   TokenType type;
   std::string lexeme;
-
-  int line;
-  int column;
 };
 
 } // namespace Wasp
