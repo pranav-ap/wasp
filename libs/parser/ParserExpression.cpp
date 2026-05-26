@@ -48,13 +48,7 @@ Expression_ptr Parser::parse_expression(const int precedence)
 
     Expression_ptr left = prefix_it->second->parse(*this, *token);
 
-    Doctor::get().fatal_if_nullptr(
-        left,
-        WaspStage::Parser,
-        "Failed to successfully parse the expression.",
-        token->line,
-        token->column
-    );
+    Doctor::get().fatal_if_nullptr(left, WaspStage::Parser);
 
     while (precedence < get_next_operator_precedence())
     {
@@ -68,10 +62,7 @@ Expression_ptr Parser::parse_expression(const int precedence)
         Doctor::get().assert(
             infix_it != infix_parselets.end(),
             WaspStage::Parser,
-            "No matching infix parselet found for token '" + token->lexeme +
-                "'.",
-            token->line,
-            token->column
+            "No matching infix parselet found for token : " + token->lexeme
         );
 
         left = infix_it->second->parse(*this, left, *token);

@@ -228,12 +228,6 @@ Expression_ptr TernaryConditionParselet::parse(Parser& parser, const Token& toke
     return parser.parse_ternary_condition(TokenType::IF, condition);
 }
 
-Expression_ptr PlaceholderDotParselet::parse(Parser& parser, const Token& token)
-{
-    parser.token_pipe.advance_pointer();
-    return make_expression(DotLiteral{});
-}
-
 Expression_ptr MemberAccessParselet::parse(Parser& parser, Expression_ptr left, const Token& token)
 {
     Expression_ptr right = parser.parse_expression(get_precedence());
@@ -402,9 +396,7 @@ Expression_ptr InterpolatedStringParselet::parse(
                 close_brace &&
                     close_brace->type == TokenType::CLOSE_CURLY_BRACE,
                 WaspStage::Parser,
-                "Expected '}' to close the interpolated expression.",
-                current->line,
-                current->column
+                "Expected '}' at the end of an interpolation expression"
             );
 
             // Consume '}'
@@ -415,21 +407,12 @@ Expression_ptr InterpolatedStringParselet::parse(
             Doctor::get().fatal(
                 WaspStage::Parser,
                 "Unexpected token inside interpolated string : " +
-                    current->lexeme,
-                current->line,
-                current->column
+                    current->lexeme
             );
         }
     }
 
     return make_expression(std::move(node));
-}
-
-Expression_ptr NativeExpressionParselet::parse(Parser& parser, const Token& token)
-{
-    parser.token_pipe.advance_pointer();
-    auto expression = parser.parse_expression();
-    return make_expression(NativeExpression(expression));
 }
 
 // ============================================================================

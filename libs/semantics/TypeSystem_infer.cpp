@@ -441,68 +441,9 @@ Object_ptr TypeSystem::infer(
 
     switch (op)
     {
-    case TokenType::PLUS:
-        if (is_string_type(left_type) || is_string_type(right_type))
-        {
-            bool left_valid = is_string_type(left_type) || is_number_type(left_type);
-            bool right_valid = is_string_type(right_type) ||
-                               is_number_type(right_type);
-
-            Doctor::get().assert(
-                left_valid,
-                WaspStage::Semantics,
-                "Invalid concatenation: Left is '" +
-                    stringify_object(left_type) + "'"
-            );
-
-            Doctor::get().assert(
-                right_valid,
-                WaspStage::Semantics,
-                "Invalid concatenation: Right is '" +
-                    stringify_object(right_type) + "'"
-            );
-
-            return pool->get_string_type();
-        }
-        [[fallthrough]];
-    case TokenType::STAR:
-    case TokenType::POWER:
-    case TokenType::MINUS:
-    case TokenType::DIVISION:
-    case TokenType::MOD:
-        expect_number_type(left_type);
-        expect_number_type(right_type);
-        return (is_float_type(left_type) || is_float_type(right_type))
-                   ? pool->get_float_type()
-                   : pool->get_int_type();
-
-    case TokenType::LESSER_THAN:
-    case TokenType::LESSER_THAN_EQUAL:
-    case TokenType::GREATER_THAN:
-    case TokenType::GREATER_THAN_EQUAL:
-        expect_number_type(left_type);
-        expect_number_type(right_type);
-        return pool->get_boolean_type();
-
     case TokenType::EQUAL_EQUAL:
     case TokenType::BANG_EQUAL:
-        if (left_type->is<NoneType>() || right_type->is<NoneType>())
-        {
-            return pool->get_boolean_type();
-        }
-        if (is_number_type(left_type))
-        {
-            expect_number_type(right_type);
-        }
-        else if (is_string_type(left_type))
-        {
-            expect_string_type(right_type);
-        }
-        else if (is_boolean_type(left_type))
-        {
-            expect_boolean_type(right_type);
-        }
-        else if (left_type->is<EnumMemberType>() && right_type->is<EnumMemberType>())
+        if (left_type->is<EnumMemberType>() && right_type->is<EnumMemberType>())
         {
             auto left_enum = left_type->as<EnumMemberType>();
             auto right_enum = right_type->as<EnumMemberType>();
@@ -513,12 +454,6 @@ Object_ptr TypeSystem::infer(
                 "Cannot compare enum members of different types."
             );
         }
-        return pool->get_boolean_type();
-
-    case TokenType::AND:
-    case TokenType::OR:
-        expect_boolean_type(left_type);
-        expect_boolean_type(right_type);
         return pool->get_boolean_type();
 
     default:
@@ -555,19 +490,15 @@ Object_ptr TypeSystem::infer(
         return std::make_shared<Object>(IntersectionType{result_types});
     }
 
-    switch (op)
+    if (operand_type->is<ClassType_ptr>())
     {
-    case TokenType::PLUS:
-    case TokenType::MINUS:
-        expect_number_type(operand_type);
-        return is_int_type(operand_type) ? pool->get_int_type()
-                                         : pool->get_float_type();
-    case TokenType::NOT:
-        expect_boolean_type(operand_type);
-        return pool->get_boolean_type();
-    default:
-        Doctor::get().fatal(WaspStage::Semantics, "Unknown unary operator");
+        auto class_type = operand_type->as<ClassType_ptr>();
+
+        if (op == TokenType::DOT)
+        {
+        }
     }
+
     return pool->get_none_type();
 }
 

@@ -40,29 +40,6 @@ public:
     Object_ptr get_boolean_type() const;
     Object_ptr get_none_type() const;
 
-    Object_ptr get_int_default() const
-    {
-        return get(11);
-    }
-
-    Object_ptr get_float_default() const
-    {
-        return get(12);
-    }
-
-    Object_ptr get_string_default() const
-    {
-        return get(13);
-    }
-
-    Object_ptr get_boolean_default() const
-    {
-        return get(14);
-    }
-
-    Object_ptr get_true_literal_type() const;
-    Object_ptr get_false_literal_type() const;
-
     Object_ptr get_true_object() const;
     Object_ptr get_false_object() const;
 

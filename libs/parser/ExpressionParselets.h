@@ -72,12 +72,6 @@ namespace Wasp
         int get_precedence() const;
     };
 
-    class PlaceholderDotParselet : public IPrefixParselet
-    {
-    public:
-        Expression_ptr parse(Parser &parser, const Token &token) override;
-    };
-
     // INFIX PARSELETS
 
     class IInfixParselet
@@ -136,12 +130,6 @@ namespace Wasp
     };
 
     class InterpolatedStringParselet : public IPrefixParselet
-    {
-    public:
-        Expression_ptr parse(Parser& parser, const Token& token) override;
-    };
-
-    class NativeExpressionParselet : public IPrefixParselet
     {
     public:
         Expression_ptr parse(Parser& parser, const Token& token) override;

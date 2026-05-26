@@ -14,17 +14,6 @@
 namespace Wasp
 {
 
-struct NativeExpression
-{
-    Expression_ptr expression;
-
-    NativeExpression() = default;
-
-    explicit NativeExpression(Expression_ptr expression) : expression(std::move(expression))
-    {
-    }
-};
-
 struct IntegerLiteral
 {
     int value;
@@ -73,10 +62,6 @@ struct NoneLiteral
 {
 };
 
-struct DotLiteral
-{
-};
-
 struct InterpolatedString
 {
     ExpressionVector parts;
@@ -91,8 +76,6 @@ struct Box
 
 struct OperatorExpression : public Resolvable
 {
-    int overload_index = -1;
-
     OperatorExpression() = default;
 };
 
@@ -211,7 +194,9 @@ struct IfTernaryBranch : public TernaryBranch
 {
     Expression_ptr test;
     Expression_ptr true_expression;
-    Expression_ptr alternative; // IfTernaryBranch or ElseTernaryBranch
+
+    // IfTernaryBranch or ElseTernaryBranch
+    Expression_ptr alternative;
 
     IfTernaryBranch() = default;
 
@@ -252,6 +237,8 @@ struct MemberAccess
     Expression_ptr right;
 
     int member_index = -1;
+
+    bool is_trait_dispatch = false;
 
     bool is_enum_value = false;
     int enum_member_value = -1;
@@ -356,8 +343,6 @@ struct TemplateAngular : public Resolvable
 using ExpressionVariant = std::variant<
     std::monostate,
 
-    NativeExpression,
-
     IntegerLiteral,
     FloatLiteral,
     StringLiteral,
@@ -366,7 +351,6 @@ using ExpressionVariant = std::variant<
     InterpolatedString,
 
     NoneLiteral,
-    DotLiteral,
 
     Box,
 

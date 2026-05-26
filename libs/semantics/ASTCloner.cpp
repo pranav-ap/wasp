@@ -244,14 +244,24 @@ ExpressionVariant ASTCloner::clone_expr_data(const ExpressionVariant& data)
                 cloned.overload_index = fc.overload_index;
                 return make_expression(std::move(cloned));
             },
-            [&](const MethodCall& mc) -> ExpressionVariant
+            [&](const ClassMethodCall& mc) -> ExpressionVariant
             {
-                MethodCall cloned;
+                ClassMethodCall cloned;
                 cloned.callable = clone(mc.callable);
                 cloned.instance = clone(mc.instance);
                 cloned.arguments = clone(mc.arguments);
                 cloned.method_index = mc.method_index;
-                cloned.is_trait_dispatch = mc.is_trait_dispatch;
+                cloned.overload_index = mc.overload_index;
+                return make_expression(std::move(cloned));
+            },
+
+            [&](const TraitMethodCall& mc) -> ExpressionVariant
+            {
+                TraitMethodCall cloned;
+                cloned.callable = clone(mc.callable);
+                cloned.instance = clone(mc.instance);
+                cloned.arguments = clone(mc.arguments);
+                cloned.method_index = mc.method_index;
                 cloned.trait_type_id = mc.trait_type_id;
                 cloned.overload_index = mc.overload_index;
                 return make_expression(std::move(cloned));

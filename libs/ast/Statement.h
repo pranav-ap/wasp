@@ -50,13 +50,33 @@ struct FieldDefinition : public Definition
     }
 };
 
+using FieldDefinitionVector = std::vector<FieldDefinition>;
+
+struct RecordDefinition : public Definition
+{
+    FieldDefinitionVector fields;
+    TypeAnnotationVector traits;
+
+    RecordDefinition() = default;
+
+    RecordDefinition(
+        std::string name,
+        FieldDefinitionVector fields,
+        TypeAnnotationVector traits
+    )
+        : Definition(std::move(name)), fields(std::move(fields)),
+          traits(std::move(traits))
+    {
+    }
+};
+
 struct Templatable
 {
-    std::vector<FieldDefinition> template_params;
+    FieldDefinitionVector template_params;
 
     Templatable() = default;
 
-    explicit Templatable(std::vector<FieldDefinition> template_params)
+    explicit Templatable(FieldDefinitionVector template_params)
         : template_params(std::move(template_params))
     {
     }
@@ -64,25 +84,30 @@ struct Templatable
 
 // --- Callables ---
 
+using Field = std::pair<std::string, TypeAnnotation_ptr>;
+
 struct AbstractCallable : public Definition, public Templatable
 {
-    std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters;
+    std::vector<Field> parameters;
     std::vector<std::shared_ptr<Symbol>> parameter_symbols;
-    std::shared_ptr<Symbol> context_symbol = nullptr;
     TypeAnnotation_ptr return_type;
+
     StatementVector body;
+
+    std::shared_ptr<Symbol> context_symbol = nullptr;
     std::shared_ptr<Symbol> group_symbol;
+
     bool is_pure = false;
 
     AbstractCallable() = default;
 
     AbstractCallable(
         std::string name,
-        std::vector<std::pair<std::string, TypeAnnotation_ptr>> params,
+        std::vector<Field> params,
         TypeAnnotation_ptr ret,
         StatementVector body,
         bool is_pure = false,
-        std::vector<FieldDefinition> template_params = {}
+        FieldDefinitionVector template_params = {}
     )
         : Definition(std::move(name)), Templatable(std::move(template_params)),
           parameters(std::move(params)), return_type(std::move(ret)),
@@ -104,12 +129,12 @@ struct MethodDefinition : public AbstractCallable
 
     MethodDefinition(
         std::string name,
-        std::vector<std::pair<std::string, TypeAnnotation_ptr>> params,
+        std::vector<Field> params,
         TypeAnnotation_ptr ret,
         StatementVector body,
         bool is_pure = false,
         bool is_static = false,
-        std::vector<FieldDefinition> template_params = {}
+        FieldDefinitionVector template_params = {}
     )
         : AbstractCallable(
               std::move(name),
@@ -135,10 +160,10 @@ struct OperatorDefinition : public AbstractCallable
         TokenType fix,
         TokenType op,
         std::string mangled,
-        std::vector<std::pair<std::string, TypeAnnotation_ptr>> params,
+        std::vector<Field> params,
         TypeAnnotation_ptr ret,
         StatementVector body,
-        std::vector<FieldDefinition> template_params = {}
+        FieldDefinitionVector template_params = {}
     )
         : AbstractCallable(
               std::move(mangled),
@@ -166,7 +191,7 @@ struct AbstractOopsDefinition : public Definition, public Templatable
         std::string name,
         TypeAnnotationVector traits,
         StatementVector members,
-        std::vector<FieldDefinition> template_params = {}
+        FieldDefinitionVector template_params = {}
     )
         : Definition(std::move(name)), Templatable(std::move(template_params)),
           traits(std::move(traits)), members(std::move(members))
@@ -193,9 +218,10 @@ struct TypeAliasDefinition : public Definition, public Templatable
     TypeAliasDefinition(
         std::string name,
         TypeAnnotation_ptr ref,
-        std::vector<FieldDefinition> gen = {}
+        FieldDefinitionVector gen = {}
     )
-        : Definition(std::move(name)), Templatable(std::move(gen)), ref_type(std::move(ref))
+        : Definition(std::move(name)), Templatable(std::move(gen)),
+          ref_type(std::move(ref))
     {
     }
 };
@@ -287,7 +313,7 @@ struct ForInLoop : public Branch
 
 struct Placeholder
 {
-    // PASS, REQUIRED, or NATIVE
+    // REQUIRED, or NATIVE
     TokenType type;
 
     Placeholder() = default;
@@ -377,10 +403,14 @@ using StatementVariant = std::variant<
 
     TypeAliasDefinition,
     EnumDefinition,
+
     FunctionDefinition,
     MethodDefinition,
     OperatorDefinition,
+
     FieldDefinition,
+    RecordDefinition,
+
     ClassDefinition,
     TraitDefinition,
 

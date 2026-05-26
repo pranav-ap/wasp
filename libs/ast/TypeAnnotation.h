@@ -14,18 +14,6 @@ struct NoneTypeNode
 {
 };
 
-struct NativeTypeNode
-{
-    TypeAnnotation_ptr underlying_type;
-
-    explicit NativeTypeNode() = default;
-
-    explicit NativeTypeNode(TypeAnnotation_ptr underlying_type)
-        : underlying_type(std::move(underlying_type))
-    {
-    }
-};
-
 struct LiteralTypeNode
 {
     Expression_ptr literal;
@@ -126,17 +114,6 @@ struct FunctionTypeNode
     }
 };
 
-struct RecordTypeNode
-{
-    StatementVector fields;
-
-    explicit RecordTypeNode() = default;
-
-    explicit RecordTypeNode(StatementVector fields) : fields(std::move(fields))
-    {
-    }
-};
-
 // Foo<T>
 struct TemplateAngularTypeNode
 {
@@ -157,8 +134,6 @@ struct TemplateAngularTypeNode
 using TypeAnnotationVariant = std::variant<
     std::monostate,
 
-    NativeTypeNode,
-
     NoneTypeNode,
     LiteralTypeNode,
     TypeIdentifierNode,
@@ -170,7 +145,6 @@ using TypeAnnotationVariant = std::variant<
     std::shared_ptr<VariantTypeNode>,
     std::shared_ptr<IntersectionTypeNode>,
     std::shared_ptr<FunctionTypeNode>,
-    std::shared_ptr<RecordTypeNode>,
     std::shared_ptr<TemplateAngularTypeNode>>;
 
 struct TypeAnnotation : public AstNode<TypeAnnotationVariant>

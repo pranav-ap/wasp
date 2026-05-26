@@ -76,8 +76,6 @@ TypeAnnotation_ptr Parser::parse_base_type()
 {
     TypeAnnotation_ptr type;
 
-    bool is_native = token_pipe.consume_optional_in_line(TokenType::AT_SIGN).has_value();
-
     if (token_pipe.consume_optional_in_line(TokenType::OPEN_SQUARE_BRACKET))
     {
         type = parse_list_type();
@@ -110,11 +108,6 @@ TypeAnnotation_ptr Parser::parse_base_type()
                 std::make_shared<TemplateAngularTypeNode>(type, std::move(generic_args))
             );
         }
-    }
-
-    if (is_native)
-    {
-        type = make_type_annotation(NativeTypeNode(type));
     }
 
     return type;

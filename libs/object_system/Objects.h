@@ -58,6 +58,10 @@ struct LiteralType
     }
 };
 
+struct NoneType
+{
+};
+
 // ============================================================================
 // Template
 // ============================================================================
@@ -79,6 +83,31 @@ struct TemplatableType
 // ============================================================================
 // Composite Types
 // ============================================================================
+
+struct ListType
+{
+    Object_ptr element_type;
+};
+
+struct SetType
+{
+    Object_ptr element_type;
+};
+
+struct TupleType
+{
+    ObjectVector element_types;
+};
+
+struct MapType
+{
+    Object_ptr key_type;
+    Object_ptr value_type;
+};
+
+// ============================================================================
+// Algebraic Types
+// ===========================================================================
 
 struct VariantType
 {
@@ -619,6 +648,12 @@ struct Object
 
         LiteralType,
         AnyType,
+        NoneType,
+
+        ListType,
+        SetType,
+        TupleType,
+        MapType,
 
         VariantType,
         IntersectionType,
@@ -691,12 +726,6 @@ template <typename T> inline T try_unwrap_ptr(Object_ptr obj)
         return nullptr;
     }
     return obj->as<T>();
-}
-
-inline bool is_primitive(Object_ptr obj)
-{
-    return obj
-        ->is_any_of<IntObject, FloatObject, BooleanObject, StringObject>();
 }
 
 // ============================================================================

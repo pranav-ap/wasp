@@ -67,18 +67,14 @@
     X(ELIF, "elif", true)                                                      \
     X(ELSE, "else", true)                                                      \
     X(THEN, "then", true)                                                      \
-    X(PASS, "pass", true)                                                      \
     X(REQUIRED, "required", true)                                              \
-    X(NO, "no", true)                                                          \
     X(NONE, "none", true)                                                      \
-    X(SOME, "some", true)                                                      \
     X(NOT, "not", true)                                                        \
     X(AND, "and", true)                                                        \
     X(OR, "or", true)                                                          \
     X(XOR, "xor", true)                                                        \
     X(LET, "let", true)                                                        \
     X(CONST_KEYWORD, "const", true)                                            \
-    X(ENTER, "enter", true)                                                    \
     X(WHILE, "while", true)                                                    \
     X(UNTIL, "until", true)                                                    \
     X(UNLESS, "unless", true)                                                  \
@@ -88,9 +84,6 @@
     X(CONTINUE, "continue", true)                                              \
     X(REDO, "redo", true)                                                      \
     X(IN_KEYWORD, "in", true)                                                  \
-    X(WITH, "with", true)                                                      \
-    X(WHEN, "when", true)                                                      \
-    X(WHERE, "where", true)                                                    \
     X(ASSERT, "assert", true)                                                  \
     X(IS, "is", true)                                                          \
     X(AS, "as", true)                                                          \
@@ -101,7 +94,7 @@
     X(YIELD_KEYWORD, "yield", true)                                            \
     X(CLASS, "class", true)                                                    \
     X(TRAIT, "trait", true)                                                    \
-    X(INTERFACE, "interface", true)                                            \
+    X(IMPL, "impl", true)                                                      \
     X(TEMPLATE, "template", true)                                              \
     X(PURE, "pure", true)                                                      \
     X(RECORD, "record", true)                                                  \
@@ -119,8 +112,6 @@
     X(ENUM, "enum", true)                                                      \
     X(TRUE_KEYWORD, "true", true)                                              \
     X(FALSE_KEYWORD, "false", true)                                            \
-    X(TRY, "try", true)                                                        \
-    X(CATCH, "catch", true)                                                    \
     X(SPACE, "SPACE", false)                                                   \
     X(TAB, "TAB", false)                                                       \
     X(EOL, "EOL", false)                                                       \
