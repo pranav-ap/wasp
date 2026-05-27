@@ -5,7 +5,6 @@
 
 #include <cstddef>
 #include <memory>
-#include <optional>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -24,7 +23,7 @@ namespace Wasp
 ObjectStringMap TypeSystem::infer_template_arguments(
     Signature_ptr signature,
     const ObjectVector& argument_types
-)
+) const
 {
     ObjectStringMap substitutions;
 
@@ -33,9 +32,10 @@ ObjectStringMap TypeSystem::infer_template_arguments(
         auto param_type = signature->parameter_types[i];
         param_type = resolve_type(param_type, false);
 
-        if (auto generic_ptr = param_type->as<GenericType_ptr>())
+        if (param_type->is<GenericType_ptr>())
         {
-            substitutions[generic_ptr->name] = argument_types[i];
+            auto generic = param_type->as<GenericType_ptr>();
+            substitutions[generic->name] = argument_types[i];
         }
     }
 
@@ -59,11 +59,9 @@ std::vector<std::pair<Symbol_ptr, int>> TypeSystem::filter_by_generic_arity(
 
         auto sig = type->as<Signature_ptr>();
 
-        if (sig->template_type.has_value())
+        if (sig->template_type)
         {
-            auto template_type = sig->template_type.value();
-
-            if (template_type->ordered_parameter_names.size() ==
+            if (sig->template_type->ordered_parameter_names.size() ==
                 expected_generic_count)
             {
                 candidates.push_back({overloads[i], i});
@@ -74,21 +72,42 @@ std::vector<std::pair<Symbol_ptr, int>> TypeSystem::filter_by_generic_arity(
     return candidates;
 }
 
-StringVector TypeSystem::get_generics_declaration_order(const Object_ptr& base) const
+StringVector TypeSystem::get_generics_declaration_order(
+    const Object_ptr& base
+) const
 {
     return std::visit(
         overloaded{
-            [&](const GenericType_ptr& g) -> StringVector
+            [&](GenericType_ptr g) -> StringVector
             {
                 return {g->name};
             },
-            [&](const auto& t) -> StringVector
+            [&](ClassType_ptr cls) -> StringVector
             {
-                // Only pull the vector for types that actually support generics
-                if constexpr (requires { t->expected_generic_names_order; })
+                if (cls->template_type)
                 {
-                    return t->expected_generic_names_order;
+                    return cls->template_type->ordered_parameter_names;
                 }
+                return {};
+            },
+            [&](TraitType_ptr trait) -> StringVector
+            {
+                if (trait->template_type)
+                {
+                    return trait->template_type->ordered_parameter_names;
+                }
+                return {};
+            },
+            [&](Signature_ptr sig) -> StringVector
+            {
+                if (sig->template_type)
+                {
+                    return sig->template_type->ordered_parameter_names;
+                }
+                return {};
+            },
+            [&](const auto&) -> StringVector
+            {
                 return {};
             }
         },
@@ -154,9 +173,9 @@ std::string build_specialized_name(
     const std::string& base_name,
     const ObjectStringMap& subs,
     const StringVector& param_names,
-    const GenericTypeMap& params,
+    const ObjectStringMap& params,
     bool& has_substitution,
-    GenericTypeMap& remaining_params,
+    ObjectStringMap& remaining_params,
     StringVector& remaining_names
 )
 {
@@ -194,20 +213,16 @@ std::string build_specialized_name(
     return result;
 }
 
-OptionalTemplateType make_template_if_needed(
-    const GenericTypeMap& params,
+TemplateType_ptr make_template_if_needed(
+    const ObjectStringMap& params,
     const StringVector& names
 )
 {
     if (params.empty())
     {
-        return std::nullopt;
+        return nullptr;
     }
-
-    auto tmpl = std::make_shared<Template>();
-    tmpl->template_parameters = params;
-    tmpl->ordered_parameter_names = names;
-    return tmpl;
+    return std::make_shared<TemplateType>(params, names);
 }
 } // namespace
 
@@ -265,14 +280,14 @@ Object_ptr TypeSystem::substitute_generics(
                 // ClassType handler
                 [&](ClassType_ptr cls) -> Object_ptr
                 {
-                    if (!cls->template_type.has_value())
+                    if (!cls->template_type)
                     {
                         return t;
                     }
 
-                    auto tmpl = cls->template_type.value();
+                    auto tmpl = cls->template_type;
                     bool has_sub = false;
-                    GenericTypeMap remaining;
+                    ObjectStringMap remaining;
                     StringVector remaining_names;
 
                     auto spec_name = build_specialized_name(
@@ -300,12 +315,27 @@ Object_ptr TypeSystem::substitute_generics(
 
                     memo[t] = make_object(new_cls);
 
-                    // Member types are now inside record_type
-                    for (const auto& [name, type] :
+                    // Substitute field types
+                    for (const auto& [name, field_type] :
                          cls->record_type.field_types)
                     {
-                        new_cls->record_type.field_types[name] = sub(type);
+                        new_cls->record_type.field_types[name] = sub(
+                            field_type
+                        );
                     }
+                    new_cls->record_type.ordered_keys = cls->record_type
+                                                            .ordered_keys;
+
+                    // Substitute method types (signatures)
+                    for (const auto& [name, method_type] :
+                         cls->bag_type.overload_types)
+                    {
+                        new_cls->bag_type.overload_types[name] = sub(
+                            method_type
+                        );
+                    }
+                    new_cls->bag_type.ordered_keys = cls->bag_type.ordered_keys;
+                    new_cls->bag_type.itables = cls->bag_type.itables;
 
                     return memo[t];
                 },
@@ -313,14 +343,14 @@ Object_ptr TypeSystem::substitute_generics(
                 // TraitType handler
                 [&](TraitType_ptr trait) -> Object_ptr
                 {
-                    if (!trait->template_type.has_value())
+                    if (!trait->template_type)
                     {
                         return t;
                     }
 
-                    auto tmpl = trait->template_type.value();
+                    auto tmpl = trait->template_type;
                     bool has_sub = false;
-                    GenericTypeMap remaining;
+                    ObjectStringMap remaining;
                     StringVector remaining_names;
 
                     auto spec_name = build_specialized_name(
@@ -339,24 +369,37 @@ Object_ptr TypeSystem::substitute_generics(
                     }
 
                     auto new_trait = std::make_shared<TraitType>(
-                        spec_name,              // name
-                        trait->record_type,     // record_type
-                        trait->bag_type,        // bag_type
-                        sub_all(trait->traits), // traits
-                        make_template_if_needed(
-                            remaining,
-                            remaining_names
-                        ) // template_type
+                        spec_name,
+                        trait->record_type,
+                        trait->bag_type,
+                        sub_all(trait->traits),
+                        make_template_if_needed(remaining, remaining_names)
                     );
 
                     memo[t] = make_object(new_trait);
 
-                    // Member types are inside record_type
-                    for (const auto& [name, type] :
+                    // Substitute field types
+                    for (const auto& [name, field_type] :
                          trait->record_type.field_types)
                     {
-                        new_trait->record_type.field_types[name] = sub(type);
+                        new_trait->record_type.field_types[name] = sub(
+                            field_type
+                        );
                     }
+                    new_trait->record_type.ordered_keys = trait->record_type
+                                                              .ordered_keys;
+
+                    // Substitute method types
+                    for (const auto& [name, method_type] :
+                         trait->bag_type.overload_types)
+                    {
+                        new_trait->bag_type.overload_types[name] = sub(
+                            method_type
+                        );
+                    }
+                    new_trait->bag_type.ordered_keys = trait->bag_type
+                                                           .ordered_keys;
+                    new_trait->bag_type.itables = trait->bag_type.itables;
 
                     return memo[t];
                 },
@@ -366,7 +409,8 @@ Object_ptr TypeSystem::substitute_generics(
                 {
                     auto new_sig = std::make_shared<Signature>(
                         ObjectVector{},
-                        nullptr
+                        nullptr,
+                        sig->template_type
                     );
                     memo[t] = make_object(new_sig);
                     new_sig->parameter_types = sub_all(sig->parameter_types);
@@ -374,25 +418,24 @@ Object_ptr TypeSystem::substitute_generics(
                     return memo[t];
                 },
 
-                // Pocket
-                [&](Pocket_ptr os) -> Object_ptr
+                // Pocket (OverloadSet)
+                [&](Pocket_ptr pocket) -> Object_ptr
                 {
-                    auto new_os = std::make_shared<Pocket>();
-                    memo[t] = make_object(new_os);
-                    new_os->overloads = sub_all(os->overloads);
+                    auto new_pocket = std::make_shared<Pocket>();
+                    memo[t] = make_object(new_pocket);
+                    new_pocket->overloads = sub_all(pocket->overloads);
                     return memo[t];
                 },
 
                 // Type alias
                 [&](TypeAlias_ptr alias) -> Object_ptr
                 {
-                    return make_object(
-                        std::make_shared<TypeAlias>(
-                            alias->name,
-                            sub(alias->underlying_type),
-                            alias->template_type
-                        )
+                    auto new_alias = std::make_shared<TypeAlias>(
+                        alias->name,
+                        alias->template_type,
+                        sub(alias->underlying_type)
                     );
+                    return make_object(new_alias);
                 },
 
                 // Composite types
@@ -401,6 +444,14 @@ Object_ptr TypeSystem::substitute_generics(
                     auto new_list = std::make_shared<ListType>();
                     memo[t] = make_object(new_list);
                     new_list->element_type = sub(list->element_type);
+                    return memo[t];
+                },
+
+                [&](SetType_ptr set) -> Object_ptr
+                {
+                    auto new_set = std::make_shared<SetType>();
+                    memo[t] = make_object(new_set);
+                    new_set->element_type = sub(set->element_type);
                     return memo[t];
                 },
 

@@ -4,7 +4,7 @@
 #include "VM.h"
 
 #include <cmath>
-#include <cstddef>
+#include <memory>
 #include <string>
 #include <variant>
 
@@ -25,7 +25,6 @@ void VM::execute_binary_op(OpCode op)
 
     switch (op)
     {
-    // Math
     case OpCode::ADD:
         result = perform_add(left, right);
         break;
@@ -44,7 +43,6 @@ void VM::execute_binary_op(OpCode op)
     case OpCode::POW:
         result = perform_power(left, right);
         break;
-    // Comparisons
     case OpCode::EQ:
         result = perform_equal(left, right);
         break;
@@ -63,7 +61,6 @@ void VM::execute_binary_op(OpCode op)
     case OpCode::GE:
         result = perform_greater_than_equal(left, right);
         break;
-    // Logic
     case OpCode::LOGICAL_AND:
         result = perform_logical_and(left, right);
         break;
@@ -82,9 +79,13 @@ void VM::execute_unary_op(OpCode op)
     Object_ptr top = pop_from_stack();
 
     if (op == OpCode::NEGATE)
+    {
         push_to_stack(perform_unary_negative(top));
+    }
     else if (op == OpCode::NOT)
+    {
         push_to_stack(perform_unary_not(top));
+    }
 }
 
 // ---------------------------------------------------------
@@ -95,31 +96,31 @@ Object_ptr VM::perform_unary_negative(Object_ptr obj)
 {
     return std::visit(
         overloaded{
-            [&](IntObject& obj) -> Object_ptr
+            [&](IntObject_ptr i) -> Object_ptr
             {
-                obj.value = -obj.value;
-                return make_object(obj);
+                return make_object(std::make_shared<IntObject>(-i->value));
             },
-            [&](FloatObject& obj) -> Object_ptr
+            [&](FloatObject_ptr f) -> Object_ptr
             {
-                obj.value = -obj.value;
-                return make_object(obj);
+                return make_object(std::make_shared<FloatObject>(-f->value));
             },
-            [&](auto) -> Object_ptr { return workspace->pool->make_error_object("_"); }},
-        obj->value);
+            [&](auto) -> Object_ptr
+            {
+                Doctor::get().fatal(
+                    WaspStage::VM,
+                    "Cannot negate non-numeric type"
+                );
+            }
+        },
+        obj->value
+    );
 }
 
 Object_ptr VM::perform_unary_not(Object_ptr obj)
 {
-    return std::visit(
-        overloaded{
-            [&](BooleanObject& obj) -> Object_ptr
-            {
-                obj.value = !obj.value;
-                return make_object(obj);
-            },
-            [&](auto) -> Object_ptr { return workspace->pool->make_error_object("_"); }},
-        obj->value);
+    bool truthy = is_truthy(obj);
+    return truthy ? workspace->pool->get_false_object()
+                  : workspace->pool->get_true_object();
 }
 
 // ---------------------------------------------------------
@@ -131,53 +132,77 @@ Object_ptr VM::perform_add(Object_ptr left, Object_ptr right)
     return std::visit(
         overloaded{
             // Numeric Addition
-            [&](IntObject& left, IntObject& right) -> Object_ptr
+            [&](IntObject_ptr l, IntObject_ptr r) -> Object_ptr
             {
-                return workspace->pool->make_object(left.value + right.value);
+                return make_object(
+                    std::make_shared<IntObject>(l->value + r->value)
+                );
             },
-            [&](FloatObject& left, FloatObject& right) -> Object_ptr
+            [&](FloatObject_ptr l, FloatObject_ptr r) -> Object_ptr
             {
-                return workspace->pool->make_object(left.value + right.value);
+                return make_object(
+                    std::make_shared<FloatObject>(l->value + r->value)
+                );
             },
-            [&](IntObject& left, FloatObject& right) -> Object_ptr
+            [&](IntObject_ptr l, FloatObject_ptr r) -> Object_ptr
             {
-                return workspace->pool->make_object(left.value + right.value);
+                return make_object(
+                    std::make_shared<FloatObject>(l->value + r->value)
+                );
             },
-            [&](FloatObject& left, IntObject& right) -> Object_ptr
+            [&](FloatObject_ptr l, IntObject_ptr r) -> Object_ptr
             {
-                return workspace->pool->make_object(left.value + right.value);
+                return make_object(
+                    std::make_shared<FloatObject>(l->value + r->value)
+                );
             },
-
             // String Concatenation
-            [&](StringObject& left, StringObject& right) -> Object_ptr
+            [&](StringObject_ptr l, StringObject_ptr r) -> Object_ptr
             {
-                return workspace->pool->make_object(left.value + right.value);
+                return make_object(
+                    std::make_shared<StringObject>(l->value + r->value)
+                );
             },
-
             // Mixed String + Number
-            [&](StringObject& left, IntObject& right) -> Object_ptr
+            [&](StringObject_ptr l, IntObject_ptr r) -> Object_ptr
             {
-                return workspace->pool->make_object(left.value + std::to_string(right.value));
+                return make_object(
+                    std::make_shared<StringObject>(
+                        l->value + std::to_string(r->value)
+                    )
+                );
             },
-            [&](IntObject& left, StringObject& right) -> Object_ptr
+            [&](IntObject_ptr l, StringObject_ptr r) -> Object_ptr
             {
-                return workspace->pool->make_object(std::to_string(left.value) + right.value);
+                return make_object(
+                    std::make_shared<StringObject>(
+                        std::to_string(l->value) + r->value
+                    )
+                );
             },
-
-            // Mixed String + Float
-            [&](StringObject& left, FloatObject& right) -> Object_ptr
+            [&](StringObject_ptr l, FloatObject_ptr r) -> Object_ptr
             {
-                return workspace->pool->make_object(left.value + std::to_string(right.value));
+                return make_object(
+                    std::make_shared<StringObject>(
+                        l->value + std::to_string(r->value)
+                    )
+                );
             },
-            [&](FloatObject& left, StringObject& right) -> Object_ptr
+            [&](FloatObject_ptr l, StringObject_ptr r) -> Object_ptr
             {
-                return workspace->pool->make_object(std::to_string(left.value) + right.value);
+                return make_object(
+                    std::make_shared<StringObject>(
+                        std::to_string(l->value) + r->value
+                    )
+                );
             },
-
             // Fallback
             [&](auto&, auto&) -> Object_ptr
             {
-                return workspace->pool->make_error_object("Unsupported operand types for +");
+                Doctor::get().fatal(
+                    WaspStage::VM,
+                    "Unsupported operand types for +"
+                );
             }
         },
         left->value,
@@ -189,125 +214,242 @@ Object_ptr VM::perform_subtract(Object_ptr left, Object_ptr right)
 {
     return std::visit(
         overloaded{
-            [&](IntObject& left, IntObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value - right.value); },
-            [&](FloatObject& left, FloatObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value - right.value); },
-            [&](IntObject& left, FloatObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value - right.value); },
-            [&](FloatObject& left, IntObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value - right.value); },
-            [&](auto, auto) -> Object_ptr { return workspace->pool->make_error_object("_"); }},
+            [&](IntObject_ptr l, IntObject_ptr r) -> Object_ptr
+            {
+                return make_object(
+                    std::make_shared<IntObject>(l->value - r->value)
+                );
+            },
+            [&](FloatObject_ptr l, FloatObject_ptr r) -> Object_ptr
+            {
+                return make_object(
+                    std::make_shared<FloatObject>(l->value - r->value)
+                );
+            },
+            [&](IntObject_ptr l, FloatObject_ptr r) -> Object_ptr
+            {
+                return make_object(
+                    std::make_shared<FloatObject>(l->value - r->value)
+                );
+            },
+            [&](FloatObject_ptr l, IntObject_ptr r) -> Object_ptr
+            {
+                return make_object(
+                    std::make_shared<FloatObject>(l->value - r->value)
+                );
+            },
+            [&](auto&, auto&) -> Object_ptr
+            {
+                Doctor::get().fatal(
+                    WaspStage::VM,
+                    "Unsupported operand types for -"
+                );
+            }
+        },
         left->value,
-        right->value);
+        right->value
+    );
 }
 
 Object_ptr VM::perform_multiply(Object_ptr left, Object_ptr right)
 {
     return std::visit(
         overloaded{
-            [&](IntObject& left, IntObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value * right.value); },
-            [&](FloatObject& left, FloatObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value * right.value); },
-            [&](IntObject& left, FloatObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value * right.value); },
-            [&](FloatObject& left, IntObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value * right.value); },
-            // String duplication
-            [&](StringObject& left, IntObject& right) -> Object_ptr
+            [&](IntObject_ptr l, IntObject_ptr r) -> Object_ptr
             {
-                std::string result_string("");
-                int count = 0;
-                while (count < right.value)
-                {
-                    result_string += left.value;
-                    count++;
-                }
-                return workspace->pool->make_object(result_string);
+                return make_object(
+                    std::make_shared<IntObject>(l->value * r->value)
+                );
             },
-            [&](auto, auto) -> Object_ptr { return workspace->pool->make_error_object("_"); }},
+            [&](FloatObject_ptr l, FloatObject_ptr r) -> Object_ptr
+            {
+                return make_object(
+                    std::make_shared<FloatObject>(l->value * r->value)
+                );
+            },
+            [&](IntObject_ptr l, FloatObject_ptr r) -> Object_ptr
+            {
+                return make_object(
+                    std::make_shared<FloatObject>(l->value * r->value)
+                );
+            },
+            [&](FloatObject_ptr l, IntObject_ptr r) -> Object_ptr
+            {
+                return make_object(
+                    std::make_shared<FloatObject>(l->value * r->value)
+                );
+            },
+            // String duplication
+            [&](StringObject_ptr l, IntObject_ptr r) -> Object_ptr
+            {
+                std::string result;
+                result.reserve(l->value.size() * r->value);
+                for (int i = 0; i < r->value; ++i)
+                {
+                    result += l->value;
+                }
+                return make_object(std::make_shared<StringObject>(result));
+            },
+            [&](auto&, auto&) -> Object_ptr
+            {
+                Doctor::get().fatal(
+                    WaspStage::VM,
+                    "Unsupported operand types for *"
+                );
+            }
+        },
         left->value,
-        right->value);
+        right->value
+    );
 }
 
 Object_ptr VM::perform_divide(Object_ptr left, Object_ptr right)
 {
     return std::visit(
         overloaded{
-            [&](IntObject& left, IntObject& right) -> Object_ptr
+            [&](IntObject_ptr l, IntObject_ptr r) -> Object_ptr
             {
-                if (right.value == 0)
-                    return workspace->pool->make_error_object("_");
-                return workspace->pool->make_object(left.value / right.value);
+                if (r->value == 0)
+                {
+                    Doctor::get().fatal(WaspStage::VM, "Division by zero");
+                }
+                return make_object(
+                    std::make_shared<IntObject>(l->value / r->value)
+                );
             },
-            [&](FloatObject& left, FloatObject& right) -> Object_ptr
+            [&](FloatObject_ptr l, FloatObject_ptr r) -> Object_ptr
             {
-                if (right.value == 0.0)
-                    return workspace->pool->make_error_object("_");
-                return workspace->pool->make_object(left.value / right.value);
+                if (r->value == 0.0)
+                {
+                    Doctor::get().fatal(WaspStage::VM, "Division by zero");
+                }
+                return make_object(
+                    std::make_shared<FloatObject>(l->value / r->value)
+                );
             },
-            [&](IntObject& left, FloatObject& right) -> Object_ptr
+            [&](IntObject_ptr l, FloatObject_ptr r) -> Object_ptr
             {
-                if (right.value == 0.0)
-                    return workspace->pool->make_error_object("_");
-                return workspace->pool->make_object(left.value / right.value);
+                if (r->value == 0.0)
+                {
+                    Doctor::get().fatal(WaspStage::VM, "Division by zero");
+                }
+                return make_object(
+                    std::make_shared<FloatObject>(l->value / r->value)
+                );
             },
-            [&](FloatObject& left, IntObject& right) -> Object_ptr
+            [&](FloatObject_ptr l, IntObject_ptr r) -> Object_ptr
             {
-                if (right.value == 0)
-                    return workspace->pool->make_error_object("_");
-                return workspace->pool->make_object(left.value / right.value);
+                if (r->value == 0)
+                {
+                    Doctor::get().fatal(WaspStage::VM, "Division by zero");
+                }
+                return make_object(
+                    std::make_shared<FloatObject>(l->value / r->value)
+                );
             },
-            [&](auto, auto) -> Object_ptr { return workspace->pool->make_error_object("_"); }},
+            [&](auto&, auto&) -> Object_ptr
+            {
+                Doctor::get().fatal(
+                    WaspStage::VM,
+                    "Unsupported operand types for /"
+                );
+            }
+        },
         left->value,
-        right->value);
+        right->value
+    );
 }
 
 Object_ptr VM::perform_reminder(Object_ptr left, Object_ptr right)
 {
     return std::visit(
         overloaded{
-            [&](IntObject& left, IntObject& right) -> Object_ptr
+            [&](IntObject_ptr l, IntObject_ptr r) -> Object_ptr
             {
-                if (right.value == 0)
-                    return workspace->pool->make_error_object("_");
-                return workspace->pool->make_object(left.value % right.value);
+                if (r->value == 0)
+                {
+                    Doctor::get().fatal(WaspStage::VM, "Modulo by zero");
+                }
+                return make_object(
+                    std::make_shared<IntObject>(l->value % r->value)
+                );
             },
-            [&](FloatObject& left, FloatObject& right) -> Object_ptr
+            [&](FloatObject_ptr l, FloatObject_ptr r) -> Object_ptr
             {
-                if (right.value == 0.0)
-                    return workspace->pool->make_error_object("_");
-                return workspace->pool->make_object(std::fmod(left.value, right.value));
+                if (r->value == 0.0)
+                {
+                    Doctor::get().fatal(WaspStage::VM, "Modulo by zero");
+                }
+                return make_object(
+                    std::make_shared<FloatObject>(std::fmod(l->value, r->value))
+                );
             },
-            [&](IntObject& left, FloatObject& right) -> Object_ptr
+            [&](IntObject_ptr l, FloatObject_ptr r) -> Object_ptr
             {
-                if (right.value == 0.0)
-                    return workspace->pool->make_error_object("_");
-                return workspace->pool->make_object(std::fmod(left.value, right.value));
+                if (r->value == 0.0)
+                {
+                    Doctor::get().fatal(WaspStage::VM, "Modulo by zero");
+                }
+                return make_object(
+                    std::make_shared<FloatObject>(std::fmod(l->value, r->value))
+                );
             },
-            [&](FloatObject& left, IntObject& right) -> Object_ptr
+            [&](FloatObject_ptr l, IntObject_ptr r) -> Object_ptr
             {
-                if (right.value == 0)
-                    return workspace->pool->make_error_object("_");
-                return workspace->pool->make_object(std::fmod(left.value, right.value));
+                if (r->value == 0)
+                {
+                    Doctor::get().fatal(WaspStage::VM, "Modulo by zero");
+                }
+                return make_object(
+                    std::make_shared<FloatObject>(std::fmod(l->value, r->value))
+                );
             },
-            [&](auto, auto) -> Object_ptr { return workspace->pool->make_error_object("_"); }},
+            [&](auto&, auto&) -> Object_ptr
+            {
+                Doctor::get().fatal(
+                    WaspStage::VM,
+                    "Unsupported operand types for %"
+                );
+            }
+        },
         left->value,
-        right->value);
+        right->value
+    );
 }
 
 Object_ptr VM::perform_power(Object_ptr left, Object_ptr right)
 {
     return std::visit(
         overloaded{
-            [&](IntObject& left, IntObject& right) -> Object_ptr
-            { return workspace->pool->make_object(std::pow(left.value, right.value)); },
-            [&](FloatObject& left, IntObject& right) -> Object_ptr
-            { return workspace->pool->make_object(std::pow(left.value, right.value)); },
-            [&](auto, auto) -> Object_ptr { return workspace->pool->make_error_object("_"); }},
+            [&](IntObject_ptr l, IntObject_ptr r) -> Object_ptr
+            {
+                return make_object(
+                    std::make_shared<IntObject>(std::pow(l->value, r->value))
+                );
+            },
+            [&](FloatObject_ptr l, IntObject_ptr r) -> Object_ptr
+            {
+                return make_object(
+                    std::make_shared<FloatObject>(std::pow(l->value, r->value))
+                );
+            },
+            [&](FloatObject_ptr l, FloatObject_ptr r) -> Object_ptr
+            {
+                return make_object(
+                    std::make_shared<FloatObject>(std::pow(l->value, r->value))
+                );
+            },
+            [&](auto&, auto&) -> Object_ptr
+            {
+                Doctor::get().fatal(
+                    WaspStage::VM,
+                    "Unsupported operand types for **"
+                );
+            }
+        },
         left->value,
-        right->value);
+        right->value
+    );
 }
 
 // ---------------------------------------------------------
@@ -316,201 +458,220 @@ Object_ptr VM::perform_power(Object_ptr left, Object_ptr right)
 
 Object_ptr VM::perform_logical_and(Object_ptr left, Object_ptr right)
 {
-    return std::visit(
-        overloaded{
-            [&](BooleanObject& left, BooleanObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value & right.value); },
-            [&](auto, auto) -> Object_ptr { return workspace->pool->make_error_object("_"); }},
-        left->value,
-        right->value);
+    return (is_truthy(left) && is_truthy(right))
+               ? workspace->pool->get_true_object()
+               : workspace->pool->get_false_object();
 }
 
 Object_ptr VM::perform_logical_or(Object_ptr left, Object_ptr right)
 {
-    return std::visit(
-        overloaded{
-            [&](BooleanObject& left, BooleanObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value | right.value); },
-            [&](auto, auto) -> Object_ptr { return workspace->pool->make_error_object("_"); }},
-        left->value,
-        right->value);
+    return (is_truthy(left) || is_truthy(right))
+               ? workspace->pool->get_true_object()
+               : workspace->pool->get_false_object();
 }
 
 // ---------------------------------------------------------
 // Comparison Operations
 // ---------------------------------------------------------
 
-Object_ptr VM::perform_not_equal(Object_ptr left, Object_ptr right)
-{
-    return std::visit(
-        overloaded{
-            [&](IntObject& left, IntObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value != right.value); },
-            [&](FloatObject& left, FloatObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value != right.value); },
-            [&](StringObject& left, StringObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value != right.value); },
-            [&](BooleanObject& left, BooleanObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value != right.value); },
-            [&](TupleObject& left, TupleObject& right) -> Object_ptr
-            {
-                if (left.values.size() != right.values.size())
-                    return workspace->pool->get_false_object();
-                for (size_t i = 0; i < left.values.size(); i++)
-                {
-                    if (perform_equal(left.values[i], right.values[i]))
-                    {
-                        return workspace->pool->get_false_object();
-                    }
-                }
-                return workspace->pool->get_true_object();
-            },
-            [&](ListObject& left, ListObject& right) -> Object_ptr
-            {
-                if (left.values.size() != right.values.size())
-                    return workspace->pool->get_false_object();
-                for (size_t i = 0; i < left.values.size(); i++)
-                {
-                    if (perform_equal(left.values[i], right.values[i]))
-                    {
-                        return workspace->pool->get_false_object();
-                    }
-                }
-                return workspace->pool->get_true_object();
-            },
-            [&](VariantObject& left, VariantObject& right) -> Object_ptr
-            { return perform_not_equal(left.value, right.value); },
-            [&](auto, auto) -> Object_ptr { return workspace->pool->make_error_object("_"); }},
-        left->value,
-        right->value);
-}
-
 Object_ptr VM::perform_equal(Object_ptr left, Object_ptr right)
 {
-    return std::visit(
-        overloaded{
-            [&](IntObject& left, IntObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value == right.value); },
-            [&](FloatObject& left, FloatObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value == right.value); },
-            [&](StringObject& left, StringObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value == right.value); },
-            [&](BooleanObject& left, BooleanObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value == right.value); },
-            [&](TupleObject& left, TupleObject& right) -> Object_ptr
-            {
-                if (left.values.size() != right.values.size())
-                    return workspace->pool->get_false_object();
-                for (size_t i = 0; i < left.values.size(); i++)
-                {
-                    if (perform_not_equal(left.values[i], right.values[i]))
-                    {
-                        return workspace->pool->get_false_object();
-                    }
-                }
-                return workspace->pool->get_true_object();
-            },
-            [&](ListObject& left, ListObject& right) -> Object_ptr
-            {
-                if (left.values.size() != right.values.size())
-                    return workspace->pool->get_false_object();
-                for (size_t i = 0; i < left.values.size(); i++)
-                {
-                    if (perform_not_equal(left.values[i], right.values[i]))
-                    {
-                        return workspace->pool->get_false_object();
-                    }
-                }
-                return workspace->pool->get_true_object();
-            },
-            [&](VariantObject& left, VariantObject& right) -> Object_ptr
-            { return perform_equal(left.value, right.value); },
-            [&](auto, auto) -> Object_ptr { return workspace->pool->make_error_object("_"); }},
-        left->value,
-        right->value);
+    // TODO : dummy
+    return workspace->pool->get_false_object();
+}
+
+Object_ptr VM::perform_not_equal(Object_ptr left, Object_ptr right)
+{
+    // TODO : dummy
+    return workspace->pool->get_false_object();
 }
 
 Object_ptr VM::perform_lesser_than(Object_ptr left, Object_ptr right)
 {
     return std::visit(
         overloaded{
-            [&](IntObject& left, IntObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value < right.value); },
-            [&](FloatObject& left, FloatObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value < right.value); },
-            [&](IntObject& left, FloatObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value < right.value); },
-            [&](FloatObject& left, IntObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value < right.value); },
-            [&](StringObject& left, StringObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value < right.value); },
-            [&](VariantObject& left, VariantObject& right) -> Object_ptr
-            { return perform_lesser_than(left.value, right.value); },
-            [&](auto, auto) -> Object_ptr { return workspace->pool->make_error_object("_"); }},
+            [&](IntObject_ptr l, IntObject_ptr r) -> Object_ptr
+            {
+                return (l->value < r->value)
+                           ? workspace->pool->get_true_object()
+                           : workspace->pool->get_false_object();
+            },
+            [&](FloatObject_ptr l, FloatObject_ptr r) -> Object_ptr
+            {
+                return (l->value < r->value)
+                           ? workspace->pool->get_true_object()
+                           : workspace->pool->get_false_object();
+            },
+            [&](IntObject_ptr l, FloatObject_ptr r) -> Object_ptr
+            {
+                return (l->value < r->value)
+                           ? workspace->pool->get_true_object()
+                           : workspace->pool->get_false_object();
+            },
+            [&](FloatObject_ptr l, IntObject_ptr r) -> Object_ptr
+            {
+                return (l->value < r->value)
+                           ? workspace->pool->get_true_object()
+                           : workspace->pool->get_false_object();
+            },
+            [&](StringObject_ptr l, StringObject_ptr r) -> Object_ptr
+            {
+                return (l->value < r->value)
+                           ? workspace->pool->get_true_object()
+                           : workspace->pool->get_false_object();
+            },
+            [&](auto&, auto&) -> Object_ptr
+            {
+                Doctor::get().fatal(
+                    WaspStage::VM,
+                    "Unsupported operand types for <"
+                );
+            }
+        },
         left->value,
-        right->value);
+        right->value
+    );
 }
 
 Object_ptr VM::perform_lesser_than_equal(Object_ptr left, Object_ptr right)
 {
     return std::visit(
         overloaded{
-            [&](IntObject& left, IntObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value <= right.value); },
-            [&](FloatObject& left, FloatObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value <= right.value); },
-            [&](IntObject& left, FloatObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value <= right.value); },
-            [&](FloatObject& left, IntObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value <= right.value); },
-            [&](StringObject& left, StringObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value <= right.value); },
-            [&](VariantObject& left, VariantObject& right) -> Object_ptr
-            { return perform_lesser_than_equal(left.value, right.value); },
-            [&](auto, auto) -> Object_ptr { return workspace->pool->make_error_object("_"); }},
+            [&](IntObject_ptr l, IntObject_ptr r) -> Object_ptr
+            {
+                return (l->value <= r->value)
+                           ? workspace->pool->get_true_object()
+                           : workspace->pool->get_false_object();
+            },
+            [&](FloatObject_ptr l, FloatObject_ptr r) -> Object_ptr
+            {
+                return (l->value <= r->value)
+                           ? workspace->pool->get_true_object()
+                           : workspace->pool->get_false_object();
+            },
+            [&](IntObject_ptr l, FloatObject_ptr r) -> Object_ptr
+            {
+                return (l->value <= r->value)
+                           ? workspace->pool->get_true_object()
+                           : workspace->pool->get_false_object();
+            },
+            [&](FloatObject_ptr l, IntObject_ptr r) -> Object_ptr
+            {
+                return (l->value <= r->value)
+                           ? workspace->pool->get_true_object()
+                           : workspace->pool->get_false_object();
+            },
+            [&](StringObject_ptr l, StringObject_ptr r) -> Object_ptr
+            {
+                return (l->value <= r->value)
+                           ? workspace->pool->get_true_object()
+                           : workspace->pool->get_false_object();
+            },
+            [&](auto&, auto&) -> Object_ptr
+            {
+                Doctor::get().fatal(
+                    WaspStage::VM,
+                    "Unsupported operand types for <="
+                );
+            }
+        },
         left->value,
-        right->value);
+        right->value
+    );
 }
 
 Object_ptr VM::perform_greater_than(Object_ptr left, Object_ptr right)
 {
     return std::visit(
         overloaded{
-            [&](IntObject& left, IntObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value > right.value); },
-            [&](FloatObject& left, FloatObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value > right.value); },
-            [&](IntObject& left, FloatObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value > right.value); },
-            [&](FloatObject& left, IntObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value > right.value); },
-            [&](StringObject& left, StringObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value > right.value); },
-            [&](VariantObject& left, VariantObject& right) -> Object_ptr
-            { return perform_greater_than(left.value, right.value); },
-            [&](auto, auto) -> Object_ptr { return workspace->pool->make_error_object("_"); }},
+            [&](IntObject_ptr l, IntObject_ptr r) -> Object_ptr
+            {
+                return (l->value > r->value)
+                           ? workspace->pool->get_true_object()
+                           : workspace->pool->get_false_object();
+            },
+            [&](FloatObject_ptr l, FloatObject_ptr r) -> Object_ptr
+            {
+                return (l->value > r->value)
+                           ? workspace->pool->get_true_object()
+                           : workspace->pool->get_false_object();
+            },
+            [&](IntObject_ptr l, FloatObject_ptr r) -> Object_ptr
+            {
+                return (l->value > r->value)
+                           ? workspace->pool->get_true_object()
+                           : workspace->pool->get_false_object();
+            },
+            [&](FloatObject_ptr l, IntObject_ptr r) -> Object_ptr
+            {
+                return (l->value > r->value)
+                           ? workspace->pool->get_true_object()
+                           : workspace->pool->get_false_object();
+            },
+            [&](StringObject_ptr l, StringObject_ptr r) -> Object_ptr
+            {
+                return (l->value > r->value)
+                           ? workspace->pool->get_true_object()
+                           : workspace->pool->get_false_object();
+            },
+            [&](auto&, auto&) -> Object_ptr
+            {
+                Doctor::get().fatal(
+                    WaspStage::VM,
+                    "Unsupported operand types for >"
+                );
+            }
+        },
         left->value,
-        right->value);
+        right->value
+    );
 }
 
 Object_ptr VM::perform_greater_than_equal(Object_ptr left, Object_ptr right)
 {
     return std::visit(
         overloaded{
-            [&](IntObject& left, IntObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value >= right.value); },
-            [&](FloatObject& left, FloatObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value >= right.value); },
-            [&](IntObject& left, FloatObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value >= right.value); },
-            [&](FloatObject& left, IntObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value >= right.value); },
-            [&](StringObject& left, StringObject& right) -> Object_ptr
-            { return workspace->pool->make_object(left.value >= right.value); },
-            [&](VariantObject& left, VariantObject& right) -> Object_ptr
-            { return perform_greater_than_equal(left.value, right.value); },
-            [&](auto, auto) -> Object_ptr { return workspace->pool->make_error_object("_"); }},
+            [&](IntObject_ptr l, IntObject_ptr r) -> Object_ptr
+            {
+                return (l->value >= r->value)
+                           ? workspace->pool->get_true_object()
+                           : workspace->pool->get_false_object();
+            },
+            [&](FloatObject_ptr l, FloatObject_ptr r) -> Object_ptr
+            {
+                return (l->value >= r->value)
+                           ? workspace->pool->get_true_object()
+                           : workspace->pool->get_false_object();
+            },
+            [&](IntObject_ptr l, FloatObject_ptr r) -> Object_ptr
+            {
+                return (l->value >= r->value)
+                           ? workspace->pool->get_true_object()
+                           : workspace->pool->get_false_object();
+            },
+            [&](FloatObject_ptr l, IntObject_ptr r) -> Object_ptr
+            {
+                return (l->value >= r->value)
+                           ? workspace->pool->get_true_object()
+                           : workspace->pool->get_false_object();
+            },
+            [&](StringObject_ptr l, StringObject_ptr r) -> Object_ptr
+            {
+                return (l->value >= r->value)
+                           ? workspace->pool->get_true_object()
+                           : workspace->pool->get_false_object();
+            },
+            [&](auto&, auto&) -> Object_ptr
+            {
+                Doctor::get().fatal(
+                    WaspStage::VM,
+                    "Unsupported operand types for >="
+                );
+            }
+        },
         left->value,
-        right->value);
+        right->value
+    );
 }
+
 } // namespace Wasp

@@ -52,7 +52,6 @@ Statement_ptr Parser::parse_statement(int expected_indent_level)
     case TokenType::FOR:
         return parse_for_in_loop(expected_indent_level);
 
-    case TokenType::PASS:
     case TokenType::NATIVE:
     case TokenType::REQUIRED:
         return parse_placeholder(token->type);

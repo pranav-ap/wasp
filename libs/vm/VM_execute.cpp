@@ -26,7 +26,9 @@ void VM::execute_constant(OpCode op, CallFrame* frame)
     switch (op)
     {
     case OpCode::LOAD_CONSTANT: {
-        push_to_stack(workspace->pool->get(static_cast<int>(frame->consume_byte())));
+        push_to_stack(
+            workspace->pool->get(static_cast<int>(frame->consume_byte()))
+        );
         break;
     }
     case OpCode::LOAD_TRUE: {
@@ -51,7 +53,9 @@ void VM::execute_variable(OpCode op, CallFrame* frame)
     switch (op)
     {
     case OpCode::SET_LOCAL: {
-        int slot_index = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
+        int slot_index = static_cast<int>(
+            std::to_integer<int>(frame->consume_byte())
+        );
 
         Doctor::get().assert(
             frame->base_pointer + slot_index < stack.size(),
@@ -64,7 +68,9 @@ void VM::execute_variable(OpCode op, CallFrame* frame)
     }
 
     case OpCode::GET_LOCAL: {
-        int slot_index = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
+        int slot_index = static_cast<int>(
+            std::to_integer<int>(frame->consume_byte())
+        );
 
         Doctor::get().assert(
             frame->base_pointer + slot_index < stack.size(),
@@ -77,19 +83,25 @@ void VM::execute_variable(OpCode op, CallFrame* frame)
     }
 
     case OpCode::GET_NATIVE: {
-        int index = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
+        int index = static_cast<int>(
+            std::to_integer<int>(frame->consume_byte())
+        );
         push_to_stack(workspace->native_registry->get_native_object(index));
         break;
     }
 
     case OpCode::GET_UPVALUE: {
-        int index = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
+        int index = static_cast<int>(
+            std::to_integer<int>(frame->consume_byte())
+        );
         push_to_stack(frame->function->upvalues[index]);
         break;
     }
 
     case OpCode::SET_UPVALUE: {
-        int index = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
+        int index = static_cast<int>(
+            std::to_integer<int>(frame->consume_byte())
+        );
         frame->function->upvalues[index] = peek_tos();
         break;
     }
@@ -101,33 +113,35 @@ void VM::execute_variable(OpCode op, CallFrame* frame)
 
 void VM::execute_build_collection(OpCode op, CallFrame* frame)
 {
-    // Consume how many items we need
     int count = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
 
     switch (op)
     {
     case OpCode::BUILD_LIST: {
-        push_to_stack(make_object(std::make_shared<ListObject>(pop_n_from_stack(count))));
+        push_to_stack(
+            make_object(std::make_shared<ListObject>(pop_n_from_stack(count)))
+        );
         break;
     }
 
     case OpCode::BUILD_TUPLE: {
-        push_to_stack(make_object(std::make_shared<TupleObject>(pop_n_from_stack(count))));
+        push_to_stack(
+            make_object(std::make_shared<TupleObject>(pop_n_from_stack(count)))
+        );
         break;
     }
 
     case OpCode::BUILD_SET: {
-        push_to_stack(make_object(std::make_shared<SetObject>(pop_n_from_stack(count))));
+        push_to_stack(
+            make_object(std::make_shared<SetObject>(pop_n_from_stack(count)))
+        );
         break;
     }
 
     case OpCode::BUILD_MAP: {
-        // Maps have 2 items per pair (Key + Value)
         ObjectVector elements = pop_n_from_stack(count * 2);
-
         std::map<Object_ptr, Object_ptr> map_elements;
 
-        // Iterate by 2 skips: elements[0] is Key, elements[1] is Value
         for (size_t i = 0; i < elements.size(); i += 2)
         {
             map_elements[elements[i]] = elements[i + 1];
@@ -158,7 +172,6 @@ void VM::execute_scope_op(OpCode op, CallFrame* frame)
         {
             pop_from_stack();
         }
-
         break;
     }
     case OpCode::POP_SCOPE_KEEP_TOS: {
@@ -186,7 +199,8 @@ void VM::execute_control_flow(OpCode op, CallFrame* frame)
     uint8_t high = static_cast<uint8_t>(frame->consume_byte());
     uint16_t target_ip = low | (high << 8);
 
-    if (op == OpCode::JUMP || (op == OpCode::JUMP_IF_FALSE && !is_truthy(peek_tos())))
+    if (op == OpCode::JUMP ||
+        (op == OpCode::JUMP_IF_FALSE && !is_truthy(peek_tos())))
     {
         frame->ip = target_ip;
     }
@@ -197,43 +211,44 @@ void VM::execute_iter(OpCode op, CallFrame* frame)
     switch (op)
     {
     case OpCode::GET_ITER: {
-        // Pop the collection off the stack
         Object_ptr iterable = pop_from_stack();
         Object_ptr iterator_instance = nullptr;
 
-        // std::variant requires exact type matching, so we check our concrete collections!
-        if (iterable->is<std::shared_ptr<ListObject>>())
+        if (iterable->is<ListObject_ptr>())
         {
-            iterator_instance = iterable->as<std::shared_ptr<ListObject>>()->get_iter();
+            iterator_instance = iterable->as<ListObject_ptr>()->get_iter();
         }
-        else if (iterable->is<std::shared_ptr<SetObject>>())
+        else if (iterable->is<SetObject_ptr>())
         {
-            iterator_instance = iterable->as<std::shared_ptr<SetObject>>()->get_iter();
+            iterator_instance = iterable->as<SetObject_ptr>()->get_iter();
         }
-        else if (iterable->is<std::shared_ptr<MapObject>>())
+        else if (iterable->is<MapObject_ptr>())
         {
-            iterator_instance = iterable->as<std::shared_ptr<MapObject>>()->get_iter();
+            iterator_instance = iterable->as<MapObject_ptr>()->get_iter();
+        }
+        else if (iterable->is<StringObject_ptr>())
+        {
+            iterator_instance = iterable->as<StringObject_ptr>()->get_iter();
         }
         else
         {
-            Doctor::get().fatal(WaspStage::VM, "Cannot iterate over a non-iterable object");
+            Doctor::get().fatal(
+                WaspStage::VM,
+                "Cannot iterate over a non-iterable object"
+            );
         }
 
-        // Push the new IteratorObject back onto the stack
         push_to_stack(iterator_instance);
         break;
     }
 
     case OpCode::LOOP_ITER: {
-        // Read the 16-bit jump target offset (used if the iterator is exhausted)
         uint8_t low = static_cast<uint8_t>(frame->consume_byte());
         uint8_t high = static_cast<uint8_t>(frame->consume_byte());
         uint16_t target_ip = low | (high << 8);
 
-        // The iterator must stay on the stack until the loop ends
         Object_ptr iterator_obj = peek_tos();
-
-        auto iter = iterator_obj->as<std::shared_ptr<IteratorObject>>();
+        auto iter = iterator_obj->as<IteratorObject_ptr>();
 
         if (auto next_val = iter->get_next())
         {
@@ -241,8 +256,6 @@ void VM::execute_iter(OpCode op, CallFrame* frame)
         }
         else
         {
-
-            // std::nullopt was returned. The iterator is exhausted.
             frame->ip = target_ip;
         }
         break;
@@ -264,18 +277,22 @@ void VM::execute_member(OpCode op, CallFrame* frame)
     if (op == OpCode::GET_MEMBER)
     {
         Object_ptr obj = pop_from_stack();
-
-        Doctor::get().fatal_if_nullptr(obj, WaspStage::VM, "Cannot read property of null.");
-
+        Doctor::get().fatal_if_nullptr(
+            obj,
+            WaspStage::VM,
+            "Cannot read property of null."
+        );
         push_to_stack(execute_GET_MEMBER(obj, member_index));
     }
     else if (op == OpCode::SET_MEMBER)
     {
         Object_ptr val = pop_from_stack();
         Object_ptr obj = pop_from_stack();
-
-        Doctor::get().fatal_if_nullptr(obj, WaspStage::VM, "Cannot set property on null.");
-
+        Doctor::get().fatal_if_nullptr(
+            obj,
+            WaspStage::VM,
+            "Cannot set property on null."
+        );
         execute_SET_MEMBER(obj, member_index, val);
         push_to_stack(val);
     }
@@ -285,30 +302,31 @@ Object_ptr VM::execute_GET_MEMBER(Object_ptr obj, int member_index)
 {
     return std::visit(
         overloaded{
-            [&](std::shared_ptr<ModuleObject>& mod) -> Object_ptr
+            [&](ModuleObject_ptr mod) -> Object_ptr
             {
                 return mod->get_member(member_index);
             },
-            [&](std::shared_ptr<ClassInstanceObject>& class_inst) -> Object_ptr
+            [&](RecordObject_ptr record) -> Object_ptr
             {
                 Doctor::get().assert(
-                    member_index >= 0 && member_index < static_cast<int>(class_inst->fields.size()),
+                    member_index >= 0 &&
+                        member_index < static_cast<int>(record->fields.size()),
                     WaspStage::VM,
                     "Field index out of bounds!"
                 );
-
-                return class_inst->fields[member_index];
+                return record->fields[member_index];
             },
-            [&](std::shared_ptr<TraitInstanceObject>& trait_inst) -> Object_ptr
-            {
-                return execute_GET_MEMBER(trait_inst->class_instance, member_index);
-            },
+            // [&](TraitObject_ptr trait_obj) -> Object_ptr
+            // {
+            //     return execute_GET_MEMBER(trait_obj->record, member_index);
+            // },
             [&](auto&) -> Object_ptr
             {
                 Doctor::get().fatal(
                     WaspStage::VM,
                     "Object of this type does not support reading properties."
                 );
+                return nullptr;
             }
         },
         obj->value
@@ -319,27 +337,30 @@ void VM::execute_SET_MEMBER(Object_ptr obj, int member_index, Object_ptr value)
 {
     std::visit(
         overloaded{
-            [&](std::shared_ptr<ModuleObject>& mod)
+            [&](ModuleObject_ptr mod)
             {
                 mod->set_member(member_index, value);
             },
-            [&](std::shared_ptr<ClassInstanceObject>& class_inst)
+            [&](RecordObject_ptr record)
             {
                 Doctor::get().assert(
-                    member_index >= 0 && member_index < static_cast<int>(class_inst->fields.size()),
+                    member_index >= 0 &&
+                        member_index < static_cast<int>(record->fields.size()),
                     WaspStage::VM,
                     "Field index out of bounds!"
                 );
-
-                class_inst->fields[member_index] = value;
+                record->fields[member_index] = value;
             },
-            [&](std::shared_ptr<TraitInstanceObject>& trait_inst)
-            {
-                execute_SET_MEMBER(trait_inst->class_instance, member_index, value);
-            },
+            // [&](TraitObject_ptr trait_obj)
+            // {
+            //     execute_SET_MEMBER(trait_obj->record, member_index, value);
+            // },
             [&](auto&)
             {
-                Doctor::get().fatal(WaspStage::VM, "Object does not support setting properties.");
+                Doctor::get().fatal(
+                    WaspStage::VM,
+                    "Object does not support setting properties."
+                );
             }
         },
         obj->value
@@ -347,7 +368,7 @@ void VM::execute_SET_MEMBER(Object_ptr obj, int member_index, Object_ptr value)
 }
 
 // ----------------------------------------------
-// Boxing
+// Boxing (Trait Object Creation)
 // ----------------------------------------------
 
 void VM::execute_BOX(CallFrame* frame)
@@ -355,11 +376,16 @@ void VM::execute_BOX(CallFrame* frame)
     int trait_id = static_cast<int>(frame->consume_byte());
     Object_ptr instance_obj = pop_from_stack();
 
-    auto class_instance = instance_obj->as<std::shared_ptr<ClassInstanceObject>>();
+    auto class_instance = instance_obj->as<RecordObject_ptr>();
     Doctor::get().fatal_if_nullptr(class_instance, WaspStage::VM);
 
-    auto itable = class_instance->blueprint->itables.at(trait_id);
-    auto boxed = make_object(std::make_shared<TraitInstanceObject>(instance_obj, itable));
+    // Get the itable for this trait from the class's bag_type
+    auto& itables = class_instance->itables;
+    auto itable = itables.at(trait_id);
+
+    auto boxed = make_object(
+        std::make_shared<TraitObject>(class_instance, nullptr, itable)
+    );
 
     push_to_stack(boxed);
 }
@@ -373,22 +399,23 @@ void VM::execute_GET_FUNCTION(CallFrame* frame)
     int overload_index = std::to_integer<int>(frame->consume_byte());
     Object_ptr obj = pop_from_stack();
 
-    if (obj->is<std::shared_ptr<NativeFunctionRuntimeObject>>())
+    if (obj->is<NativeFunctionRuntimeObject_ptr>())
     {
         push_to_stack(obj);
         return;
     }
 
     Doctor::get().assert(
-        obj->is<std::shared_ptr<ObjectOverloadList>>(),
+        obj->is<Pocket_ptr>(),
         WaspStage::VM,
         "GET_FUNCTION expects an Overload Group or Function on the stack!"
     );
 
-    auto group = obj->as<std::shared_ptr<ObjectOverloadList>>();
+    auto group = obj->as<Pocket_ptr>();
 
     Doctor::get().assert(
-        overload_index >= 0 && overload_index < static_cast<int>(group->overloads.size()),
+        overload_index >= 0 &&
+            overload_index < static_cast<int>(group->overloads.size()),
         WaspStage::VM,
         "Overload index out of bounds!"
     );
@@ -403,13 +430,13 @@ void VM::execute_GET_CLASS_METHOD(CallFrame* frame)
 
     Object_ptr obj = pop_from_stack();
 
-    auto class_inst = obj->as<std::shared_ptr<ClassInstanceObject>>();
-    auto method_obj = class_inst->blueprint->get_method(member_idx);
-    auto overload_list = method_obj->as<std::shared_ptr<ObjectOverloadList>>();
-    auto concrete_method = overload_list->overloads[overload_idx];
-
-    push_to_stack(concrete_method);
-    push_to_stack(obj);
+    auto record = obj->as<RecordObject_ptr>();
+    // Need to get the blueprint (ClassType) from RecordObject
+    // This requires storing class_type in RecordObject
+    Doctor::get().fatal(
+        WaspStage::VM,
+        "GET_CLASS_METHOD needs class_type in RecordObject"
+    );
 }
 
 void VM::execute_GET_TRAIT_METHOD(CallFrame* frame)
@@ -419,34 +446,28 @@ void VM::execute_GET_TRAIT_METHOD(CallFrame* frame)
 
     Object_ptr boxed_obj = pop_from_stack();
 
-    auto trait_inst = boxed_obj->as<std::shared_ptr<TraitInstanceObject>>();
-    Doctor::get().fatal_if_nullptr(trait_inst, WaspStage::VM, "Expected boxed trait on stack.");
+    auto trait_obj = boxed_obj->as<TraitObject_ptr>();
+    Doctor::get().fatal_if_nullptr(
+        trait_obj,
+        WaspStage::VM,
+        "Expected boxed trait on stack."
+    );
 
     OverloadCoordinate trait_coord{trait_member_index, trait_overload_index};
 
     Doctor::get().assert(
-        trait_inst->itable.find(trait_coord) != trait_inst->itable.end(),
+        trait_obj->itable.find(trait_coord) != trait_obj->itable.end(),
         WaspStage::VM,
         "Trait ITable is missing the requested overload coordinate."
     );
 
-    OverloadCoordinate class_coord = trait_inst->itable.at(trait_coord);
+    OverloadCoordinate class_coord = trait_obj->itable.at(trait_coord);
 
-    auto class_instance = trait_inst->class_instance->as<std::shared_ptr<ClassInstanceObject>>();
-    auto overloads_obj = class_instance->blueprint->get_method(class_coord.member_index);
-    auto overloads_list = overloads_obj->as<std::shared_ptr<ObjectOverloadList>>();
-
-    Doctor::get().assert(
-        class_coord.overload_index >= 0 &&
-            class_coord.overload_index < static_cast<int>(overloads_list->overloads.size()),
+    // Need to get the method from the record's class type
+    Doctor::get().fatal(
         WaspStage::VM,
-        "Mapped overload index out of bounds."
+        "GET_TRAIT_METHOD needs class_type in RecordObject"
     );
-
-    auto concrete_method = overloads_list->overloads[class_coord.overload_index];
-
-    push_to_stack(concrete_method);
-    push_to_stack(boxed_obj);
 }
 
 void VM::execute_BUILD_FUNCTION(CallFrame* frame)
@@ -455,12 +476,12 @@ void VM::execute_BUILD_FUNCTION(CallFrame* frame)
     Object_ptr blueprint_obj = pop_from_stack();
 
     Doctor::get().assert(
-        blueprint_obj->is<std::shared_ptr<FunctionBlueprintObject>>(),
+        blueprint_obj->is<FunctionBlueprintObject_ptr>(),
         WaspStage::VM,
         "BUILD_FUNCTION expects a FunctionBlueprintObject on the stack"
     );
 
-    auto blueprint = blueprint_obj->as<std::shared_ptr<FunctionBlueprintObject>>();
+    auto blueprint = blueprint_obj->as<FunctionBlueprintObject_ptr>();
     ObjectVector captured_upvalues;
     captured_upvalues.reserve(upvalue_count);
 
@@ -484,7 +505,9 @@ void VM::execute_BUILD_FUNCTION(CallFrame* frame)
         }
         else
         {
-            captured_upvalues.push_back(frame->function->upvalues[slot_or_index]);
+            captured_upvalues.push_back(
+                frame->function->upvalues[slot_or_index]
+            );
         }
     }
 
@@ -515,20 +538,19 @@ void VM::execute_STORE_FUNCTION_OVERLOAD(CallFrame* frame)
         initial_overloads.push_back(new_func);
 
         auto group = make_object(
-            std::make_shared<ObjectOverloadList>(std::move(initial_overloads))
+            std::make_shared<Pocket>(std::move(initial_overloads))
         );
-
         stack[absolute_idx] = group;
     }
     else
     {
         Doctor::get().assert(
-            existing_obj->is<std::shared_ptr<ObjectOverloadList>>(),
+            existing_obj->is<Pocket_ptr>(),
             WaspStage::VM,
             "Cannot add overload to a slot that contains a non-function object."
         );
 
-        auto group = existing_obj->as<std::shared_ptr<ObjectOverloadList>>();
+        auto group = existing_obj->as<Pocket_ptr>();
         group->overloads.push_back(new_func);
     }
 }
@@ -540,12 +562,12 @@ void VM::execute_CALL(CallFrame* frame)
 
     std::visit(
         overloaded{
-            [&](std::shared_ptr<FunctionRuntimeObject>& func)
+            [&](FunctionRuntimeObject_ptr func)
             {
                 size_t new_base_pointer = stack.size() - arg_count;
                 frames.emplace_back(func, new_base_pointer);
             },
-            [&](std::shared_ptr<NativeFunctionRuntimeObject>& native)
+            [&](NativeFunctionRuntimeObject_ptr native)
             {
                 ObjectVector args = pop_n_from_stack(arg_count);
                 pop_from_stack();
@@ -553,7 +575,10 @@ void VM::execute_CALL(CallFrame* frame)
             },
             [](auto&)
             {
-                Doctor::get().fatal(WaspStage::VM, "Attempted to call a non-callable object");
+                Doctor::get().fatal(
+                    WaspStage::VM,
+                    "Attempted to call a non-callable object"
+                );
             }
         },
         callable->value
@@ -569,7 +594,10 @@ void VM::execute_RETURN(CallFrame* frame)
 
     if (bp > 0)
     {
-        stack.erase(stack.begin() + (bp - 1), stack.end());
+        stack.erase(
+            stack.begin() + static_cast<ptrdiff_t>(bp - 1),
+            stack.end()
+        );
     }
     else
     {
@@ -580,7 +608,7 @@ void VM::execute_RETURN(CallFrame* frame)
 }
 
 // ================================================
-// Class
+// Class Building
 // ================================================
 
 void VM::execute_BUILD_OVERLOAD_GROUP(CallFrame* frame)
@@ -588,7 +616,7 @@ void VM::execute_BUILD_OVERLOAD_GROUP(CallFrame* frame)
     int count = std::to_integer<int>(frame->consume_byte());
     ObjectVector overloads = pop_n_from_stack(count);
 
-    auto group = make_object(std::make_shared<ObjectOverloadList>(std::move(overloads)));
+    auto group = make_object(std::make_shared<Pocket>(std::move(overloads)));
     push_to_stack(group);
 }
 
@@ -600,25 +628,14 @@ void VM::execute_BUILD_CLASS(CallFrame* frame)
     Object_ptr class_type_obj = pop_from_stack();
     ObjectVector popped_methods = pop_n_from_stack(num_methods);
 
-    auto class_type = class_type_obj->as<std::shared_ptr<ClassType>>();
-    auto blueprint = blueprint_obj->as<std::shared_ptr<ClassBlueprintObject>>();
+    auto class_type = class_type_obj->as<ClassType_ptr>();
+    auto blueprint = blueprint_obj->as<RecordObject_ptr>();
 
-    // 1. Get the number of fields so we know how much to offset the methods
-    // (If your ClassType doesn't have a get_fields() method, use class_type->fields.size())
-    int num_fields = static_cast<int>(class_type->get_fields().size());
-
-    // 2. Resize the blueprint's methods array to cover the highest absolute index
-    blueprint->methods.resize(num_fields + num_methods);
-
-    // 3. Place the methods exactly where the GET_CLASS_METHOD opcode expects them
-    for (int i = 0; i < num_methods; ++i)
-    {
-        blueprint->methods[num_fields + i] = std::move(popped_methods[i]);
-    }
-
-    blueprint->itables = class_type->itables;
-
-    push_to_stack(blueprint_obj);
+    // Store class type in blueprint or handle differently
+    Doctor::get().fatal(
+        WaspStage::VM,
+        "BUILD_CLASS needs updated implementation for new object system"
+    );
 }
 
 void VM::execute_INSTANTIATE(CallFrame* frame)
@@ -628,12 +645,9 @@ void VM::execute_INSTANTIATE(CallFrame* frame)
     Object_ptr blueprint_obj = pop_from_stack();
     ObjectVector fields = pop_n_from_stack(num_fields);
 
-    auto blueprint = blueprint_obj->as<std::shared_ptr<ClassBlueprintObject>>();
-
     auto instance = make_object(
-        std::make_shared<ClassInstanceObject>(blueprint, std::move(fields))
+        std::make_shared<RecordObject>(std::move(fields))
     );
-
     push_to_stack(instance);
 }
 
@@ -660,7 +674,9 @@ void VM::execute_import_module(CallFrame* frame)
         return;
     }
 
-    auto module_func = std::make_shared<FunctionRuntimeObject>(target_module->blueprint);
+    auto module_func = std::make_shared<FunctionRuntimeObject>(
+        target_module->blueprint
+    );
 
     size_t stack_base_pointer = stack.size();
     frames.emplace_back(module_func, stack_base_pointer);
@@ -686,12 +702,10 @@ void VM::execute_exit_module(CallFrame* frame)
     void* blueprint_ptr = frame->function->blueprint.get();
     evaluated_modules[blueprint_ptr] = module_obj;
 
-    // Cleanup the frame
     size_t bp = frame->base_pointer;
-    stack.erase(stack.begin() + bp, stack.end());
+    stack.erase(stack.begin() + static_cast<ptrdiff_t>(bp), stack.end());
     frames.pop_back();
 
-    // Make module object available to importer
     push_to_stack(module_obj);
 }
 

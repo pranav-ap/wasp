@@ -76,23 +76,31 @@ Object_ptr SemanticAnalyzer::visit(LiteralTypeNode& expr)
         overloaded{
             [&](IntegerLiteral& lit) -> Object_ptr
             {
-                auto value_obj = make_object(IntObject{lit.value});
-                return make_object(LiteralType{value_obj});
+                auto value_obj = make_object(
+                    std::make_shared<IntObject>(lit.value)
+                );
+                return make_object(std::make_shared<LiteralType>(value_obj));
             },
             [&](FloatLiteral& lit) -> Object_ptr
             {
-                auto value_obj = make_object(FloatObject{lit.value});
-                return make_object(LiteralType{value_obj});
+                auto value_obj = make_object(
+                    std::make_shared<FloatObject>(lit.value)
+                );
+                return make_object(std::make_shared<LiteralType>(value_obj));
             },
             [&](StringLiteral& lit) -> Object_ptr
             {
-                auto value_obj = make_object(StringObject{lit.value});
-                return make_object(LiteralType{value_obj});
+                auto value_obj = make_object(
+                    std::make_shared<StringObject>(lit.value)
+                );
+                return make_object(std::make_shared<LiteralType>(value_obj));
             },
             [&](BooleanLiteral& lit) -> Object_ptr
             {
-                auto value_obj = make_object(BooleanObject{lit.value});
-                return make_object(LiteralType{value_obj});
+                auto value_obj = make_object(
+                    std::make_shared<BooleanObject>(lit.value)
+                );
+                return make_object(std::make_shared<LiteralType>(value_obj));
             },
             [&](auto&) -> Object_ptr
             {
@@ -123,46 +131,39 @@ Object_ptr SemanticAnalyzer::visit(TypeIdentifierNode& expr)
 
 Object_ptr SemanticAnalyzer::visit(ListTypeNode& expr)
 {
-    // TODO : need to resolve to template class
-
-    Object_ptr resolved_type = make_object(ListType(visit(expr.element_type)));
-    return resolved_type;
+    Object_ptr element_type = visit(expr.element_type);
+    return make_object(std::make_shared<ListType>(element_type));
 }
 
 Object_ptr SemanticAnalyzer::visit(TupleTypeNode& expr)
 {
-    Object_ptr resolved_type = make_object(
-        TupleType(visit(expr.element_types))
-    );
-
-    return resolved_type;
+    ObjectVector element_types = visit(expr.element_types);
+    return make_object(std::make_shared<TupleType>(element_types));
 }
 
 Object_ptr SemanticAnalyzer::visit(SetTypeNode& expr)
 {
-    Object_ptr resolved_type = make_object(SetType(visit(expr.element_type)));
-    return resolved_type;
+    Object_ptr element_type = visit(expr.element_type);
+    return make_object(std::make_shared<SetType>(element_type));
 }
 
 Object_ptr SemanticAnalyzer::visit(MapTypeNode& expr)
 {
-    Object_ptr resolved_type = make_object(
-        MapType(visit(expr.key_type), visit(expr.value_type))
-    );
-
-    return resolved_type;
+    Object_ptr key_type = visit(expr.key_type);
+    Object_ptr value_type = visit(expr.value_type);
+    return make_object(std::make_shared<MapType>(key_type, value_type));
 }
 
 Object_ptr SemanticAnalyzer::visit(VariantTypeNode& expr)
 {
-    Object_ptr resolved_type = make_object(VariantType(visit(expr.types)));
-    return resolved_type;
+    ObjectVector types = visit(expr.types);
+    return make_object(std::make_shared<VariantType>(types));
 }
 
 Object_ptr SemanticAnalyzer::visit(IntersectionTypeNode& expr)
 {
-    Object_ptr resolved_type = make_object(IntersectionType(visit(expr.types)));
-    return resolved_type;
+    ObjectVector types = visit(expr.types);
+    return make_object(std::make_shared<IntersectionType>(types));
 }
 
 Object_ptr SemanticAnalyzer::visit(FunctionTypeNode& expr)

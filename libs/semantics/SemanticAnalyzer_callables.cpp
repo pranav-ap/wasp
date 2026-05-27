@@ -24,29 +24,42 @@ namespace Wasp
 
 void SemanticAnalyzer::visit(FunctionDefinition& def)
 {
+    analyze_callable(def, ScopeType::FUNCTION);
+}
+
+void SemanticAnalyzer::analyze_callable(
+    AbstractCallable& def,
+    ScopeType scope_type
+)
+{
     auto signature = def.symbol->get_type()->as<Signature_ptr>();
 
-    enter_scope(def.is_pure ? ScopeType::PURE_FUNCTION : ScopeType::FUNCTION);
+    enter_scope(scope_type);
     return_type_stack.push_back(signature->return_type);
 
-    for (const auto& name : signature->template_type->ordered_parameter_names)
+    // Handle template parameters
+    if (signature->template_type)
     {
-        auto generic_type_obj = signature->template_type->template_parameters
-                                    .at(name);
+        for (const auto& name :
+             signature->template_type->ordered_parameter_names)
+        {
+            auto generic_type_obj = signature->template_type
+                                        ->template_parameters.at(name);
 
-        Doctor::get().assert(
-            generic_type_obj->is<GenericType_ptr>(),
-            WaspStage::Semantics,
-            "Expected GenericType for template parameter: " + name
-        );
+            Doctor::get().assert(
+                generic_type_obj->is<GenericType_ptr>(),
+                WaspStage::Semantics,
+                "Expected GenericType for template parameter: " + name
+            );
 
-        auto generic_type = generic_type_obj->as<GenericType_ptr>();
-        auto symbol = SymbolFactory::create_template_parameter(
-            name,
-            generic_type->constraint_type
-        );
+            auto generic_type = generic_type_obj->as<GenericType_ptr>();
+            auto symbol = SymbolFactory::create_template_parameter(
+                name,
+                generic_type->constraint_type
+            );
 
-        current_scope->define(symbol);
+            current_scope->define(symbol);
+        }
     }
 
     // Bind Parameters
@@ -56,10 +69,14 @@ void SemanticAnalyzer::visit(FunctionDefinition& def)
     {
         Object_ptr actual_type = signature->parameter_types[i];
 
+        bool is_mutable =
+            (scope_type != ScopeType::PURE_FUNCTION &&
+             scope_type != ScopeType::PURE_METHOD);
+
         auto param_symbol = SymbolFactory::create_variable(
             def.parameters[i].name,
             actual_type,
-            !def.is_pure,
+            is_mutable,
             current_scope->get_closure_depth(),
             current_scope->get_lexical_depth()
         );
@@ -67,8 +84,7 @@ void SemanticAnalyzer::visit(FunctionDefinition& def)
         def.parameter_symbols.push_back(current_scope->define(param_symbol));
     }
 
-    // Lonely Placeholder Rule
-
+    // Lonely Placeholder Rule (native, required)
     std::optional<TokenType> placeholder;
 
     for (const auto& stmt : def.body)
@@ -99,6 +115,7 @@ void SemanticAnalyzer::visit(FunctionDefinition& def)
         }
     }
 
+    // Only analyze body if no placeholder and no template parameters
     if (def.template_params.empty())
     {
         visit(def.body);
@@ -135,7 +152,8 @@ void SemanticAnalyzer::visit(Return& statement)
     Doctor::get().assert(
         type_system->assignable(current_scope, expected, actual),
         WaspStage::Semantics,
-        "Return type mismatch"
+        "Return type mismatch: expected '" + expected->to_string() +
+            "', got '" + actual->to_string() + "'"
     );
 }
 
@@ -166,7 +184,8 @@ void SemanticAnalyzer::visit(Placeholder& statement)
         Doctor::get().assert(
             path.find("/libs/core/") != std::string::npos,
             WaspStage::Semantics,
-            "The 'native' keyword is strictly reserved for internal core libraries."
+            "The 'native' keyword is strictly reserved for internal core "
+            "libraries."
         );
     }
 }

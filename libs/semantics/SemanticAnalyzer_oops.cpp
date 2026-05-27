@@ -32,7 +32,7 @@ void SemanticAnalyzer::visit(ClassDefinition& def)
         "Expected a class type in the class definition"
     );
 
-    auto& class_type = type_obj->as<ClassType_ptr>();
+    auto class_type = type_obj->as<ClassType_ptr>();
 
     analyze_oops_definition(def, class_type);
 }
@@ -48,23 +48,41 @@ void SemanticAnalyzer::visit(TraitDefinition& def)
         "Expected a trait type in the trait definition"
     );
 
-    auto& trait_type = type_obj->as<TraitType_ptr>();
+    auto trait_type = type_obj->as<TraitType_ptr>();
 
     analyze_oops_definition(def, trait_type);
 }
 
-void SemanticAnalyzer::analyze_oops_definition(AbstractOopsDefinition& def, OopsType_ptr oop_type)
+void SemanticAnalyzer::analyze_oops_definition(
+    AbstractOopsDefinition& def,
+    OopsType_ptr oop_type
+)
 {
     enter_scope(ScopeType::CLASS);
 
-    for (const auto& name : oop_type->template_type->ordered_parameter_names)
+    // Handle template parameters (template_type is now TemplateType_ptr, not
+    // optional)
+    if (oop_type->template_type)
     {
-        auto generic_type = oop_type->template_type->template_parameters.at(
-            name
-        );
+        for (const auto& name :
+             oop_type->template_type->ordered_parameter_names)
+        {
+            auto generic_type_obj = oop_type->template_type->template_parameters
+                                        .at(name);
 
-        auto symbol = SymbolFactory::create_template_parameter(name, generic_type);
-        current_scope->define(symbol);
+            Doctor::get().assert(
+                generic_type_obj->is<GenericType_ptr>(),
+                WaspStage::Semantics,
+                "Expected GenericType for template parameter: " + name
+            );
+
+            auto symbol = SymbolFactory::create_template_parameter(
+                name,
+                generic_type_obj
+            );
+
+            current_scope->define(symbol);
+        }
     }
 
     resolve_traits(def, oop_type);
@@ -77,7 +95,10 @@ void SemanticAnalyzer::analyze_oops_definition(AbstractOopsDefinition& def, Oops
     leave_scope();
 }
 
-void SemanticAnalyzer::resolve_traits(AbstractOopsDefinition& def, OopsType_ptr oop_type)
+void SemanticAnalyzer::resolve_traits(
+    AbstractOopsDefinition& def,
+    OopsType_ptr oop_type
+)
 {
     for (const auto& trait_annotation : def.traits)
     {
@@ -95,7 +116,10 @@ void SemanticAnalyzer::resolve_traits(AbstractOopsDefinition& def, OopsType_ptr 
     }
 }
 
-void SemanticAnalyzer::fill_oops_member_names(AbstractOopsDefinition& def, OopsType_ptr oop_type)
+void SemanticAnalyzer::fill_oops_member_names(
+    AbstractOopsDefinition& def,
+    OopsType_ptr oop_type
+)
 {
     auto push_unique = [](StringVector& vec, const std::string& name)
     {
@@ -112,26 +136,26 @@ void SemanticAnalyzer::fill_oops_member_names(AbstractOopsDefinition& def, OopsT
                 [&](const FieldDefinition& f)
                 {
                     Doctor::get().assert(
-                        oop_type->record_type.contains_field(f.name),
+                        !oop_type->record_type.field_types.contains(f.name),
                         WaspStage::Semantics,
                         "Duplicate field '" + f.name + "'."
                     );
 
-                    oop_type->fields.push_back(f.name);
-                    oop_type->member_types[f.name] = visit(f.type);
+                    auto field_type = visit(f.type);
+                    oop_type->record_type.field_types[f.name] = field_type;
+                    oop_type->record_type.ordered_keys.push_back(f.name);
                 },
                 [&](const MethodDefinition& m)
                 {
-                    push_unique(oop_type->methods, m.name);
+                    push_unique(oop_type->bag_type.ordered_keys, m.name);
 
-                    if (m.is_pure)
+                    // Store method signature placeholder (will be filled in
+                    // hoist_methods) For now, just mark that it exists
+                    if (!oop_type->bag_type.overload_types.contains(m.name))
                     {
-                        push_unique(oop_type->pures, m.name);
-                    }
-
-                    if (m.is_static)
-                    {
-                        push_unique(oop_type->statics, m.name);
+                        oop_type->bag_type
+                            .overload_types[m.name] = workspace->pool
+                                                          ->get_none_type();
                     }
                 },
                 [&](const auto&)
@@ -147,41 +171,50 @@ void SemanticAnalyzer::fill_oops_member_names(AbstractOopsDefinition& def, OopsT
     }
 }
 
-void SemanticAnalyzer::hoist_methods(AbstractOopsDefinition& def, OopsType_ptr oop_type)
+void SemanticAnalyzer::hoist_methods(
+    AbstractOopsDefinition& def,
+    OopsType_ptr oop_type
+)
 {
     for (auto& stmt : def.members)
     {
-        if (auto* f = stmt->try_as<MethodDefinition>())
+        if (auto* method = stmt->try_as<MethodDefinition>())
         {
             ObjectVector param_types;
-            for (const auto& [name, type_node] : f->parameters)
+            for (const auto& param : method->parameters)
             {
-                param_types.push_back(visit(type_node));
+                param_types.push_back(visit(param.type));
             }
+
+            auto return_type = method->return_type
+                                   ? visit(method->return_type)
+                                   : workspace->pool->get_none_type();
 
             auto signature = make_object(
                 std::make_shared<Signature>(
                     param_types,
-                    f->return_type ? visit(f->return_type)
-                                   : workspace->pool->get_none_type(),
-                    oop_type->template_parameter_types,
-                    oop_type->ordered_template_parameter_names
+                    return_type,
+                    oop_type->template_type
                 )
             );
 
-            f->symbol = SymbolFactory::create_method(
-                f->name,
+            method->symbol = SymbolFactory::create_function(
+                method->name,
                 signature,
                 current_scope->get_closure_depth(),
                 current_scope->get_lexical_depth()
             );
 
-            oop_type->add_overload(f->name, signature);
+            // Store in bag_type
+            oop_type->bag_type.overload_types[method->name] = signature;
         }
     }
 }
 
-void SemanticAnalyzer::inherit_default_methods(AbstractOopsDefinition& def, OopsType_ptr oop_type)
+void SemanticAnalyzer::inherit_default_methods(
+    AbstractOopsDefinition& def,
+    OopsType_ptr oop_type
+)
 {
     for (const auto& trait_obj : oop_type->traits)
     {
@@ -190,98 +223,86 @@ void SemanticAnalyzer::inherit_default_methods(AbstractOopsDefinition& def, Oops
         Symbol_ptr trait_symbol = current_scope->lookup(trait->name);
         Doctor::get().fatal_if_nullptr(trait_symbol, WaspStage::Semantics);
 
-        auto& trait_data = trait_symbol->get_payload_as<OopsDefinitionData>();
+        auto& trait_data = trait_symbol->as<OopsSymbol>();
         auto trait_ast = trait_data.definition->try_as<TraitDefinition>();
         Doctor::get().fatal_if_nullptr(trait_ast, WaspStage::Semantics);
 
-        for (const std::string& method_name : trait->methods)
+        for (const auto& method_name : trait->bag_type.ordered_keys)
         {
-            auto trait_overloads = trait->get_overloads(method_name);
-            auto class_overloads = oop_type->get_overloads(method_name);
+            // Get trait method signatures
+            auto trait_sig_obj = trait->bag_type.overload_types.at(method_name);
+            Doctor::get().assert(
+                trait_sig_obj->is<Signature_ptr>(),
+                WaspStage::Semantics,
+                "Expected signature for trait method"
+            );
 
-            for (size_t t_idx = 0; t_idx < trait_overloads.size(); ++t_idx)
+            // Check if class already implements this method
+            bool is_implemented = oop_type->bag_type.overload_types.contains(
+                method_name
+            );
+
+            if (!is_implemented)
             {
-                const auto& trait_sig = trait_overloads[t_idx];
-                bool is_implemented = false;
+                // Find the method AST in the trait definition
+                Statement_ptr source_stmt_ptr = nullptr;
+                MethodDefinition* source_method_ast = nullptr;
 
-                for (const auto& class_sig : class_overloads)
+                for (auto& stmt : trait_ast->members)
                 {
-                    if (type_system->assignable(current_scope, trait_sig, class_sig))
+                    if (auto* m = stmt->try_as<MethodDefinition>())
                     {
-                        is_implemented = true;
-                        break;
+                        if (m->name == method_name)
+                        {
+                            source_stmt_ptr = stmt;
+                            source_method_ast = m;
+                            break;
+                        }
                     }
                 }
 
-                if (!is_implemented)
+                Doctor::get().fatal_if_nullptr(
+                    source_method_ast,
+                    WaspStage::Semantics
+                );
+
+                bool is_required = source_method_ast->symbol
+                                       ->as<FunctionSymbol>()
+                                       .required_in_class;
+
+                Doctor::get().assert(
+                    !is_required,
+                    WaspStage::Semantics,
+                    "Class '" + oop_type->name +
+                        "' fails to implement required method '" + method_name +
+                        "' from trait '" + trait->name + "'."
+                );
+
+                // Clone and add the default implementation
+                ASTCloner cloner;
+                Statement_ptr cloned_stmt = cloner.clone(source_stmt_ptr);
+                auto* cloned_method = cloned_stmt->try_as<MethodDefinition>();
+
+                def.members.push_back(cloned_stmt);
+
+                if (!oop_type->bag_type.overload_types.contains(method_name))
                 {
-                    Statement_ptr source_stmt_ptr = nullptr;
-                    MethodDefinition* source_method_ast = nullptr;
-
-                    for (auto& stmt : trait_ast->members)
-                    {
-                        if (auto* m = stmt->try_as<MethodDefinition>())
-                        {
-                            if (m->name == method_name &&
-                                type_system->equal(current_scope, m->symbol->get_type(), trait_sig))
-                            {
-                                source_stmt_ptr = stmt;
-                                source_method_ast = m;
-                                break;
-                            }
-                        }
-                    }
-
-                    Doctor::get().fatal_if_nullptr(source_method_ast, WaspStage::Semantics);
-
-                    bool is_required = source_method_ast->symbol->get_payload_as<CallableData>()
-                                           .required_in_class;
-
-                    Doctor::get().assert(
-                        !is_required,
-                        WaspStage::Semantics,
-                        "Class '" + oop_type->name + "' fails to implement required method '" +
-                            method_name + "' from trait '" + trait->name + "'."
-                    );
-
-                    ASTCloner cloner;
-                    Statement_ptr cloned_stmt = cloner.clone(source_stmt_ptr);
-                    auto* cloned_method = cloned_stmt->try_as<MethodDefinition>();
-
-                    def.members.push_back(cloned_stmt);
-
-                    if (std::find(
-                            oop_type->methods.begin(),
-                            oop_type->methods.end(),
-                            method_name
-                        ) == oop_type->methods.end())
-                    {
-                        oop_type->methods.push_back(method_name);
-
-                        if (cloned_method->is_pure)
-                        {
-                            oop_type->pures.push_back(method_name);
-                        }
-
-                        if (cloned_method->is_static)
-                        {
-                            oop_type->statics.push_back(method_name);
-                        }
-                    }
-
-                    cloned_method->symbol = SymbolFactory::create_method(
-                        cloned_method->name,
-                        trait_sig,
-                        current_scope->get_closure_depth(),
-                        current_scope->get_lexical_depth()
-                    );
-
-                    auto& function_data = cloned_method->symbol->get_payload_as<CallableData>();
-                    function_data.definition = cloned_stmt;
-                    function_data.declaration_scope = current_scope;
-
-                    oop_type->add_overload(method_name, trait_sig);
+                    oop_type->bag_type.ordered_keys.push_back(method_name);
+                    oop_type->bag_type
+                        .overload_types[method_name] = trait_sig_obj;
                 }
+
+                cloned_method->symbol = SymbolFactory::create_function(
+                    cloned_method->name,
+                    trait_sig_obj,
+                    current_scope->get_closure_depth(),
+                    current_scope->get_lexical_depth()
+                );
+
+                auto& function_data = cloned_method->symbol
+                                          ->as<FunctionSymbol>();
+                function_data.definition = cloned_stmt;
+                function_data.declaration_scope = current_scope;
             }
         }
     }
@@ -293,10 +314,11 @@ void SemanticAnalyzer::analyze_methods(AbstractOopsDefinition& def)
 
     for (auto& stmt : def.members)
     {
-        if (auto* f = stmt->try_as<MethodDefinition>())
+        if (auto* method = stmt->try_as<MethodDefinition>())
         {
-            ScopeType scope_type = f->is_pure ? ScopeType::PURE_METHOD : ScopeType::METHOD;
-            analyze_callable(*f, scope_type, type_obj, f->is_static);
+            ScopeType scope_type = method->is_pure ? ScopeType::PURE_METHOD
+                                                   : ScopeType::METHOD;
+            analyze_callable(*method, scope_type);
         }
     }
 }
@@ -308,53 +330,55 @@ void SemanticAnalyzer::check_trait_conformance(OopsType_ptr oop_type)
         auto trait = trait_obj->as<TraitType_ptr>();
         int trait_id = trait->type_id;
 
-        for (const std::string& required_method_name : trait->methods)
+        for (size_t m_idx = 0; m_idx < trait->bag_type.ordered_keys.size();
+             ++m_idx)
         {
+            const auto& method_name = trait->bag_type.ordered_keys[m_idx];
+
             Doctor::get().assert(
-                oop_type->contains_member(required_method_name),
+                oop_type->bag_type.overload_types.contains(method_name),
                 WaspStage::Semantics,
                 "Class '" + oop_type->name +
-                    "' fails to implement required method '" + required_method_name +
+                    "' fails to implement required method '" + method_name +
                     "' from trait '" + trait->name + "'."
             );
 
-            auto trait_overloads = trait->get_overloads(required_method_name);
-            auto class_overloads = oop_type->get_overloads(required_method_name);
+            auto trait_sig_obj = trait->bag_type.overload_types.at(method_name);
+            auto class_sig_obj = oop_type->bag_type.overload_types.at(
+                method_name
+            );
 
-            int trait_member_idx = trait->get_member_index(required_method_name);
-            int class_member_idx = oop_type->get_member_index(required_method_name);
+            Doctor::get().assert(
+                trait_sig_obj->is<Signature_ptr>() &&
+                    class_sig_obj->is<Signature_ptr>(),
+                WaspStage::Semantics,
+                "Expected signatures for method: " + method_name
+            );
 
-            for (size_t t_idx = 0; t_idx < trait_overloads.size(); ++t_idx)
+            // Find class method index
+            int class_member_idx = -1;
+            for (size_t c_idx = 0;
+                 c_idx < oop_type->bag_type.ordered_keys.size();
+                 ++c_idx)
             {
-                const auto& trait_sig = trait_overloads[t_idx];
-                bool signature_matched = false;
-                int matched_c_idx = -1;
-
-                for (size_t c_idx = 0; c_idx < class_overloads.size(); ++c_idx)
+                if (oop_type->bag_type.ordered_keys[c_idx] == method_name)
                 {
-                    const auto& class_sig = class_overloads[c_idx];
-
-                    if (type_system->assignable(current_scope, trait_sig, class_sig))
-                    {
-                        signature_matched = true;
-                        matched_c_idx = static_cast<int>(c_idx);
-                        break;
-                    }
+                    class_member_idx = static_cast<int>(c_idx);
+                    break;
                 }
-
-                Doctor::get().assert(
-                    signature_matched,
-                    WaspStage::Semantics,
-                    "Signature mismatch in class '" + oop_type->name +
-                        "' for method '" + required_method_name +
-                        "' required by trait '" + trait->name + "'."
-                );
-
-                OverloadCoordinate trait_coord{trait_member_idx, static_cast<int>(t_idx)};
-                OverloadCoordinate class_coord{class_member_idx, matched_c_idx};
-
-                oop_type->itables[trait_id][trait_coord] = class_coord;
             }
+
+            Doctor::get().assert(
+                class_member_idx != -1,
+                WaspStage::Semantics,
+                "Method '" + method_name + "' not found in class '" +
+                    oop_type->name + "'."
+            );
+
+            OverloadCoordinate trait_coord{static_cast<int>(m_idx), 0};
+            OverloadCoordinate class_coord{class_member_idx, 0};
+
+            oop_type->bag_type.itables[trait_id][trait_coord] = class_coord;
         }
     }
 }
@@ -365,7 +389,7 @@ Symbol_ptr SemanticAnalyzer::monomorphize_class_template(
     const std::string& specialized_name
 )
 {
-    auto& class_data = blueprint_symbol->get_payload_as<OopsDefinitionData>();
+    auto& class_data = blueprint_symbol->as<OopsSymbol>();
 
     ASTCloner cloner(substitutions);
     Statement_ptr specialized_stmt = cloner.clone(class_data.definition);
@@ -393,8 +417,7 @@ Symbol_ptr SemanticAnalyzer::monomorphize_class_template(
                 );
 
                 auto class_type = type->as<ClassType_ptr>();
-                class_type->template_parameter_types.clear();
-                class_type->ordered_template_parameter_names.clear();
+                class_type->template_type = nullptr; // Clear template params
 
                 visit(def);
 

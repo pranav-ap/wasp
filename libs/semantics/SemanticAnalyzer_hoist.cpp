@@ -127,18 +127,31 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
 
                     enter_scope(ScopeType::CLASS);
 
-                    for (const auto& name :
-                         alias_type->template_type->ordered_parameter_names)
+                    if (alias_type->template_type)
                     {
-                        auto generic_type = alias_type->template_type
-                                                ->template_parameters.at(name);
+                        for (const auto& name :
+                             alias_type->template_type->ordered_parameter_names)
+                        {
+                            auto generic_type_obj = alias_type->template_type
+                                                        ->template_parameters
+                                                        .at(name);
 
-                        auto symbol = SymbolFactory::create_template_parameter(
-                            name,
-                            generic_type
-                        );
+                            Doctor::get().assert(
+                                generic_type_obj->is<GenericType_ptr>(),
+                                WaspStage::Semantics,
+                                "Expected GenericType for template "
+                                "parameter: " +
+                                    name
+                            );
 
-                        current_scope->define(symbol);
+                            auto symbol = SymbolFactory::
+                                create_template_parameter(
+                                    name,
+                                    generic_type_obj
+                                );
+
+                            current_scope->define(symbol);
+                        }
                     }
 
                     alias_type->underlying_type = visit(def.ref_type);
@@ -149,7 +162,6 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
                     auto class_type = def.symbol->get_type()
                                           ->as<ClassType_ptr>();
 
-                    // Assign generics directly
                     class_type->template_type = evaluate_template_params(
                         def.template_params
                     );
@@ -249,7 +261,8 @@ void SemanticAnalyzer::hoist_import(Import& stmt)
         Doctor::get().fatal_if_nullptr(
             exported_symbol,
             WaspStage::Semantics,
-            "Module '" + mod->get_name() + "' does not export symbol: " + pair.name
+            "Module '" + mod->get_name() +
+                "' does not export symbol: " + pair.name
         );
 
         if (pair.alias.has_value())
@@ -297,10 +310,17 @@ void SemanticAnalyzer::hoist_function_definition(AbstractCallable& def)
     {
         for (const auto& name : template_type->ordered_parameter_names)
         {
-            auto generic_type = template_type->template_parameters.at(name);
+            auto generic_type_obj = template_type->template_parameters.at(name);
+
+            Doctor::get().assert(
+                generic_type_obj->is<GenericType_ptr>(),
+                WaspStage::Semantics,
+                "Expected GenericType for template parameter: " + name
+            );
+
             auto symbol = SymbolFactory::create_template_parameter(
                 name,
-                generic_type
+                generic_type_obj
             );
             current_scope->define(symbol);
         }

@@ -576,8 +576,10 @@ using PocketVector = std::vector<Pocket_ptr>;
 struct RecordObject
 {
     ObjectVector fields;
+    ITablesMap itables;
 
-    RecordObject(ObjectVector fields) : fields(std::move(fields))
+    RecordObject(ObjectVector fields, ITablesMap itables = {})
+        : fields(std::move(fields)), itables(std::move(itables))
     {
     }
 
@@ -697,6 +699,8 @@ struct Object : public std::enable_shared_from_this<Object>
         GenericType_ptr,
         EnumMemberType_ptr,
 
+        ModuleType_ptr,
+
         Signature_ptr,
         ClassType_ptr,
         TraitType_ptr,
@@ -760,6 +764,12 @@ struct Object : public std::enable_shared_from_this<Object>
 template <typename T> inline Object_ptr make_object(T&& val)
 {
     return std::make_shared<Object>(std::forward<T>(val));
+}
+
+template <typename T, typename... Args>
+Object_ptr make_shared_object(Args&&... args)
+{
+    return make_object(std::make_shared<T>(std::forward<Args>(args)...));
 }
 
 } // namespace Wasp

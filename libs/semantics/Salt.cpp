@@ -58,49 +58,52 @@ Statement_ptr Salt::visit(const Statement_ptr statement)
 
 Statement_ptr Salt::visit(ExpressionStatement& statement)
 {
-    return make_statement(visit(statement.expression));
+    auto desugared_expr = visit(statement.expression);
+    return make_statement(ExpressionStatement(desugared_expr));
 }
 
-Statement_ptr salt(MethodDefinition method_definition, std::string oops_name)
+static Statement_ptr convert_method_to_function(
+    const MethodDefinition& method,
+    const std::string& class_name
+)
 {
-    std::string indicator_name = method_definition.is_static ? "our" : "self";
+    std::string indicator_name = method.is_static ? "our" : "self";
 
-    auto updated_params = method_definition.parameters;
+    auto updated_params = method.parameters;
 
     auto indicator_field = ASTFactory::create_field(
         indicator_name,
-        make_type_annotation(TypeIdentifierNode(oops_name)),
-        method_definition.is_static
+        make_type_annotation(TypeIdentifierNode(class_name)),
+        method.is_static
     );
 
     updated_params.insert(updated_params.begin(), indicator_field);
 
-    auto function_definition = ASTFactory::create_function_definition(
-        method_definition.name,
+    return ASTFactory::create_function_definition(
+        method.name,
         updated_params,
-        method_definition.return_type,
-        method_definition.body,
-        method_definition.is_pure,
-        method_definition.template_params
+        method.return_type,
+        method.body,
+        method.is_pure,
+        method.template_params
     );
-
-    return function_definition;
 }
 
 Statement_ptr Salt::visit(ClassDefinition& statement)
 {
     StatementVector updated_members;
 
-    for (auto member : statement.members)
+    for (auto& member : statement.members)
     {
-        if (member->is<MethodDefinition>())
+        if (auto* method = member->try_as<MethodDefinition>())
         {
-            auto method_definition = member->as<MethodDefinition>();
-            auto stmt = salt(method_definition, statement.name);
+            auto stmt = convert_method_to_function(*method, statement.name);
             updated_members.push_back(stmt);
         }
-
-        updated_members.push_back(member);
+        else
+        {
+            updated_members.push_back(member);
+        }
     }
 
     return ASTFactory::create_class_definition(
@@ -115,16 +118,17 @@ Statement_ptr Salt::visit(TraitDefinition& statement)
 {
     StatementVector updated_members;
 
-    for (auto member : statement.members)
+    for (auto& member : statement.members)
     {
-        if (member->is<MethodDefinition>())
+        if (auto* method = member->try_as<MethodDefinition>())
         {
-            auto method_definition = member->as<MethodDefinition>();
-            auto stmt = salt(method_definition, statement.name);
+            auto stmt = convert_method_to_function(*method, statement.name);
             updated_members.push_back(stmt);
         }
-
-        updated_members.push_back(member);
+        else
+        {
+            updated_members.push_back(member);
+        }
     }
 
     return ASTFactory::create_trait_definition(
@@ -135,7 +139,7 @@ Statement_ptr Salt::visit(TraitDefinition& statement)
     );
 }
 
-Statement_ptr visit(OperatorDefinition& def)
+Statement_ptr Salt::visit(OperatorDefinition& def)
 {
     size_t expected = def.fixity == TokenType::INFIX ? 2 : 1;
 
@@ -165,7 +169,7 @@ Expression_ptr Salt::visit(const Expression_ptr expr)
     Doctor::get().fatal_if_nullptr(expr, WaspStage::Semantics);
 
     return std::visit(
-        [&](auto& node) -> Expression_ptr
+        [this](auto& node) -> Expression_ptr
         {
             if constexpr (requires { this->visit(node); })
             {
@@ -196,7 +200,7 @@ ExpressionVector Salt::visit(ExpressionVector expressions)
     return computed_types;
 }
 
-Expression_ptr visit(InterpolatedString& expr)
+Expression_ptr Salt::visit(InterpolatedString& expr)
 {
     if (expr.parts.empty())
     {

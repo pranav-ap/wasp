@@ -5,7 +5,6 @@
 #include "Objects.h"
 #include "SemanticAnalyzer.h"
 #include "Statement.h"
-#include "SymbolScope.h"
 #include "Workspace.h"
 
 #include <cctype>
@@ -55,7 +54,12 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                     overloaded{
                         [&](ClassType_ptr class_type) -> Object_ptr
                         {
-                            return call_method(call, ma, argument_types, class_type);
+                            return call_method(
+                                call,
+                                ma,
+                                argument_types,
+                                class_type
+                            );
                         },
                         [&](TraitType_ptr trait_type) -> Object_ptr
                         {
@@ -63,7 +67,12 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                             call.is_trait_dispatch = true;
                             call.trait_type_id = trait_type->type_id;
 
-                            return call_method(call, ma, argument_types, trait_type);
+                            return call_method(
+                                call,
+                                ma,
+                                argument_types,
+                                trait_type
+                            );
                         },
                         [&](ModuleType_ptr module_type) -> Object_ptr
                         {
@@ -80,7 +89,8 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                         {
                             Doctor::get().fatal(
                                 WaspStage::Semantics,
-                                "LHS of call must be a module, class, or template"
+                                "LHS of call must be a module, class, or "
+                                "template"
                             );
                         }
                     },
@@ -91,7 +101,8 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
             {
                 Doctor::get().fatal(
                     WaspStage::Semantics,
-                    "Expected an Identifier, TemplateAngular, or MemberAccess as "
+                    "Expected an Identifier, TemplateAngular, or MemberAccess "
+                    "as "
                     "the callable."
                 );
             }
@@ -150,7 +161,8 @@ Object_ptr SemanticAnalyzer::resolve_standard_overload(
         );
     }
 
-    if (!signature->template_type->ordered_parameter_names.empty())
+    if (signature->template_type &&
+        !signature->template_type->ordered_parameter_names.empty())
     {
         return resolve_implicit_template(
             call,
@@ -161,9 +173,7 @@ Object_ptr SemanticAnalyzer::resolve_standard_overload(
     }
 
     // Count number of concrete functions before the winner
-
     int runtime_index = 0;
-
     for (const auto& candidate : candidates)
     {
         if (candidate == function_symbol)
@@ -172,8 +182,8 @@ Object_ptr SemanticAnalyzer::resolve_standard_overload(
         }
 
         auto cand_sig = candidate->get_type()->as<Signature_ptr>();
-
-        if (!cand_sig->template_type->ordered_parameter_names.empty())
+        if (cand_sig->template_type &&
+            !cand_sig->template_type->ordered_parameter_names.empty())
         {
             runtime_index++;
         }
@@ -190,6 +200,12 @@ Object_ptr SemanticAnalyzer::resolve_implicit_template(
     const ObjectVector& argument_types
 )
 {
+    Doctor::get().assert(
+        signature->template_type != nullptr,
+        WaspStage::Semantics,
+        "Expected template_type for implicit template resolution"
+    );
+
     ObjectStringMap substitutions = type_system->infer_template_arguments(
         signature,
         argument_types
@@ -207,11 +223,7 @@ Object_ptr SemanticAnalyzer::resolve_implicit_template(
                     "'. Explicit template arguments are required."
             );
         }
-    }
-
-    for (const auto& name : signature->template_type->ordered_parameter_names)
-    {
-        deduced_args.push_back(substitutions[name]);
+        deduced_args.push_back(substitutions[param]);
     }
 
     std::string specialized_name = function_symbol->name + "_" +
@@ -230,7 +242,6 @@ Object_ptr SemanticAnalyzer::resolve_implicit_template(
     call.callable->data = specialized_id;
 
     auto overloads = specialized_group_symbol->get_overloads();
-
     return overloads[0]
         ->get_type()
         ->as<Signature_ptr>()
@@ -274,7 +285,10 @@ Symbol_ptr SemanticAnalyzer::monomorphize_callable_template(
         specialized_stmt->data
     );
 
-    Doctor::get().fatal_if_nullptr(specialized_group_symbol, WaspStage::Semantics);
+    Doctor::get().fatal_if_nullptr(
+        specialized_group_symbol,
+        WaspStage::Semantics
+    );
 
     current_scope = previous_scope;
     pending_templates.push_back(specialized_stmt);
@@ -314,11 +328,13 @@ Object_ptr SemanticAnalyzer::call_template_function(
         angular_args.size()
     );
 
-    auto [specialized_candidates, original_indices] = type_system
-                                                          ->specialize_candidates(
-                                                              generic_candidates,
-                                                              angular_args
-                                                          );
+    auto
+        [specialized_candidates,
+         original_indices] = type_system
+                                 ->specialize_candidates(
+                                     generic_candidates,
+                                     angular_args
+                                 );
 
     auto [best_signature_object, subset_index] = type_system
                                                      ->get_best_function_object(
@@ -333,14 +349,20 @@ Object_ptr SemanticAnalyzer::call_template_function(
     Doctor::get().assert(
         blueprint_symbol->is<FunctionSymbol>(),
         WaspStage::Semantics,
-        "Resolved template symbol does not contain CallableData."
+        "Resolved template symbol does not contain FunctionSymbol."
     );
 
     // Build the substitutions map
     ObjectStringMap substitutions;
-    auto expected_names = blueprint_symbol->get_type()
-                              ->as<Signature_ptr>()
-                              ->template_type->ordered_parameter_names;
+    auto signature = blueprint_symbol->get_type()->as<Signature_ptr>();
+
+    Doctor::get().assert(
+        signature->template_type != nullptr,
+        WaspStage::Semantics,
+        "Expected template_type on function signature"
+    );
+
+    auto expected_names = signature->template_type->ordered_parameter_names;
 
     for (size_t i = 0; i < expected_names.size(); ++i)
     {
@@ -385,28 +407,37 @@ Object_ptr SemanticAnalyzer::call_method(
     Doctor::get().assert(
         oops_type->contains_member(method_name),
         WaspStage::Semantics,
-        "Method '" + method_name + "()' does not exist on class '" + oops_type->name + "'."
+        "Method '" + method_name + "()' does not exist on class '" +
+            oops_type->name + "'."
     );
 
-    auto member = oops_type->bag_type.get_overloads(method_name);
+    auto member_obj = oops_type->bag_type.get_overloads(method_name);
 
     Doctor::get().assert(
-        member->is<Pocket_ptr>(),
+        member_obj != nullptr,
         WaspStage::Semantics,
-        "Member '" + method_name + "' must be an object overload group."
+        "Member '" + method_name + "' not found in bag_type"
     );
 
-    const auto& overloads = member->as<Pocket_ptr>()->overloads;
-
-    auto [signature_obj, overload_index] = type_system->get_best_function_object(
-        current_scope,
-        overloads,
-        argument_types
+    Doctor::get().assert(
+        member_obj->is<Signature_ptr>(),
+        WaspStage::Semantics,
+        "Member '" + method_name + "' must be a signature."
     );
+
+    // For now, method overloads are stored as single signatures
+    // If you need multiple overloads per method, store Pocket_ptr instead
+    ObjectVector overloads = {member_obj};
+
+    auto [signature_obj, overload_index] = type_system
+                                               ->get_best_function_object(
+                                                   current_scope,
+                                                   overloads,
+                                                   argument_types
+                                               );
 
     access.member_index = oops_type->bag_type.get_overloads_index(method_name);
     call.overload_index = overload_index;
-
     call.is_method_call = true;
 
     return signature_obj->as<Signature_ptr>()->return_type;

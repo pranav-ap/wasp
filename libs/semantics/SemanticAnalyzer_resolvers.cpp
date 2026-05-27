@@ -306,7 +306,7 @@ Object_ptr SemanticAnalyzer::resolve_member_access(
                     return unique_types.front();
                 }
 
-                return make_object(VariantType{unique_types});
+                return make_object(std::make_shared<VariantType>(unique_types));
             },
 
             [&](auto&) -> Object_ptr

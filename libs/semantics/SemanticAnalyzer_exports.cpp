@@ -91,13 +91,11 @@ void SemanticAnalyzer::extract_module_type(Module_ptr mod)
         ordered_keys.push_back(symbol->name);
     }
 
-    auto mod_type = std::make_shared<ModuleType>(
+    mod->type = std::make_shared<Object>(std::make_shared<ModuleType>(
         mod->get_name(),
         member_types,
         ordered_keys
-    );
-
-    mod->type = make_object(mod_type);
+    ));
 }
 
 } // namespace Wasp

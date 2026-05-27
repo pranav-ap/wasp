@@ -21,6 +21,7 @@ add_library(
     TypeSystem_utils.cpp
     ASTCloner.cpp
     ASTFactory.cpp
+    Salt.cpp
 )
 
 target_link_libraries(SemanticAnalyzerLib PUBLIC TokenLib ASTLib ObjectSystemLib WorkspaceLib DoctorLib)

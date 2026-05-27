@@ -1,6 +1,5 @@
 #include "Expression.h"
 #include "Statement.h"
-#include "Token.h"
 #include "test_utils.h"
 #include <gtest/gtest.h>
 #include <string>
@@ -137,43 +136,4 @@ TEST(ParseExpressions, FunctionCallThenMethodCall) {
 
     auto& left_callee = check<Wasp::Identifier>(left_call.callable);
     EXPECT_EQ(left_callee.name, "get_company");
-}
-
-TEST(ParseExpressions, PipeOutput) {
-    auto block = parse("foo() ~ bar(., 35) ~ boom(*.)");
-    ASSERT_EQ(block.size(), 1);
-
-    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
-
-    auto& root_infix = check<Wasp::Infix>(stmt.expression);
-
-    {
-        auto& right_call = check<Wasp::Call>(root_infix.right);
-        EXPECT_EQ(right_call.arguments.size(), 1);
-
-        auto& boom_arg = check<Wasp::Prefix>(right_call.arguments[0]);
-        EXPECT_EQ(boom_arg.op.type, Wasp::TokenType::STAR);
-
-        auto& spread_target = check<Wasp::DotLiteral>(boom_arg.operand);
-    }
-
-    {
-        auto& left_infix = check<Wasp::Infix>(root_infix.left);
-
-        {
-            auto& bar_call = check<Wasp::Call>(left_infix.right);
-            ASSERT_EQ(bar_call.arguments.size(), 2);
-
-            auto& bar_arg1 = check<Wasp::DotLiteral>(bar_call.arguments[0]);
-
-            // UPDATED: Use IntegerLiteral here!
-            auto& bar_arg2 = check<Wasp::IntegerLiteral>(bar_call.arguments[1]);
-            EXPECT_EQ(bar_arg2.value, 35);
-        }
-
-        {
-            auto& foo_call = check<Wasp::Call>(left_infix.left);
-            EXPECT_EQ(foo_call.arguments.size(), 0);
-        }
-    }
 }

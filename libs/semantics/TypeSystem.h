@@ -71,7 +71,7 @@ struct TypeSystem
     ObjectStringMap infer_template_arguments(
         Signature_ptr signature,
         const ObjectVector& argument_types
-    );
+    ) const;
 
     Object_ptr infer(
         SymbolScope_ptr scope,

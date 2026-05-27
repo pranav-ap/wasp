@@ -153,7 +153,8 @@ private:
     void visit(MemberAccess& expr);
 
     void visit(FunctionCall& expr);
-    void visit(MethodCall& expr);
+    void visit(ClassMethodCall& expr);
+    void visit(TraitMethodCall& expr);
 
     void visit(Constructor& expr);
 
@@ -210,8 +211,6 @@ private:
         const std::string& class_name,
         const std::string& path_override
     );
-
-    Object_ptr get_default_value_for_type(Object_ptr type);
 
     CodeObject flatten();
 };

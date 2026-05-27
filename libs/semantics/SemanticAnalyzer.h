@@ -151,6 +151,8 @@ private:
         const ObjectVector& argument_types
     );
 
+    void analyze_callable(AbstractCallable& def, ScopeType scope_type);
+
     // Templates & Generics
     TemplateType_ptr evaluate_template_params(
         const FieldDefinitionVector& template_params

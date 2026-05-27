@@ -65,25 +65,21 @@ Object_ptr TypeSystem::get_least_upper_bound(
     // Check if one is a subtype of the other
     if (assignable(scope, b, a))
     {
-        // a is supertype of b
-        return a;
+        return a; // a is supertype of b
     }
 
     if (assignable(scope, a, b))
     {
-        // b is supertype of a
-        return b;
+        return b; // b is supertype of a
     }
 
     // Create a variant type containing just these two distinct types
-
     ObjectVector combined;
 
-    if (a->is<VariantType>())
+    if (a->is<VariantType_ptr>())
     {
-        auto variant_a = a->as<VariantType>();
-
-        for (auto& t : variant_a.types)
+        auto variant_a = a->as<VariantType_ptr>();
+        for (const auto& t : variant_a->types)
         {
             combined.push_back(t);
         }
@@ -93,11 +89,10 @@ Object_ptr TypeSystem::get_least_upper_bound(
         combined.push_back(a);
     }
 
-    if (b->is<VariantType>())
+    if (b->is<VariantType_ptr>())
     {
-        auto variant_b = b->as<VariantType>();
-
-        for (auto& t : variant_b.types)
+        auto variant_b = b->as<VariantType_ptr>();
+        for (const auto& t : variant_b->types)
         {
             combined.push_back(t);
         }
@@ -114,7 +109,7 @@ Object_ptr TypeSystem::get_least_upper_bound(
         return combined[0];
     }
 
-    return make_object(VariantType{combined});
+    return make_object(std::make_shared<VariantType>(combined));
 }
 
 // ============================================================================
@@ -145,21 +140,21 @@ bool TypeSystem::equal(
         return true;
     }
 
-    if (t1->is<VariantType>() && t2->is<VariantType>())
+    if (t1->is<VariantType_ptr>() && t2->is<VariantType_ptr>())
     {
         return equal_unordered(
             scope,
-            t1->as<VariantType>().types,
-            t2->as<VariantType>().types
+            t1->as<VariantType_ptr>()->types,
+            t2->as<VariantType_ptr>()->types
         );
     }
 
-    if (t1->is<IntersectionType>() && t2->is<IntersectionType>())
+    if (t1->is<IntersectionType_ptr>() && t2->is<IntersectionType_ptr>())
     {
         return equal_unordered(
             scope,
-            t1->as<IntersectionType>().types,
-            t2->as<IntersectionType>().types
+            t1->as<IntersectionType_ptr>()->types,
+            t2->as<IntersectionType_ptr>()->types
         );
     }
 
@@ -265,12 +260,12 @@ bool TypeSystem::assignable(
     }
 
     // Variants
-    if (rhs->is<VariantType>())
+    if (rhs->is<VariantType_ptr>())
     {
-        auto rhs_var = rhs->as<VariantType>();
+        auto rhs_var = rhs->as<VariantType_ptr>();
         return std::all_of(
-            rhs_var.types.begin(),
-            rhs_var.types.end(),
+            rhs_var->types.begin(),
+            rhs_var->types.end(),
             [&](Object_ptr t)
             {
                 return assignable(scope, lhs, t);
@@ -278,12 +273,12 @@ bool TypeSystem::assignable(
         );
     }
 
-    if (lhs->is<VariantType>())
+    if (lhs->is<VariantType_ptr>())
     {
-        auto lhs_var = lhs->as<VariantType>();
+        auto lhs_var = lhs->as<VariantType_ptr>();
         return std::any_of(
-            lhs_var.types.begin(),
-            lhs_var.types.end(),
+            lhs_var->types.begin(),
+            lhs_var->types.end(),
             [&](Object_ptr t)
             {
                 return assignable(scope, t, rhs);
@@ -292,13 +287,12 @@ bool TypeSystem::assignable(
     }
 
     // Intersection Types
-
-    if (lhs->is<IntersectionType>())
+    if (lhs->is<IntersectionType_ptr>())
     {
-        auto lhs_int = lhs->as<IntersectionType>();
+        auto lhs_int = lhs->as<IntersectionType_ptr>();
         return std::all_of(
-            lhs_int.types.begin(),
-            lhs_int.types.end(),
+            lhs_int->types.begin(),
+            lhs_int->types.end(),
             [&](Object_ptr t)
             {
                 return assignable(scope, t, rhs);
@@ -306,12 +300,12 @@ bool TypeSystem::assignable(
         );
     }
 
-    if (rhs->is<IntersectionType>())
+    if (rhs->is<IntersectionType_ptr>())
     {
-        auto rhs_int = rhs->as<IntersectionType>();
+        auto rhs_int = rhs->as<IntersectionType_ptr>();
         return std::any_of(
-            rhs_int.types.begin(),
-            rhs_int.types.end(),
+            rhs_int->types.begin(),
+            rhs_int->types.end(),
             [&](Object_ptr t)
             {
                 return assignable(scope, lhs, t);
@@ -321,17 +315,17 @@ bool TypeSystem::assignable(
 
     return std::visit(
         ::overloaded{
-            [](AnyType const&, const auto&)
+            [](AnyType_ptr, const auto&)
             {
                 return true;
             },
 
-            [](LiteralType const& l, LiteralType const& r)
+            [](LiteralType_ptr l, LiteralType_ptr r)
             {
                 return false;
             },
 
-            [&](TraitType_ptr const lhs_trait, ClassType_ptr const rhs_class)
+            [&](TraitType_ptr lhs_trait, ClassType_ptr rhs_class)
             {
                 int target_id = lhs_trait->type_id;
 
@@ -345,7 +339,6 @@ bool TypeSystem::assignable(
                         }
                     }
                 }
-
                 return false;
             },
 
@@ -395,48 +388,48 @@ Object_ptr TypeSystem::infer(
     left_type = resolve_type(left_type, true);
     right_type = resolve_type(right_type, true);
 
-    if (left_type->is<VariantType>())
+    if (left_type->is<VariantType_ptr>())
     {
         ObjectVector result_types;
-
-        for (const auto& t : left_type->as<VariantType>().types)
+        auto variant = left_type->as<VariantType_ptr>();
+        for (const auto& t : variant->types)
         {
             result_types.push_back(infer(scope, t, op, right_type));
         }
-
-        return std::make_shared<Object>(VariantType{result_types});
+        return make_object(std::make_shared<VariantType>(result_types));
     }
 
-    if (left_type->is<IntersectionType>())
+    if (left_type->is<IntersectionType_ptr>())
     {
         ObjectVector result_types;
-
-        for (const auto& t : left_type->as<IntersectionType>().types)
+        auto intersection = left_type->as<IntersectionType_ptr>();
+        for (const auto& t : intersection->types)
         {
             result_types.push_back(infer(scope, t, op, right_type));
         }
-
-        return std::make_shared<Object>(IntersectionType{result_types});
+        return make_object(std::make_shared<IntersectionType>(result_types));
     }
 
-    if (right_type->is<VariantType>())
+    if (right_type->is<VariantType_ptr>())
     {
         ObjectVector result_types;
-        for (const auto& t : right_type->as<VariantType>().types)
+        auto variant = right_type->as<VariantType_ptr>();
+        for (const auto& t : variant->types)
         {
             result_types.push_back(infer(scope, left_type, op, t));
         }
-        return std::make_shared<Object>(VariantType{result_types});
+        return make_object(std::make_shared<VariantType>(result_types));
     }
 
-    if (right_type->is<IntersectionType>())
+    if (right_type->is<IntersectionType_ptr>())
     {
         ObjectVector result_types;
-        for (const auto& t : right_type->as<IntersectionType>().types)
+        auto intersection = right_type->as<IntersectionType_ptr>();
+        for (const auto& t : intersection->types)
         {
             result_types.push_back(infer(scope, left_type, op, t));
         }
-        return std::make_shared<Object>(IntersectionType{result_types});
+        return make_object(std::make_shared<IntersectionType>(result_types));
     }
 
     switch (op)
@@ -471,32 +464,34 @@ Object_ptr TypeSystem::infer(
 {
     operand_type = resolve_type(operand_type, true);
 
-    if (operand_type->is<VariantType>())
+    if (operand_type->is<VariantType_ptr>())
     {
         ObjectVector result_types;
-        for (const auto& t : operand_type->as<VariantType>().types)
+        auto variant = operand_type->as<VariantType_ptr>();
+        for (const auto& t : variant->types)
         {
             result_types.push_back(infer(scope, t, op));
         }
-        return std::make_shared<Object>(VariantType{result_types});
+        return make_object(std::make_shared<VariantType>(result_types));
     }
 
-    if (operand_type->is<IntersectionType>())
+    if (operand_type->is<IntersectionType_ptr>())
     {
         ObjectVector result_types;
-        for (const auto& t : operand_type->as<IntersectionType>().types)
+        auto intersection = operand_type->as<IntersectionType_ptr>();
+        for (const auto& t : intersection->types)
         {
             result_types.push_back(infer(scope, t, op));
         }
-        return std::make_shared<Object>(IntersectionType{result_types});
+        return make_object(std::make_shared<IntersectionType>(result_types));
     }
 
     if (operand_type->is<ClassType_ptr>())
     {
         auto class_type = operand_type->as<ClassType_ptr>();
-
         if (op == TokenType::DOT)
         {
+            // Handle member access
         }
     }
 
@@ -513,6 +508,33 @@ bool TypeSystem::implements_trait(
     const std::string& trait_name
 )
 {
+    candidate_type = candidate_type->unwrap_completely();
+
+    if (!candidate_type->is<ClassType_ptr>() &&
+        !candidate_type->is<TraitType_ptr>())
+    {
+        return false;
+    }
+
+    OopsType_ptr oop_type = candidate_type->is<ClassType_ptr>()
+                                ? std::static_pointer_cast<OopsType>(
+                                      candidate_type->as<ClassType_ptr>()
+                                  )
+                                : std::static_pointer_cast<OopsType>(
+                                      candidate_type->as<TraitType_ptr>()
+                                  );
+
+    for (const auto& trait_obj : oop_type->traits)
+    {
+        if (trait_obj->is<TraitType_ptr>())
+        {
+            if (trait_obj->as<TraitType_ptr>()->name == trait_name)
+            {
+                return true;
+            }
+        }
+    }
+
     return false;
 }
 

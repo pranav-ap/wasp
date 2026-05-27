@@ -8,6 +8,7 @@
 
 #include <ctime>
 #include <memory>
+#include <utility>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -58,21 +59,31 @@ TemplateType_ptr SemanticAnalyzer::evaluate_template_params(
 
     for (const auto& field : template_params)
     {
-        auto template_param_type = make_object(
-            std::make_shared<GenericType>(field.name, visit(field.type))
+        // Visit the constraint type first
+        Object_ptr constraint_type = visit(field.type);
+        constraint_type = constraint_type->unwrap_type_alias();
+
+        // Create GenericType with name and constraint
+        auto generic_type = std::make_shared<GenericType>(
+            field.name,
+            constraint_type
         );
+        auto template_param_type = make_object(generic_type);
 
         Doctor::get().assert(
             !template_params_map.contains(field.name),
             WaspStage::Semantics,
-            "Duplicate template parameter name " + field.name
+            "Duplicate template parameter name: " + field.name
         );
 
         template_params_map[field.name] = template_param_type;
         ordered_names.push_back(field.name);
     }
 
-    return std::make_shared<TemplateType>(template_params_map, ordered_names);
+    return std::make_shared<TemplateType>(
+        std::move(template_params_map),
+        std::move(ordered_names)
+    );
 }
 
 } // namespace Wasp

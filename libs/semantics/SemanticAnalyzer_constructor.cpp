@@ -18,6 +18,8 @@ void SemanticAnalyzer::analyze_template_parameter_constructor(
 )
 {
     Object_ptr constraint = template_parameter_type->constraint_type;
+    constraint = constraint->unwrap_type_alias();
+
     std::vector<ClassType_ptr> classes_to_check;
 
     // Check if constraint is a VariantType (union of types)
@@ -26,9 +28,10 @@ void SemanticAnalyzer::analyze_template_parameter_constructor(
         auto variant_type = constraint->as<VariantType_ptr>();
         for (const auto& variant : variant_type->types)
         {
-            if (variant->is<ClassType_ptr>())
+            auto resolved = variant->unwrap_type_alias();
+            if (resolved->is<ClassType_ptr>())
             {
-                classes_to_check.push_back(variant->as<ClassType_ptr>());
+                classes_to_check.push_back(resolved->as<ClassType_ptr>());
             }
         }
     }
@@ -53,7 +56,7 @@ void SemanticAnalyzer::analyze_template_parameter_constructor(
             WaspStage::Semantics,
             "Constructor arguments count mismatch for class: " +
                 class_type->name + ". Expected " +
-                std::to_string(class_type->record_type.field_types.size()) +
+                std::to_string(class_type->record_type.ordered_keys.size()) +
                 ", got " + std::to_string(argument_types.size()) + "."
         );
     }
@@ -80,12 +83,12 @@ Object_ptr SemanticAnalyzer::visit(Constructor& constructor)
         auto cls = target_type->as<ClassType_ptr>();
 
         Doctor::get().assert(
-            argument_types.size() == cls->record_type.field_types.size(),
+            argument_types.size() == cls->record_type.ordered_keys.size(),
             WaspStage::Semantics,
             "Constructor Arguments Count Mismatch for class '" + cls->name +
                 "'. Expected " +
-                std::to_string(cls->record_type.field_types.size()) + ", got " +
-                std::to_string(argument_types.size()) + "."
+                std::to_string(cls->record_type.ordered_keys.size()) +
+                ", got " + std::to_string(argument_types.size()) + "."
         );
 
         for (size_t i = 0; i < argument_types.size(); ++i)
@@ -123,6 +126,8 @@ Object_ptr SemanticAnalyzer::visit(Constructor& constructor)
         "Invalid constructor target: '" + target_type->to_string() +
             "' is not a constructible type."
     );
+
+    return nullptr;
 }
 
 } // namespace Wasp

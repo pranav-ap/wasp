@@ -19,91 +19,136 @@ namespace Wasp
 std::string Object::to_string() const
 {
     Doctor::get().fatal_if_nullptr(
-        value,
+        this,
         WaspStage::VM,
         "Attempted to stringify a null object pointer"
     );
 
     return std::visit(
         overloaded{
-            [](const std::monostate&) -> std::string
+            [](std::monostate) -> std::string
             {
                 return "uninitialized";
             },
 
             // Base Types
-            [](const AnyType&) -> std::string
+            [](AnyType_ptr) -> std::string
             {
                 return "any type";
             },
-            [](const Signature_ptr&) -> std::string
+            [](NoneType_ptr) -> std::string
+            {
+                return "none type";
+            },
+            [](Signature_ptr) -> std::string
             {
                 return "signature type";
             },
 
+            // Scalar Types
+            [](IntType_ptr) -> std::string
+            {
+                return "int";
+            },
+            [](FloatType_ptr) -> std::string
+            {
+                return "float";
+            },
+            [](StringType_ptr) -> std::string
+            {
+                return "str";
+            },
+            [](BooleanType_ptr) -> std::string
+            {
+                return "bool";
+            },
+
             // Scalar Objects
-            [](const NoneObject&) -> std::string
+            [](NoneObject_ptr) -> std::string
             {
                 return "none";
             },
-            [](const IntObject& obj) -> std::string
+            [](IntObject_ptr obj) -> std::string
             {
-                return std::to_string(obj.value);
+                return std::to_string(obj->value);
             },
-            [](const FloatObject& obj) -> std::string
+            [](FloatObject_ptr obj) -> std::string
             {
-                return std::to_string(obj.value);
+                return std::to_string(obj->value);
             },
-            [](const StringObject& obj) -> std::string
+            [](StringObject_ptr obj) -> std::string
             {
-                return "\"" + obj.value + "\"";
+                return "\"" + obj->value + "\"";
             },
-            [](const BooleanObject& obj) -> std::string
+            [](BooleanObject_ptr obj) -> std::string
             {
-                return obj.value ? "true" : "false";
+                return obj->value ? "true" : "false";
             },
 
             // Unified Literal Type
-            [](const LiteralType& lit) -> std::string
+            [](LiteralType_ptr lit) -> std::string
             {
-                return "literal type: " + lit.value.get()->to_string();
+                return "literal type: " + lit->value->to_string();
             },
 
             // Composite Types
-            [](const VariantType&) -> std::string
+            [](ListType_ptr) -> std::string
+            {
+                return "list type";
+            },
+            [](SetType_ptr) -> std::string
+            {
+                return "set type";
+            },
+            [](TupleType_ptr) -> std::string
+            {
+                return "tuple type";
+            },
+            [](MapType_ptr) -> std::string
+            {
+                return "map type";
+            },
+            [](VariantType_ptr) -> std::string
             {
                 return "variant type";
             },
+            [](IntersectionType_ptr) -> std::string
+            {
+                return "intersection type";
+            },
+            [](GenericType_ptr gen) -> std::string
+            {
+                return "generic type: " + gen->name;
+            },
+            [](EnumMemberType_ptr) -> std::string
+            {
+                return "enum member";
+            },
 
             // User Defined Types
-
-            [](const ClassType_ptr& cls) -> std::string
+            [](ClassType_ptr cls) -> std::string
             {
                 return "class type: " + cls->name;
             },
-            [](const TraitType_ptr& trt) -> std::string
+            [](TraitType_ptr trt) -> std::string
             {
                 return "trait type: " + trt->name;
             },
-            [](const EnumType_ptr& enum_type) -> std::string
+            [](EnumType_ptr enum_type) -> std::string
             {
                 return "enum type: " + enum_type->name;
             },
-            [](const TypeAlias_ptr& alias) -> std::string
+            [](TypeAlias_ptr alias) -> std::string
             {
                 return "type alias: " + alias->name;
             },
-            [](const GenericType_ptr& gen) -> std::string
-            {
-                return "generic type: " + gen.name;
-            },
 
             // Composite Objects
-            [](const std::shared_ptr<IteratorObject>&) -> std::string
+            [](IteratorObject_ptr) -> std::string
             {
                 return "<iterator>";
             },
-            [](const std::shared_ptr<ListObject>& obj) -> std::string
+            [](ListObject_ptr obj) -> std::string
             {
                 std::string res = "[";
                 for (size_t i = 0; i < obj->values.size(); ++i)
@@ -116,7 +161,7 @@ std::string Object::to_string() const
                 }
                 return res + "]";
             },
-            [](const std::shared_ptr<TupleObject>& obj) -> std::string
+            [](TupleObject_ptr obj) -> std::string
             {
                 std::string res = "(";
                 for (size_t i = 0; i < obj->values.size(); ++i)
@@ -129,36 +174,49 @@ std::string Object::to_string() const
                 }
                 return res + ")";
             },
-            [](const std::shared_ptr<SetObject>& obj) -> std::string
+            [](SetObject_ptr) -> std::string
             {
                 return "set";
             },
-            [](const std::shared_ptr<MapObject>& obj) -> std::string
+            [](MapObject_ptr) -> std::string
             {
                 return "map";
             },
-            [](const std::shared_ptr<VariantObject>&) -> std::string
+            [](VariantObject_ptr) -> std::string
             {
                 return "<variant>";
             },
+            [](RecordObject_ptr) -> std::string
+            {
+                return "<record>";
+            },
+            [](BagObject_ptr) -> std::string
+            {
+                return "<bag>";
+            },
+            [](TraitObject_ptr) -> std::string
+            {
+                return "<trait object>";
+            },
 
             // Callables and Modules
-            [](const std::shared_ptr<FunctionBlueprintObject>& func)
-                -> std::string
+            [](FunctionBlueprintObject_ptr func) -> std::string
             {
                 return "<Static Function " + func->name + ">";
             },
-            [](const std::shared_ptr<FunctionRuntimeObject>& func)
-                -> std::string
+            [](FunctionRuntimeObject_ptr func) -> std::string
             {
                 return "<Runtime function " + func->blueprint->name + ">";
             },
-            [](const std::shared_ptr<NativeFunctionRuntimeObject>& func)
-                -> std::string
+            [](NativeFunctionRuntimeObject_ptr func) -> std::string
             {
                 return "<Native function " + func->name + ">";
             },
-            [](const std::shared_ptr<ModuleObject>& mod) -> std::string
+            [](Pocket_ptr) -> std::string
+            {
+                return "<overload set>";
+            },
+            [](ModuleObject_ptr mod) -> std::string
             {
                 return "<module " + mod->name + ">";
             },
@@ -180,7 +238,11 @@ Object_ptr Object::unwrap_type_alias()
 {
     if (this->is<TypeAlias_ptr>())
     {
-        return this->as<TypeAlias_ptr>()->underlying_type->unwrap_type_alias();
+        auto alias = this->as<TypeAlias_ptr>();
+        if (alias->underlying_type)
+        {
+            return alias->underlying_type->unwrap_type_alias();
+        }
     }
 
     return this->shared_from_this();
@@ -190,20 +252,19 @@ Object_ptr Object::unwrap_completely()
 {
     if (this->is<TypeAlias_ptr>())
     {
-        return this->as<TypeAlias_ptr>()->underlying_type->unwrap_completely();
+        auto alias = this->as<TypeAlias_ptr>();
+        if (alias->underlying_type)
+        {
+            return alias->underlying_type->unwrap_completely();
+        }
     }
 
     if (this->is<GenericType_ptr>())
     {
-        auto& generic = this->as<GenericType_ptr>();
-
+        auto generic = this->as<GenericType_ptr>();
         if (generic->constraint_type)
         {
             return generic->constraint_type->unwrap_completely();
-        }
-        else
-        {
-            return this->shared_from_this();
         }
     }
 
@@ -311,12 +372,10 @@ bool Object::is_runtime_object() const
 std::string Object::mangle_object(const ObjectVector& values)
 {
     std::string result;
-
     for (const auto& value : values)
     {
         result += mangle_object(value);
     }
-
     return result;
 }
 
@@ -330,94 +389,144 @@ std::string Object::mangle_object(Object_ptr value)
 
     return std::visit(
         overloaded{
-            [](const std::monostate&) -> std::string
+            [](std::monostate) -> std::string
             {
                 return "_";
             },
 
-            [](const AnyType&) -> std::string
+            // Types
+            [](AnyType_ptr) -> std::string
             {
                 return "A";
             },
-            [](const Signature_ptr&) -> std::string
+            [](NoneType_ptr) -> std::string
             {
-                return "S";
+                return "N";
+            },
+            [](IntType_ptr) -> std::string
+            {
+                return "i";
+            },
+            [](FloatType_ptr) -> std::string
+            {
+                return "f";
+            },
+            [](StringType_ptr) -> std::string
+            {
+                return "s";
+            },
+            [](BooleanType_ptr) -> std::string
+            {
+                return "b";
+            },
+            [](ListType_ptr) -> std::string
+            {
+                return "l";
+            },
+            [](SetType_ptr) -> std::string
+            {
+                return "st";
+            },
+            [](TupleType_ptr) -> std::string
+            {
+                return "t";
+            },
+            [](MapType_ptr) -> std::string
+            {
+                return "m";
+            },
+            [](VariantType_ptr) -> std::string
+            {
+                return "v";
+            },
+            [](IntersectionType_ptr) -> std::string
+            {
+                return "i";
+            },
+            [](Signature_ptr) -> std::string
+            {
+                return "sig";
             },
 
-            [](const NoneObject&) -> std::string
+            // Scalar Objects
+            [](NoneObject_ptr) -> std::string
             {
                 return "On";
             },
-            [](const IntObject& obj) -> std::string
+            [](IntObject_ptr obj) -> std::string
             {
-                return "Oi" + std::to_string(obj.value);
+                return "Oi" + std::to_string(obj->value);
             },
-            [](const FloatObject& obj) -> std::string
+            [](FloatObject_ptr obj) -> std::string
             {
-                return "Of" + std::to_string(obj.value);
+                return "Of" + std::to_string(obj->value);
             },
-            [](const StringObject& obj) -> std::string
+            [](StringObject_ptr obj) -> std::string
             {
-                return "Os" + obj.value;
+                return "Os" + obj->value;
             },
-            [](const BooleanObject& obj) -> std::string
+            [](BooleanObject_ptr obj) -> std::string
             {
-                return obj.value ? "Ob1" : "Ob0";
+                return obj->value ? "Ob1" : "Ob0";
             },
 
-            [](const LiteralType& lit) -> std::string
+            // Literal Type
+            [](LiteralType_ptr lit) -> std::string
             {
                 return std::visit(
                     overloaded{
-                        [](const IntObject&) -> std::string
+                        [](IntObject_ptr) -> std::string
                         {
                             return "li";
                         },
-                        [](const FloatObject&) -> std::string
+                        [](FloatObject_ptr) -> std::string
                         {
                             return "lf";
                         },
-                        [](const StringObject&) -> std::string
+                        [](StringObject_ptr) -> std::string
                         {
                             return "ls";
                         },
-                        [](const BooleanObject&) -> std::string
+                        [](BooleanObject_ptr) -> std::string
                         {
                             return "lb";
                         },
                         [](const auto&) -> std::string
                         {
                             return "lu";
-                        } // Unknown literal
+                        }
                     },
-                    lit.value->value
+                    lit->value->value
                 );
             },
-            [](const VariantType&) -> std::string
-            {
-                return "v";
-            },
-            [](const ClassType_ptr& cls) -> std::string
+
+            // OOP Types
+            [](ClassType_ptr cls) -> std::string
             {
                 return "C" + cls->name;
             },
-            [](const TraitType_ptr& trt) -> std::string
+            [](TraitType_ptr trt) -> std::string
             {
                 return "T" + trt->name;
             },
-            [](const EnumType_ptr& enum_type) -> std::string
+            [](EnumType_ptr enum_type) -> std::string
             {
                 return "E" + enum_type->name;
             },
-            [](const TypeAlias_ptr& alias) -> std::string
+            [](TypeAlias_ptr alias) -> std::string
             {
                 return "a" + alias->name;
             },
-            [](const GenericType_ptr& gen) -> std::string
+            [](GenericType_ptr gen) -> std::string
             {
                 return "G" + gen->name;
             },
+            [](EnumMemberType_ptr) -> std::string
+            {
+                return "Em";
+            },
 
+            // Fallback
             [](const auto&) -> std::string
             {
                 return "U";
@@ -524,48 +633,46 @@ bool Object::are_equal_types(Object_ptr left, Object_ptr right)
 
     return std::visit(
         overloaded{
-            [](const LiteralType& l, const LiteralType& r) -> bool
+            [](LiteralType_ptr l, LiteralType_ptr r) -> bool
             {
                 return std::visit(
                     overloaded{
-                        [](const IntObject& a, const IntObject& b) -> bool
+                        [](IntObject_ptr a, IntObject_ptr b) -> bool
                         {
-                            return a.value == b.value;
+                            return a->value == b->value;
                         },
-                        [](const FloatObject& a, const FloatObject& b) -> bool
+                        [](FloatObject_ptr a, FloatObject_ptr b) -> bool
                         {
-                            return a.value == b.value;
+                            return a->value == b->value;
                         },
-                        [](const BooleanObject& a,
-                           const BooleanObject& b) -> bool
+                        [](BooleanObject_ptr a, BooleanObject_ptr b) -> bool
                         {
-                            return a.value == b.value;
+                            return a->value == b->value;
                         },
-                        [](const StringObject& a, const StringObject& b) -> bool
+                        [](StringObject_ptr a, StringObject_ptr b) -> bool
                         {
-                            return a.value == b.value;
+                            return a->value == b->value;
                         },
                         [](const auto&, const auto&) -> bool
                         {
                             return false;
                         }
                     },
-                    l.value->value,
-                    r.value->value
+                    l->value->value,
+                    r->value->value
                 );
             },
 
-            // Collections
-            [](const VariantType& l, const VariantType& r)
+            [](VariantType_ptr l, VariantType_ptr r)
             {
-                return are_equal_types_unordered(l.types, r.types);
+                return are_equal_types_unordered(l->types, r->types);
             },
-            [](const IntersectionType& l, const IntersectionType& r)
+            [](IntersectionType_ptr l, IntersectionType_ptr r)
             {
-                return are_equal_types_unordered(l.types, r.types);
+                return are_equal_types_unordered(l->types, r->types);
             },
 
-            [](const Signature_ptr& l, const Signature_ptr& r)
+            [](Signature_ptr l, Signature_ptr r)
             {
                 return are_equal_types(
                            l->parameter_types,
@@ -574,16 +681,16 @@ bool Object::are_equal_types(Object_ptr left, Object_ptr right)
                        are_equal_types(l->return_type, r->return_type);
             },
 
-            [](const ClassType_ptr& l, const ClassType_ptr& r)
+            [](ClassType_ptr l, ClassType_ptr r)
             {
                 return l->type_id == r->type_id;
             },
-            [](const TraitType_ptr& l, const TraitType_ptr& r)
+            [](TraitType_ptr l, TraitType_ptr r)
             {
                 return l->type_id == r->type_id;
             },
 
-            [](const EnumType_ptr& l, const EnumType_ptr& r) -> bool
+            [](EnumType_ptr l, EnumType_ptr r) -> bool
             {
                 auto get_root = [](const std::string& name)
                 {
@@ -591,21 +698,20 @@ bool Object::are_equal_types(Object_ptr left, Object_ptr right)
                     return pos == std::string::npos ? name
                                                     : name.substr(0, pos);
                 };
-
                 return get_root(l->name) == get_root(r->name);
             },
 
-            [](const TypeAlias_ptr& l, const TypeAlias_ptr& r)
+            [](TypeAlias_ptr l, TypeAlias_ptr r)
             {
                 return are_equal_types(l->underlying_type, r->underlying_type);
             },
 
-            [](const GenericType_ptr& l, const GenericType_ptr& r)
+            [](GenericType_ptr l, GenericType_ptr r)
             {
                 return l->name == r->name;
             },
 
-            // Catch-all identical Primitive Types (IntType, FloatType, etc.)
+            // Catch-all identical Primitive Types
             []<typename T>(const T&, const T&)
             {
                 return true;

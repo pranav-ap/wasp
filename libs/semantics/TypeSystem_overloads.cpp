@@ -4,6 +4,7 @@
 #include "TypeSystem.h"
 #include "Workspace.h"
 
+
 #include <algorithm>
 #include <cstddef>
 #include <memory>
@@ -103,7 +104,7 @@ std::tuple<Symbol_ptr, int> TypeSystem::get_best_function_symbol(
             auto signature = valid_matches[i]->get_type()->as<Signature_ptr>();
 
             // If the signature has no expected generics, it is purely concrete
-            if (!signature->template_type.has_value())
+            if (signature->template_type->ordered_parameter_names.empty())
             {
                 best_concrete = valid_matches[i];
                 best_concrete_index = match_indices[i];
@@ -159,12 +160,10 @@ void TypeSystem::validate_new_function_overload(
 )
 {
     auto existing = scope->lookup(name);
-    if (!existing.has_value())
+    if (!existing)
     {
         return;
     }
-
-    auto existing_symbol = existing.value();
 
     auto type = new_func->get_type();
     Doctor::get().assert(
@@ -195,9 +194,9 @@ void TypeSystem::validate_new_function_overload(
         }
     };
 
-    if (existing_symbol->is<OverloadsSymbol>())
+    if (existing->is<OverloadsSymbol>())
     {
-        auto& group = existing_symbol->as<OverloadsSymbol>();
+        auto& group = existing->as<OverloadsSymbol>();
         for (const auto& sibling : group.overloads)
         {
             check_duplicate(sibling);
@@ -222,9 +221,9 @@ void TypeSystem::validate_new_function_overload(
             group.parents.erase(it);
         }
     }
-    else if (existing_symbol->is<FunctionSymbol>())
+    else if (existing->is<FunctionSymbol>())
     {
-        check_duplicate(existing_symbol);
+        check_duplicate(existing);
     }
     else
     {

@@ -29,7 +29,7 @@ public:
         ExpressionVector values = {}
     );
 
-    static Expression_ptr create_field_definition(
+    static Statement_ptr create_field_definition(
         const std::string& field_name,
         TypeAnnotation_ptr type_node
     );

@@ -66,6 +66,8 @@ private:
     void execute_member(OpCode op, CallFrame* frame);
     void execute_BOX(CallFrame* frame);
 
+    // Using new type names (RecordObject for instances, TraitObject for trait
+    // objects)
     Object_ptr execute_GET_MEMBER(Object_ptr obj, int member_index);
     void execute_SET_MEMBER(Object_ptr obj, int member_index, Object_ptr value);
 
