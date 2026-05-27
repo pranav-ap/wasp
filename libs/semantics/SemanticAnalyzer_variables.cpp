@@ -117,7 +117,7 @@ void SemanticAnalyzer::validate_purity_constraints(
             "Pure functions cannot mutate outer state variable '" + target_symbol->name + "'"
         );
 
-        scope = scope->get_enclosing();
+        scope = scope->get_enclosing_scope();
     }
 }
 
@@ -138,12 +138,12 @@ Object_ptr SemanticAnalyzer::mutate_variable(
     );
 
     Doctor::get().assert(
-        target_symbol->payload_is<VariableData>(),
+        target_symbol->payload_is<VariablePayload>(),
         WaspStage::Semantics,
         "Cannot assign to non-variable symbol '" + symbol_name + "'"
     );
 
-    auto& var_data = target_symbol->get_payload_as<VariableData>();
+    auto& var_data = target_symbol->get_payload_as<VariablePayload>();
 
     Doctor::get().assert(
         var_data.is_mutable,
@@ -180,10 +180,10 @@ Object_ptr SemanticAnalyzer::mutate_member(
     if (mac.member_index == -1)
     {
         auto symbol = mac.right->as<Identifier>().symbol;
-        if (symbol && symbol->payload_is<VariableData>())
+        if (symbol && symbol->payload_is<VariablePayload>())
         {
             Doctor::get().assert(
-                symbol->get_payload_as<VariableData>().is_mutable,
+                symbol->get_payload_as<VariablePayload>().is_mutable,
                 WaspStage::Semantics,
                 "Cannot reassign immutable shared member: " + symbol->name
             );

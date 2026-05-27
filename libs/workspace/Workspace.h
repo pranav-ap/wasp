@@ -9,10 +9,13 @@
 #include <filesystem>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <variant>
 #include <vector>
+
+struct SymbolScope;
 
 namespace Wasp
 {
@@ -22,8 +25,7 @@ using Symbol_ptr = std::shared_ptr<Symbol>;
 using SymbolVector = std::vector<Symbol_ptr>;
 using SymbolStringMap = std::map<std::string, Symbol_ptr>;
 using SymbolIntMap = std::map<int, Symbol_ptr>;
-struct SymbolScope;
-using SymbolScope_ptr = std::shared_ptr<SymbolScope>;
+using OptionalSymbol = std::optional<Symbol_ptr>;
 
 struct Module;
 using Module_ptr = std::shared_ptr<Module>;
@@ -31,191 +33,174 @@ using Module_ptr = std::shared_ptr<Module>;
 struct Workspace;
 using Workspace_ptr = std::shared_ptr<Workspace>;
 
-struct TypedData
-{
-    Object_ptr type;
-
-    explicit TypedData(Object_ptr type = nullptr) : type(std::move(type))
-    {
-    }
-};
-
-struct NativeData
-{
-    bool is_native;
-
-    explicit NativeData(bool is_native = false) : is_native(is_native)
-    {
-    }
-};
-
 // ============================================================================
 // Symbol Payloads
 // ============================================================================
 
-struct CallableData : public TypedData, public NativeData
+struct FunctionSymbol
 {
-    bool is_method;
-    Statement_ptr definition;
-    SymbolScope_ptr declaration_scope;
+    Object_ptr type;
+    bool is_native;
+    Statement_ptr definition = nullptr;
+    std::shared_ptr<SymbolScope> declaration_scope = nullptr;
     bool required_in_class = false;
 
-    CallableData(Object_ptr type, bool is_native, bool is_method)
-        : TypedData(std::move(type)), NativeData(is_native), is_method(is_method),
-          definition(nullptr), declaration_scope(nullptr)
-    {
-    }
+    FunctionSymbol(Object_ptr type, bool is_native);
 };
 
-struct OverloadsData : public TypedData
+struct OverloadsSymbol
 {
     SymbolVector overloads;
     SymbolVector parents;
 
-    OverloadsData() = default;
+    OverloadsSymbol() = default;
 
     const SymbolVector& get_overloads() const;
     std::vector<std::pair<Symbol_ptr, int>> get_overloads_with_indices() const;
 };
 
-struct VariableData : public TypedData
+struct VariableSymbol
 {
+    Object_ptr type;
     bool is_mutable;
 
-    VariableData(Object_ptr type, bool is_mutable)
-        : TypedData(std::move(type)), is_mutable(is_mutable)
-    {
-    }
+    VariableSymbol(Object_ptr type, bool is_mutable);
 };
 
-struct OopsData : public TypedData
+struct OopsSymbol
 {
+    Object_ptr type;
     Statement_ptr definition;
-    SymbolScope_ptr declaration_scope;
+    std::shared_ptr<SymbolScope> declaration_scope;
 
-    explicit OopsData(Object_ptr type)
-        : TypedData(std::move(type)), definition(nullptr),
-          declaration_scope(nullptr)
-    {
-    }
+    explicit OopsSymbol(Object_ptr type);
 };
 
-struct TemplateParameterData : public TypedData
+struct TemplateParameterSymbol
 {
-    using TypedData::TypedData;
+    Object_ptr type;
 };
 
-struct SymbolAliasData
+struct SymbolAliasSymbol
 {
     Symbol_ptr target;
 };
 
-struct TypeAliasData : public TypedData
+struct TypeAliasSymbol
 {
-    using TypedData::TypedData;
+    Object_ptr type;
 };
 
-struct ModuleData
+struct ModuleSymbol
 {
     Module_ptr mod;
 };
 
-struct EnumData : public TypedData
+struct EnumSymbol
 {
-    using TypedData::TypedData;
+    Object_ptr type;
 };
 
-using SymbolPayload = std::variant<
-    VariableData,
-    OverloadsData,
-    CallableData,
-    ModuleData,
-    OopsData,
-    TemplateParameterData,
-    EnumData,
-    TypeAliasData,
-    SymbolAliasData>;
+// ============================================================================
+// Symbol
+// ============================================================================
 
 struct Symbol : public std::enable_shared_from_this<Symbol>
 {
     std::string name;
     std::filesystem::path module_path;
     int id = -1;
-
     int closure_depth = 0;
     int lexical_depth = 0;
 
-    SymbolPayload payload;
+    using UnderlyingVariant = std::variant<
+        std::monostate,
+
+        VariableSymbol,
+        OverloadsSymbol,
+        FunctionSymbol,
+        ModuleSymbol,
+        OopsSymbol,
+        TemplateParameterSymbol,
+        EnumSymbol,
+        TypeAliasSymbol,
+        SymbolAliasSymbol>;
+
+    UnderlyingVariant payload;
+
+    Symbol() = default;
 
     Symbol(
         int id,
         std::string name,
         int closure_depth,
         int lexical_depth,
-        SymbolPayload payload
+        UnderlyingVariant payload
     );
 
-    bool is_global() const;
-    bool is_exportable() const;
-    bool is_either_function_or_method() const;
-    bool is_native() const;
-    bool is_template_parameter() const;
-
-    Object_ptr get_type();
-    void set_type(Object_ptr new_type);
-
-    void mark_as_native();
-    void mark_as_required();
-
-    bool should_be_captured(int usage_depth) const;
-
-    Symbol_ptr resolve();
-
-    void add_overload(Symbol_ptr overload);
-    SymbolVector get_overloads() const;
-
-    std::string to_string() const;
-
-    bool is_mutable_variable() const;
-    bool is_method() const;
-    bool is_oop_type() const;
-
-    template <typename T> bool payload_is() const
+    template <typename T> bool is() const
     {
         return std::holds_alternative<T>(payload);
     }
 
-    template <typename T> T& get_payload_as()
+    template <typename T> const T& as() const
     {
         return std::get<T>(payload);
     }
 
-    template <typename T> const T& get_payload_as() const
+    template <typename T> T& as()
     {
         return std::get<T>(payload);
     }
 
-    template <typename... Ts> bool payload_is_any_of() const
+    template <typename... Ts> bool is_any_of() const
     {
-        return (payload_is<Ts>() || ...);
+        return (is<Ts>() || ...);
     }
+
+    Object_ptr get_type() const;
+    void set_type(Object_ptr new_type);
+
+    bool is_native() const;
+    void mark_as_native();
+    void mark_as_required();
+
+    void add_overload(Symbol_ptr overload);
+    SymbolVector get_overloads() const;
+
+    Symbol_ptr resolve();
+    bool should_be_captured(int usage_depth) const;
+
+    bool is_global() const;
+    bool is_exportable() const;
+
+    std::string to_string() const;
 };
+
+// ============================================================================
+// SymbolFactory
+// ============================================================================
 
 class SymbolFactory
 {
 private:
-    inline static int symbol_id_counter{0};
+    static int symbol_id_counter;
 
-public:
-    static Symbol_ptr create_dummy(
-        std::string name,
-        Object_ptr type,
+    static Symbol_ptr create_symbol(
+        const std::string& name,
+        Symbol::UnderlyingVariant&& payload,
         int closure_depth = 0,
         int lexical_depth = 0
     );
 
+    static Symbol_ptr create_symbol(Symbol::UnderlyingVariant&& payload);
+
+public:
+    static void reset_counter();
+    static int get_current_id();
+
     static Symbol_ptr create_variable(
-        std::string name,
+        const std::string& name,
         Object_ptr type,
         bool is_mutable = false,
         int closure_depth = 0,
@@ -223,57 +208,72 @@ public:
     );
 
     static Symbol_ptr create_function(
-        std::string name,
+        const std::string& name,
         Object_ptr type,
-        int closure_depth = 0,
-        int lexical_depth = 0
-    );
-
-    static Symbol_ptr create_method(
-        std::string name,
-        Object_ptr type,
+        bool is_native = false,
         int closure_depth = 0,
         int lexical_depth = 0
     );
 
     static Symbol_ptr create_overloads(
-        std::string name,
+        const std::string& name,
         int closure_depth = 0,
         int lexical_depth = 0
     );
 
     static Symbol_ptr create_oops(
-        std::string name,
+        const std::string& name,
         Object_ptr type = nullptr,
         int closure_depth = 0,
         int lexical_depth = 0
     );
 
     static Symbol_ptr create_template_parameter(
-        std::string name,
+        const std::string& name,
         Object_ptr type = nullptr,
         int closure_depth = 0,
         int lexical_depth = 0
     );
 
     static Symbol_ptr create_enum(
-        std::string name,
+        const std::string& name,
         Object_ptr type = nullptr,
         int closure_depth = 0,
         int lexical_depth = 0
     );
 
     static Symbol_ptr create_type_alias(
-        std::string name,
-        Object_ptr type = nullptr,
+        const std::string& name,
+        Object_ptr type,
         int closure_depth = 0,
         int lexical_depth = 0
     );
 
-    static Symbol_ptr create_symbol_alias(std::string name, Symbol_ptr target);
+    static Symbol_ptr create_symbol_alias(
+        const std::string& name,
+        Symbol_ptr target,
+        int closure_depth = 0,
+        int lexical_depth = 0
+    );
 
-    static Symbol_ptr create_module(std::string name, Module_ptr mod);
+    static Symbol_ptr create_module(
+        const std::string& name,
+        Module_ptr mod,
+        int closure_depth = 0,
+        int lexical_depth = 0
+    );
+
+    static Symbol_ptr create_dummy(
+        const std::string& name,
+        Object_ptr type,
+        int closure_depth = 0,
+        int lexical_depth = 0
+    );
 };
+
+// ============================================================================
+// Module
+// ============================================================================
 
 struct Module
 {
@@ -284,13 +284,11 @@ struct Module
     FunctionBlueprintObject_ptr blueprint;
 
     SymbolVector exports;
+    Object_ptr type = nullptr;
 
     Module() = default;
 
-    Module(std::filesystem::path file_path, StatementVector stmts)
-        : absolute_filepath(std::move(file_path)), stmts(std::move(stmts))
-    {
-    }
+    Module(std::filesystem::path file_path, StatementVector stmts);
 
     std::string get_name() const;
     std::string get_path() const;
@@ -298,6 +296,10 @@ struct Module
     int get_member_index(const std::string& member_name) const;
     Symbol_ptr get_member(const std::string& member_name) const;
 };
+
+// ============================================================================
+// Workspace
+// ============================================================================
 
 class Workspace
 {
@@ -312,7 +314,7 @@ public:
     ConstantPool_ptr pool;
     NativeRegistry_ptr native_registry;
 
-    Workspace(std::filesystem::path root);
+    explicit Workspace(std::filesystem::path root);
 
     Module_ptr get_module(const std::filesystem::path& path);
     Module_ptr get_module(int module_index);

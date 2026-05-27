@@ -339,12 +339,16 @@ bool VariantObject::has_value()
     return value != nullptr && !value->is<std::monostate>();
 }
 
-void FunctionOverloadsObject::add_overload(Object_ptr overload)
+// -----------------------------------------------------------------------------
+// Function Overloads Object
+// ------------------------------------------------------------------------------
+
+void Pocket::add_overload(Object_ptr overload)
 {
     overloads.push_back(std::move(overload));
 }
 
-Object_ptr FunctionOverloadsObject::get_overload(int overload_id) const
+Object_ptr Pocket::get_overload(int overload_id) const
 {
     Doctor::get().assert(
         overload_id >= 0 && overload_id < static_cast<int>(overloads.size()),
@@ -354,6 +358,10 @@ Object_ptr FunctionOverloadsObject::get_overload(int overload_id) const
 
     return overloads[overload_id];
 }
+
+// -----------------------------------------------------------------------------
+// Record Object
+// ------------------------------------------------------------------------------
 
 Object_ptr RecordObject::get_field(int member_id) const
 {
@@ -385,16 +393,24 @@ void RecordObject::set_field(int member_id, Object_ptr value)
     fields[member_id] = std::move(value);
 }
 
-Object_ptr ImplObject::get_overload(int member_id) const
+// -----------------------------------------------------------------------------
+// Bag Object
+// -----------------------------------------------------------------------------
+
+Pocket_ptr BagObject::get_overloads_object(int member_id) const
 {
     Doctor::get().assert(
-        member_id >= 0 && member_id < static_cast<int>(overloads.size()),
+        member_id >= 0 && member_id < static_cast<int>(pocket.size()),
         WaspStage::VM,
-        "Impl overload index out of bounds!"
+        "Bag member index out of bounds!"
     );
 
-    return overloads[member_id];
+    return pocket[member_id];
 }
+
+// -----------------------------------------------------------------------------
+// Module Object
+// -----------------------------------------------------------------------------
 
 Object_ptr ModuleObject::get_member(int member_id) const
 {

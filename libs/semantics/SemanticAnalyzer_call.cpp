@@ -126,7 +126,7 @@ Object_ptr SemanticAnalyzer::resolve_standard_overload(
 )
 {
     Doctor::get().assert(
-        overload_symbol->payload_is<OverloadsData>(),
+        overload_symbol->payload_is<OverloadsPayload>(),
         WaspStage::Semantics,
         "Symbol must hold function overloads."
     );
@@ -229,7 +229,7 @@ Symbol_ptr SemanticAnalyzer::monomorphize_callable_template(
     const std::string& specialized_name
 )
 {
-    auto& function_data = blueprint_symbol->get_payload_as<CallableData>();
+    auto& function_data = blueprint_symbol->get_payload_as<CallableSymbol>();
 
     ASTCloner cloner(substitutions);
     Statement_ptr specialized_stmt = cloner.clone(function_data.definition);
@@ -325,7 +325,7 @@ Object_ptr SemanticAnalyzer::call_template_function(
     Symbol_ptr blueprint_symbol = candidates[winning_index];
 
     Doctor::get().assert(
-        blueprint_symbol->payload_is<CallableData>(),
+        blueprint_symbol->payload_is<CallableSymbol>(),
         WaspStage::Semantics,
         "Resolved template symbol does not contain CallableData."
     );

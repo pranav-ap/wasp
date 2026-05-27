@@ -1,4 +1,5 @@
 #include "Workspace.h"
+#include "AST.h"
 #include "ConstantPool.h"
 #include "Doctor.h"
 #include "NativeRegistry.h"
@@ -6,493 +7,409 @@
 
 #include <cstddef>
 #include <filesystem>
-#include <iterator>
 #include <map>
 #include <memory>
 #include <string>
 #include <utility>
-#include <variant>
 #include <vector>
-
-template <class... Ts> struct overloaded : Ts...
-{
-    using Ts::operator()...;
-};
-template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
 
-const SymbolVector& OverloadsData::get_overloads() const
+// ============================================================================
+// Symbol Payload Constructors
+// ============================================================================
+
+FunctionSymbol::FunctionSymbol(Object_ptr type, bool is_native)
+    : type(std::move(type)), is_native(is_native), definition(nullptr),
+      declaration_scope(nullptr)
+{
+}
+
+VariableSymbol::VariableSymbol(Object_ptr type, bool is_mutable)
+    : type(std::move(type)), is_mutable(is_mutable)
+{
+}
+
+OopsSymbol::OopsSymbol(Object_ptr type)
+    : type(std::move(type)), definition(nullptr), declaration_scope(nullptr)
+{
+}
+
+// ============================================================================
+// OverloadsData Implementation
+// ============================================================================
+
+const SymbolVector& OverloadsSymbol::get_overloads() const
 {
     return overloads;
 }
+
+std::vector<std::pair<Symbol_ptr, int>> OverloadsSymbol::
+    get_overloads_with_indices() const
+{
+    std::vector<std::pair<Symbol_ptr, int>> result;
+    result.reserve(overloads.size());
+    for (size_t i = 0; i < overloads.size(); ++i)
+    {
+        result.emplace_back(overloads[i], static_cast<int>(i));
+    }
+    return result;
+}
+
+// ============================================================================
+// Symbol Constructor
+// ============================================================================
 
 Symbol::Symbol(
     int id,
     std::string name,
     int closure_depth,
     int lexical_depth,
-    SymbolPayload payload
+    UnderlyingVariant payload
 )
-    : id(id), name(std::move(name)), closure_depth(closure_depth),
-      lexical_depth(lexical_depth), payload(std::move(payload)), module_path("")
+    : name(std::move(name)), id(id), closure_depth(closure_depth),
+      lexical_depth(lexical_depth), payload(std::move(payload))
 {
 }
 
-bool Symbol::is_global() const
-{
-    return lexical_depth == 0;
-}
+// ============================================================================
+// Symbol Type Management
+// ============================================================================
 
-bool Symbol::is_exportable() const
+Object_ptr Symbol::get_type() const
 {
-    return is_global() && !payload_is_any_of<ModuleData, SymbolAliasData>();
-}
-
-bool Symbol::is_either_function_or_method() const
-{
-    return payload_is_any_of<CallableData>();
-}
-
-bool Symbol::is_mutable_variable() const
-{
-    if (auto* var_data = std::get_if<VariableData>(&payload))
+    if (is<VariableSymbol>())
     {
-        return var_data->is_mutable;
+        return as<VariableSymbol>().type;
     }
-    return false;
-}
-
-bool Symbol::is_method() const
-{
-    if (auto* callable_data = std::get_if<CallableData>(&payload))
+    if (is<FunctionSymbol>())
     {
-        return callable_data->is_method;
+        return as<FunctionSymbol>().type;
     }
-    return false;
-}
-
-bool Symbol::is_oop_type() const
-{
-    return std::holds_alternative<OopsData>(payload);
-}
-
-bool Symbol::is_native() const
-{
-    if (auto* callable_data = std::get_if<CallableData>(&payload))
+    if (is<OopsSymbol>())
     {
-        return callable_data->is_native;
+        return as<OopsSymbol>().type;
+    }
+    if (is<TemplateParameterSymbol>())
+    {
+        return as<TemplateParameterSymbol>().type;
+    }
+    if (is<EnumSymbol>())
+    {
+        return as<EnumSymbol>().type;
+    }
+    if (is<TypeAliasSymbol>())
+    {
+        return as<TypeAliasSymbol>().type;
     }
 
-    return false;
-}
-
-bool Symbol::is_template_parameter() const
-{
-    return payload_is<TemplateParameterData>();
-}
-
-bool Symbol::should_be_captured(int usage_depth) const
-{
-    return closure_depth < usage_depth;
-}
-
-std::vector<std::pair<std::shared_ptr<Symbol>, int>> OverloadsData::
-    get_overloads_with_indices() const
-{
-    std::vector<std::pair<std::shared_ptr<Symbol>, int>> result;
-    result.reserve(overloads.size());
-
-    for (size_t i = 0; i < overloads.size(); ++i)
-    {
-        result.emplace_back(overloads[i], static_cast<int>(i));
-    }
-
-    return result;
-}
-
-Object_ptr Symbol::get_type()
-{
-    return std::visit(
-        ::overloaded{
-            [](const VariableData& d)
-            {
-                return d.type;
-            },
-            [](const CallableData& d)
-            {
-                return d.type;
-            },
-            [](const OopsData& d)
-            {
-                return d.type;
-            },
-            [](const TemplateParameterData& d) -> Object_ptr
-            {
-                return d.type;
-            },
-            [](const SymbolAliasData& d)
-            {
-                return d.target->get_type();
-            },
-            [](const TypeAliasData& d) -> Object_ptr
-            {
-                return d.type;
-            },
-            [](const EnumData& d) -> Object_ptr
-            {
-                return d.type;
-            },
-            [this](OverloadsData& d) -> Object_ptr
-            {
-                if (d.type)
-                    return d.type;
-
-                ObjectVector overload_types;
-                for (const auto& overload : d.get_overloads())
-                {
-                    overload_types.push_back(overload->get_type());
-                }
-
-                d.type = make_object(
-                    std::make_shared<FunctionOverloadsObject>(
-                        std::move(overload_types)
-                    )
-                );
-                return d.type;
-            }
-        },
-        payload
+    Doctor::get().fatal(
+        WaspStage::Semantics,
+        "Symbol does not have a type attribute : " + name
     );
 }
 
 void Symbol::set_type(Object_ptr new_type)
 {
-    std::visit(
-        ::overloaded{
-            [&](VariableData& d)
-            {
-                d.type = new_type;
-            },
-            [&](CallableData& d)
-            {
-                d.type = new_type;
-            },
-            [&](OopsData& d)
-            {
-                d.type = new_type;
-            },
-            [&](TemplateParameterData& d)
-            {
-                d.type = new_type;
-            },
-            [&](EnumData& d)
-            {
-                d.type = new_type;
-            },
-            [&](OverloadsData& d)
-            {
-                d.type = new_type;
-            },
-            [&](SymbolAliasData& d)
-            {
-                d.target->set_type(new_type);
-            },
-            [&](TypeAliasData& d)
-            {
-                d.type = new_type;
-            }
-        },
-        payload
-    );
+    if (is<VariableSymbol>())
+    {
+        as<VariableSymbol>().type = new_type;
+    }
+    else if (is<FunctionSymbol>())
+    {
+        as<FunctionSymbol>().type = new_type;
+    }
+    else if (is<OopsSymbol>())
+    {
+        as<OopsSymbol>().type = new_type;
+    }
+    else if (is<TemplateParameterSymbol>())
+    {
+        as<TemplateParameterSymbol>().type = new_type;
+    }
+    else if (is<EnumSymbol>())
+    {
+        as<EnumSymbol>().type = new_type;
+    }
+    else if (is<TypeAliasSymbol>())
+    {
+        as<TypeAliasSymbol>().type = new_type;
+    }
+}
+
+// ============================================================================
+// Symbol Native Handling
+// ============================================================================
+
+bool Symbol::is_native() const
+{
+    return is<FunctionSymbol>() && as<FunctionSymbol>().is_native;
 }
 
 void Symbol::mark_as_native()
 {
-    std::visit(
-        ::overloaded{
-            [&](CallableData& d)
-            {
-                d.is_native = true;
-            },
-            [](auto&)
-            {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "Only functions and methods can be marked as native"
-                );
-            }
-        },
-        payload
-    );
+    if (is<FunctionSymbol>())
+    {
+        as<FunctionSymbol>().is_native = true;
+    }
 }
+
+// ============================================================================
+// Symbol Required Marker
+// ============================================================================
 
 void Symbol::mark_as_required()
 {
-    std::visit(
-        ::overloaded{
-            [&](CallableData& d)
-            {
-                d.required_in_class = true;
-            },
-            [](auto&)
-            {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "Only methods can be marked as required"
-                );
-            }
-        },
-        payload
-    );
-}
-
-Symbol_ptr Symbol::resolve()
-{
-    if (payload_is<SymbolAliasData>())
+    if (is<FunctionSymbol>())
     {
-        return get_payload_as<SymbolAliasData>().target->resolve();
+        as<FunctionSymbol>().required_in_class = true;
     }
-
-    return shared_from_this();
 }
+
+// ============================================================================
+// Symbol Overload Management
+// ============================================================================
 
 void Symbol::add_overload(Symbol_ptr overload)
 {
-    Doctor::get().assert(
-        payload_is<OverloadsData>(),
-        WaspStage::Semantics, // Or WaspStage::SymbolResolution, depending on
-                              // your enums
-        "Cannot add overload to symbol '" + name +
-            "': it is not an overloads group."
-    );
-
-    get_payload_as<OverloadsData>().overloads.push_back(std::move(overload));
+    if (is<OverloadsSymbol>())
+    {
+        as<OverloadsSymbol>().overloads.push_back(overload);
+    }
+    else
+    {
+        Doctor::get().fatal(
+            WaspStage::Semantics,
+            "Cannot add overload to non-overload symbol: " + name
+        );
+    }
 }
 
 SymbolVector Symbol::get_overloads() const
 {
-    Doctor::get().assert(
-        payload_is<OverloadsData>(),
-        WaspStage::Semantics,
-        "Symbol '" + name + " is not an overloads group"
-    );
+    if (is<OverloadsSymbol>())
+    {
+        return as<OverloadsSymbol>().overloads;
+    }
+    return {};
+}
 
-    return get_payload_as<OverloadsData>().overloads;
+// ============================================================================
+// Symbol Resolution (Placeholder - implement as needed)
+// ============================================================================
+
+Symbol_ptr Symbol::resolve()
+{
+    if (is<SymbolAliasSymbol>())
+    {
+        return as<SymbolAliasSymbol>().target;
+    }
+    return shared_from_this();
+}
+
+// ============================================================================
+// Symbol Other Methods (Placeholders - implement as needed)
+// ============================================================================
+
+bool Symbol::is_global() const
+{
+    // Implementation depends on your scope system
+    return lexical_depth == 0;
+}
+
+bool Symbol::is_exportable() const
+{
+    // Implementation depends on your export rules
+    return is_global();
+}
+
+bool Symbol::should_be_captured(int usage_depth) const
+{
+    return usage_depth > closure_depth;
 }
 
 std::string Symbol::to_string() const
 {
-    std::string payload_type = "Unknown";
-
-    if (payload_is<VariableData>())
-    {
-        payload_type = "Variable";
-    }
-    else if (payload_is<OverloadsData>())
-    {
-        payload_type = "OverloadsGroup";
-    }
-    else if (payload_is<CallableData>())
-    {
-        payload_type = "Callable";
-    }
-    else if (payload_is<ModuleData>())
-    {
-        payload_type = "Module";
-    }
-    else if (payload_is<OopsData>())
-    {
-        payload_type = "Class or Trait";
-    }
-    else if (payload_is<TemplateParameterData>())
-    {
-        payload_type = "Generic";
-    }
-    else if (payload_is<EnumData>())
-    {
-        payload_type = "Enum";
-    }
-    else if (payload_is<TypeAliasData>())
-    {
-        payload_type = "TypeAlias";
-    }
-    else if (payload_is<SymbolAliasData>())
-    {
-        payload_type = "SymbolAlias";
-    }
-
-    return "Symbol(id: " + std::to_string(id) + ", name: '" + name + "'" +
-           ", depth: [" + std::to_string(closure_depth) + ", " +
-           std::to_string(lexical_depth) + "]" + ", type: " + payload_type +
-           ")";
+    return name + " (id=" + std::to_string(id) + ")";
 }
 
-Symbol_ptr SymbolFactory::create_dummy(
-    std::string name,
-    Object_ptr type,
+// ============================================================================
+// SymbolFactory Static Members
+// ============================================================================
+
+int SymbolFactory::symbol_id_counter = 0;
+
+void SymbolFactory::reset_counter()
+{
+    symbol_id_counter = 0;
+}
+
+int SymbolFactory::get_current_id()
+{
+    return symbol_id_counter;
+}
+
+Symbol_ptr SymbolFactory::create_symbol(
+    const std::string& name,
+    Symbol::UnderlyingVariant&& payload,
     int closure_depth,
     int lexical_depth
 )
 {
     return std::make_shared<Symbol>(
         symbol_id_counter++,
-        std::move(name),
+        name,
         closure_depth,
         lexical_depth,
-        VariableData{std::move(type), false}
+        std::move(payload)
+    );
+}
+
+Symbol_ptr SymbolFactory::create_symbol(Symbol::UnderlyingVariant&& payload)
+{
+    return std::make_shared<Symbol>(
+        symbol_id_counter++,
+        "",
+        0,
+        0,
+        std::move(payload)
     );
 }
 
 Symbol_ptr SymbolFactory::create_variable(
-    std::string name,
+    const std::string& name,
     Object_ptr type,
     bool is_mutable,
     int closure_depth,
     int lexical_depth
 )
 {
-    return std::make_shared<Symbol>(
-        symbol_id_counter++,
-        std::move(name),
+    return create_symbol(
+        name,
+        VariableSymbol{type, is_mutable},
         closure_depth,
-        lexical_depth,
-        VariableData{std::move(type), is_mutable}
+        lexical_depth
     );
 }
 
 Symbol_ptr SymbolFactory::create_function(
-    std::string name,
+    const std::string& name,
     Object_ptr type,
+    bool is_native,
     int closure_depth,
     int lexical_depth
 )
 {
-    auto symbol = std::make_shared<Symbol>(
-        symbol_id_counter++,
-        std::move(name),
+    return create_symbol(
+        name,
+        FunctionSymbol{type, is_native},
         closure_depth,
-        lexical_depth,
-        CallableData(std::move(type), false, false)
+        lexical_depth
     );
-
-    return symbol;
 }
 
-Symbol_ptr SymbolFactory::create_method(
-    std::string name,
-    Object_ptr type,
+Symbol_ptr SymbolFactory::create_overloads(
+    const std::string& name,
     int closure_depth,
     int lexical_depth
 )
 {
-    auto symbol = std::make_shared<Symbol>(
-        symbol_id_counter++,
-        std::move(name),
-        closure_depth,
-        lexical_depth,
-        CallableData(std::move(type), false, true)
-    );
-
-    return symbol;
-}
-
-Symbol_ptr SymbolFactory::create_overloads(std::string name, int closure_depth, int lexical_depth)
-{
-    return std::make_shared<Symbol>(
-        symbol_id_counter++,
-        std::move(name),
-        closure_depth,
-        lexical_depth,
-        OverloadsData{}
-    );
+    return create_symbol(name, OverloadsSymbol{}, closure_depth, lexical_depth);
 }
 
 Symbol_ptr SymbolFactory::create_oops(
-    std::string name,
+    const std::string& name,
     Object_ptr type,
     int closure_depth,
     int lexical_depth
 )
 {
-    return std::make_shared<Symbol>(
-        symbol_id_counter++,
-        std::move(name),
-        closure_depth,
-        lexical_depth,
-        OopsData{std::move(type)}
-    );
+    return create_symbol(name, OopsSymbol{type}, closure_depth, lexical_depth);
 }
 
 Symbol_ptr SymbolFactory::create_template_parameter(
-    std::string name,
+    const std::string& name,
     Object_ptr type,
     int closure_depth,
     int lexical_depth
 )
 {
-    return std::make_shared<Symbol>(
-        symbol_id_counter++,
-        std::move(name),
+    return create_symbol(
+        name,
+        TemplateParameterSymbol{type},
         closure_depth,
-        lexical_depth,
-        TemplateParameterData{std::move(type)}
+        lexical_depth
     );
 }
 
 Symbol_ptr SymbolFactory::create_enum(
-    std::string name,
+    const std::string& name,
     Object_ptr type,
     int closure_depth,
     int lexical_depth
 )
 {
-    return std::make_shared<Symbol>(
-        symbol_id_counter++,
-        std::move(name),
-        closure_depth,
-        lexical_depth,
-        EnumData{type}
-    );
+    return create_symbol(name, EnumSymbol{type}, closure_depth, lexical_depth);
 }
 
 Symbol_ptr SymbolFactory::create_type_alias(
-    std::string name,
+    const std::string& name,
     Object_ptr type,
     int closure_depth,
     int lexical_depth
 )
 {
-    return std::make_shared<Symbol>(
-        symbol_id_counter++,
-        std::move(name),
+    return create_symbol(
+        name,
+        TypeAliasSymbol{type},
         closure_depth,
-        lexical_depth,
-        TypeAliasData{type}
+        lexical_depth
     );
 }
 
-Symbol_ptr SymbolFactory::create_module(std::string name, Module_ptr mod)
+Symbol_ptr SymbolFactory::create_symbol_alias(
+    const std::string& name,
+    Symbol_ptr target,
+    int closure_depth,
+    int lexical_depth
+)
 {
-    return std::make_shared<Symbol>(
-        symbol_id_counter++,
-        std::move(name),
-        0,
-        0,
-        ModuleData{std::move(mod)}
+    return create_symbol(
+        name,
+        SymbolAliasSymbol{target},
+        closure_depth,
+        lexical_depth
     );
 }
 
-Symbol_ptr SymbolFactory::create_symbol_alias(std::string name, Symbol_ptr target)
+Symbol_ptr SymbolFactory::create_module(
+    const std::string& name,
+    Module_ptr mod,
+    int closure_depth,
+    int lexical_depth
+)
 {
-    return std::make_shared<Symbol>(
-        symbol_id_counter++,
-        std::move(name),
-        0,
-        0,
-        SymbolAliasData{std::move(target)}
-    );
+    return create_symbol(name, ModuleSymbol{mod}, closure_depth, lexical_depth);
+}
+
+Symbol_ptr SymbolFactory::create_dummy(
+    const std::string& name,
+    Object_ptr type,
+    int closure_depth,
+    int lexical_depth
+)
+{
+    return create_variable(name, type, false, closure_depth, lexical_depth);
+}
+
+// ============================================================================
+// Module Implementation
+// ============================================================================
+
+Module::Module(std::filesystem::path file_path, StatementVector stmts)
+    : absolute_filepath(std::move(file_path)), stmts(std::move(stmts))
+{
 }
 
 std::string Module::get_name() const
@@ -507,89 +424,92 @@ std::string Module::get_path() const
 
 int Module::get_member_index(const std::string& member_name) const
 {
-    for (size_t i = 0; i < exports.size(); i++)
+    for (size_t i = 0; i < exports.size(); ++i)
     {
-        if (exports[i]->name == member_name)
+        if (exports[i] && exports[i]->name == member_name)
+        {
             return static_cast<int>(i);
+        }
     }
-
-    Doctor::get().fatal(
-        WaspStage::Semantics,
-        "Member '" + member_name + "' not found in module '" + get_name() + "'"
-    );
+    return -1;
 }
 
 Symbol_ptr Module::get_member(const std::string& member_name) const
 {
-    for (const auto& sym : exports)
-    {
-        if (sym->name == member_name)
-            return sym;
-    }
-
-    Doctor::get().fatal(
-        WaspStage::Semantics,
-        "Member '" + member_name + "' not found in module '" + get_name() + "'"
-    );
+    int index = get_member_index(member_name);
+    return index >= 0 ? exports[index] : nullptr;
 }
 
+// ============================================================================
+// Workspace Implementation
+// ============================================================================
+
 Workspace::Workspace(std::filesystem::path root)
-    : root_path(std::filesystem::absolute(root)), build_path(root_path / "build"),
+    : root_path(std::move(root)), build_path(root_path / "build"),
       libs_path(root_path / "libs"), pool(std::make_shared<ConstantPool>()),
       native_registry(std::make_shared<NativeRegistry>(pool))
 {
-    std::filesystem::create_directories(build_path);
-    std::filesystem::create_directories(libs_path);
 }
 
 Module_ptr Workspace::get_module(const std::filesystem::path& path)
 {
-    auto abs_path = std::filesystem::absolute(path);
-    if (module_registry.contains(abs_path))
-        return module_registry.at(abs_path);
+    auto it = module_registry.find(path);
+    if (it != module_registry.end())
+    {
+        return it->second;
+    }
     return nullptr;
 }
 
 Module_ptr Workspace::get_module(int module_index)
 {
-    auto it = module_registry.begin();
-    std::advance(it, module_index);
-    return it->second;
+    for (const auto& [path, module] : module_registry)
+    {
+        if (get_module_index(path) == module_index)
+        {
+            return module;
+        }
+    }
+    return nullptr;
 }
 
-const std::map<std::filesystem::path, Module_ptr>& Workspace::get_all_modules() const
+const std::map<std::filesystem::path, Module_ptr>& Workspace::
+    get_all_modules() const
 {
     return module_registry;
 }
 
 void Workspace::add_module(const std::filesystem::path& path, Module_ptr module)
 {
-    auto abs_path = std::filesystem::absolute(path);
-    Doctor::get().assert(
-        !module_registry.contains(abs_path),
-        WaspStage::Compiler,
-        "Module already exists in workspace: " + abs_path.string()
-    );
-    module_registry[abs_path] = std::move(module);
+    module_registry[path] = module;
 }
 
 int Workspace::get_module_index(const std::filesystem::path& path) const
 {
-    auto abs_path = std::filesystem::absolute(path);
-    auto it = module_registry.find(abs_path);
-    Doctor::get().assert(
-        it != module_registry.end(),
-        WaspStage::Compiler,
-        "Module not found in workspace: " + abs_path.string()
-    );
-    return std::distance(module_registry.begin(), it);
+    int index = 0;
+    for (const auto& [p, _] : module_registry)
+    {
+        if (p == path)
+        {
+            return index;
+        }
+        ++index;
+    }
+    return -1;
 }
 
 std::string Workspace::get_module_path(int module_index) const
 {
-    auto it = module_registry.begin();
-    std::advance(it, module_index);
-    return it->first.string();
+    int index = 0;
+    for (const auto& [path, _] : module_registry)
+    {
+        if (index == module_index)
+        {
+            return path.string();
+        }
+        ++index;
+    }
+    return "";
 }
 
 } // namespace Wasp

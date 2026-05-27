@@ -103,11 +103,11 @@ std::tuple<Symbol_ptr, int> TypeSystem::get_best_function_symbol(
             auto signature = valid_matches[i]->get_type()->as<Signature_ptr>();
 
             // If the signature has no expected generics, it is purely concrete
-            if (signature->ordered_template_parameter_names.empty())
+            if (!signature->template_type.has_value())
             {
-                concrete_count++;
                 best_concrete = valid_matches[i];
                 best_concrete_index = match_indices[i];
+                concrete_count++;
             }
         }
 
@@ -159,10 +159,12 @@ void TypeSystem::validate_new_function_overload(
 )
 {
     auto existing = scope->lookup(name);
-    if (!existing)
+    if (!existing.has_value())
     {
         return;
     }
+
+    auto existing_symbol = existing.value();
 
     auto type = new_func->get_type();
     Doctor::get().assert(
@@ -193,9 +195,9 @@ void TypeSystem::validate_new_function_overload(
         }
     };
 
-    if (existing->payload_is<OverloadsData>())
+    if (existing_symbol->is<OverloadsSymbol>())
     {
-        auto& group = existing->get_payload_as<OverloadsData>();
+        auto& group = existing_symbol->as<OverloadsSymbol>();
         for (const auto& sibling : group.overloads)
         {
             check_duplicate(sibling);
@@ -220,9 +222,9 @@ void TypeSystem::validate_new_function_overload(
             group.parents.erase(it);
         }
     }
-    else if (existing->payload_is<CallableData>())
+    else if (existing_symbol->is<FunctionSymbol>())
     {
-        check_duplicate(existing);
+        check_duplicate(existing_symbol);
     }
     else
     {

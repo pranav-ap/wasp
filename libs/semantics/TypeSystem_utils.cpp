@@ -1,7 +1,7 @@
 #include "Doctor.h"
 #include "Objects.h"
-#include "SymbolScope.h"
 #include "TypeSystem.h"
+#include "Workspace.h"
 
 #include <algorithm>
 #include <variant>

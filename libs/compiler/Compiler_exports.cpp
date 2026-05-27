@@ -65,7 +65,8 @@ void Compiler::visit(Import& import_stmt)
     auto resolved_module_symbol = unresolved_module_symbol->resolve();
     Doctor::get().fatal_if_nullptr(resolved_module_symbol, WaspStage::Compiler);
 
-    auto module_payload = resolved_module_symbol->get_payload_as<ModuleData>();
+    auto module_payload = resolved_module_symbol
+                              ->get_payload_as<ModulePayload>();
     int module_index = workspace->get_module_index(module_payload.mod->absolute_filepath);
 
     emit(OpCode::IMPORT_MODULE, module_index, "module " + unresolved_module_symbol->name);

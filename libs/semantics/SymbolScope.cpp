@@ -2,8 +2,8 @@
 #include "Doctor.h"
 #include "Workspace.h"
 
-#include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -12,7 +12,8 @@ namespace Wasp
 {
 
 SymbolScope::SymbolScope(ScopeType type, SymbolScope_ptr enclosing)
-    : type(type), enclosing_scope(std::move(enclosing)), closure_depth(0), lexical_depth(0)
+    : type(type), enclosing_scope(std::move(enclosing)), closure_depth(0),
+      lexical_depth(0)
 {
     if (enclosing_scope)
     {
@@ -40,56 +41,16 @@ Symbol_ptr SymbolScope::define(Symbol_ptr symbol)
         "Cannot define a null symbol"
     );
 
-    if (symbol->payload_is<CallableData>())
+    if (symbol->is<FunctionSymbol>())
     {
-        auto& symbol_payload = symbol->get_payload_as<CallableData>();
-
-        if (symbol_payload.is_method)
-        {
-            return define_method(symbol);
-        }
-
         return define_function(symbol);
     }
-    else if (symbol->payload_is<OverloadsData>())
+
+    if (symbol->is<OverloadsSymbol>())
     {
-        // Handle imported overload groups merging with local overload groups!
-        if (contains_in_current_scope(symbol->name))
-        {
-            Symbol_ptr existing = symbols[symbol->name];
-
-            Doctor::get().assert(
-                existing->payload_is<OverloadsData>(),
-                WaspStage::Semantics,
-                symbol->name + " is already declared in this scope and is not "
-                               "an overload set"
-            );
-
-            auto& existing_data = existing->get_payload_as<OverloadsData>();
-            const auto& incoming_data = symbol->get_payload_as<OverloadsData>();
-
-            // Merge the imported overloads into the existing group
-            existing_data.overloads.insert(
-                existing_data.overloads.end(),
-                incoming_data.overloads.begin(),
-                incoming_data.overloads.end()
-            );
-
-            // Merge any parent overloads
-            existing_data.parents.insert(
-                existing_data.parents.end(),
-                incoming_data.parents.begin(),
-                incoming_data.parents.end()
-            );
-
-            return existing;
-        }
-
-        symbols[symbol->name] = symbol;
-        return symbol;
+        return define_overloads(symbol);
     }
 
-    // Generic variables, aliases, classes, etc.
     Doctor::get().assert(
         !contains_in_current_scope(symbol->name),
         WaspStage::Semantics,
@@ -97,29 +58,27 @@ Symbol_ptr SymbolScope::define(Symbol_ptr symbol)
     );
 
     symbols[symbol->name] = symbol;
-
     return symbol;
 }
 
 Symbol_ptr SymbolScope::define_function(Symbol_ptr new_symbol)
 {
     Doctor::get().assert(
-        new_symbol->payload_is<CallableData>(),
+        new_symbol->is<FunctionSymbol>(),
         WaspStage::Semantics,
-        "Expected a function or function template symbol"
+        "Expected a function symbol"
     );
 
     if (contains_in_current_scope(new_symbol->name))
     {
-        Symbol_ptr overload_group = symbols[new_symbol->name];
-
+        auto overload_group = symbols[new_symbol->name];
         Doctor::get().assert(
-            overload_group->payload_is<OverloadsData>(),
+            overload_group->is<OverloadsSymbol>(),
             WaspStage::Semantics,
-            new_symbol->name + " already declared in this scope and is not an overload set"
+            new_symbol->name + " already declared and is not an overload set"
         );
 
-        overload_group->get_payload_as<OverloadsData>().overloads.push_back(new_symbol);
+        overload_group->as<OverloadsSymbol>().overloads.push_back(new_symbol);
         return overload_group;
     }
 
@@ -129,73 +88,86 @@ Symbol_ptr SymbolScope::define_function(Symbol_ptr new_symbol)
         new_symbol->lexical_depth
     );
 
-    auto& overload_group_data = overload_group->get_payload_as<OverloadsData>();
-    overload_group_data.overloads.push_back(new_symbol);
-
+    overload_group->as<OverloadsSymbol>().overloads.push_back(new_symbol);
     symbols[new_symbol->name] = overload_group;
 
-    if (enclosing_scope)
-    {
-        Symbol_ptr existing_parent = enclosing_scope->lookup(new_symbol->name);
-
-        if (existing_parent && existing_parent->payload_is<OverloadsData>())
-        {
-            const auto& parent_data = existing_parent->get_payload_as<OverloadsData>();
-
-            overload_group_data.parents.insert(
-                overload_group_data.parents.end(),
-                parent_data.overloads.begin(),
-                parent_data.overloads.end()
-            );
-
-            overload_group_data.parents.insert(
-                overload_group_data.parents.end(),
-                parent_data.parents.begin(),
-                parent_data.parents.end()
-            );
-        }
-    }
+    merge_parent_overloads(overload_group);
 
     return overload_group;
 }
 
-Symbol_ptr SymbolScope::define_method(Symbol_ptr new_symbol)
+Symbol_ptr SymbolScope::define_overloads(Symbol_ptr new_symbol)
 {
     Doctor::get().assert(
-        new_symbol->payload_is<CallableData>(),
+        new_symbol->is<OverloadsSymbol>(),
         WaspStage::Semantics,
-        "Expected a callable symbol"
+        "Expected an overloads symbol"
     );
 
     if (contains_in_current_scope(new_symbol->name))
     {
-        Symbol_ptr existing_local = symbols[new_symbol->name];
-
+        auto existing = symbols[new_symbol->name];
         Doctor::get().assert(
-            existing_local->payload_is<OverloadsData>(),
+            existing->is<OverloadsSymbol>(),
             WaspStage::Semantics,
-            new_symbol->name + " already declared in this scope and is not an overload set"
+            new_symbol->name + " is already declared and is not an overload set"
         );
 
-        existing_local->get_payload_as<OverloadsData>().overloads.push_back(new_symbol);
-        return new_symbol;
+        auto& existing_data = existing->as<OverloadsSymbol>();
+        const auto& incoming = new_symbol->as<OverloadsSymbol>();
+
+        existing_data.overloads.insert(
+            existing_data.overloads.end(),
+            incoming.overloads.begin(),
+            incoming.overloads.end()
+        );
+
+        existing_data.parents.insert(
+            existing_data.parents.end(),
+            incoming.parents.begin(),
+            incoming.parents.end()
+        );
+
+        return existing;
     }
 
-    auto overload_group = SymbolFactory::create_overloads(
-        new_symbol->name,
-        new_symbol->closure_depth,
-        new_symbol->lexical_depth
-    );
+    symbols[new_symbol->name] = new_symbol;
+    merge_parent_overloads(new_symbol);
 
-    auto& set_data = overload_group->get_payload_as<OverloadsData>();
-    set_data.overloads.push_back(new_symbol);
-
-    symbols[new_symbol->name] = overload_group;
-
-    return overload_group;
+    return new_symbol;
 }
 
-Symbol_ptr SymbolScope::lookup_local(const std::string& name) const
+void SymbolScope::merge_parent_overloads(Symbol_ptr new_overloads_symbol)
+{
+    if (!enclosing_scope)
+    {
+        return;
+    }
+
+    auto parent_symbol = enclosing_scope->lookup(new_overloads_symbol->name);
+    if (!parent_symbol.has_value() ||
+        !parent_symbol.value()->is<OverloadsSymbol>())
+    {
+        return;
+    }
+
+    const auto& parent_data = parent_symbol.value()->as<OverloadsSymbol>();
+    auto& group_data = new_overloads_symbol->as<OverloadsSymbol>();
+
+    group_data.parents.insert(
+        group_data.parents.end(),
+        parent_data.overloads.begin(),
+        parent_data.overloads.end()
+    );
+
+    group_data.parents.insert(
+        group_data.parents.end(),
+        parent_data.parents.begin(),
+        parent_data.parents.end()
+    );
+}
+
+OptionalSymbol SymbolScope::lookup_local(const std::string& name) const
 {
     auto it = symbols.find(name);
 
@@ -204,29 +176,30 @@ Symbol_ptr SymbolScope::lookup_local(const std::string& name) const
         return it->second;
     }
 
-    return nullptr;
+    return std::nullopt;
 }
 
-Symbol_ptr SymbolScope::lookup(const std::string& name) const
+OptionalSymbol SymbolScope::lookup(const std::string& name) const
 {
     const SymbolScope* current = this;
 
     while (current)
     {
-        if (current->symbols.contains(name))
+        auto it = current->symbols.find(name);
+        if (it != current->symbols.end())
         {
-            return current->symbols.at(name);
+            return it->second;
         }
 
         current = current->enclosing_scope.get();
     }
 
-    return nullptr;
+    return std::nullopt;
 }
 
 bool SymbolScope::contains_in_current_scope(const std::string& name) const
 {
-    return symbols.contains(name);
+    return symbols.find(name) != symbols.end();
 }
 
 bool SymbolScope::contains_in_any_scope(const std::string& name) const
@@ -257,7 +230,9 @@ bool SymbolScope::enclosed_in(const std::vector<ScopeType>& types) const
         for (auto t : types)
         {
             if (current->type == t)
+            {
                 return true;
+            }
         }
         current = current->enclosing_scope.get();
     }
@@ -269,7 +244,7 @@ ScopeType SymbolScope::get_type() const
     return type;
 }
 
-SymbolScope_ptr SymbolScope::get_enclosing() const
+SymbolScope_ptr SymbolScope::get_enclosing_scope() const
 {
     return enclosing_scope;
 }
@@ -284,7 +259,7 @@ int SymbolScope::get_lexical_depth() const
     return lexical_depth;
 }
 
-int SymbolScope::get_function_distance(int target_closure_depth) const
+int SymbolScope::get_function_closure_distance(int target_closure_depth) const
 {
     return this->closure_depth - target_closure_depth;
 }

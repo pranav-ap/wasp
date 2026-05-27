@@ -26,7 +26,7 @@ class SemanticAnalyzer
 public:
     SemanticAnalyzer(Workspace_ptr workspace)
         : type_system(std::make_shared<TypeSystem>(workspace->pool)),
-          salt(std::make_shared<Salt>(workspace)), workspace(workspace) {};
+          salt(std::make_shared<Salt>()), workspace(workspace) {};
 
     void run(const std::vector<Module_ptr>& build_order);
 
@@ -46,6 +46,7 @@ private:
     void leave_scope_keep_symbol(Symbol_ptr symbol_to_keep);
     void setup_exports(Module_ptr mod, StringVector ordered_export_names);
     StringVector setup_ordered_export_names(Module_ptr mod);
+    void extract_module_type(Module_ptr mod);
 
     // Main Visitors
     void visit(const Statement_ptr statement);
@@ -53,7 +54,6 @@ private:
 
     void visit(ExpressionStatement& statement);
     void visit(FunctionDefinition& statement);
-    void visit(OperatorDefinition& statement);
     void visit(RecordDefinition& statement);
     void visit(ClassDefinition& statement);
     void visit(TraitDefinition& statement);

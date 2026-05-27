@@ -84,7 +84,19 @@ struct Templatable
 
 // --- Callables ---
 
-using Field = std::pair<std::string, TypeAnnotation_ptr>;
+struct Field
+{
+    std::string name;
+    TypeAnnotation_ptr type;
+    bool is_static;
+
+    Field() = default;
+
+    Field(std::string name, TypeAnnotation_ptr type, bool is_static = false)
+        : name(std::move(name)), type(std::move(type)), is_static(is_static)
+    {
+    }
+};
 
 struct AbstractCallable : public Definition, public Templatable
 {
@@ -394,6 +406,24 @@ struct Import : public Resolvable
     }
 };
 
+// ============================================================================
+// Splitter
+// ============================================================================
+
+// just a utilily for splitting statements up during analysis
+
+struct Splitter
+{
+    std::vector<Statement_ptr> statements;
+
+    Splitter() = default;
+
+    explicit Splitter(std::vector<Statement_ptr> statements)
+        : statements(std::move(statements))
+    {
+    }
+};
+
 // --- Variant & Utils ---
 
 using StatementVariant = std::variant<
@@ -424,7 +454,9 @@ using StatementVariant = std::variant<
     LoopControl,
 
     Placeholder,
-    Return>;
+    Return,
+
+    Splitter>;
 
 struct Statement : public AstNode<StatementVariant>
 {

@@ -5,6 +5,7 @@
 #include "Expression.h"
 #include "Statement.h"
 #include "Token.h"
+#include "TypeAnnotation.h"
 
 #include <ctime>
 #include <string>
@@ -60,6 +61,105 @@ Statement_ptr Salt::run(const Statement_ptr statement)
 Statement_ptr Salt::visit(ExpressionStatement& statement)
 {
     return make_statement(visit(statement.expression));
+}
+
+Statement_ptr salt(MethodDefinition method_definition, std::string oops_name)
+{
+    std::string indicator_name = method_definition.is_static ? "our" : "self";
+
+    auto updated_params = method_definition.parameters;
+
+    auto indicator_field = ASTFactory::create_field(
+        indicator_name,
+        make_type_annotation(TypeIdentifierNode(oops_name)),
+        method_definition.is_static
+    );
+
+    updated_params.insert(updated_params.begin(), indicator_field);
+
+    auto function_definition = ASTFactory::create_function_definition(
+        method_definition.name,
+        updated_params,
+        method_definition.return_type,
+        method_definition.body,
+        method_definition.is_pure,
+        method_definition.template_params
+    );
+
+    return function_definition;
+}
+
+Statement_ptr Salt::visit(ClassDefinition& statement)
+{
+    StatementVector updated_members;
+
+    for (auto member : statement.members)
+    {
+        if (member->is<MethodDefinition>())
+        {
+            auto method_definition = member->as<MethodDefinition>();
+            auto stmt = salt(method_definition, statement.name);
+            updated_members.push_back(stmt);
+        }
+
+        updated_members.push_back(member);
+    }
+
+    return ASTFactory::create_class_definition(
+        statement.name,
+        statement.traits,
+        updated_members,
+        statement.template_params
+    );
+}
+
+Statement_ptr Salt::visit(TraitDefinition& statement)
+{
+    StatementVector updated_members;
+
+    for (auto member : statement.members)
+    {
+        if (member->is<MethodDefinition>())
+        {
+            auto method_definition = member->as<MethodDefinition>();
+            auto stmt = salt(method_definition, statement.name);
+            updated_members.push_back(stmt);
+        }
+
+        updated_members.push_back(member);
+    }
+
+    return ASTFactory::create_trait_definition(
+        statement.name,
+        statement.traits,
+        updated_members,
+        statement.template_params
+    );
+}
+
+Statement_ptr visit(OperatorDefinition& def)
+{
+    size_t expected = def.fixity == TokenType::INFIX ? 2 : 1;
+
+    Doctor::get().assert(
+        def.parameters.size() == expected,
+        WaspStage::Semantics,
+        "Expected " + std::to_string(expected) + " params for operator " +
+            def.name
+    );
+
+    std::string function_name = get_operator_name(def.fixity, def.op_type);
+
+    auto function_definition = ASTFactory::create_function_definition(
+        function_name,
+        def.parameters,
+        def.return_type,
+        def.body,
+        def.is_pure,
+        def.template_params
+    );
+
+    return function_definition;
 }
 
 Expression_ptr Salt::visit(const Expression_ptr expr)

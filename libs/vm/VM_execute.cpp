@@ -373,7 +373,7 @@ void VM::execute_GET_FUNCTION(CallFrame* frame)
     int overload_index = std::to_integer<int>(frame->consume_byte());
     Object_ptr obj = pop_from_stack();
 
-    if (obj->is<std::shared_ptr<NativeFunctionObject>>())
+    if (obj->is<std::shared_ptr<NativeFunctionRuntimeObject>>())
     {
         push_to_stack(obj);
         return;
@@ -545,7 +545,7 @@ void VM::execute_CALL(CallFrame* frame)
                 size_t new_base_pointer = stack.size() - arg_count;
                 frames.emplace_back(func, new_base_pointer);
             },
-            [&](std::shared_ptr<NativeFunctionObject>& native)
+            [&](std::shared_ptr<NativeFunctionRuntimeObject>& native)
             {
                 ObjectVector args = pop_n_from_stack(arg_count);
                 pop_from_stack();

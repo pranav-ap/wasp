@@ -4,7 +4,6 @@ add_library(
     RuntimeObjects.cpp
     TypeObjects.cpp
     ConstantPool.cpp
-    Objects_utils.cpp
     NativeRegistry.cpp
 )
 

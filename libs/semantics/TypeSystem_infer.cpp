@@ -1,8 +1,8 @@
 #include "Doctor.h"
 #include "Objects.h"
-#include "SymbolScope.h"
 #include "Token.h"
 #include "TypeSystem.h"
+#include "Workspace.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -170,7 +170,7 @@ bool TypeSystem::equal(
         return equal(scope, g1->constraint_type, g2->constraint_type);
     }
 
-    return are_equal_types(t1, t2);
+    return Object::are_equal_types(t1, t2);
 }
 
 bool TypeSystem::equal(
@@ -450,7 +450,7 @@ Object_ptr TypeSystem::infer(
             auto right_enum = right_type->as<EnumMemberType_ptr>();
 
             Doctor::get().assert(
-                left_enum.enum_type->type_id == right_enum.enum_type->type_id,
+                left_enum->enum_type->type_id == right_enum->enum_type->type_id,
                 WaspStage::Semantics,
                 "Cannot compare enum members of different types."
             );

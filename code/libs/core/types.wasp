@@ -219,18 +219,23 @@ class Foo is Printable
         return '{self.score}'
 
 
-record Foo
+# ORIGINAL
+
+import core.io as io
+import core.types expose *
+
+
+class Foo is Printable
     score: int
 
+    fun repr() => str
+        return '{self.score}'
 
-fun repr(self: Foo) => str
-    return '{self.score}'
 
-
-fun print(p: Printable)
-    print(repr(p))
+fun show(p: Printable)
+    io.print(p.repr())
 
 
 let f = Foo(10)
-print(f)
+f.repr()
 

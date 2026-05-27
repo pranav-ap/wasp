@@ -3,7 +3,6 @@
 #include "AST.h"
 #include "Expression.h"
 #include "Statement.h"
-#include "Workspace.h"
 
 #include <memory>
 
@@ -13,11 +12,15 @@ namespace Wasp
 class Salt
 {
 public:
-    StatementVector visit(const StatementVector statements);
     Statement_ptr run(const Statement_ptr statement);
 
 private:
+    StatementVector visit(const StatementVector statements);
     Statement_ptr visit(ExpressionStatement& statement);
+
+    Statement_ptr visit(ClassDefinition& statement);
+    Statement_ptr visit(TraitDefinition& statement);
+    Statement_ptr visit(OperatorDefinition& statement);
 
     Expression_ptr visit(const Expression_ptr expr);
     ExpressionVector visit(ExpressionVector expressions);

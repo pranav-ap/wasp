@@ -5,6 +5,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -132,366 +133,311 @@ TypeSystem::SpecializationResult TypeSystem::specialize_candidates(
     return result;
 }
 
-Object_ptr TypeSystem::substitute_generics(
-    Object_ptr type,
-    const ObjectStringMap& substitutions
-) const
+namespace
 {
-    if (!type || substitutions.empty())
+// Helper to check if a substitution is identity
+bool is_identity_substitution(const ObjectStringMap& subs)
+{
+    for (const auto& [name, value] : subs)
     {
-        return type;
-    }
-
-    // 1. Identity Substitution Short-Circuit (T -> T)
-    bool is_identity = true;
-    for (const auto& [k, v] : substitutions)
-    {
-        if (!v->is<GenericType_ptr>() || v->as<GenericType_ptr>()->name != k)
+        if (!value->is<GenericType_ptr>() ||
+            value->as<GenericType_ptr>()->name != name)
         {
-            is_identity = false;
-            break;
+            return false;
         }
     }
-    if (is_identity)
+    return true;
+}
+
+// Helper to build specialized name for generic types
+std::string build_specialized_name(
+    const std::string& base_name,
+    const ObjectStringMap& subs,
+    const StringVector& param_names,
+    const GenericTypeMap& params,
+    bool& has_substitution,
+    GenericTypeMap& remaining_params,
+    StringVector& remaining_names
+)
+{
+    std::string result = base_name + "<";
+    bool first = true;
+
+    for (const auto& param_name : param_names)
+    {
+        auto it = subs.find(param_name);
+        auto param_it = params.find(param_name);
+
+        if (it != subs.end())
+        {
+            if (!first)
+            {
+                result += ", ";
+            }
+            result += Object::mangle_object(it->second);
+            has_substitution = true;
+            first = false;
+        }
+        else if (param_it != params.end())
+        {
+            remaining_params[param_name] = param_it->second;
+            remaining_names.push_back(param_name);
+            if (!first)
+            {
+                result += ", ";
+            }
+            result += param_name;
+            first = false;
+        }
+    }
+    result += ">";
+    return result;
+}
+
+OptionalTemplateType make_template_if_needed(
+    const GenericTypeMap& params,
+    const StringVector& names
+)
+{
+    if (params.empty())
+    {
+        return std::nullopt;
+    }
+
+    auto tmpl = std::make_shared<Template>();
+    tmpl->template_parameters = params;
+    tmpl->ordered_parameter_names = names;
+    return tmpl;
+}
+} // namespace
+
+Object_ptr TypeSystem::substitute_generics(
+    Object_ptr type,
+    const ObjectStringMap& subs
+) const
+{
+    if (!type || subs.empty())
+    {
+        return type;
+    }
+    if (is_identity_substitution(subs))
     {
         return type;
     }
 
-    // 2. Memoization map to break infinite recursion cycles
     std::unordered_map<Object_ptr, Object_ptr> memo;
 
-    auto substitute_internal = [&](auto& self, Object_ptr t) -> Object_ptr
+    auto visit = [&](auto&& self, Object_ptr t) -> Object_ptr
     {
         if (!t)
         {
             return nullptr;
         }
-
-        if (memo.contains(t))
+        if (auto it = memo.find(t); it != memo.end())
         {
-            return memo.at(t);
+            return it->second;
         }
 
-        auto sub = [&](Object_ptr inner)
+        auto sub = [&](Object_ptr x)
         {
-            return self(self, inner);
+            return self(self, x);
         };
-        auto sub_all = [&](const ObjectVector& types)
+        auto sub_all = [&](const ObjectVector& vec)
         {
-            ObjectVector results;
-            results.reserve(types.size());
-            for (const auto& i : types)
+            ObjectVector out;
+            out.reserve(vec.size());
+            for (const auto& x : vec)
             {
-                results.push_back(sub(i));
+                out.push_back(sub(x));
             }
-            return results;
+            return out;
         };
 
         return std::visit(
             overloaded{
+                // Generic parameter
                 [&](GenericType_ptr g) -> Object_ptr
                 {
-                    auto it = substitutions.find(g->name);
-                    return it != substitutions.end() ? it->second : t;
+                    auto it = subs.find(g->name);
+                    return it != subs.end() ? it->second : t;
                 },
 
+                // ClassType handler
                 [&](ClassType_ptr cls) -> Object_ptr
                 {
-                    // Build specialized name
-                    std::string spec_name = cls->name;
-                    ObjectVector substituted_types;
-                    ObjectVector remaining_traits;
-                    OptionalTemplateType new_template_type = std::nullopt;
-
-                    // Track if any actual substitution happened
-                    bool has_substitution = false;
-
-                    // Process template parameters if they exist
-                    if (cls->template_type.has_value())
-                    {
-                        auto template_type = cls->template_type.value();
-                        GenericTypeMap new_template_params;
-                        StringVector new_ordered_names;
-
-                        // Build specialized name and collect substitutions
-                        spec_name += "<";
-                        bool first = true;
-
-                        for (const auto& param_name :
-                             template_type->ordered_parameter_names)
-                        {
-                            auto it = substitutions.find(param_name);
-                            auto param_it = template_type->template_parameters
-                                                .find(param_name);
-
-                            if (it != substitutions.end())
-                            {
-                                // This parameter is being substituted
-                                if (!first)
-                                {
-                                    spec_name += ", ";
-                                }
-                                spec_name += mangle_object(it->second);
-                                substituted_types.push_back(it->second);
-                                has_substitution = true;
-                                first = false;
-                            }
-                            else if (
-                                param_it !=
-                                template_type->template_parameters.end()
-                            )
-                            {
-                                // This parameter remains generic
-                                new_template_params[param_name] = param_it
-                                                                      ->second;
-                                new_ordered_names.push_back(param_name);
-                                if (!first)
-                                {
-                                    spec_name += ", ";
-                                }
-                                spec_name += param_name;
-                                first = false;
-                            }
-                        }
-                        spec_name += ">";
-
-                        // Create new template if any parameters remain generic
-                        if (!new_template_params.empty())
-                        {
-                            auto new_template = std::make_shared<Template>();
-                            new_template
-                                ->template_parameters = new_template_params;
-                            new_template
-                                ->ordered_parameter_names = new_ordered_names;
-                            new_template_type = new_template;
-                        }
-                    }
-
-                    // If no substitution happened, return original
-                    if (!has_substitution && !new_template_type.has_value())
+                    if (!cls->template_type.has_value())
                     {
                         return t;
                     }
 
-                    // Process traits (substitute any generic parameters in
-                    // traits)
-                    ObjectVector new_traits;
-                    for (const auto& trait : cls->traits)
-                    {
-                        new_traits.push_back(sub(trait));
-                    }
+                    auto tmpl = cls->template_type.value();
+                    bool has_sub = false;
+                    GenericTypeMap remaining;
+                    StringVector remaining_names;
 
-                    // Register shell object BEFORE recursing into members
-                    auto new_cls = std::make_shared<ClassType>(
-                        spec_name,         // name
-                        ObjectStringMap{}, // members (to be filled)
-                        cls->fields,       // fields
-                        cls->methods,      // methods
-                        cls->pures,        // pures
-                        cls->statics,      // statics
-                        new_traits,        // traits
-                        new_template_type  // template_type
+                    auto spec_name = build_specialized_name(
+                        cls->name,
+                        subs,
+                        tmpl->ordered_parameter_names,
+                        tmpl->template_parameters,
+                        has_sub,
+                        remaining,
+                        remaining_names
                     );
 
-                    Object_ptr res = make_object(new_cls);
-                    memo[t] = res;
-
-                    // Now substitute all member types
-                    for (const auto& [member_name, member_type] :
-                         cls->member_types)
+                    if (!has_sub && remaining.empty())
                     {
-                        new_cls->member_types[member_name] = sub(member_type);
+                        return t;
                     }
 
-                    return res;
+                    auto new_cls = std::make_shared<ClassType>(
+                        spec_name,
+                        cls->record_type,
+                        cls->bag_type,
+                        sub_all(cls->traits),
+                        make_template_if_needed(remaining, remaining_names)
+                    );
+
+                    memo[t] = make_object(new_cls);
+
+                    // Member types are now inside record_type
+                    for (const auto& [name, type] :
+                         cls->record_type.field_types)
+                    {
+                        new_cls->record_type.field_types[name] = sub(type);
+                    }
+
+                    return memo[t];
                 },
 
+                // TraitType handler
                 [&](TraitType_ptr trait) -> Object_ptr
                 {
-                    // Similar to ClassType but for traits
-                    // (simplified - traits usually don't have data members)
                     if (!trait->template_type.has_value())
                     {
                         return t;
                     }
 
-                    // Build specialized name
-                    std::string spec_name = trait->name;
-                    bool has_substitution = false;
-                    OptionalTemplateType new_template_type = std::nullopt;
+                    auto tmpl = trait->template_type.value();
+                    bool has_sub = false;
+                    GenericTypeMap remaining;
+                    StringVector remaining_names;
 
-                    if (trait->template_type.has_value())
-                    {
-                        auto template_type = trait->template_type.value();
-                        GenericTypeMap new_template_params;
-                        StringVector new_ordered_names;
+                    auto spec_name = build_specialized_name(
+                        trait->name,
+                        subs,
+                        tmpl->ordered_parameter_names,
+                        tmpl->template_parameters,
+                        has_sub,
+                        remaining,
+                        remaining_names
+                    );
 
-                        spec_name += "<";
-                        bool first = true;
-
-                        for (const auto& param_name :
-                             template_type->ordered_parameter_names)
-                        {
-                            auto it = substitutions.find(param_name);
-
-                            if (it != substitutions.end())
-                            {
-                                if (!first)
-                                {
-                                    spec_name += ", ";
-                                }
-                                spec_name += mangle_object(it->second);
-                                has_substitution = true;
-                                first = false;
-                            }
-                            else
-                            {
-                                auto param_it = template_type
-                                                    ->template_parameters.find(
-                                                        param_name
-                                                    );
-                                if (param_it !=
-                                    template_type->template_parameters.end())
-                                {
-                                    new_template_params
-                                        [param_name] = param_it->second;
-                                    new_ordered_names.push_back(param_name);
-                                    if (!first)
-                                    {
-                                        spec_name += ", ";
-                                    }
-                                    spec_name += param_name;
-                                    first = false;
-                                }
-                            }
-                        }
-                        spec_name += ">";
-
-                        if (!new_template_params.empty())
-                        {
-                            auto new_template = std::make_shared<Template>();
-                            new_template
-                                ->template_parameters = new_template_params;
-                            new_template
-                                ->ordered_parameter_names = new_ordered_names;
-                            new_template_type = new_template;
-                        }
-                    }
-
-                    if (!has_substitution && !new_template_type.has_value())
+                    if (!has_sub && remaining.empty())
                     {
                         return t;
                     }
 
                     auto new_trait = std::make_shared<TraitType>(
-                        spec_name,
-                        ObjectStringMap{},
-                        trait->fields,
-                        trait->methods,
-                        trait->pures,
-                        trait->statics,
-                        ObjectVector{}, // traits of traits (rare)
-                        new_template_type
+                        spec_name,              // name
+                        trait->record_type,     // record_type
+                        trait->bag_type,        // bag_type
+                        sub_all(trait->traits), // traits
+                        make_template_if_needed(
+                            remaining,
+                            remaining_names
+                        ) // template_type
                     );
 
-                    Object_ptr res = make_object(new_trait);
-                    memo[t] = res;
+                    memo[t] = make_object(new_trait);
 
-                    // Substitute member types
-                    for (const auto& [member_name, member_type] :
-                         trait->member_types)
+                    // Member types are inside record_type
+                    for (const auto& [name, type] :
+                         trait->record_type.field_types)
                     {
-                        new_trait->member_types[member_name] = sub(member_type);
+                        new_trait->record_type.field_types[name] = sub(type);
                     }
 
-                    return res;
+                    return memo[t];
                 },
 
+                // Signature
                 [&](Signature_ptr sig) -> Object_ptr
                 {
                     auto new_sig = std::make_shared<Signature>(
                         ObjectVector{},
-                        nullptr,
-                        std::nullopt
+                        nullptr
                     );
-
-                    Object_ptr res = make_object(new_sig);
-                    memo[t] = res;
-
+                    memo[t] = make_object(new_sig);
                     new_sig->parameter_types = sub_all(sig->parameter_types);
                     new_sig->return_type = sub(sig->return_type);
-
-                    return res;
+                    return memo[t];
                 },
 
-                [&](FunctionOverloadsObject_ptr overloads) -> Object_ptr
+                // Pocket
+                [&](Pocket_ptr os) -> Object_ptr
                 {
-                    auto new_overloads = std::make_shared<
-                        FunctionOverloadsObject>();
-                    Object_ptr res = make_object(new_overloads);
-                    memo[t] = res;
-                    new_overloads->overloads = sub_all(overloads->overloads);
-                    return res;
+                    auto new_os = std::make_shared<Pocket>();
+                    memo[t] = make_object(new_os);
+                    new_os->overloads = sub_all(os->overloads);
+                    return memo[t];
                 },
 
+                // Type alias
                 [&](TypeAlias_ptr alias) -> Object_ptr
                 {
-                    auto new_alias = std::make_shared<TypeAlias>(
-                        alias->name,
-                        sub(alias->underlying_type),
-                        alias->template_type // Template params remain?
+                    return make_object(
+                        std::make_shared<TypeAlias>(
+                            alias->name,
+                            sub(alias->underlying_type),
+                            alias->template_type
+                        )
                     );
-                    return make_object(new_alias);
                 },
 
+                // Composite types
                 [&](ListType_ptr list) -> Object_ptr
                 {
                     auto new_list = std::make_shared<ListType>();
-                    Object_ptr res = make_object(new_list);
-                    memo[t] = res;
+                    memo[t] = make_object(new_list);
                     new_list->element_type = sub(list->element_type);
-                    return res;
+                    return memo[t];
                 },
 
                 [&](MapType_ptr map) -> Object_ptr
                 {
                     auto new_map = std::make_shared<MapType>();
-                    Object_ptr res = make_object(new_map);
-                    memo[t] = res;
+                    memo[t] = make_object(new_map);
                     new_map->key_type = sub(map->key_type);
                     new_map->value_type = sub(map->value_type);
-                    return res;
+                    return memo[t];
                 },
 
                 [&](TupleType_ptr tuple) -> Object_ptr
                 {
                     auto new_tuple = std::make_shared<TupleType>();
-                    Object_ptr res = make_object(new_tuple);
-                    memo[t] = res;
+                    memo[t] = make_object(new_tuple);
                     new_tuple->element_types = sub_all(tuple->element_types);
-                    return res;
+                    return memo[t];
                 },
 
-                [&](VariantType_ptr variant) -> Object_ptr
+                [&](VariantType_ptr var) -> Object_ptr
                 {
-                    auto new_variant = std::make_shared<VariantType>();
-                    Object_ptr res = make_object(new_variant);
-                    memo[t] = res;
-                    new_variant->types = sub_all(variant->types);
-                    return res;
+                    auto new_var = std::make_shared<VariantType>();
+                    memo[t] = make_object(new_var);
+                    new_var->types = sub_all(var->types);
+                    return memo[t];
                 },
 
-                [&](IntersectionType_ptr intersection) -> Object_ptr
+                [&](IntersectionType_ptr inter) -> Object_ptr
                 {
-                    auto
-                        new_intersection = std::make_shared<IntersectionType>();
-                    Object_ptr res = make_object(new_intersection);
-                    memo[t] = res;
-                    new_intersection->types = sub_all(intersection->types);
-                    return res;
+                    auto new_inter = std::make_shared<IntersectionType>();
+                    memo[t] = make_object(new_inter);
+                    new_inter->types = sub_all(inter->types);
+                    return memo[t];
                 },
 
-                // Fallback for types that don't need substitution
+                // Fallback - no substitution needed
                 [&](auto&) -> Object_ptr
                 {
                     return t;
@@ -501,7 +447,7 @@ Object_ptr TypeSystem::substitute_generics(
         );
     };
 
-    return substitute_internal(substitute_internal, type);
+    return visit(visit, type);
 }
 
 } // namespace Wasp

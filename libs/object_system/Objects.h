@@ -237,80 +237,74 @@ using ITable = std::map<OverloadCoordinate, OverloadCoordinate>;
 // trait type id => I Table
 using ITablesMap = std::map<int, ITable>;
 
+struct RecordType
+{
+    ObjectStringMap field_types;
+    StringVector ordered_keys;
+
+    RecordType(ObjectStringMap field_types = {}, StringVector ordered_keys = {})
+        : field_types(std::move(field_types)),
+          ordered_keys(std::move(ordered_keys))
+    {
+    }
+};
+
+struct BagType
+{
+    ObjectStringMap overload_types;
+    StringVector ordered_keys;
+    ITablesMap itables;
+
+    BagType(
+        ObjectStringMap overload_types = {},
+        StringVector ordered_keys = {},
+        ITablesMap itables = {}
+    )
+        : overload_types(std::move(overload_types)),
+          ordered_keys(std::move(ordered_keys)), itables(std::move(itables))
+    {
+    }
+};
+
 struct OopsType
 {
     int type_id;
-
     std::string name;
-    ObjectStringMap member_types;
 
-    StringVector fields;
-    StringVector methods;
-    StringVector pures;
-    StringVector statics;
+    RecordType record_type;
+    BagType bag_type;
 
     ObjectVector traits;
-    ITablesMap itables;
 
     OptionalTemplateType template_type;
 
     explicit OopsType(
         std::string name,
-        ObjectStringMap members = {},
-        StringVector fields = {},
-        StringVector methods = {},
-        StringVector pures = {},
-        StringVector statics = {},
+        RecordType record_type = RecordType(),
+        BagType bag_type = BagType(),
         ObjectVector traits = {},
         OptionalTemplateType template_type = std::nullopt
 
     )
         : type_id(get_next_type_id()), name(std::move(name)),
-          member_types(std::move(members)), fields(std::move(fields)),
-          methods(std::move(methods)), pures(std::move(pures)),
-          statics(std::move(statics)), traits(std::move(traits)),
-          template_type(std::move(template_type))
+          record_type(std::move(record_type)), bag_type(std::move(bag_type)),
+          traits(std::move(traits)), template_type(std::move(template_type))
     {
     }
-
-    void add_overload(const std::string& member_name, Object_ptr overload);
-    ObjectVector get_overloads(const std::string& member_name) const;
-
-    ObjectVector get_fields() const;
-    ObjectVector get_methods() const;
-    ObjectVector get_pures() const;
-    ObjectVector get_statics() const;
-    ObjectVector get_members() const;
-
-    ObjectVector get_traits() const;
-    bool implements_trait(const std::string& trait_name) const;
-
-    bool is_pure(const std::string& member_name) const;
-    bool is_static(const std::string& member_name) const;
-
-    int get_member_index(const std::string& member_name) const;
-    Object_ptr get_member(int member_id) const;
-
-    Object_ptr get_member(const std::string& member_name) const;
-    void set_member(const std::string& member_name, Object_ptr value);
-
-    bool contains_member(const std::string& member_name) const;
 };
-
-using OopsType_ptr = std::shared_ptr<OopsType>;
 
 struct ClassType : public OopsType
 {
     using OopsType::OopsType;
 };
 
-using ClassType_ptr = std::shared_ptr<ClassType>;
-
 struct TraitType : public OopsType
 {
     using OopsType::OopsType;
 };
 
+using OopsType_ptr = std::shared_ptr<OopsType>;
+using ClassType_ptr = std::shared_ptr<ClassType>;
 using TraitType_ptr = std::shared_ptr<TraitType>;
 
 // ============================================================================
@@ -335,6 +329,32 @@ struct TypeAlias
 };
 
 using TypeAlias_ptr = std::shared_ptr<TypeAlias>;
+
+// ============================================================================
+// Module Type
+// ============================================================================
+
+struct ModuleType
+{
+    int type_id;
+    std::string name;
+
+    ObjectStringMap member_types;
+    StringVector ordered_keys;
+
+    explicit ModuleType(
+        std::string name,
+        ObjectStringMap member_types = {},
+        StringVector ordered_keys = {}
+    )
+        : type_id(get_next_type_id()), name(std::move(name)),
+          member_types(std::move(member_types)),
+          ordered_keys(std::move(ordered_keys))
+    {
+    }
+};
+
+using ModuleType_ptr = std::shared_ptr<ModuleType>;
 
 // ============================================================================
 // Scalar Objects
@@ -504,20 +524,21 @@ using FunctionRuntimeObject_ptr = std::shared_ptr<FunctionRuntimeObject>;
 
 using NativeFnType = std::function<Object_ptr(const ObjectVector&)>;
 
-struct NativeFunctionObject
+struct NativeFunctionRuntimeObject
 {
     NativeFnType function;
     std::string name;
 
-    NativeFunctionObject(NativeFnType function, std::string name)
+    NativeFunctionRuntimeObject(NativeFnType function, std::string name)
         : function(std::move(function)), name(std::move(name))
     {
     }
 };
 
-using NativeFunctionObject_ptr = std::shared_ptr<NativeFunctionObject>;
+using NativeFunctionRuntimeObject_ptr = std::shared_ptr<
+    NativeFunctionRuntimeObject>;
 
-struct FunctionOverloadsObject
+struct Pocket
 {
     ObjectVector overloads;
 
@@ -525,7 +546,8 @@ struct FunctionOverloadsObject
     Object_ptr get_overload(int overload_id) const;
 };
 
-using FunctionOverloadsObject_ptr = std::shared_ptr<FunctionOverloadsObject>;
+using Pocket_ptr = std::shared_ptr<Pocket>;
+using PocketVector = std::vector<Pocket_ptr>;
 
 // ============================================================================
 // Oops
@@ -545,36 +567,36 @@ struct RecordObject
 
 using RecordObject_ptr = std::shared_ptr<RecordObject>;
 
-struct ImplObject
+struct BagObject
 {
-    ObjectVector overloads;
+    PocketVector pocket;
     ITablesMap itables;
 
-    ImplObject(ObjectVector overloads, ITablesMap itables)
-        : overloads(std::move(overloads)), itables(std::move(itables))
+    BagObject(PocketVector pocket = {}, ITablesMap itables = {})
+        : pocket(std::move(pocket)), itables(std::move(itables))
     {
     }
 
-    Object_ptr get_overload(int member_id) const;
+    Pocket_ptr get_overloads_object(int member_id) const;
 };
 
-using ImplObject_ptr = std::shared_ptr<ImplObject>;
+using BagObject_ptr = std::shared_ptr<BagObject>;
 
-struct BoxObject
+struct TraitObject
 {
     RecordObject_ptr record;
-    ImplObject_ptr impl;
+    BagObject_ptr bag;
 
     ITable itable;
 
-    BoxObject(RecordObject_ptr record, ImplObject_ptr impl, ITable itable)
-        : record(std::move(record)), impl(std::move(impl)),
+    TraitObject(RecordObject_ptr record, BagObject_ptr bag, ITable itable)
+        : record(std::move(record)), bag(std::move(bag)),
           itable(std::move(itable))
     {
     }
 };
 
-using BoxObject_ptr = std::shared_ptr<BoxObject>;
+using TraitObject_ptr = std::shared_ptr<TraitObject>;
 
 // ============================================================================
 // Module
@@ -624,14 +646,14 @@ struct Object : public std::enable_shared_from_this<Object>
         // Functions
         FunctionBlueprintObject_ptr,
         FunctionRuntimeObject_ptr,
-        NativeFunctionObject_ptr,
-        FunctionOverloadsObject_ptr,
+        NativeFunctionRuntimeObject_ptr,
+        Pocket_ptr,
 
         ModuleObject_ptr,
 
         RecordObject_ptr,
-        ImplObject_ptr,
-        BoxObject_ptr,
+        BagObject_ptr,
+        TraitObject_ptr,
 
         // Types
 
@@ -673,6 +695,23 @@ struct Object : public std::enable_shared_from_this<Object>
     Object_ptr unwrap_type_alias();
     Object_ptr unwrap_completely();
 
+    static bool are_equal_types(Object_ptr left, Object_ptr right);
+
+    static bool are_equal_types(
+        const ObjectVector& left,
+        const ObjectVector& right
+    );
+
+    static bool are_equal_types_unordered(
+        const ObjectVector& left,
+        const ObjectVector& right
+    );
+
+    static std::string mangle_object(Object_ptr value);
+    static std::string mangle_object(const ObjectVector& values);
+
+    static std::string get_canonical_trait_name(const ObjectVector& traits);
+
     template <typename T> Object(T&& val) : value(std::forward<T>(val))
     {
     }
@@ -702,21 +741,5 @@ template <typename T> inline Object_ptr make_object(T&& val)
 {
     return std::make_shared<Object>(std::forward<T>(val));
 }
-
-// ============================================================================
-// Utils
-// ============================================================================
-
-std::string mangle_object(Object_ptr value);
-std::string mangle_object(const ObjectVector& values);
-
-bool are_equal_types(Object_ptr left, Object_ptr right);
-bool are_equal_types(ObjectVector left_vector, ObjectVector right_vector);
-bool are_equal_types_unordered(
-    ObjectVector left_vector,
-    ObjectVector right_vector
-);
-
-std::string get_canonical_trait_name(const ObjectVector& traits);
 
 } // namespace Wasp

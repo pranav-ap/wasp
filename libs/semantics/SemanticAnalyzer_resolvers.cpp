@@ -55,7 +55,7 @@ Symbol_ptr SemanticAnalyzer::get_module_member_symbol(MemberAccess& access)
     bind_identifier(module_identifier, unresolved_module_symbol);
 
     Symbol_ptr resolved_module_symbol = unresolved_module_symbol->resolve();
-    auto& module_data = resolved_module_symbol->get_payload_as<ModuleData>();
+    auto& module_data = resolved_module_symbol->as<ModuleSymbol>();
 
     Symbol_ptr member_symbol = module_data.mod->get_member(member_identifier.name);
 
@@ -347,7 +347,7 @@ Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
         }
 
         std::string specialized_name = target_symbol->name + "_" +
-                                       mangle_object(angular_arguments);
+                                       Object::mangle_object(angular_arguments);
 
         if (auto existing_symbol = current_scope->lookup(specialized_name))
         {
@@ -366,9 +366,9 @@ Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
     }
 
     // Case B: Template Functions (Overloads)
-    if (target_symbol->payload_is<OverloadsData>())
+    if (target_symbol->payload_is<OverloadsPayload>())
     {
-        auto candidates = target_symbol->get_payload_as<OverloadsData>()
+        auto candidates = target_symbol->as<OverloadsPayload>()
                               .get_overloads_with_indices();
 
         // specialize_candidates must filter by generic count AND verify

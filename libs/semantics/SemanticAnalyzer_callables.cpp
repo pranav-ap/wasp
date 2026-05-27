@@ -40,19 +40,6 @@ void SemanticAnalyzer::visit(RecordDefinition& def)
     );
 }
 
-void SemanticAnalyzer::visit(OperatorDefinition& def)
-{
-    size_t expected = def.fixity == TokenType::INFIX ? 2 : 1;
-
-    Doctor::get().assert(
-        def.parameters.size() == expected,
-        WaspStage::Semantics,
-        "Operator '" + def.name + "' must have " + std::to_string(expected) + " parameter(s)."
-    );
-
-    analyze_callable(def, ScopeType::PURE_FUNCTION, nullptr, false);
-}
-
 void SemanticAnalyzer::analyze_callable(
     AbstractCallable& def,
     ScopeType scope_type,

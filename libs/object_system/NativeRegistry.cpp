@@ -131,7 +131,9 @@ void NativeRegistry::add_native(const std::string& name, NativeFnType function)
 
     native_names[name] = global_index;
 
-    auto obj = make_object(std::make_shared<NativeFunctionObject>(function, name));
+    auto obj = make_object(
+        std::make_shared<NativeFunctionRuntimeObject>(function, name)
+    );
     native_objects.push_back(obj);
 }
 

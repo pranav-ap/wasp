@@ -176,7 +176,8 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
                 {
                     hoist_function_definition(def);
 
-                    auto& function_data = def.symbol->get_payload_as<CallableData>();
+                    auto& function_data = def.symbol->get_payload_as<
+                        CallableSymbol>();
 
                     ASTCloner cloner;
                     function_data.definition = cloner.clone(make_statement(def));
@@ -186,7 +187,8 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
                 {
                     hoist_function_definition(def);
 
-                    auto& function_data = def.symbol->get_payload_as<CallableData>();
+                    auto& function_data = def.symbol->get_payload_as<
+                        CallableSymbol>();
 
                     ASTCloner cloner;
                     function_data.definition = cloner.clone(make_statement(def));

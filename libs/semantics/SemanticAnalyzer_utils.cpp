@@ -31,7 +31,7 @@ void SemanticAnalyzer::leave_scope()
 {
     if (current_scope)
     {
-        current_scope = current_scope->get_enclosing();
+        current_scope = current_scope->get_enclosing_scope();
     }
 }
 
@@ -39,7 +39,7 @@ void SemanticAnalyzer::leave_scope_keep_symbol(Symbol_ptr symbol_to_keep)
 {
     if (current_scope)
     {
-        current_scope = current_scope->get_enclosing();
+        current_scope = current_scope->get_enclosing_scope();
 
         if (current_scope)
         {

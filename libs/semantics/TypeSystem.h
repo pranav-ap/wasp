@@ -118,28 +118,6 @@ struct TypeSystem
     );
 
     // =========================================================================
-    // Traits
-    // =========================================================================
-
-    bool implements_trait(
-        SymbolScope_ptr scope,
-        const Object_ptr patient,
-        const std::string& trait_name
-    ) const;
-
-    bool implements_trait(
-        SymbolScope_ptr scope,
-        const Object_ptr patient,
-        const int trait_type_id
-    ) const;
-
-    bool implements_trait(
-        SymbolScope_ptr scope,
-        const Object_ptr patient,
-        const Object_ptr trait
-    ) const;
-
-    // =========================================================================
     // Templates
     // =========================================================================
 

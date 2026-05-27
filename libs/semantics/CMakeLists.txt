@@ -18,7 +18,6 @@ add_library(
     TypeSystem_overloads.cpp
     TypeSystem_infer.cpp
     TypeSystem_templates.cpp
-    TypeSystem_trait.cpp
     TypeSystem_utils.cpp
     ASTCloner.cpp
     ASTFactory.cpp
