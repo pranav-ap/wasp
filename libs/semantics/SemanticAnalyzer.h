@@ -44,7 +44,6 @@ private:
     void enter_scope(ScopeType scope_type);
     void leave_scope();
     void leave_scope_keep_symbol(Symbol_ptr symbol_to_keep);
-    void extract_module_type(Module_ptr module);
     void setup_exports(Module_ptr mod, StringVector ordered_export_names);
     StringVector setup_ordered_export_names(Module_ptr mod);
 
@@ -55,6 +54,7 @@ private:
     void visit(ExpressionStatement& statement);
     void visit(FunctionDefinition& statement);
     void visit(OperatorDefinition& statement);
+    void visit(RecordDefinition& statement);
     void visit(ClassDefinition& statement);
     void visit(TraitDefinition& statement);
     void visit(EnumDefinition& statement);
@@ -86,7 +86,6 @@ private:
     ObjectVector visit(const TypeAnnotationVector& type_nodes);
 
     Object_ptr visit(NoneTypeNode& expr);
-    Object_ptr visit(NativeTypeNode& expr);
     Object_ptr visit(TypeIdentifierNode& expr);
     Object_ptr visit(LiteralTypeNode& expr);
     Object_ptr visit(ListTypeNode& expr);
@@ -96,7 +95,6 @@ private:
     Object_ptr visit(VariantTypeNode& expr);
     Object_ptr visit(IntersectionTypeNode& expr);
     Object_ptr visit(FunctionTypeNode& expr);
-    Object_ptr visit(RecordTypeNode& expr);
     Object_ptr visit(TemplateAngularTypeNode& node);
 
     // Passes & Hoisting
@@ -168,7 +166,7 @@ private:
         const std::vector<FieldDefinition>& template_params
     );
     void analyze_template_parameter_constructor(
-        TemplateParameterType_ptr template_param,
+        GenericType_ptr template_param,
         const ObjectVector& argument_types
     );
     Object_ptr resolve_implicit_template(

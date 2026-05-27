@@ -66,7 +66,7 @@ std::pair<ObjectStringMap, StringVector> SemanticAnalyzer::evaluate_template_par
     for (const auto& field : template_params)
     {
         auto template_param_type = make_object(
-            std::make_shared<TemplateParameterType>(field.name, visit(field.type))
+            std::make_shared<GenericType>(field.name, visit(field.type))
         );
 
         Doctor::get().assert(

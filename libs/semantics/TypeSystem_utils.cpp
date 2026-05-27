@@ -51,9 +51,9 @@ Object_ptr TypeSystem::resolve_type(
         }
 
         // Resolve Template Parameters
-        if (resolve_generics && type->is<TemplateParameterType_ptr>())
+        if (resolve_generics && type->is<GenericType_ptr>())
         {
-            auto param = type->as<TemplateParameterType_ptr>();
+            auto param = type->as<GenericType_ptr>();
 
             Doctor::get().fatal_if_nullptr(
                 param->constraint_type,

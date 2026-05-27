@@ -75,11 +75,6 @@ namespace Wasp
         return MAKE_OBJECT_VARIANT(StringObject(std::move(value)));
     }
 
-    Object_ptr ConstantPool::make_error_object(std::string text) const
-    {
-        return MAKE_OBJECT_VARIANT(std::make_shared<ErrorObject>(std::move(text)));
-    }
-
     int ConstantPool::allocate(Object_ptr value)
     {
         int id = objects.size();

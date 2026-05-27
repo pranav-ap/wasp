@@ -55,11 +55,34 @@ bool Symbol::is_either_function_or_method() const
     return payload_is_any_of<CallableData>();
 }
 
+bool Symbol::is_mutable_variable() const
+{
+    if (auto* var_data = std::get_if<VariableData>(&payload))
+    {
+        return var_data->is_mutable;
+    }
+    return false;
+}
+
+bool Symbol::is_method() const
+{
+    if (auto* callable_data = std::get_if<CallableData>(&payload))
+    {
+        return callable_data->is_method;
+    }
+    return false;
+}
+
+bool Symbol::is_oop_type() const
+{
+    return std::holds_alternative<OopsData>(payload);
+}
+
 bool Symbol::is_native() const
 {
-    if (auto* func_data = try_get_payload<CallableData>())
+    if (auto* callable_data = std::get_if<CallableData>(&payload))
     {
-        return func_data->is_native;
+        return callable_data->is_native;
     }
 
     return false;
@@ -105,10 +128,6 @@ Object_ptr Symbol::get_type()
             {
                 return d.type;
             },
-            [](const ModuleData& d) -> Object_ptr
-            {
-                return d.mod->type;
-            },
             [](const TemplateParameterData& d) -> Object_ptr
             {
                 return d.type;
@@ -137,7 +156,9 @@ Object_ptr Symbol::get_type()
                 }
 
                 d.type = make_object(
-                    std::make_shared<ObjectOverloadList>(std::move(overload_types))
+                    std::make_shared<FunctionOverloadsObject>(
+                        std::move(overload_types)
+                    )
                 );
                 return d.type;
             }
@@ -173,10 +194,6 @@ void Symbol::set_type(Object_ptr new_type)
             [&](OverloadsData& d)
             {
                 d.type = new_type;
-            },
-            [&](ModuleData& d)
-            {
-                d.mod->type = new_type;
             },
             [&](SymbolAliasData& d)
             {
@@ -287,7 +304,7 @@ std::string Symbol::to_string() const
     }
     else if (payload_is<OopsData>())
     {
-        payload_type = "Class";
+        payload_type = "Class or Trait";
     }
     else if (payload_is<TemplateParameterData>())
     {

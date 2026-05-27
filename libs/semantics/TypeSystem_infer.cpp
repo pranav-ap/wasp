@@ -163,10 +163,10 @@ bool TypeSystem::equal(
         );
     }
 
-    if (t1->is<TemplateParameterType_ptr>() && t2->is<TemplateParameterType_ptr>())
+    if (t1->is<GenericType_ptr>() && t2->is<GenericType_ptr>())
     {
-        auto g1 = t1->as<TemplateParameterType_ptr>();
-        auto g2 = t2->as<TemplateParameterType_ptr>();
+        auto g1 = t1->as<GenericType_ptr>();
+        auto g2 = t2->as<GenericType_ptr>();
         return equal(scope, g1->constraint_type, g2->constraint_type);
     }
 
@@ -247,19 +247,19 @@ bool TypeSystem::assignable(
     }
 
     // Generics
-    if (rhs->is<TemplateParameterType_ptr>())
+    if (rhs->is<GenericType_ptr>())
     {
         return assignable(
             scope,
             lhs,
-            rhs->as<TemplateParameterType_ptr>()->constraint_type
+            rhs->as<GenericType_ptr>()->constraint_type
         );
     }
-    if (lhs->is<TemplateParameterType_ptr>())
+    if (lhs->is<GenericType_ptr>())
     {
         return assignable(
             scope,
-            lhs->as<TemplateParameterType_ptr>()->constraint_type,
+            lhs->as<GenericType_ptr>()->constraint_type,
             rhs
         );
     }
@@ -443,10 +443,11 @@ Object_ptr TypeSystem::infer(
     {
     case TokenType::EQUAL_EQUAL:
     case TokenType::BANG_EQUAL:
-        if (left_type->is<EnumMemberType>() && right_type->is<EnumMemberType>())
+        if (left_type->is<EnumMemberType_ptr>() &&
+            right_type->is<EnumMemberType_ptr>())
         {
-            auto left_enum = left_type->as<EnumMemberType>();
-            auto right_enum = right_type->as<EnumMemberType>();
+            auto left_enum = left_type->as<EnumMemberType_ptr>();
+            auto right_enum = right_type->as<EnumMemberType_ptr>();
 
             Doctor::get().assert(
                 left_enum.enum_type->type_id == right_enum.enum_type->type_id,

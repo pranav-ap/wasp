@@ -1,448 +1,309 @@
 #include "Objects.h"
 #include "Doctor.h"
 
-#include <algorithm>
 #include <cstddef>
-#include <iterator>
 #include <memory>
-#include <optional>
-#include <sstream>
 #include <string>
-#include <utility>
 #include <variant>
-#include <vector>
 
-#define MAKE_OBJECT_VARIANT(x) std::make_shared<Object>(x)
-#define MAKE_SHARED_OBJECT_VARIANT(Type, ...)                                  \
-    std::make_shared<Object>(std::make_shared<Type>(__VA_ARGS__))
+template <class... Ts> struct overloaded : Ts...
+{
+    using Ts::operator()...;
+};
+template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
 
-Object_ptr StringObject::get_iter()
+std::string Object::to_string() const
 {
-    ObjectVector vec;
-    vec.reserve(value.size());
-
-    for (char ch : value)
-    {
-        vec.push_back(MAKE_OBJECT_VARIANT(StringObject(std::string(1, ch))));
-    }
-
-    return MAKE_SHARED_OBJECT_VARIANT(IteratorObject, vec);
-}
-
-bool IteratorObject::has_next() const
-{
-    return index < vec.size();
-}
-
-std::optional<Object_ptr> IteratorObject::get_next()
-{
-    if (has_next())
-    {
-        return std::make_optional(vec[index++]);
-    }
-    return std::nullopt;
-}
-
-void IteratorObject::reset_iter()
-{
-    index = 0;
-}
-
-void ListObject::append(Object_ptr value)
-{
-    Doctor::get().fatal_if_nullptr(value, WaspStage::VM);
-    Doctor::get().assert(
-        value->is<std::monostate>(),
+    Doctor::get().fatal_if_nullptr(
+        value,
         WaspStage::VM,
-        "Cannot append monostate to a List"
-    );
-    values.push_back(value);
-}
-
-void ListObject::prepend(Object_ptr value)
-{
-    Doctor::get().fatal_if_nullptr(value, WaspStage::VM);
-    Doctor::get().assert(
-        !value->is<std::monostate>(),
-        WaspStage::VM,
-        "Cannot prepend monostate to a List"
+        "Attempted to stringify a null object pointer"
     );
 
-    values.insert(values.begin(), value);
-}
+    return std::visit(
+        overloaded{
+            [](const std::monostate&) -> std::string
+            {
+                return "uninitialized";
+            },
 
-Object_ptr ListObject::pop_back()
-{
-    Doctor::get().assert(
-        !values.empty(),
-        WaspStage::VM,
-        "Cannot pop from an empty list"
+            // Base Types
+            [](const AnyType&) -> std::string
+            {
+                return "any type";
+            },
+            [](const Signature_ptr&) -> std::string
+            {
+                return "signature type";
+            },
+
+            // Scalar Objects
+            [](const NoneObject&) -> std::string
+            {
+                return "none";
+            },
+            [](const IntObject& obj) -> std::string
+            {
+                return std::to_string(obj.value);
+            },
+            [](const FloatObject& obj) -> std::string
+            {
+                return std::to_string(obj.value);
+            },
+            [](const StringObject& obj) -> std::string
+            {
+                return "\"" + obj.value + "\"";
+            },
+            [](const BooleanObject& obj) -> std::string
+            {
+                return obj.value ? "true" : "false";
+            },
+
+            // Unified Literal Type
+            [](const LiteralType& lit) -> std::string
+            {
+                return "literal type: " + lit.value.get()->to_string();
+            },
+
+            // Composite Types
+            [](const VariantType&) -> std::string
+            {
+                return "variant type";
+            },
+
+            // User Defined Types
+
+            [](const ClassType_ptr& cls) -> std::string
+            {
+                return "class type: " + cls->name;
+            },
+            [](const TraitType_ptr& trt) -> std::string
+            {
+                return "trait type: " + trt->name;
+            },
+            [](const EnumType_ptr& enum_type) -> std::string
+            {
+                return "enum type: " + enum_type->name;
+            },
+            [](const TypeAlias_ptr& alias) -> std::string
+            {
+                return "type alias: " + alias->name;
+            },
+            [](const GenericType& gen) -> std::string
+            {
+                return "generic type: " + gen.name;
+            },
+
+            // Composite Objects
+            [](const std::shared_ptr<IteratorObject>&) -> std::string
+            {
+                return "<iterator>";
+            },
+            [](const std::shared_ptr<ListObject>& obj) -> std::string
+            {
+                std::string res = "[";
+                for (size_t i = 0; i < obj->values.size(); ++i)
+                {
+                    res += obj->values[i]->to_string();
+                    if (i < obj->values.size() - 1)
+                    {
+                        res += ", ";
+                    }
+                }
+                return res + "]";
+            },
+            [](const std::shared_ptr<TupleObject>& obj) -> std::string
+            {
+                std::string res = "(";
+                for (size_t i = 0; i < obj->values.size(); ++i)
+                {
+                    res += obj->values[i]->to_string();
+                    if (i < obj->values.size() - 1)
+                    {
+                        res += ", ";
+                    }
+                }
+                return res + ")";
+            },
+            [](const std::shared_ptr<SetObject>& obj) -> std::string
+            {
+                return "set";
+            },
+            [](const std::shared_ptr<MapObject>& obj) -> std::string
+            {
+                return "map";
+            },
+            [](const std::shared_ptr<VariantObject>&) -> std::string
+            {
+                return "<variant>";
+            },
+
+            // Callables and Modules
+            [](const std::shared_ptr<FunctionBlueprintObject>& func)
+                -> std::string
+            {
+                return "<Static Function " + func->name + ">";
+            },
+            [](const std::shared_ptr<FunctionRuntimeObject>& func)
+                -> std::string
+            {
+                return "<Runtime function " + func->blueprint->name + ">";
+            },
+            [](const std::shared_ptr<NativeFunctionObject>& func) -> std::string
+            {
+                return "<Native function " + func->name + ">";
+            },
+            [](const std::shared_ptr<ModuleObject>& mod) -> std::string
+            {
+                return "<module " + mod->name + ">";
+            },
+            // Fallback for anything missed
+            [](const auto&) -> std::string
+            {
+                return "<Unknown Object>";
+            }
+        },
+        this->value
     );
-
-    Object_ptr last = values.back();
-    values.pop_back();
-    return last;
-}
-
-Object_ptr ListObject::pop_front()
-{
-    Doctor::get().assert(
-        !values.empty(),
-        WaspStage::VM,
-        "Cannot pop from an empty list"
-    );
-
-    Object_ptr first = values.front();
-    values.erase(values.begin());
-    return first;
-}
-
-Object_ptr ListObject::get(Object_ptr index_object)
-{
-    Doctor::get().fatal_if_nullptr(index_object, WaspStage::VM);
-    Doctor::get().assert(
-        index_object->is<IntObject>(),
-        WaspStage::VM,
-        "List indices must be integers"
-    );
-
-    int index = index_object->as<IntObject>().value;
-    Doctor::get().assert(
-        index >= 0 && static_cast<size_t>(index) < values.size(),
-        WaspStage::VM,
-        "List index out of range"
-    );
-
-    return values[index];
-}
-
-void ListObject::set(Object_ptr index_object, Object_ptr value)
-{
-    Doctor::get().fatal_if_nullptr(index_object, WaspStage::VM);
-    Doctor::get().fatal_if_nullptr(value, WaspStage::VM);
-
-    Doctor::get().assert(
-        index_object->is<IntObject>(),
-        WaspStage::VM,
-        "List indices must be integers"
-    );
-
-    Doctor::get().assert(
-        !value->is<std::monostate>(),
-        WaspStage::VM,
-        "Cannot set a List element to monostate"
-    );
-
-    int index = index_object->as<IntObject>().value;
-
-    Doctor::get().assert(
-        index >= 0 && static_cast<size_t>(index) < values.size(),
-        WaspStage::VM,
-        "List index out of range"
-    );
-
-    values[index] = value;
-}
-
-void ListObject::clear()
-{
-    values.clear();
-}
-
-bool ListObject::is_empty()
-{
-    return values.empty();
-}
-
-Object_ptr ListObject::get_iter()
-{
-    ObjectVector vec(values.begin(), values.end());
-    return MAKE_SHARED_OBJECT_VARIANT(IteratorObject, std::move(vec));
-}
-
-void MapObject::insert(Object_ptr key, Object_ptr value)
-{
-    Doctor::get().fatal_if_nullptr(key, WaspStage::VM);
-    Doctor::get().fatal_if_nullptr(value, WaspStage::VM);
-
-    Doctor::get().assert(
-        !key->is<std::monostate>(),
-        WaspStage::VM,
-        "Cannot use monostate as a Map key"
-    );
-
-    Doctor::get().assert(
-        !value->is<std::monostate>(),
-        WaspStage::VM,
-        "Cannot use monostate as a Map value"
-    );
-
-    const auto& [it, inserted] = pairs.insert({key, value});
-
-    Doctor::get()
-        .assert(inserted, WaspStage::VM, "Key already exists in the Map");
-}
-
-void MapObject::set(Object_ptr key, Object_ptr value)
-{
-    Doctor::get().fatal_if_nullptr(key, WaspStage::VM);
-    Doctor::get().fatal_if_nullptr(value, WaspStage::VM);
-
-    Doctor::get().assert(
-        !key->is<std::monostate>(),
-        WaspStage::VM,
-        "Cannot use monostate as a Map key"
-    );
-
-    Doctor::get().assert(
-        !value->is<std::monostate>(),
-        WaspStage::VM,
-        "Cannot use monostate as a Map value"
-    );
-
-    auto it = pairs.find(key);
-
-    Doctor::get().assert(
-        it != pairs.end(),
-        WaspStage::VM,
-        "Key does not exist in the Map"
-    );
-
-    it->second = value;
-}
-
-int MapObject::get_size()
-{
-    return pairs.size();
-}
-
-Object_ptr MapObject::get_pair(Object_ptr key)
-{
-    Doctor::get().fatal_if_nullptr(key, WaspStage::VM);
-
-    Doctor::get().assert(
-        !key->is<std::monostate>(),
-        WaspStage::VM,
-        "Cannot use monostate as a Map key"
-    );
-
-    auto it = pairs.find(key);
-
-    Doctor::get().assert(
-        it != pairs.end(),
-        WaspStage::VM,
-        "Key does not exist in the Map"
-    );
-
-    return MAKE_SHARED_OBJECT_VARIANT(
-        TupleObject,
-        ObjectVector{it->first, it->second}
-    );
-}
-
-Object_ptr MapObject::get(Object_ptr key)
-{
-    Doctor::get().fatal_if_nullptr(key, WaspStage::VM);
-
-    Doctor::get().assert(
-        !key->is<std::monostate>(),
-        WaspStage::VM,
-        "Cannot use monostate as a Map key"
-    );
-
-    auto it = pairs.find(key);
-    Doctor::get().assert(
-        it != pairs.end(),
-        WaspStage::VM,
-        "Key does not exist in the Map"
-    );
-
-    return it->second;
-}
-
-Object_ptr MapObject::get_iter()
-{
-    ObjectVector vec;
-    for (const auto& [key, value] : pairs)
-    {
-        vec.push_back(
-            MAKE_SHARED_OBJECT_VARIANT(TupleObject, ObjectVector{key, value})
-        );
-    }
-    return MAKE_SHARED_OBJECT_VARIANT(IteratorObject, vec);
-}
-
-Object_ptr TupleObject::get(Object_ptr index_object)
-{
-    Doctor::get().fatal_if_nullptr(index_object, WaspStage::VM);
-
-    Doctor::get().assert(
-        index_object->is<IntObject>(),
-        WaspStage::VM,
-        "Tuple indices must be integers"
-    );
-
-    int index = index_object->as<IntObject>().value;
-
-    Doctor::get().assert(
-        index >= 0 && static_cast<size_t>(index) < values.size(),
-        WaspStage::VM,
-        "Tuple index out of range"
-    );
-
-    return values[index];
-}
-
-void TupleObject::set(Object_ptr index_object, Object_ptr value)
-{
-    Doctor::get().fatal_if_nullptr(index_object, WaspStage::VM);
-    Doctor::get().fatal_if_nullptr(value, WaspStage::VM);
-
-    Doctor::get().assert(
-        index_object->is<IntObject>(),
-        WaspStage::VM,
-        "Tuple indices must be integers"
-    );
-
-    Doctor::get().assert(
-        !value->is<std::monostate>(),
-        WaspStage::VM,
-        "Cannot set a Tuple element to monostate"
-    );
-
-    int index = index_object->as<IntObject>().value;
-
-    Doctor::get().assert(
-        index >= 0 && static_cast<size_t>(index) < values.size(),
-        WaspStage::VM,
-        "Tuple index out of range"
-    );
-
-    values[index] = value;
-}
-
-void TupleObject::set(ObjectVector values)
-{
-    for (const auto& value : values)
-    {
-        Doctor::get().fatal_if_nullptr(value, WaspStage::VM);
-        Doctor::get().assert(
-            !value->is<std::monostate>(),
-            WaspStage::VM,
-            "Cannot set a Tuple element to monostate"
-        );
-    }
-
-    this->values = values;
-}
-
-ObjectVector SetObject::get()
-{
-    return values;
-}
-
-void SetObject::set(ObjectVector values)
-{
-    for (const auto& value : values)
-    {
-        Doctor::get().fatal_if_nullptr(value, WaspStage::VM);
-        Doctor::get().assert(
-            !value->is<std::monostate>(),
-            WaspStage::VM,
-            "Cannot set a Set element to monostate"
-        );
-    }
-
-    this->values = values;
-}
-
-Object_ptr SetObject::get_iter()
-{
-    ObjectVector vec(values.begin(), values.end());
-    return MAKE_SHARED_OBJECT_VARIANT(IteratorObject, std::move(vec));
-}
-
-bool VariantObject::has_value()
-{
-    return value != nullptr && !value->is<std::monostate>();
 }
 
 // ============================================================================
-// Object Method Implementations
+// Utils
 // ============================================================================
+
+Object_ptr Object::unwrap_type_alias()
+{
+    if (this->is<TypeAlias_ptr>())
+    {
+        return this->as<TypeAlias_ptr>()->underlying_type->unwrap_type_alias();
+    }
+
+    return this->shared_from_this();
+}
+
+Object_ptr Object::unwrap_completely()
+{
+    if (this->is<TypeAlias_ptr>())
+    {
+        return this->as<TypeAlias_ptr>()->underlying_type->unwrap_completely();
+    }
+
+    if (this->is<GenericType>())
+    {
+        auto& generic = this->as<GenericType>();
+
+        if (generic.constraint_type)
+        {
+            return generic.constraint_type->unwrap_completely();
+        }
+        else
+        {
+            return this->shared_from_this();
+        }
+    }
+
+    return this->shared_from_this();
+}
 
 bool Object::is_type_object() const
 {
-    return is<VariantType>() || is<Signature_ptr>() || is<ModuleType_ptr>() ||
-           is<ClassType_ptr>() || is<TraitType_ptr>() || is<EnumType_ptr>() ||
-           is<TypeAlias_ptr>() || is<TemplateParameterType_ptr>() ||
-           is<LiteralType>();
-}
-
-bool Object::is_runtime_value() const
-{
-    // A runtime value is anything that isn't a type, an empty state,
-    // an overload group, or a control-flow action object.
-    return !is_type_object() && !is<std::monostate>() &&
-           !is<std::shared_ptr<ObjectOverloadList>>();
-}
-
-bool Object::is_callable() const
-{
-    return is<std::shared_ptr<FunctionBlueprintObject>>() ||
-           is<std::shared_ptr<FunctionRuntimeObject>>() ||
-           is<std::shared_ptr<NativeFunctionObject>>() || is<Signature_ptr>();
-}
-
-IterableAbstractObject* Object::as_iterable()
-{
-    if (auto* str = try_as<StringObject>())
-    {
-        return str;
-    }
-
-    if (auto* list_ptr = try_as<std::shared_ptr<ListObject>>())
-    {
-        return list_ptr->get();
-    }
-
-    if (auto* set_ptr = try_as<std::shared_ptr<SetObject>>())
-    {
-        return set_ptr->get();
-    }
-
-    if (auto* map_ptr = try_as<std::shared_ptr<MapObject>>())
-    {
-        return map_ptr->get();
-    }
-
-    return nullptr;
-}
-
-int EnumType::get_value(const std::vector<std::string>& path) const
-{
-    std::stringstream ss;
-
-    for (size_t i = 0; i < path.size(); ++i)
-    {
-        ss << path[i] << (i == path.size() - 1 ? "" : ".");
-    }
-
-    std::string search_path = ss.str();
-    auto it = std::find(members.begin(), members.end(), search_path);
-
-    if (it != members.end())
-    {
-        return static_cast<int>(std::distance(members.begin(), it));
-    }
-
-    Doctor::get().fatal(
-        WaspStage::Semantics,
-        "Enum '" + name + "' does not contain member '" + search_path + "'."
+    return std::visit(
+        overloaded{
+            [](AnyType_ptr) -> bool
+            {
+                return true;
+            },
+            [](NoneType_ptr) -> bool
+            {
+                return true;
+            },
+            [](IntType_ptr) -> bool
+            {
+                return true;
+            },
+            [](FloatType_ptr) -> bool
+            {
+                return true;
+            },
+            [](StringType_ptr) -> bool
+            {
+                return true;
+            },
+            [](BooleanType_ptr) -> bool
+            {
+                return true;
+            },
+            [](LiteralType_ptr) -> bool
+            {
+                return true;
+            },
+            [](ListType_ptr) -> bool
+            {
+                return true;
+            },
+            [](SetType_ptr) -> bool
+            {
+                return true;
+            },
+            [](TupleType_ptr) -> bool
+            {
+                return true;
+            },
+            [](MapType_ptr) -> bool
+            {
+                return true;
+            },
+            [](VariantType_ptr) -> bool
+            {
+                return true;
+            },
+            [](IntersectionType_ptr) -> bool
+            {
+                return true;
+            },
+            [](GenericType_ptr) -> bool
+            {
+                return true;
+            },
+            [](EnumMemberType_ptr) -> bool
+            {
+                return true;
+            },
+            [](Signature_ptr) -> bool
+            {
+                return true;
+            },
+            [](ClassType_ptr) -> bool
+            {
+                return true;
+            },
+            [](TraitType_ptr) -> bool
+            {
+                return true;
+            },
+            [](EnumType_ptr) -> bool
+            {
+                return true;
+            },
+            [](TypeAlias_ptr) -> bool
+            {
+                return true;
+            },
+            [](const auto&) -> bool
+            {
+                return false;
+            }
+        },
+        value
     );
+}
+
+bool Object::is_runtime_object() const
+{
+    return !is_type_object();
 }
 
 } // namespace Wasp

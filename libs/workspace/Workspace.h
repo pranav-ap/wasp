@@ -94,7 +94,8 @@ struct OopsData : public TypedData
     SymbolScope_ptr declaration_scope;
 
     explicit OopsData(Object_ptr type)
-        : TypedData(std::move(type)), definition(nullptr), declaration_scope(nullptr)
+        : TypedData(std::move(type)), definition(nullptr),
+          declaration_scope(nullptr)
     {
     }
 };
@@ -146,7 +147,13 @@ struct Symbol : public std::enable_shared_from_this<Symbol>
 
     SymbolPayload payload;
 
-    Symbol(int id, std::string name, int closure_depth, int lexical_depth, SymbolPayload payload);
+    Symbol(
+        int id,
+        std::string name,
+        int closure_depth,
+        int lexical_depth,
+        SymbolPayload payload
+    );
 
     bool is_global() const;
     bool is_exportable() const;
@@ -169,31 +176,9 @@ struct Symbol : public std::enable_shared_from_this<Symbol>
 
     std::string to_string() const;
 
-    bool is_mutable_variable() const
-    {
-        auto* var_data = try_get_payload<VariableData>();
-        return var_data && var_data->is_mutable;
-    }
-
-    bool is_callable_payload() const
-    {
-        return payload_is_any_of<CallableData, OverloadsData>();
-    }
-
-    bool is_method() const
-    {
-        if (auto* callable_data = try_get_payload<CallableData>())
-        {
-            return callable_data->is_method;
-        }
-
-        return false;
-    }
-
-    bool is_oop_type() const
-    {
-        return payload_is_any_of<OopsData>();
-    }
+    bool is_mutable_variable() const;
+    bool is_method() const;
+    bool is_oop_type() const;
 
     template <typename T> bool payload_is() const
     {
@@ -208,16 +193,6 @@ struct Symbol : public std::enable_shared_from_this<Symbol>
     template <typename T> const T& get_payload_as() const
     {
         return std::get<T>(payload);
-    }
-
-    template <typename T> T* try_get_payload()
-    {
-        return std::get_if<T>(&payload);
-    }
-
-    template <typename T> const T* try_get_payload() const
-    {
-        return std::get_if<T>(&payload);
     }
 
     template <typename... Ts> bool payload_is_any_of() const
@@ -309,7 +284,6 @@ struct Module
     FunctionBlueprintObject_ptr blueprint;
 
     SymbolVector exports;
-    Object_ptr type;
 
     Module() = default;
 

@@ -2,37 +2,80 @@
 #include "Objects.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <iterator>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace Wasp
 {
+
+int EnumType::get_value(const std::vector<std::string>& path) const
+{
+    std::stringstream ss;
+
+    for (size_t i = 0; i < path.size(); ++i)
+    {
+        ss << path[i] << (i == path.size() - 1 ? "" : ".");
+    }
+
+    std::string search_path = ss.str();
+    auto it = std::find(members.begin(), members.end(), search_path);
+
+    if (it != members.end())
+    {
+        return static_cast<int>(std::distance(members.begin(), it));
+    }
+
+    Doctor::get().fatal(
+        WaspStage::Semantics,
+        "Enum '" + name + "' does not contain member '" + search_path + "'."
+    );
+}
 
 void OopsType::add_overload(const std::string& member_name, Object_ptr overload)
 {
     if (!member_types.contains(member_name))
     {
         member_types[member_name] = make_object(
-            std::make_shared<ObjectOverloadList>()
+            std::make_shared<FunctionOverloadsObject>()
         );
     }
 
-    auto overload_list = member_types.at(member_name)->as<ObjectOverloadList_ptr>();
+    Doctor::get().assert(
+        member_types[member_name]->is<FunctionOverloadsObject_ptr>(),
+        WaspStage::Semantics,
+        "Expected an ObjectOverloadList for member '" + member_name + "' in " +
+            name
+    );
+
+    auto overload_list = member_types.at(member_name)
+                             ->as<FunctionOverloadsObject_ptr>();
+
     overload_list->add_overload(std::move(overload));
 }
 
 ObjectVector OopsType::get_overloads(const std::string& member_name) const
 {
     Doctor::get().assert(
-        contains_member(member_name) &&
-            member_types.at(member_name)->is<ObjectOverloadList_ptr>(),
+        member_types.at(member_name)->is<FunctionOverloadsObject_ptr>(),
         WaspStage::Semantics,
-        "Expected an ObjectOverloadList for member '" + member_name + "' in " + name
+        "Expected an ObjectOverloadList for member : " + member_name + " in " +
+            name
     );
 
-    auto overload_list = member_types.at(member_name)->as<ObjectOverloadList_ptr>();
+    Doctor::get().assert(
+        contains_member(member_name),
+        WaspStage::Semantics,
+        "Member '" + member_name + "' not found in OOP Type '" + name + "'!"
+    );
+
+    auto overload_list = member_types.at(member_name)
+                             ->as<FunctionOverloadsObject_ptr>();
+
     return overload_list->overloads;
 }
 
@@ -102,7 +145,8 @@ bool OopsType::is_static(const std::string& member_name) const
         WaspStage::Semantics,
         "Member not found."
     );
-    return std::find(statics.begin(), statics.end(), member_name) != statics.end();
+    return std::find(statics.begin(), statics.end(), member_name) !=
+           statics.end();
 }
 
 bool OopsType::contains_member(const std::string& member_name) const
@@ -111,12 +155,8 @@ bool OopsType::contains_member(const std::string& member_name) const
                      fields.end();
     bool in_methods = std::find(methods.begin(), methods.end(), member_name) !=
                       methods.end();
-    bool in_pures = std::find(pures.begin(), pures.end(), member_name) !=
-                    pures.end();
-    bool in_statics = std::find(statics.begin(), statics.end(), member_name) !=
-                      statics.end();
 
-    return in_fields || in_methods || in_pures || in_statics;
+    return in_fields || in_methods;
 }
 
 Object_ptr OopsType::get_member(const std::string& member_name) const
@@ -124,7 +164,8 @@ Object_ptr OopsType::get_member(const std::string& member_name) const
     Doctor::get().assert(
         contains_member(member_name),
         WaspStage::Semantics,
-        "Type Member '" + member_name + "' not found in OOP Type '" + name + "'!"
+        "Type Member '" + member_name + "' not found in OOP Type '" + name +
+            "'!"
     );
 
     return member_types.at(member_name);
@@ -234,6 +275,22 @@ bool OopsType::implements_trait(const std::string& trait_name) const
     }
 
     return false;
+}
+
+bool OverloadCoordinate::operator<(const OverloadCoordinate& other) const
+{
+    if (member_index != other.member_index)
+    {
+        return member_index < other.member_index;
+    }
+
+    return overload_index < other.overload_index;
+}
+
+bool OverloadCoordinate::operator==(const OverloadCoordinate& other) const
+{
+    return member_index == other.member_index &&
+           overload_index == other.overload_index;
 }
 
 } // namespace Wasp

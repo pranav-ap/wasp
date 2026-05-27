@@ -27,7 +27,7 @@ Object_ptr SemanticAnalyzer::visit(IfTernaryBranch& expr)
     Doctor::get().assert(
         type_system->implements_trait(current_scope, cond_type, "Truthy"),
         WaspStage::Semantics,
-        "Condition type '" + stringify_object(cond_type) + "' is not truthy"
+        "Condition type '" + cond_type->to_string() + "' is not truthy"
     );
 
     auto sugar = ASTFactory::create_method_call(expr.test, "is_truthy");
@@ -89,7 +89,7 @@ void SemanticAnalyzer::visit(IfBranch& statement)
     Doctor::get().assert(
         type_system->implements_trait(current_scope, cond_type, "Truthy"),
         WaspStage::Semantics,
-        "Condition type '" + stringify_object(cond_type) + "' is not truthy"
+        "Condition type '" + cond_type->to_string() + "' is not truthy"
     );
 
     auto sugar = ASTFactory::create_method_call(statement.test, "is_truthy");

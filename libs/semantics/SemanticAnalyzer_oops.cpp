@@ -192,7 +192,7 @@ void SemanticAnalyzer::inherit_default_methods(AbstractOopsDefinition& def, Oops
         Symbol_ptr trait_symbol = current_scope->lookup(trait->name);
         Doctor::get().fatal_if_nullptr(trait_symbol, WaspStage::Semantics);
 
-        auto& trait_data = trait_symbol->get_payload_as<OopsData>();
+        auto& trait_data = trait_symbol->get_payload_as<OopsDefinitionData>();
         auto trait_ast = trait_data.definition->try_as<TraitDefinition>();
         Doctor::get().fatal_if_nullptr(trait_ast, WaspStage::Semantics);
 
@@ -367,7 +367,7 @@ Symbol_ptr SemanticAnalyzer::monomorphize_class_template(
     const std::string& specialized_name
 )
 {
-    auto& class_data = blueprint_symbol->get_payload_as<OopsData>();
+    auto& class_data = blueprint_symbol->get_payload_as<OopsDefinitionData>();
 
     ASTCloner cloner(substitutions);
     Statement_ptr specialized_stmt = cloner.clone(class_data.definition);

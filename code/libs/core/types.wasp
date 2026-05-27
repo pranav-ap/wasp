@@ -223,5 +223,14 @@ record Foo
     score: int
 
 
-fun Foo::repr(self: Foo) => str
+fun repr(self: Foo) => str
     return '{self.score}'
+
+
+fun print(p: Printable)
+    print(repr(p))
+
+
+let f = Foo(10)
+print(f)
+

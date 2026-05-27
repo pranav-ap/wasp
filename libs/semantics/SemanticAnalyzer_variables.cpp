@@ -52,7 +52,7 @@ Object_ptr SemanticAnalyzer::define_variable(Assignment& assign)
     std::string symbol_name = assign.lhs->as<Identifier>().name;
 
     Object_ptr resolved_type = visit(assign.rhs);
-    resolved_type = unwrap_type_alias(resolved_type);
+    resolved_type = resolved_type->unwrap_type_alias();
 
     if (assign.declared_type.has_value())
     {

@@ -197,7 +197,7 @@ std::optional<Object_ptr> SemanticAnalyzer::try_resolve_as_enum(MemberAccess& ma
     ma.enum_member_value = value;
     ma.enum_type_id = enum_type->type_id;
 
-    return make_object(EnumMemberType(enum_type, value));
+    return make_object(std::make_shared<EnumMemberType>(enum_type, value));
 }
 
 Object_ptr SemanticAnalyzer::resolve_member_access(
@@ -226,7 +226,7 @@ Object_ptr SemanticAnalyzer::resolve_member_access(
                 return type->get_member(member_name);
             },
 
-            [&](TemplateParameterType_ptr type) -> Object_ptr
+            [&](GenericType_ptr type) -> Object_ptr
             {
                 Doctor::get().fatal_if_nullptr(
                     type->constraint_type,
@@ -327,7 +327,7 @@ Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
     node.symbol = target_symbol;
 
     // Case A: Template Classes
-    if (target_symbol->payload_is<OopsData>())
+    if (target_symbol->payload_is<OopsDefinitionData>())
     {
         Object_ptr base = target_symbol->get_type();
         auto names = type_system->get_generics_declaration_order(base);

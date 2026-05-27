@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <ctime>
-#include <memory>
 #include <string>
 #include <variant>
 
@@ -72,33 +71,6 @@ void SemanticAnalyzer::setup_exports(
             mod->exports.push_back(symbol);
         }
     }
-}
-
-void SemanticAnalyzer::extract_module_type(Module_ptr module)
-{
-    ObjectStringMap members;
-    StringVector ordered_keys;
-
-    for (const auto& symbol : module->exports)
-    {
-        Doctor::get().fatal_if_nullptr(
-            symbol->get_type(),
-            WaspStage::Semantics,
-            "Symbol '" + symbol->name + "' has no type information"
-        );
-
-        members[symbol->name] = symbol->get_type();
-        ordered_keys.push_back(symbol->name);
-    }
-
-    auto module_type = std::make_shared<ModuleType>(
-        module->get_name(),
-        module->absolute_filepath,
-        ordered_keys,
-        members
-    );
-
-    module->type = make_object(module_type);
 }
 
 } // namespace Wasp

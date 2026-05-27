@@ -104,11 +104,6 @@ bool VM::is_truthy(Object_ptr obj) const
                 return !m.pairs.empty();
             },
 
-            [](ErrorObject& e)
-            {
-                return false;
-            },
-
             [](auto&)
             {
                 return true;

@@ -1,12 +1,10 @@
 #include "Doctor.h"
 #include "Objects.h"
+
 #include <algorithm>
 #include <cstddef>
-#include <memory>
 #include <string>
 #include <variant>
-
-#define MAKE_OBJECT_VARIANT(x) std::make_shared<Object>(x)
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -16,6 +14,157 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
+
+std::string mangle_object(const ObjectVector& values)
+{
+    std::string result;
+
+    for (const auto& value : values)
+    {
+        result += mangle_object(value);
+    }
+
+    return result;
+}
+
+std::string mangle_object(Object_ptr value)
+{
+    Doctor::get().fatal_if_nullptr(
+        value,
+        WaspStage::VM,
+        "Attempted to mangle a null object pointer"
+    );
+
+    return std::visit(
+        overloaded{
+            [](const std::monostate&) -> std::string
+            {
+                return "_";
+            },
+
+            [](const AnyType&) -> std::string
+            {
+                return "A";
+            },
+            [](const Signature_ptr&) -> std::string
+            {
+                return "S";
+            },
+
+            [](const NoneObject&) -> std::string
+            {
+                return "On";
+            },
+            [](const IntObject& obj) -> std::string
+            {
+                return "Oi" + std::to_string(obj.value);
+            },
+            [](const FloatObject& obj) -> std::string
+            {
+                return "Of" + std::to_string(obj.value);
+            },
+            [](const StringObject& obj) -> std::string
+            {
+                return "Os" + obj.value;
+            },
+            [](const BooleanObject& obj) -> std::string
+            {
+                return obj.value ? "Ob1" : "Ob0";
+            },
+
+            [](const LiteralType& lit) -> std::string
+            {
+                return std::visit(
+                    overloaded{
+                        [](const IntObject&) -> std::string
+                        {
+                            return "li";
+                        },
+                        [](const FloatObject&) -> std::string
+                        {
+                            return "lf";
+                        },
+                        [](const StringObject&) -> std::string
+                        {
+                            return "ls";
+                        },
+                        [](const BooleanObject&) -> std::string
+                        {
+                            return "lb";
+                        },
+                        [](const auto&) -> std::string
+                        {
+                            return "lu";
+                        } // Unknown literal
+                    },
+                    lit.value->value
+                );
+            },
+            [](const VariantType&) -> std::string
+            {
+                return "v";
+            },
+            [](const ClassType_ptr& cls) -> std::string
+            {
+                return "C" + cls->name;
+            },
+            [](const TraitType_ptr& trt) -> std::string
+            {
+                return "T" + trt->name;
+            },
+            [](const EnumType_ptr& enum_type) -> std::string
+            {
+                return "E" + enum_type->name;
+            },
+            [](const TypeAlias_ptr& alias) -> std::string
+            {
+                return "a" + alias->name;
+            },
+            [](const GenericType& gen) -> std::string
+            {
+                return "G" + gen.name;
+            },
+
+            [](const auto&) -> std::string
+            {
+                return "U";
+            }
+        },
+        value->value
+    );
+}
+
+std::string get_canonical_trait_name(const ObjectVector& traits)
+{
+    StringVector names;
+
+    for (const auto& trait_obj : traits)
+    {
+        Doctor::get().assert(
+            trait_obj->is<TraitType_ptr>(),
+            WaspStage::Semantics,
+            "Expected trait object in get_canonical_trait_name"
+        );
+
+        auto trait = trait_obj->as<TraitType_ptr>();
+        names.push_back(trait->name);
+    }
+
+    if (names.empty())
+    {
+        return "";
+    }
+
+    std::sort(names.begin(), names.end());
+
+    std::string canonical_name = names[0];
+    for (size_t i = 1; i < names.size(); ++i)
+    {
+        canonical_name += "&" + names[i];
+    }
+
+    return canonical_name;
+}
 
 // ============================================================================
 // Equality Checks
@@ -66,8 +215,8 @@ bool are_equal_types(Object_ptr left, Object_ptr right)
         return false;
     }
 
-    auto left_type = unwrap_type_alias(left);
-    auto right_type = unwrap_type_alias(right);
+    auto left_type = left->unwrap_type_alias();
+    auto right_type = right->unwrap_type_alias();
 
     if (left_type == right_type)
     {
@@ -122,10 +271,6 @@ bool are_equal_types(Object_ptr left, Object_ptr right)
                        are_equal_types(l->return_type, r->return_type);
             },
 
-            [](const ModuleType_ptr& l, const ModuleType_ptr& r)
-            {
-                return l->type_id == r->type_id;
-            },
             [](const ClassType_ptr& l, const ClassType_ptr& r)
             {
                 return l->type_id == r->type_id;
@@ -151,10 +296,9 @@ bool are_equal_types(Object_ptr left, Object_ptr right)
                 return are_equal_types(l->underlying_type, r->underlying_type);
             },
 
-            [](const TemplateParameterType_ptr& l,
-               const TemplateParameterType_ptr& r)
+            [](const GenericType& l, const GenericType& r)
             {
-                return l->name == r->name;
+                return l.name == r.name;
             },
 
             // Catch-all identical Primitive Types (IntType, FloatType, etc.)
@@ -172,53 +316,6 @@ bool are_equal_types(Object_ptr left, Object_ptr right)
         left_type->value,
         right_type->value
     );
-}
-
-// ============================================================================
-// Utils
-// ============================================================================
-
-Object_ptr convert_type(Object_ptr type, Object_ptr operand)
-{
-    Doctor::get().fatal(WaspStage::VM, "convert_type is not implemented yet");
-}
-
-Object_ptr unwrap_type_alias(Object_ptr type)
-{
-    Doctor::get()
-        .fatal_if_nullptr(type, WaspStage::Semantics, "Attempted to unwrap a null type pointer");
-
-    while (type->is<TypeAlias_ptr>())
-    {
-        type = type->as<TypeAlias_ptr>()->underlying_type;
-    }
-
-    return type;
-}
-
-Object_ptr unwrap_completely(Object_ptr type)
-{
-    Doctor::get()
-        .fatal_if_nullptr(type, WaspStage::Semantics, "Attempted to unwrap a null type pointer");
-
-    while (true)
-    {
-        if (type->is<TypeAlias_ptr>())
-        {
-            type = type->as<TypeAlias_ptr>()->underlying_type;
-            continue;
-        }
-
-        if (auto* generic_ptr = type->try_as<TemplateParameterType_ptr>())
-        {
-            type = (*generic_ptr)->constraint_type;
-            continue;
-        }
-
-        break;
-    }
-
-    return type;
 }
 
 } // namespace Wasp

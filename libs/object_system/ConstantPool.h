@@ -49,7 +49,6 @@ public:
     Object_ptr make_object(int value) const;
     Object_ptr make_object(double value) const;
     Object_ptr make_object(std::string value) const;
-    Object_ptr make_error_object(std::string text) const;
 
     int allocate(Object_ptr value);
     int allocate(int value);

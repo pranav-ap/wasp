@@ -151,7 +151,8 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
                         def.symbol->get_type()->as<ClassType_ptr>()
                     );
 
-                    auto& class_data = def.symbol->get_payload_as<OopsData>();
+                    auto& class_data = def.symbol->get_payload_as<
+                        OopsDefinitionData>();
 
                     ASTCloner cloner;
                     class_data.definition = cloner.clone(make_statement(def));
@@ -164,7 +165,8 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
                         def.symbol->get_type()->as<TraitType_ptr>()
                     );
 
-                    auto& trait_data = def.symbol->get_payload_as<OopsData>();
+                    auto& trait_data = def.symbol->get_payload_as<
+                        OopsDefinitionData>();
 
                     ASTCloner cloner;
                     trait_data.definition = cloner.clone(make_statement(def));

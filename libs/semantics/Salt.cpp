@@ -98,50 +98,6 @@ ExpressionVector Salt::visit(ExpressionVector expressions)
     return computed_types;
 }
 
-Expression_ptr Salt::visit(IntegerLiteral& expr)
-{
-    auto int_identifier = ASTFactory::create_identifier("Int");
-    auto constructor = ASTFactory::create_constructor(
-        int_identifier,
-        {make_expression(expr)}
-    );
-
-    return constructor;
-}
-
-Expression_ptr Salt::visit(FloatLiteral& expr)
-{
-    auto float_identifier = ASTFactory::create_identifier("Float");
-    auto constructor = ASTFactory::create_constructor(
-        float_identifier,
-        {make_expression(expr)}
-    );
-
-    return constructor;
-}
-
-Expression_ptr Salt::visit(StringLiteral& expr)
-{
-    auto string_identifier = ASTFactory::create_identifier("String");
-    auto constructor = ASTFactory::create_constructor(
-        string_identifier,
-        {make_expression(expr)}
-    );
-
-    return constructor;
-}
-
-Expression_ptr Salt::visit(BooleanLiteral& expr)
-{
-    auto bool_identifier = ASTFactory::create_identifier("Boolean");
-    auto constructor = ASTFactory::create_constructor(
-        bool_identifier,
-        {make_expression(expr)}
-    );
-
-    return constructor;
-}
-
 Expression_ptr Salt::visit(Prefix& expr)
 {
     std::string function_name = get_operator_name(

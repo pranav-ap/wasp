@@ -32,6 +32,14 @@ void SemanticAnalyzer::visit(FunctionDefinition& def)
     );
 }
 
+void SemanticAnalyzer::visit(RecordDefinition& def)
+{
+    Doctor::get().fatal(
+        WaspStage::Semantics,
+        "Record definitions are not yet supported."
+    );
+}
+
 void SemanticAnalyzer::visit(OperatorDefinition& def)
 {
     size_t expected = def.fixity == TokenType::INFIX ? 2 : 1;
@@ -57,11 +65,20 @@ void SemanticAnalyzer::analyze_callable(
     enter_scope(scope_type);
     return_type_stack.push_back(signature->return_type);
 
-    for (const auto& name : signature->ordered_template_parameter_names)
+    if (signature->template_type.has_value())
     {
-        auto generic_type = signature->template_parameter_types.at(name);
-        auto symbol = SymbolFactory::create_template_parameter(name, generic_type);
-        current_scope->define(symbol);
+        auto template_type = signature->template_type.value();
+
+        for (const auto& name : template_type->ordered_parameter_names)
+        {
+            auto generic_type = template_type->template_parameters.at(name);
+            auto symbol = SymbolFactory::create_template_parameter(
+                name,
+                generic_type->constraint_type
+            );
+
+            current_scope->define(symbol);
+        }
     }
 
     // Bind Context ('my' or 'our') for Methods
@@ -151,14 +168,14 @@ void SemanticAnalyzer::visit(Return& statement)
     );
 
     Object_ptr expected = return_type_stack.back();
-    expected = unwrap_completely(expected);
+    expected = expected->unwrap_completely();
 
     Object_ptr actual = workspace->pool->get_none_type();
 
     if (statement.expression)
     {
         actual = visit(statement.expression.value());
-        actual = unwrap_completely(actual);
+        actual = actual->unwrap_completely();
     }
 
     Doctor::get().assert(
@@ -171,10 +188,10 @@ void SemanticAnalyzer::visit(Return& statement)
 void SemanticAnalyzer::visit(Placeholder& statement)
 {
     Doctor::get().assert(
-        statement.type == TokenType::NATIVE || statement.type == TokenType::PASS ||
+        statement.type == TokenType::NATIVE ||
             statement.type == TokenType::REQUIRED,
         WaspStage::Semantics,
-        "Expected 'native', 'pass', or 'required' placeholder"
+        "Expected 'native', or 'required' placeholder"
     );
 
     if (statement.type == TokenType::REQUIRED)

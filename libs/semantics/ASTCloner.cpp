@@ -44,7 +44,7 @@ std::string get_raw_type_name(Object_ptr obj)
             {
                 return get_raw_type_name(a->underlying_type);
             },
-            [](const TemplateParameterType_ptr& g)
+            [](const GenericType_ptr& g)
             {
                 return g->name;
             },
