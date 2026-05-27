@@ -7,7 +7,6 @@
 #include "Salt.h"
 #include "Statement.h"
 #include "SymbolScope.h"
-#include "Token.h"
 #include "TypeAnnotation.h"
 #include "TypeSystem.h"
 #include "Workspace.h"
@@ -15,7 +14,6 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <utility>
 #include <vector>
 
 namespace Wasp
@@ -54,7 +52,6 @@ private:
 
     void visit(ExpressionStatement& statement);
     void visit(FunctionDefinition& statement);
-    void visit(RecordDefinition& statement);
     void visit(ClassDefinition& statement);
     void visit(TraitDefinition& statement);
     void visit(EnumDefinition& statement);
@@ -117,13 +114,6 @@ private:
     StringVector unfurl_member_access(const MemberAccess& expr);
     std::optional<Object_ptr> try_resolve_as_enum(MemberAccess& expr);
 
-    // Callable Analysis
-    void analyze_callable(
-        AbstractCallable& def,
-        ScopeType scope_type,
-        Object_ptr context_type,
-        bool is_static
-    );
     void validate_purity_constraints(Symbol_ptr target_symbol) const;
 
     Expression_ptr try_box_expression(
@@ -162,8 +152,8 @@ private:
     );
 
     // Templates & Generics
-    std::pair<ObjectStringMap, StringVector> evaluate_template_params(
-        const std::vector<FieldDefinition>& template_params
+    TemplateType_ptr evaluate_template_params(
+        const FieldDefinitionVector& template_params
     );
     void analyze_template_parameter_constructor(
         GenericType_ptr template_param,
@@ -212,10 +202,6 @@ private:
 
     void desugar_call(Expression_ptr expr);
     void desugar_member_access(Expression_ptr expr);
-
-    // Type Utilities
-
-    std::string get_operator_symbol_name(TokenType fixity, TokenType op_type);
 };
 
 } // namespace Wasp

@@ -52,24 +52,6 @@ struct FieldDefinition : public Definition
 
 using FieldDefinitionVector = std::vector<FieldDefinition>;
 
-struct RecordDefinition : public Definition
-{
-    FieldDefinitionVector fields;
-    TypeAnnotationVector traits;
-
-    RecordDefinition() = default;
-
-    RecordDefinition(
-        std::string name,
-        FieldDefinitionVector fields,
-        TypeAnnotationVector traits
-    )
-        : Definition(std::move(name)), fields(std::move(fields)),
-          traits(std::move(traits))
-    {
-    }
-};
-
 struct Templatable
 {
     FieldDefinitionVector template_params;
@@ -410,8 +392,6 @@ struct Import : public Resolvable
 // Splitter
 // ============================================================================
 
-// just a utilily for splitting statements up during analysis
-
 struct Splitter
 {
     std::vector<Statement_ptr> statements;
@@ -439,7 +419,6 @@ using StatementVariant = std::variant<
     OperatorDefinition,
 
     FieldDefinition,
-    RecordDefinition,
 
     ClassDefinition,
     TraitDefinition,

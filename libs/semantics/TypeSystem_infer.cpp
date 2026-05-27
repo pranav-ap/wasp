@@ -503,4 +503,17 @@ Object_ptr TypeSystem::infer(
     return pool->get_none_type();
 }
 
+// ============================================================================
+// Trait
+// =============================================================================
+
+bool TypeSystem::implements_trait(
+    SymbolScope_ptr scope,
+    Object_ptr candidate_type,
+    const std::string& trait_name
+)
+{
+    return false;
+}
+
 } // namespace Wasp

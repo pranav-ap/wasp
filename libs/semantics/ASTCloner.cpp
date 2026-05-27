@@ -160,13 +160,6 @@ ExpressionVariant ASTCloner::clone_expr_data(const ExpressionVariant& data)
             {
                 return std::monostate{};
             },
-
-            [&](const NativeExpression& n) -> ExpressionVariant
-            {
-                auto c = n;
-                c.expression = clone(n.expression);
-                return c;
-            },
             [&](const IntegerLiteral& n) -> ExpressionVariant
             {
                 return IntegerLiteral(n.value);
@@ -186,10 +179,6 @@ ExpressionVariant ASTCloner::clone_expr_data(const ExpressionVariant& data)
             [&](const NoneLiteral& n) -> ExpressionVariant
             {
                 return NoneLiteral();
-            },
-            [&](const DotLiteral& n) -> ExpressionVariant
-            {
-                return DotLiteral();
             },
             [&](const InterpolatedString& n) -> ExpressionVariant
             {
@@ -220,6 +209,11 @@ ExpressionVariant ASTCloner::clone_expr_data(const ExpressionVariant& data)
                 c.member_index = -1;
                 c.is_enum_value = false;
                 return c;
+            },
+
+            [&](const EnumMember& em) -> ExpressionVariant
+            {
+                return EnumMember(em.enum_type_id, em.enum_member_value);
             },
 
             [&](const Box& b) -> ExpressionVariant
@@ -290,21 +284,21 @@ ExpressionVariant ASTCloner::clone_expr_data(const ExpressionVariant& data)
             {
                 auto c = Prefix(n.op, clone(n.operand));
                 wipe_resolvable(c);
-                c.overload_index = -1;
+
                 return c;
             },
             [&](const Infix& n) -> ExpressionVariant
             {
                 auto c = Infix(clone(n.left), n.op, clone(n.right));
                 wipe_resolvable(c);
-                c.overload_index = -1;
+
                 return c;
             },
             [&](const Postfix& n) -> ExpressionVariant
             {
                 auto c = Postfix(clone(n.operand), n.op);
                 wipe_resolvable(c);
-                c.overload_index = -1;
+
                 return c;
             },
 
@@ -332,16 +326,6 @@ ExpressionVariant ASTCloner::clone_expr_data(const ExpressionVariant& data)
                 }
                 auto c = MapLiteral(std::move(new_pairs));
                 return c;
-            },
-
-            [&](const RangeLiteral& n) -> ExpressionVariant
-            {
-                return RangeLiteral(
-                    clone(n.start),
-                    clone(n.end),
-                    clone(n.step),
-                    n.is_inclusive
-                );
             },
 
             [&](const Assignment& n) -> ExpressionVariant
@@ -411,37 +395,11 @@ StatementVariant ASTCloner::clone_stmt_data(const StatementVariant& data)
                 c.body = clone(n.body);
                 for (auto& param : c.parameters)
                 {
-                    param.second = clone(param.second);
+                    param.type = clone(param.type);
                 }
 
                 wipe_callable(c);
 
-                return c;
-            },
-
-            [&](const MethodDefinition& n) -> StatementVariant
-            {
-                MethodDefinition c = n;
-                c.return_type = clone(n.return_type);
-                c.body = clone(n.body);
-                for (auto& param : c.parameters)
-                {
-                    param.second = clone(param.second);
-                }
-                wipe_callable(c);
-                return c;
-            },
-
-            [&](const OperatorDefinition& n) -> StatementVariant
-            {
-                OperatorDefinition c = n;
-                c.return_type = clone(n.return_type);
-                c.body = clone(n.body);
-                for (auto& param : c.parameters)
-                {
-                    param.second = clone(param.second);
-                }
-                wipe_callable(c);
                 return c;
             },
 
@@ -531,6 +489,13 @@ StatementVariant ASTCloner::clone_stmt_data(const StatementVariant& data)
                 }
 
                 return Return();
+            },
+            [&](const auto&) -> StatementVariant
+            {
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Failed to clone statement during AST cloning"
+                );
             }
         },
         data
@@ -571,16 +536,12 @@ TypeAnnotationVariant ASTCloner::clone_type_data(const TypeAnnotationVariant& da
                 return c;
             },
 
-            [&](const NativeTypeNode& n) -> TypeAnnotationVariant
-            {
-                return NativeTypeNode(clone(n.underlying_type));
-            },
-
             [&](const std::shared_ptr<ListTypeNode>& n) -> TypeAnnotationVariant
             {
                 return std::make_shared<ListTypeNode>(clone(n->element_type));
             },
-            [&](const std::shared_ptr<TupleTypeNode>& n) -> TypeAnnotationVariant
+            [&](const std::shared_ptr<TupleTypeNode>& n)
+                -> TypeAnnotationVariant
             {
                 return std::make_shared<TupleTypeNode>(clone(n->element_types));
             },
@@ -595,26 +556,26 @@ TypeAnnotationVariant ASTCloner::clone_type_data(const TypeAnnotationVariant& da
                     clone(n->value_type)
                 );
             },
-            [&](const std::shared_ptr<VariantTypeNode>& n) -> TypeAnnotationVariant
+            [&](const std::shared_ptr<VariantTypeNode>& n)
+                -> TypeAnnotationVariant
             {
                 return std::make_shared<VariantTypeNode>(clone(n->types));
             },
-            [&](const std::shared_ptr<IntersectionTypeNode>& n) -> TypeAnnotationVariant
+            [&](const std::shared_ptr<IntersectionTypeNode>& n)
+                -> TypeAnnotationVariant
             {
                 return std::make_shared<IntersectionTypeNode>(clone(n->types));
             },
-            [&](const std::shared_ptr<FunctionTypeNode>& n) -> TypeAnnotationVariant
+            [&](const std::shared_ptr<FunctionTypeNode>& n)
+                -> TypeAnnotationVariant
             {
                 return std::make_shared<FunctionTypeNode>(
                     clone(n->input_types),
                     clone(n->return_type)
                 );
             },
-            [&](const std::shared_ptr<RecordTypeNode>& n) -> TypeAnnotationVariant
-            {
-                return std::make_shared<RecordTypeNode>(clone(n->fields));
-            },
-            [&](const std::shared_ptr<TemplateAngularTypeNode>& n) -> TypeAnnotationVariant
+            [&](const std::shared_ptr<TemplateAngularTypeNode>& n)
+                -> TypeAnnotationVariant
             {
                 return std::make_shared<TemplateAngularTypeNode>(
                     clone(n->base_node),

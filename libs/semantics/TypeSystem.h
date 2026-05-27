@@ -2,7 +2,6 @@
 
 #include "ConstantPool.h"
 #include "Objects.h"
-#include "SymbolScope.h"
 #include "Token.h"
 #include "Workspace.h"
 
@@ -83,6 +82,12 @@ struct TypeSystem
 
     Object_ptr infer(SymbolScope_ptr scope, Object_ptr left_type, TokenType op);
 
+    bool implements_trait(
+        SymbolScope_ptr scope,
+        Object_ptr candidate_type,
+        const std::string& trait_name
+    );
+
     // =========================================================================
     // Overloads
     // =========================================================================
@@ -145,6 +150,30 @@ struct TypeSystem
     ) const;
 
     // =========================================================================
+    // Type Checks
+    // =========================================================================
+
+    bool is_boolean_type(const Object_ptr type) const;
+    bool is_number_type(const Object_ptr type) const;
+    bool is_int_type(const Object_ptr type) const;
+    bool is_float_type(const Object_ptr type) const;
+    bool is_string_type(const Object_ptr type) const;
+    bool is_none_type(const Object_ptr type) const;
+
+    bool is_condition_type(
+        SymbolScope_ptr scope,
+        const Object_ptr condition_type
+    ) const;
+
+    bool is_spreadable_type(
+        SymbolScope_ptr scope,
+        const Object_ptr condition_type
+    ) const;
+
+    bool is_iterable_type(SymbolScope_ptr scope, const Object_ptr type) const;
+    bool is_key_type(SymbolScope_ptr scope, const Object_ptr type) const;
+
+    // =========================================================================
     // Utilities
     // =========================================================================
 
@@ -159,6 +188,11 @@ struct TypeSystem
     ) const;
 
     Object_ptr spread_type(Object_ptr type);
+
+    Object_ptr extract_iterable_element_type(
+        SymbolScope_ptr scope,
+        const Object_ptr type
+    ) const;
 };
 
 using TypeSystem_ptr = std::shared_ptr<TypeSystem>;

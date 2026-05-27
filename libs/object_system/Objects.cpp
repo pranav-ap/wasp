@@ -93,7 +93,7 @@ std::string Object::to_string() const
             {
                 return "type alias: " + alias->name;
             },
-            [](const GenericType& gen) -> std::string
+            [](const GenericType_ptr& gen) -> std::string
             {
                 return "generic type: " + gen.name;
             },
@@ -193,13 +193,13 @@ Object_ptr Object::unwrap_completely()
         return this->as<TypeAlias_ptr>()->underlying_type->unwrap_completely();
     }
 
-    if (this->is<GenericType>())
+    if (this->is<GenericType_ptr>())
     {
-        auto& generic = this->as<GenericType>();
+        auto& generic = this->as<GenericType_ptr>();
 
-        if (generic.constraint_type)
+        if (generic->constraint_type)
         {
-            return generic.constraint_type->unwrap_completely();
+            return generic->constraint_type->unwrap_completely();
         }
         else
         {
@@ -413,9 +413,9 @@ std::string Object::mangle_object(Object_ptr value)
             {
                 return "a" + alias->name;
             },
-            [](const GenericType& gen) -> std::string
+            [](const GenericType_ptr& gen) -> std::string
             {
-                return "G" + gen.name;
+                return "G" + gen->name;
             },
 
             [](const auto&) -> std::string
@@ -464,8 +464,8 @@ std::string Object::get_canonical_trait_name(const ObjectVector& traits)
 // ============================================================================
 
 bool Object::are_equal_types(
-    ObjectVector left_vector,
-    ObjectVector right_vector
+    const ObjectVector& left_vector,
+    const ObjectVector& right_vector
 )
 {
     if (left_vector.size() != right_vector.size())
@@ -486,8 +486,8 @@ bool Object::are_equal_types(
 }
 
 bool Object::are_equal_types_unordered(
-    ObjectVector left_vector,
-    ObjectVector right_vector
+    const ObjectVector& left_vector,
+    const ObjectVector& right_vector
 )
 {
     if (left_vector.size() != right_vector.size())
@@ -600,9 +600,9 @@ bool Object::are_equal_types(Object_ptr left, Object_ptr right)
                 return are_equal_types(l->underlying_type, r->underlying_type);
             },
 
-            [](const GenericType& l, const GenericType& r)
+            [](const GenericType_ptr& l, const GenericType_ptr& r)
             {
-                return l.name == r.name;
+                return l->name == r->name;
             },
 
             // Catch-all identical Primitive Types (IntType, FloatType, etc.)

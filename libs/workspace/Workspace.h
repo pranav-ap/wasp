@@ -15,8 +15,6 @@
 #include <variant>
 #include <vector>
 
-struct SymbolScope;
-
 namespace Wasp
 {
 
@@ -26,6 +24,9 @@ using SymbolVector = std::vector<Symbol_ptr>;
 using SymbolStringMap = std::map<std::string, Symbol_ptr>;
 using SymbolIntMap = std::map<int, Symbol_ptr>;
 using OptionalSymbol = std::optional<Symbol_ptr>;
+
+struct SymbolScope;
+using SymbolScope_ptr = std::shared_ptr<SymbolScope>;
 
 struct Module;
 using Module_ptr = std::shared_ptr<Module>;

@@ -48,12 +48,13 @@ void SemanticAnalyzer::analyze_template_parameter_constructor(
     for (const auto& class_type : classes_to_check)
     {
         Doctor::get().assert(
-            argument_types.size() == class_type->fields.size(),
+            argument_types.size() ==
+                class_type->record_type.ordered_keys.size(),
             WaspStage::Semantics,
             "Constructor arguments count mismatch for class: " +
                 class_type->name + ". Expected " +
-                std::to_string(class_type->fields.size()) + ", got " +
-                std::to_string(argument_types.size()) + "."
+                std::to_string(class_type->record_type.field_types.size()) +
+                ", got " + std::to_string(argument_types.size()) + "."
         );
     }
 }
@@ -79,25 +80,26 @@ Object_ptr SemanticAnalyzer::visit(Constructor& constructor)
         auto cls = target_type->as<ClassType_ptr>();
 
         Doctor::get().assert(
-            argument_types.size() == cls->fields.size(),
+            argument_types.size() == cls->record_type.field_types.size(),
             WaspStage::Semantics,
             "Constructor Arguments Count Mismatch for class '" + cls->name +
-                "'. Expected " + std::to_string(cls->fields.size()) + ", got " +
+                "'. Expected " +
+                std::to_string(cls->record_type.field_types.size()) + ", got " +
                 std::to_string(argument_types.size()) + "."
         );
 
         for (size_t i = 0; i < argument_types.size(); ++i)
         {
-            const std::string& field_name = cls->fields[i];
+            const std::string& field_name = cls->record_type.ordered_keys[i];
 
             Doctor::get().assert(
-                cls->member_types.contains(field_name),
+                cls->record_type.contains_field(field_name),
                 WaspStage::Semantics,
                 "Field '" + field_name + "' not found in class '" + cls->name +
                     "'."
             );
 
-            Object_ptr expected_type = cls->member_types.at(field_name);
+            Object_ptr expected_type = cls->record_type.get_field(field_name);
 
             Doctor::get().assert(
                 type_system->assignable(
@@ -114,16 +116,6 @@ Object_ptr SemanticAnalyzer::visit(Constructor& constructor)
         }
 
         return target_type;
-    }
-
-    // Handle Record construction (desugared form)
-    if (target_type->is<RecordObject_ptr>())
-    {
-        // Records are runtime values, not types
-        Doctor::get().fatal(
-            WaspStage::Semantics,
-            "Cannot construct a record value directly. Use class constructor."
-        );
     }
 
     Doctor::get().fatal(

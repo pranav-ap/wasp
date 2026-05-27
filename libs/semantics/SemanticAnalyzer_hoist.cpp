@@ -11,7 +11,6 @@
 #include <ctime>
 #include <memory>
 #include <string>
-#include <utility>
 #include <variant>
 #include <vector>
 
@@ -113,31 +112,32 @@ void SemanticAnalyzer::hoist_names(StatementVector& statements)
 
 void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
 {
-    auto assign_generics = [&](auto& def, auto type_ptr)
-    {
-        auto [template_params, ordered_names] = evaluate_template_params(
-            def.template_params
-        );
-
-        type_ptr->template_parameter_types = std::move(template_params);
-        type_ptr->ordered_template_parameter_names = std::move(ordered_names);
-    };
-
     for (auto& stmt_ptr : statements)
     {
         std::visit(
             overloaded{
                 [&](TypeAliasDefinition& def)
                 {
-                    auto alias_type = def.symbol->get_type()->as<TypeAlias_ptr>();
-                    assign_generics(def, alias_type);
+                    auto alias_type = def.symbol->get_type()
+                                          ->as<TypeAlias_ptr>();
+
+                    alias_type->template_type = evaluate_template_params(
+                        def.template_params
+                    );
 
                     enter_scope(ScopeType::CLASS);
 
-                    for (const auto& name : alias_type->ordered_template_parameter_names)
+                    for (const auto& name :
+                         alias_type->template_type->ordered_parameter_names)
                     {
-                        auto generic_type = alias_type->template_parameter_types.at(name);
-                        auto symbol = SymbolFactory::create_template_parameter(name, generic_type);
+                        auto generic_type = alias_type->template_type
+                                                ->template_parameters.at(name);
+
+                        auto symbol = SymbolFactory::create_template_parameter(
+                            name,
+                            generic_type
+                        );
+
                         current_scope->define(symbol);
                     }
 
@@ -146,13 +146,15 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
                 },
                 [&](ClassDefinition& def)
                 {
-                    assign_generics(
-                        def,
-                        def.symbol->get_type()->as<ClassType_ptr>()
+                    auto class_type = def.symbol->get_type()
+                                          ->as<ClassType_ptr>();
+
+                    // Assign generics directly
+                    class_type->template_type = evaluate_template_params(
+                        def.template_params
                     );
 
-                    auto& class_data = def.symbol->get_payload_as<
-                        OopsDefinitionData>();
+                    auto& class_data = def.symbol->as<OopsSymbol>();
 
                     ASTCloner cloner;
                     class_data.definition = cloner.clone(make_statement(def));
@@ -160,13 +162,14 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
                 },
                 [&](TraitDefinition& def)
                 {
-                    assign_generics(
-                        def,
-                        def.symbol->get_type()->as<TraitType_ptr>()
+                    auto trait_type = def.symbol->get_type()
+                                          ->as<TraitType_ptr>();
+
+                    trait_type->template_type = evaluate_template_params(
+                        def.template_params
                     );
 
-                    auto& trait_data = def.symbol->get_payload_as<
-                        OopsDefinitionData>();
+                    auto& trait_data = def.symbol->as<OopsSymbol>();
 
                     ASTCloner cloner;
                     trait_data.definition = cloner.clone(make_statement(def));
@@ -176,25 +179,28 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
                 {
                     hoist_function_definition(def);
 
-                    auto& function_data = def.symbol->get_payload_as<
-                        CallableSymbol>();
+                    auto& function_data = def.symbol->as<FunctionSymbol>();
 
                     ASTCloner cloner;
-                    function_data.definition = cloner.clone(make_statement(def));
+                    function_data.definition = cloner.clone(
+                        make_statement(def)
+                    );
                     function_data.declaration_scope = current_scope;
                 },
                 [&](OperatorDefinition& def)
                 {
                     hoist_function_definition(def);
 
-                    auto& function_data = def.symbol->get_payload_as<
-                        CallableSymbol>();
+                    auto& function_data = def.symbol->as<FunctionSymbol>();
 
                     ASTCloner cloner;
-                    function_data.definition = cloner.clone(make_statement(def));
+                    function_data.definition = cloner.clone(
+                        make_statement(def)
+                    );
                     function_data.declaration_scope = current_scope;
                 },
-                [](auto&) { /* No signature hoisting needed for other statements */ }
+                [](auto&)
+                { /* No signature hoisting needed for other statements */ }
             },
             stmt_ptr->data
         );
@@ -285,27 +291,34 @@ void SemanticAnalyzer::hoist_function_definition(AbstractCallable& def)
 {
     enter_scope(ScopeType::FUNCTION);
 
-    auto [generics, ordered_names] = evaluate_template_params(def.template_params);
+    auto template_type = evaluate_template_params(def.template_params);
 
-    for (const auto& [name, generic_type] : generics)
+    if (template_type)
     {
-        auto symbol = SymbolFactory::create_template_parameter(name, generic_type);
-        current_scope->define(symbol);
+        for (const auto& name : template_type->ordered_parameter_names)
+        {
+            auto generic_type = template_type->template_parameters.at(name);
+            auto symbol = SymbolFactory::create_template_parameter(
+                name,
+                generic_type
+            );
+            current_scope->define(symbol);
+        }
     }
 
     Object_ptr return_type = def.return_type ? visit(def.return_type)
                                              : workspace->pool->get_none_type();
 
     ObjectVector param_types;
-    for (const auto& [name, type_node] : def.parameters)
+    for (const auto& param : def.parameters)
     {
-        param_types.push_back(visit(type_node));
+        param_types.push_back(visit(param.type));
     }
 
     leave_scope();
 
     auto signature = make_object(
-        std::make_shared<Signature>(param_types, return_type, generics, ordered_names)
+        std::make_shared<Signature>(param_types, return_type, template_type)
     );
 
     auto symbol = SymbolFactory::create_function(

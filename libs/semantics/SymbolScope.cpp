@@ -1,9 +1,9 @@
 #include "SymbolScope.h"
 #include "Doctor.h"
+#include "Token.h"
 #include "Workspace.h"
 
 #include <memory>
-#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -145,13 +145,12 @@ void SymbolScope::merge_parent_overloads(Symbol_ptr new_overloads_symbol)
     }
 
     auto parent_symbol = enclosing_scope->lookup(new_overloads_symbol->name);
-    if (!parent_symbol.has_value() ||
-        !parent_symbol.value()->is<OverloadsSymbol>())
+    if (!parent_symbol || !parent_symbol->is<OverloadsSymbol>())
     {
         return;
     }
 
-    const auto& parent_data = parent_symbol.value()->as<OverloadsSymbol>();
+    const auto& parent_data = parent_symbol->as<OverloadsSymbol>();
     auto& group_data = new_overloads_symbol->as<OverloadsSymbol>();
 
     group_data.parents.insert(
@@ -167,7 +166,7 @@ void SymbolScope::merge_parent_overloads(Symbol_ptr new_overloads_symbol)
     );
 }
 
-OptionalSymbol SymbolScope::lookup_local(const std::string& name) const
+Symbol_ptr SymbolScope::lookup_local(const std::string& name) const
 {
     auto it = symbols.find(name);
 
@@ -176,10 +175,10 @@ OptionalSymbol SymbolScope::lookup_local(const std::string& name) const
         return it->second;
     }
 
-    return std::nullopt;
+    return nullptr;
 }
 
-OptionalSymbol SymbolScope::lookup(const std::string& name) const
+Symbol_ptr SymbolScope::lookup(const std::string& name) const
 {
     const SymbolScope* current = this;
 
@@ -194,7 +193,7 @@ OptionalSymbol SymbolScope::lookup(const std::string& name) const
         current = current->enclosing_scope.get();
     }
 
-    return std::nullopt;
+    return nullptr;
 }
 
 bool SymbolScope::contains_in_current_scope(const std::string& name) const
@@ -264,4 +263,14 @@ int SymbolScope::get_function_closure_distance(int target_closure_depth) const
     return this->closure_depth - target_closure_depth;
 }
 
+void SymbolScope::mark_as_required()
+{
+    placeholder = TokenType::REQUIRED;
+}
+
+bool SymbolScope::is_required() const
+{
+    return placeholder.has_value() &&
+           placeholder.value() == TokenType::REQUIRED;
+}
 } // namespace Wasp

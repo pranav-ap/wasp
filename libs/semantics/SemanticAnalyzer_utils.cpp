@@ -4,14 +4,10 @@
 #include "SemanticAnalyzer.h"
 #include "Statement.h"
 #include "SymbolScope.h"
-#include "Token.h"
 #include "Workspace.h"
 
 #include <ctime>
 #include <memory>
-#include <string>
-#include <utility>
-#include <vector>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -48,18 +44,15 @@ void SemanticAnalyzer::leave_scope_keep_symbol(Symbol_ptr symbol_to_keep)
     }
 }
 
-std::string SemanticAnalyzer::get_operator_symbol_name(
-    TokenType fixity,
-    TokenType op_type
+TemplateType_ptr SemanticAnalyzer::evaluate_template_params(
+    const FieldDefinitionVector& template_params
 )
 {
-    return to_string(fixity) + "_" + to_string(op_type);
-}
+    if (template_params.empty())
+    {
+        return nullptr;
+    }
 
-std::pair<ObjectStringMap, StringVector> SemanticAnalyzer::evaluate_template_params(
-    const std::vector<FieldDefinition>& template_params
-)
-{
     ObjectStringMap template_params_map;
     StringVector ordered_names;
 
@@ -72,14 +65,14 @@ std::pair<ObjectStringMap, StringVector> SemanticAnalyzer::evaluate_template_par
         Doctor::get().assert(
             !template_params_map.contains(field.name),
             WaspStage::Semantics,
-            "Duplicate template parameter name '" + field.name + "'."
+            "Duplicate template parameter name " + field.name
         );
 
         template_params_map[field.name] = template_param_type;
         ordered_names.push_back(field.name);
     }
 
-    return {template_params_map, ordered_names};
+    return std::make_shared<TemplateType>(template_params_map, ordered_names);
 }
 
 } // namespace Wasp

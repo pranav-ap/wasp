@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <cstddef>
 #include <memory>
 #include <string>
 #include <variant>
@@ -58,9 +57,12 @@ void SemanticAnalyzer::analyze_oops_definition(AbstractOopsDefinition& def, Oops
 {
     enter_scope(ScopeType::CLASS);
 
-    for (const auto& name : oop_type->ordered_template_parameter_names)
+    for (const auto& name : oop_type->template_type->ordered_parameter_names)
     {
-        auto generic_type = oop_type->template_parameter_types.at(name);
+        auto generic_type = oop_type->template_type->template_parameters.at(
+            name
+        );
+
         auto symbol = SymbolFactory::create_template_parameter(name, generic_type);
         current_scope->define(symbol);
     }
@@ -80,7 +82,7 @@ void SemanticAnalyzer::resolve_traits(AbstractOopsDefinition& def, OopsType_ptr 
     for (const auto& trait_annotation : def.traits)
     {
         Object_ptr resolved_type = visit(trait_annotation);
-        resolved_type = unwrap_completely(resolved_type);
+        resolved_type = resolved_type->unwrap_completely();
 
         Doctor::get().assert(
             resolved_type->is<TraitType_ptr>(),
@@ -110,11 +112,7 @@ void SemanticAnalyzer::fill_oops_member_names(AbstractOopsDefinition& def, OopsT
                 [&](const FieldDefinition& f)
                 {
                     Doctor::get().assert(
-                        std::find(
-                            oop_type->fields.begin(),
-                            oop_type->fields.end(),
-                            f.name
-                        ) == oop_type->fields.end(),
+                        oop_type->record_type.contains_field(f.name),
                         WaspStage::Semantics,
                         "Duplicate field '" + f.name + "'."
                     );

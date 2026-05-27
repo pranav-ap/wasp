@@ -108,16 +108,25 @@ struct GenericType
 };
 
 using GenericType_ptr = std::shared_ptr<GenericType>;
-using GenericTypeMap = std::map<std::string, GenericType_ptr>;
 
-struct Template
+struct TemplateType
 {
-    GenericTypeMap template_parameters;
+    ObjectStringMap template_parameters;
     StringVector ordered_parameter_names;
+
+    TemplateType() = default;
+
+    TemplateType(
+        ObjectStringMap template_parameters,
+        StringVector ordered_parameter_names
+    )
+        : template_parameters(std::move(template_parameters)),
+          ordered_parameter_names(std::move(ordered_parameter_names))
+    {
+    }
 };
 
-using TemplateType_ptr = std::shared_ptr<Template>;
-using OptionalTemplateType = std::optional<TemplateType_ptr>;
+using TemplateType_ptr = std::shared_ptr<TemplateType>;
 
 // ============================================================================
 // Composite Types
@@ -174,12 +183,12 @@ struct Signature
 {
     ObjectVector parameter_types;
     Object_ptr return_type;
-    OptionalTemplateType template_type;
+    TemplateType_ptr template_type;
 
     Signature(
         ObjectVector parameter_types,
         Object_ptr return_type,
-        OptionalTemplateType template_type = std::nullopt
+        TemplateType_ptr template_type = nullptr
     )
         : parameter_types(std::move(parameter_types)),
           return_type(std::move(return_type)),
@@ -247,6 +256,10 @@ struct RecordType
           ordered_keys(std::move(ordered_keys))
     {
     }
+
+    int get_field_index(const std::string& field_name) const;
+    Object_ptr get_field(const std::string& field_name) const;
+    bool contains_field(const std::string& field_name) const;
 };
 
 struct BagType
@@ -264,6 +277,9 @@ struct BagType
           ordered_keys(std::move(ordered_keys)), itables(std::move(itables))
     {
     }
+
+    int get_overloads_index(const std::string& function_name) const;
+    Object_ptr get_overloads(const std::string& function_name) const;
 };
 
 struct OopsType
@@ -276,21 +292,22 @@ struct OopsType
 
     ObjectVector traits;
 
-    OptionalTemplateType template_type;
+    TemplateType_ptr template_type;
 
     explicit OopsType(
         std::string name,
         RecordType record_type = RecordType(),
         BagType bag_type = BagType(),
         ObjectVector traits = {},
-        OptionalTemplateType template_type = std::nullopt
-
+        TemplateType_ptr template_type = nullptr
     )
         : type_id(get_next_type_id()), name(std::move(name)),
           record_type(std::move(record_type)), bag_type(std::move(bag_type)),
           traits(std::move(traits)), template_type(std::move(template_type))
     {
     }
+
+    bool contains_member(const std::string& member_name) const;
 };
 
 struct ClassType : public OopsType
@@ -315,12 +332,12 @@ struct TypeAlias
 {
     std::string name;
     Object_ptr underlying_type;
-    OptionalTemplateType template_type;
+    TemplateType_ptr template_type;
 
     TypeAlias(
         std::string name,
-        Object_ptr underlying_type,
-        OptionalTemplateType template_type = std::nullopt
+        TemplateType_ptr template_type = nullptr,
+        Object_ptr underlying_type = nullptr
     )
         : name(std::move(name)), underlying_type(std::move(underlying_type)),
           template_type(std::move(template_type))
@@ -352,6 +369,9 @@ struct ModuleType
           ordered_keys(std::move(ordered_keys))
     {
     }
+
+    int get_member_index(const std::string& member_name) const;
+    Object_ptr get_member(const std::string& member_name) const;
 };
 
 using ModuleType_ptr = std::shared_ptr<ModuleType>;

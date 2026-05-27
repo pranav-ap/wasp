@@ -9,7 +9,6 @@
 
 #include <ctime>
 #include <string>
-#include <type_traits>
 #include <variant>
 
 template <class... Ts> struct overloaded : Ts...
@@ -27,24 +26,23 @@ StatementVector Salt::visit(const StatementVector statements)
 
     for (const auto& stmt : statements)
     {
-        auto salty = run(stmt);
+        auto salty = visit(stmt);
         updated_statements.push_back(salty);
     }
 
     return updated_statements;
 }
 
-Statement_ptr Salt::run(const Statement_ptr statement)
+Statement_ptr Salt::visit(const Statement_ptr statement)
 {
     Doctor::get().fatal_if_nullptr(statement, WaspStage::Semantics);
 
     return std::visit(
         [this](auto& node) -> Statement_ptr
         {
-            using T = std::decay_t<decltype(node)>;
-            if constexpr (requires { this->run(node); })
+            if constexpr (requires { this->visit(node); })
             {
-                return this->run(node);
+                return this->visit(node);
             }
             else
             {
@@ -169,9 +167,9 @@ Expression_ptr Salt::visit(const Expression_ptr expr)
     return std::visit(
         [&](auto& node) -> Expression_ptr
         {
-            if constexpr (requires { this->run(node); })
+            if constexpr (requires { this->visit(node); })
             {
-                return this->run(node);
+                return this->visit(node);
             }
             else
             {
@@ -196,45 +194,6 @@ ExpressionVector Salt::visit(ExpressionVector expressions)
     }
 
     return computed_types;
-}
-
-Expression_ptr Salt::visit(Prefix& expr)
-{
-    std::string function_name = get_operator_name(
-        TokenType::PREFIX,
-        expr.op.type
-    );
-
-    ExpressionVector arguments = ExpressionVector{expr.operand};
-
-    auto sugar = ASTFactory::create_function_call(function_name, arguments);
-    return sugar;
-}
-
-Expression_ptr Salt::visit(Infix& expr)
-{
-    std::string function_name = get_operator_name(
-        TokenType::INFIX,
-        expr.op.type
-    );
-
-    ExpressionVector arguments = {expr.left, expr.right};
-
-    auto sugar = ASTFactory::create_function_call(function_name, arguments);
-    return sugar;
-}
-
-Expression_ptr Salt::visit(Postfix& expr)
-{
-    std::string function_name = get_operator_name(
-        TokenType::POSTFIX,
-        expr.op.type
-    );
-
-    ExpressionVector arguments = {expr.operand};
-
-    auto sugar = ASTFactory::create_function_call(function_name, arguments);
-    return sugar;
 }
 
 Expression_ptr visit(InterpolatedString& expr)

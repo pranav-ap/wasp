@@ -49,7 +49,7 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
             [&](MemberAccess& ma) -> Object_ptr
             {
                 Object_ptr left_type = visit(ma.left);
-                left_type = unwrap_completely(left_type);
+                left_type = left_type->unwrap_completely();
 
                 return std::visit(
                     overloaded{
@@ -126,7 +126,7 @@ Object_ptr SemanticAnalyzer::resolve_standard_overload(
 )
 {
     Doctor::get().assert(
-        overload_symbol->payload_is<OverloadsPayload>(),
+        overload_symbol->is<OverloadsSymbol>(),
         WaspStage::Semantics,
         "Symbol must hold function overloads."
     );
@@ -150,7 +150,7 @@ Object_ptr SemanticAnalyzer::resolve_standard_overload(
         );
     }
 
-    if (!signature->ordered_template_parameter_names.empty())
+    if (!signature->template_type->ordered_parameter_names.empty())
     {
         return resolve_implicit_template(
             call,
@@ -173,7 +173,7 @@ Object_ptr SemanticAnalyzer::resolve_standard_overload(
 
         auto cand_sig = candidate->get_type()->as<Signature_ptr>();
 
-        if (cand_sig->ordered_template_parameter_names.empty())
+        if (!cand_sig->template_type->ordered_parameter_names.empty())
         {
             runtime_index++;
         }
@@ -196,13 +196,26 @@ Object_ptr SemanticAnalyzer::resolve_implicit_template(
     );
 
     ObjectVector deduced_args;
-    for (const auto& name : signature->ordered_template_parameter_names)
+
+    for (const auto& param : signature->template_type->ordered_parameter_names)
+    {
+        if (!substitutions.contains(param))
+        {
+            Doctor::get().fatal(
+                WaspStage::Semantics,
+                "Could not deduce template parameter '" + param +
+                    "'. Explicit template arguments are required."
+            );
+        }
+    }
+
+    for (const auto& name : signature->template_type->ordered_parameter_names)
     {
         deduced_args.push_back(substitutions[name]);
     }
 
     std::string specialized_name = function_symbol->name + "_" +
-                                   mangle_object(deduced_args);
+                                   Object::mangle_object(deduced_args);
 
     Symbol_ptr specialized_group_symbol = monomorphize_callable_template(
         function_symbol,
@@ -218,9 +231,10 @@ Object_ptr SemanticAnalyzer::resolve_implicit_template(
 
     auto overloads = specialized_group_symbol->get_overloads();
 
-    return unwrap_completely(
-        overloads[0]->get_type()->as<Signature_ptr>()->return_type
-    );
+    return overloads[0]
+        ->get_type()
+        ->as<Signature_ptr>()
+        ->return_type->unwrap_completely();
 }
 
 Symbol_ptr SemanticAnalyzer::monomorphize_callable_template(
@@ -229,7 +243,7 @@ Symbol_ptr SemanticAnalyzer::monomorphize_callable_template(
     const std::string& specialized_name
 )
 {
-    auto& function_data = blueprint_symbol->get_payload_as<CallableSymbol>();
+    auto& function_data = blueprint_symbol->as<FunctionSymbol>();
 
     ASTCloner cloner(substitutions);
     Statement_ptr specialized_stmt = cloner.clone(function_data.definition);
@@ -242,14 +256,6 @@ Symbol_ptr SemanticAnalyzer::monomorphize_callable_template(
     std::visit(
         overloaded{
             [&](FunctionDefinition& def)
-            {
-                def.name = specialized_name;
-                def.template_params.clear();
-                hoist_function_definition(def);
-                visit(def);
-                specialized_group_symbol = def.group_symbol;
-            },
-            [&](OperatorDefinition& def)
             {
                 def.name = specialized_name;
                 def.template_params.clear();
@@ -325,7 +331,7 @@ Object_ptr SemanticAnalyzer::call_template_function(
     Symbol_ptr blueprint_symbol = candidates[winning_index];
 
     Doctor::get().assert(
-        blueprint_symbol->payload_is<CallableSymbol>(),
+        blueprint_symbol->is<FunctionSymbol>(),
         WaspStage::Semantics,
         "Resolved template symbol does not contain CallableData."
     );
@@ -334,7 +340,7 @@ Object_ptr SemanticAnalyzer::call_template_function(
     ObjectStringMap substitutions;
     auto expected_names = blueprint_symbol->get_type()
                               ->as<Signature_ptr>()
-                              ->ordered_template_parameter_names;
+                              ->template_type->ordered_parameter_names;
 
     for (size_t i = 0; i < expected_names.size(); ++i)
     {
@@ -343,7 +349,7 @@ Object_ptr SemanticAnalyzer::call_template_function(
 
     // Name Mangling
     std::string specialized_name = blueprint_symbol->name + "_" +
-                                   mangle_object(angular_args);
+                                   Object::mangle_object(angular_args);
 
     Symbol_ptr specialized_group_symbol = monomorphize_callable_template(
         blueprint_symbol,
@@ -361,9 +367,10 @@ Object_ptr SemanticAnalyzer::call_template_function(
 
     // Get the return type safely
     auto overloads = specialized_group_symbol->get_overloads();
-    return unwrap_completely(
-        overloads[0]->get_type()->as<Signature_ptr>()->return_type
-    );
+    return overloads[0]
+        ->get_type()
+        ->as<Signature_ptr>()
+        ->return_type->unwrap_completely();
 }
 
 Object_ptr SemanticAnalyzer::call_method(
@@ -381,15 +388,15 @@ Object_ptr SemanticAnalyzer::call_method(
         "Method '" + method_name + "()' does not exist on class '" + oops_type->name + "'."
     );
 
-    auto member = oops_type->get_member(method_name);
+    auto member = oops_type->bag_type.get_overloads(method_name);
 
     Doctor::get().assert(
-        member->is<ObjectOverloadList_ptr>(),
+        member->is<Pocket_ptr>(),
         WaspStage::Semantics,
         "Member '" + method_name + "' must be an object overload group."
     );
 
-    const auto& overloads = member->as<ObjectOverloadList_ptr>()->overloads;
+    const auto& overloads = member->as<Pocket_ptr>()->overloads;
 
     auto [signature_obj, overload_index] = type_system->get_best_function_object(
         current_scope,
@@ -397,7 +404,7 @@ Object_ptr SemanticAnalyzer::call_method(
         argument_types
     );
 
-    access.member_index = oops_type->get_member_index(method_name);
+    access.member_index = oops_type->bag_type.get_overloads_index(method_name);
     call.overload_index = overload_index;
 
     call.is_method_call = true;

@@ -24,62 +24,29 @@ namespace Wasp
 
 void SemanticAnalyzer::visit(FunctionDefinition& def)
 {
-    analyze_callable(
-        def,
-        def.is_pure ? ScopeType::PURE_FUNCTION : ScopeType::FUNCTION,
-        nullptr,
-        false
-    );
-}
-
-void SemanticAnalyzer::visit(RecordDefinition& def)
-{
-    Doctor::get().fatal(
-        WaspStage::Semantics,
-        "Record definitions are not yet supported."
-    );
-}
-
-void SemanticAnalyzer::analyze_callable(
-    AbstractCallable& def,
-    ScopeType scope_type,
-    Object_ptr context_type,
-    bool is_static
-)
-{
     auto signature = def.symbol->get_type()->as<Signature_ptr>();
 
-    enter_scope(scope_type);
+    enter_scope(def.is_pure ? ScopeType::PURE_FUNCTION : ScopeType::FUNCTION);
     return_type_stack.push_back(signature->return_type);
 
-    if (signature->template_type.has_value())
+    for (const auto& name : signature->template_type->ordered_parameter_names)
     {
-        auto template_type = signature->template_type.value();
+        auto generic_type_obj = signature->template_type->template_parameters
+                                    .at(name);
 
-        for (const auto& name : template_type->ordered_parameter_names)
-        {
-            auto generic_type = template_type->template_parameters.at(name);
-            auto symbol = SymbolFactory::create_template_parameter(
-                name,
-                generic_type->constraint_type
-            );
-
-            current_scope->define(symbol);
-        }
-    }
-
-    // Bind Context ('my' or 'our') for Methods
-    if (context_type)
-    {
-        auto context_sym = SymbolFactory::create_variable(
-            is_static ? "our" : "my",
-            context_type,
-            !def.is_pure,
-            current_scope->get_closure_depth(),
-            current_scope->get_lexical_depth()
+        Doctor::get().assert(
+            generic_type_obj->is<GenericType_ptr>(),
+            WaspStage::Semantics,
+            "Expected GenericType for template parameter: " + name
         );
 
-        def.context_symbol = current_scope->define(context_sym);
+        auto generic_type = generic_type_obj->as<GenericType_ptr>();
+        auto symbol = SymbolFactory::create_template_parameter(
+            name,
+            generic_type->constraint_type
+        );
+
+        current_scope->define(symbol);
     }
 
     // Bind Parameters
@@ -90,7 +57,7 @@ void SemanticAnalyzer::analyze_callable(
         Object_ptr actual_type = signature->parameter_types[i];
 
         auto param_symbol = SymbolFactory::create_variable(
-            def.parameters[i].first,
+            def.parameters[i].name,
             actual_type,
             !def.is_pure,
             current_scope->get_closure_depth(),

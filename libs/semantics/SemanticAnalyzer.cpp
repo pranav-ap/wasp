@@ -37,7 +37,7 @@ void SemanticAnalyzer::run(const std::vector<Module_ptr>& build_order)
 
         for (const auto& stmt : mod->stmts)
         {
-            auto saltly_stmt = salt->run(stmt);
+            auto saltly_stmt = salt->visit(stmt);
             visit(saltly_stmt);
 
             for (const auto& tmpl : pending_templates)
@@ -66,7 +66,8 @@ void SemanticAnalyzer::visit(StatementVector& statements)
 
     for (const auto& stmt : statements)
     {
-        visit(stmt);
+        auto saltly_stmt = salt->visit(stmt);
+        visit(saltly_stmt);
     }
 }
 
@@ -90,7 +91,9 @@ void SemanticAnalyzer::visit(const Statement_ptr statement)
                 if constexpr (
                     std::is_same_v<T, Import> ||
                     std::is_same_v<T, MethodDefinition> ||
-                    std::is_same_v<T, FieldDefinition>
+                    std::is_same_v<T, FieldDefinition> ||
+                    std::is_same_v<T, OperatorDefinition> ||
+                    std::is_same_v<T, Splitter>
                 )
                 {
                     return;
@@ -127,6 +130,9 @@ Object_ptr SemanticAnalyzer::visit(const Expression_ptr expr)
 {
     Doctor::get().fatal_if_nullptr(expr, WaspStage::Semantics);
 
+    auto saltly_expr = salt->visit(expr);
+    visit(saltly_expr);
+
     return std::visit(
         [&](auto& node) -> Object_ptr
         {
@@ -142,7 +148,7 @@ Object_ptr SemanticAnalyzer::visit(const Expression_ptr expr)
                 );
             }
         },
-        expr->data
+        saltly_expr->data
     );
 }
 

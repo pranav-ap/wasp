@@ -1,4 +1,3 @@
-#include "ASTFactory.h"
 #include "Doctor.h"
 #include "Expression.h"
 #include "Objects.h"
@@ -24,17 +23,22 @@ Object_ptr SemanticAnalyzer::visit(IfTernaryBranch& expr)
 
     Object_ptr cond_type = visit(expr.test);
 
+    // Doctor::get().assert(
+    //     type_system->implements_trait(current_scope, cond_type, "Truthy"),
+    //     WaspStage::Semantics,
+    //     "Condition type '" + cond_type->to_string() + "' is not truthy"
+    // );
+
+    // auto sugar = ASTFactory::create_method_call(expr.test, "is_truthy");
+    // expr.test = sugar;
+
+    // cond_type = visit(expr.test);
+
     Doctor::get().assert(
-        type_system->implements_trait(current_scope, cond_type, "Truthy"),
+        type_system->is_boolean_type(cond_type),
         WaspStage::Semantics,
-        "Condition type '" + cond_type->to_string() + "' is not truthy"
+        "Condition type '" + cond_type->to_string() + "' is not boolean"
     );
-
-    auto sugar = ASTFactory::create_method_call(expr.test, "is_truthy");
-    expr.test = sugar;
-
-    cond_type = visit(expr.test);
-    type_system->expect_boolean_type(cond_type);
 
     Object_ptr then_type = visit(expr.true_expression);
 
@@ -86,18 +90,22 @@ void SemanticAnalyzer::visit(IfBranch& statement)
 
     Object_ptr cond_type = visit(statement.test);
 
+    // Doctor::get().assert(
+    //     type_system->implements_trait(current_scope, cond_type, "Truthy"),
+    //     WaspStage::Semantics,
+    //     "Condition type '" + cond_type->to_string() + "' is not truthy"
+    // );
+
+    // auto sugar = ASTFactory::create_method_call(statement.test, "is_truthy");
+    // statement.test = sugar;
+
+    // cond_type = visit(statement.test);
+
     Doctor::get().assert(
-        type_system->implements_trait(current_scope, cond_type, "Truthy"),
+        type_system->is_boolean_type(cond_type),
         WaspStage::Semantics,
-        "Condition type '" + cond_type->to_string() + "' is not truthy"
+        "Condition type '" + cond_type->to_string() + "' is not boolean"
     );
-
-    auto sugar = ASTFactory::create_method_call(statement.test, "is_truthy");
-    statement.test = sugar;
-
-    // resolves it to `@bool`
-    cond_type = visit(statement.test);
-    type_system->expect_boolean_type(cond_type);
 
     visit(statement.body);
     leave_scope();
@@ -130,7 +138,12 @@ void SemanticAnalyzer::visit(SimpleLoop& statement)
 void SemanticAnalyzer::visit(ForInLoop& loop_stmt)
 {
     Object_ptr iterable_type = visit(loop_stmt.iterable);
-    type_system->expect_iterable_type(current_scope, iterable_type);
+
+    Doctor::get().assert(
+        type_system->is_iterable_type(current_scope, iterable_type),
+        WaspStage::Semantics,
+        "Type '" + iterable_type->to_string() + "' is not iterable"
+    );
 
     Object_ptr element_type = type_system->extract_iterable_element_type(
         current_scope,

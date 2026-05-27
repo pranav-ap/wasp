@@ -70,8 +70,8 @@ Object_ptr SemanticAnalyzer::define_variable(Assignment& assign)
 
     if (Symbol_ptr hoisted_symbol = current_scope->lookup_local(symbol_name))
     {
-        Doctor::get().assert(
-            hoisted_symbol->get_type() == nullptr,
+        Doctor::get().fatal_if_nullptr(
+            hoisted_symbol->get_type(),
             WaspStage::Semantics,
             "Variable '" + symbol_name + "' is hoisted but already has a type!"
         );
@@ -138,12 +138,12 @@ Object_ptr SemanticAnalyzer::mutate_variable(
     );
 
     Doctor::get().assert(
-        target_symbol->payload_is<VariablePayload>(),
+        target_symbol->is<VariableSymbol>(),
         WaspStage::Semantics,
         "Cannot assign to non-variable symbol '" + symbol_name + "'"
     );
 
-    auto& var_data = target_symbol->get_payload_as<VariablePayload>();
+    auto& var_data = target_symbol->as<VariableSymbol>();
 
     Doctor::get().assert(
         var_data.is_mutable,
@@ -180,10 +180,10 @@ Object_ptr SemanticAnalyzer::mutate_member(
     if (mac.member_index == -1)
     {
         auto symbol = mac.right->as<Identifier>().symbol;
-        if (symbol && symbol->payload_is<VariablePayload>())
+        if (symbol && symbol->is<VariableSymbol>())
         {
             Doctor::get().assert(
-                symbol->get_payload_as<VariablePayload>().is_mutable,
+                symbol->as<VariableSymbol>().is_mutable,
                 WaspStage::Semantics,
                 "Cannot reassign immutable shared member: " + symbol->name
             );

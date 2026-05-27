@@ -180,7 +180,7 @@ std::optional<Object_ptr> SemanticAnalyzer::try_resolve_as_enum(MemberAccess& ma
     Object_ptr base_type = base_sym->get_type();
     if (base_type->is<TypeAlias_ptr>())
     {
-        base_type = unwrap_type_alias(base_type);
+        base_type = base_type->unwrap_type_alias();
     }
 
     if (!base_type->is<EnumType_ptr>())
@@ -216,14 +216,18 @@ Object_ptr SemanticAnalyzer::resolve_member_access(
 
             [&](ClassType_ptr type) -> Object_ptr
             {
-                expr.member_index = type->get_member_index(member_name);
-                return type->get_member(member_name);
+                expr.member_index = type->record_type.get_field_index(
+                    member_name
+                );
+                return type->record_type.get_field(member_name);
             },
 
             [&](TraitType_ptr type) -> Object_ptr
             {
-                expr.member_index = type->get_member_index(member_name);
-                return type->get_member(member_name);
+                expr.member_index = type->record_type.get_field_index(
+                    member_name
+                );
+                return type->record_type.get_field(member_name);
             },
 
             [&](GenericType_ptr type) -> Object_ptr
@@ -258,7 +262,9 @@ Object_ptr SemanticAnalyzer::resolve_member_access(
                                 );
 
                                 resulting_member_types.push_back(
-                                    oop_variant->get_member(member_name)
+                                    oop_variant->record_type.get_field(
+                                        member_name
+                                    )
                                 );
                             },
                             [&](TraitType_ptr oop_variant)
@@ -271,7 +277,9 @@ Object_ptr SemanticAnalyzer::resolve_member_access(
                                 );
 
                                 resulting_member_types.push_back(
-                                    oop_variant->get_member(member_name)
+                                    oop_variant->record_type.get_field(
+                                        member_name
+                                    )
                                 );
                             },
                             [&](auto&)
@@ -327,7 +335,7 @@ Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
     node.symbol = target_symbol;
 
     // Case A: Template Classes
-    if (target_symbol->payload_is<OopsDefinitionData>())
+    if (target_symbol->is<OopsSymbol>())
     {
         Object_ptr base = target_symbol->get_type();
         auto names = type_system->get_generics_declaration_order(base);
@@ -366,9 +374,9 @@ Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
     }
 
     // Case B: Template Functions (Overloads)
-    if (target_symbol->payload_is<OverloadsPayload>())
+    if (target_symbol->is<OverloadsSymbol>())
     {
-        auto candidates = target_symbol->as<OverloadsPayload>()
+        auto candidates = target_symbol->as<OverloadsSymbol>()
                               .get_overloads_with_indices();
 
         // specialize_candidates must filter by generic count AND verify

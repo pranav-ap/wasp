@@ -12,7 +12,8 @@ namespace Wasp
 class Salt
 {
 public:
-    Statement_ptr run(const Statement_ptr statement);
+    Statement_ptr visit(const Statement_ptr statement);
+    Expression_ptr visit(const Expression_ptr expr);
 
 private:
     StatementVector visit(const StatementVector statements);
@@ -22,14 +23,9 @@ private:
     Statement_ptr visit(TraitDefinition& statement);
     Statement_ptr visit(OperatorDefinition& statement);
 
-    Expression_ptr visit(const Expression_ptr expr);
     ExpressionVector visit(ExpressionVector expressions);
 
     Expression_ptr visit(InterpolatedString& expr);
-
-    Expression_ptr visit(Prefix& expr);
-    Expression_ptr visit(Infix& expr);
-    Expression_ptr visit(Postfix& expr);
 };
 
 using Salt_ptr = std::shared_ptr<Salt>;

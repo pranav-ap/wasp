@@ -233,7 +233,7 @@ class Foo is Printable
 
 
 fun show(p: Printable)
-    io.print(p.repr())
+    io.print(p)
 
 
 let f = Foo(10)
