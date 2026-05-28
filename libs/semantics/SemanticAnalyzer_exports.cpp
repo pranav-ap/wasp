@@ -23,18 +23,6 @@ StringVector SemanticAnalyzer::setup_ordered_export_names(Module_ptr mod)
 {
     StringVector ordered_export_names;
 
-    auto try_add_export = [&](const std::string& name)
-    {
-        if (std::find(
-                ordered_export_names.begin(),
-                ordered_export_names.end(),
-                name
-            ) == ordered_export_names.end())
-        {
-            ordered_export_names.push_back(name);
-        }
-    };
-
     for (auto& stmt_ptr : mod->stmts)
     {
         std::visit(
@@ -42,7 +30,14 @@ StringVector SemanticAnalyzer::setup_ordered_export_names(Module_ptr mod)
                        {
                            if constexpr (requires { def.name; })
                            {
-                               try_add_export(def.name);
+                               if (std::find(
+                                       ordered_export_names.begin(),
+                                       ordered_export_names.end(),
+                                       def.name
+                                   ) == ordered_export_names.end())
+                               {
+                                   ordered_export_names.push_back(def.name);
+                               }
                            }
                        }},
             stmt_ptr->data

@@ -44,45 +44,25 @@ void Doctor::print_error(const WaspError& err) const
         err.message
     );
 
-    if (err.wasp_line > 0)
-    {
-        if (err.wasp_column > 0)
-        {
-            fmt::print(
-                stderr,
-                "  -> at Wasp script line {}, column {}\n",
-                err.wasp_line,
-                err.wasp_column
-            );
-        }
-        else
-        {
-            fmt::print(stderr, "  -> at Wasp script line {}\n", err.wasp_line);
-        }
-    }
-
     fmt::print(
         stderr,
         "  => [Wasp Trace] FILE     : {}:{}\n",
         err.cpp_file,
         err.cpp_line
     );
+
     fmt::print(stderr, "  => [Wasp Trace] FUNCTION : {}\n\n", err.cpp_function);
 }
 
 void Doctor::fatal(
     WaspStage stage,
     const std::string& message,
-    int line,
-    int column,
     const std::source_location location
 ) const
 {
     WaspError err{
         stage,
         message,
-        line,
-        column,
         location.file_name(),
         static_cast<int>(location.line()),
         location.function_name()
@@ -103,14 +83,12 @@ void Doctor::assert(
     bool condition,
     WaspStage stage,
     const std::string& message,
-    int line,
-    int column,
     const std::source_location location
 ) const
 {
     if (!condition)
     {
-        fatal(stage, message, line, column, location);
+        fatal(stage, message, location);
     }
 }
 

@@ -15,10 +15,6 @@ struct WaspError {
     WaspStage stage;
     std::string message;
 
-    // The location in the user's Wasp script
-    int wasp_line;
-    int wasp_column;
-
     // The location in your C++ Compiler code
     std::string cpp_file;
     int cpp_line;
@@ -44,18 +40,14 @@ public:
 
     [[noreturn]] void fatal(
         WaspStage stage,
-        const std::string& message,
-        int line = 0,
-        int column = 0,
+        const std::string& message = "",
         const std::source_location location = std::source_location::current()
     ) const;
 
     void assert(
         bool condition,
         WaspStage stage,
-        const std::string& message,
-        int line = 0,
-        int column = 0,
+        const std::string& message = "",
         const std::source_location location = std::source_location::current()
     ) const;
 
@@ -64,13 +56,12 @@ public:
         T ptr,
         WaspStage stage,
         const std::string& message = "",
-        int line = 0,
-        int column = 0,
         const std::source_location location = std::source_location::current()
-    ) const {
+    ) const
+    {
         if (ptr == nullptr) {
             std::string final_msg = message.empty() ? "Oh shit! A nullptr" : message;
-            fatal(stage, final_msg, line, column, location);
+            fatal(stage, final_msg, location);
         }
     }
 
@@ -79,18 +70,17 @@ public:
         const std::optional<T>& opt,
         WaspStage stage,
         const std::string& message = "",
-        int line = 0,
-        int column = 0,
         const std::source_location location = std::source_location::current()
-    ) const {
+    ) const
+    {
         if (!opt.has_value()) {
             std::string final_msg = message.empty() ? "Oh shit! A nullopt" : message;
-            fatal(stage, final_msg, line, column, location);
+            fatal(stage, final_msg, location);
         }
     }
 
-    template <typename T>
-    bool is_nullptr(T ptr, WaspStage stage, int line = 0, int column = 0) const {
+    template <typename T> bool is_nullptr(T ptr, WaspStage stage) const
+    {
         if (ptr == nullptr) {
             return true;
         }
@@ -98,9 +88,8 @@ public:
     }
 
     template <typename T>
-    bool is_nullopt(
-        const std::optional<T>& opt, WaspStage stage, int line = 0, int column = 0
-    ) const {
+    bool is_nullopt(const std::optional<T>& opt, WaspStage stage) const
+    {
         if (!opt.has_value()) {
             return true;
         }

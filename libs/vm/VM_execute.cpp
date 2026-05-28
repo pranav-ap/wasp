@@ -316,10 +316,17 @@ Object_ptr VM::execute_GET_MEMBER(Object_ptr obj, int member_index)
                 );
                 return record->fields[member_index];
             },
-            // [&](TraitObject_ptr trait_obj) -> Object_ptr
-            // {
-            //     return execute_GET_MEMBER(trait_obj->record, member_index);
-            // },
+            [&](ClassInstance_ptr instance) -> Object_ptr
+            {
+                return execute_GET_MEMBER(instance->record, member_index);
+            },
+            [&](TraitObject_ptr trait_obj) -> Object_ptr
+            {
+                return execute_GET_MEMBER(
+                    trait_obj->class_instance,
+                    member_index
+                );
+            },
             [&](auto&) -> Object_ptr
             {
                 Doctor::get().fatal(
@@ -351,10 +358,18 @@ void VM::execute_SET_MEMBER(Object_ptr obj, int member_index, Object_ptr value)
                 );
                 record->fields[member_index] = value;
             },
-            // [&](TraitObject_ptr trait_obj)
-            // {
-            //     execute_SET_MEMBER(trait_obj->record, member_index, value);
-            // },
+            [&](ClassInstance_ptr instance)
+            {
+                execute_SET_MEMBER(instance->record, member_index, value);
+            },
+            [&](TraitObject_ptr trait_obj)
+            {
+                execute_SET_MEMBER(
+                    trait_obj->class_instance,
+                    member_index,
+                    value
+                );
+            },
             [&](auto&)
             {
                 Doctor::get().fatal(
@@ -376,18 +391,18 @@ void VM::execute_BOX(CallFrame* frame)
     int trait_id = static_cast<int>(frame->consume_byte());
     Object_ptr instance_obj = pop_from_stack();
 
-    auto class_instance = instance_obj->as<RecordObject_ptr>();
+    // Get the ClassInstance (contains both record and bag)
+    auto class_instance = instance_obj->as<ClassInstance_ptr>();
     Doctor::get().fatal_if_nullptr(class_instance, WaspStage::VM);
 
-    // Get the itable for this trait from the class's bag_type
-    auto& itables = class_instance->itables;
+    // Get the itable for this trait from the class instance's record
+    auto& itables = class_instance->record->itables;
     auto itable = itables.at(trait_id);
 
-    auto boxed = make_object(
-        std::make_shared<TraitObject>(class_instance, nullptr, itable)
-    );
+    // Create TraitObject with ClassInstance and itable
+    auto trait_obj = std::make_shared<TraitObject>(class_instance, itable);
 
-    push_to_stack(boxed);
+    push_to_stack(make_object(trait_obj));
 }
 
 // ----------------------------------------------
@@ -430,13 +445,20 @@ void VM::execute_GET_CLASS_METHOD(CallFrame* frame)
 
     Object_ptr obj = pop_from_stack();
 
-    auto record = obj->as<RecordObject_ptr>();
-    // Need to get the blueprint (ClassType) from RecordObject
-    // This requires storing class_type in RecordObject
-    Doctor::get().fatal(
+    auto instance = obj->as<ClassInstance_ptr>();
+    Doctor::get().fatal_if_nullptr(
+        instance,
         WaspStage::VM,
-        "GET_CLASS_METHOD needs class_type in RecordObject"
+        "GET_CLASS_METHOD requires a ClassInstance"
     );
+
+    auto overloads_set = instance->bag->get_overloads_set(member_idx);
+    Doctor::get()
+        .fatal_if_nullptr(overloads_set, WaspStage::VM, "Method not found");
+
+    auto method = overloads_set->get_overload(overload_idx);
+    push_to_stack(method);
+    push_to_stack(obj); // Push instance as 'self'
 }
 
 void VM::execute_GET_TRAIT_METHOD(CallFrame* frame)
@@ -463,11 +485,15 @@ void VM::execute_GET_TRAIT_METHOD(CallFrame* frame)
 
     OverloadCoordinate class_coord = trait_obj->itable.at(trait_coord);
 
-    // Need to get the method from the record's class type
-    Doctor::get().fatal(
-        WaspStage::VM,
-        "GET_TRAIT_METHOD needs class_type in RecordObject"
+    auto overloads_set = trait_obj->class_instance->bag->get_overloads_set(
+        class_coord.member_index
     );
+    Doctor::get()
+        .fatal_if_nullptr(overloads_set, WaspStage::VM, "Method not found");
+
+    auto method = overloads_set->get_overload(class_coord.overload_index);
+    push_to_stack(method);
+    push_to_stack(boxed_obj); // Push trait object as 'self'
 }
 
 void VM::execute_BUILD_FUNCTION(CallFrame* frame)
@@ -515,7 +541,6 @@ void VM::execute_BUILD_FUNCTION(CallFrame* frame)
         blueprint,
         std::move(captured_upvalues)
     );
-
     push_to_stack(make_object(runtime_closure));
 }
 
@@ -626,18 +651,26 @@ void VM::execute_BUILD_CLASS(CallFrame* frame)
 {
     int num_methods = static_cast<int>(frame->consume_byte());
 
-    Object_ptr blueprint_obj = pop_from_stack();
     Object_ptr class_type_obj = pop_from_stack();
-    ObjectVector popped_methods = pop_n_from_stack(num_methods);
+    Object_ptr record_obj = pop_from_stack();
+    ObjectVector methods = pop_n_from_stack(num_methods);
 
     auto class_type = class_type_obj->as<ClassType_ptr>();
-    auto blueprint = blueprint_obj->as<RecordObject_ptr>();
+    auto record = record_obj->as<RecordObject_ptr>();
 
-    // Store class type in blueprint or handle differently
-    Doctor::get().fatal(
-        WaspStage::VM,
-        "BUILD_CLASS needs updated implementation for new object system"
-    );
+    // Build the BagObject with method overloads
+    auto bag = std::make_shared<BagObject>();
+    for (size_t i = 0; i < methods.size(); i++)
+    {
+        auto overloads_set = methods[i]->as<OverloadsSet_ptr>();
+        bag->overloads_set_vector.push_back(overloads_set);
+    }
+    bag->itables = class_type->bag_type.itables;
+
+    // Create the ClassInstance blueprint
+    auto blueprint = std::make_shared<ClassInstance>(record, bag);
+
+    push_to_stack(make_object(blueprint));
 }
 
 void VM::execute_INSTANTIATE(CallFrame* frame)
@@ -645,12 +678,25 @@ void VM::execute_INSTANTIATE(CallFrame* frame)
     int num_fields = std::to_integer<int>(frame->consume_byte());
 
     Object_ptr blueprint_obj = pop_from_stack();
-    ObjectVector fields = pop_n_from_stack(num_fields);
+    ObjectVector field_values = pop_n_from_stack(num_fields);
 
-    auto instance = make_object(
-        std::make_shared<RecordObject>(std::move(fields))
+    auto blueprint = blueprint_obj->as<ClassInstance_ptr>();
+    Doctor::get().fatal_if_nullptr(
+        blueprint,
+        WaspStage::VM,
+        "INSTANTIATE requires a ClassInstance blueprint"
     );
-    push_to_stack(instance);
+
+    // Create a new instance with its own record (shared bag for methods)
+    auto instance = std::make_shared<ClassInstance>(
+        std::make_shared<RecordObject>(
+            field_values,
+            blueprint->record->itables
+        ),
+        blueprint->bag // Share the bag (methods are shared across instances)
+    );
+
+    push_to_stack(make_object(instance));
 }
 
 // ================================================

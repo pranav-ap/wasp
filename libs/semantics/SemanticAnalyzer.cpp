@@ -151,7 +151,6 @@ Object_ptr SemanticAnalyzer::visit(const Expression_ptr expr)
         salted_expr->data
     );
 
-    // Desugar AFTER type checking, but BEFORE leaving the node
     if (salted_expr->is<Call>() && !salted_expr->is_desugared)
     {
         desugar_call(salted_expr);
@@ -178,11 +177,7 @@ void SemanticAnalyzer::desugar_expression(Expression_ptr expr)
 void SemanticAnalyzer::desugar_call(Expression_ptr expr)
 {
     Doctor::get().fatal_if_nullptr(expr, WaspStage::Semantics);
-    Doctor::get().assert(
-        expr->is<Call>(),
-        WaspStage::Semantics,
-        "Expected a Call expression for desugar_call."
-    );
+    Doctor::get().assert(expr->is<Call>(), WaspStage::Semantics);
 
     Call& call = expr->as<Call>();
 
@@ -202,36 +197,39 @@ void SemanticAnalyzer::desugar_call(Expression_ptr expr)
 
         if (ma.is_trait_dispatch)
         {
-            TraitMethodCall tmc;
-            tmc.callable = call.callable;
-            tmc.arguments = std::move(call.arguments);
-            tmc.overload_index = call.overload_index;
-            tmc.instance = ma.left;
-            tmc.method_index = ma.member_index;
-            tmc.trait_type_id = call.trait_type_id;
+            TraitMethodCall tmc(
+                call.callable,
+                std::move(call.arguments),
+                ma.left,
+                call.trait_type_id,
+                ma.member_index,
+                call.overload_index
+            );
 
-            expr->data = std::move(tmc);
+            expr->data = tmc;
         }
         else
         {
-            ClassMethodCall cmc;
-            cmc.callable = call.callable;
-            cmc.arguments = std::move(call.arguments);
-            cmc.overload_index = call.overload_index;
-            cmc.instance = ma.left;
-            cmc.method_index = ma.member_index;
+            ClassMethodCall cmc(
+                call.callable,
+                std::move(call.arguments),
+                ma.left,
+                ma.member_index,
+                call.overload_index
+            );
 
-            expr->data = std::move(cmc);
+            expr->data = cmc;
         }
     }
     else
     {
-        FunctionCall fc;
-        fc.callable = call.callable;
-        fc.arguments = std::move(call.arguments);
-        fc.overload_index = call.overload_index;
+        FunctionCall fc(
+            call.callable,
+            std::move(call.arguments),
+            call.overload_index
+        );
 
-        expr->data = std::move(fc);
+        expr->data = fc;
     }
 
     expr->is_desugared = true;

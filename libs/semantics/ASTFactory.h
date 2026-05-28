@@ -29,11 +29,6 @@ public:
         ExpressionVector values = {}
     );
 
-    static Statement_ptr create_field_definition(
-        const std::string& field_name,
-        TypeAnnotation_ptr type_node
-    );
-
     static Statement_ptr create_class_definition(
         std::string name,
         TypeAnnotationVector traits,

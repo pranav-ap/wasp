@@ -627,16 +627,28 @@ struct BagObject
 
 using BagObject_ptr = std::shared_ptr<BagObject>;
 
-struct TraitObject
+struct ClassInstance
 {
     RecordObject_ptr record;
     BagObject_ptr bag;
 
+    ClassInstance() = default;
+
+    ClassInstance(RecordObject_ptr record, BagObject_ptr bag)
+        : record(std::move(record)), bag(std::move(bag))
+    {
+    }
+};
+
+using ClassInstance_ptr = std::shared_ptr<ClassInstance>;
+
+struct TraitObject
+{
+    ClassInstance_ptr class_instance;
     ITable itable;
 
-    TraitObject(RecordObject_ptr record, BagObject_ptr bag, ITable itable)
-        : record(std::move(record)), bag(std::move(bag)),
-          itable(std::move(itable))
+    TraitObject(ClassInstance_ptr class_instance, ITable itable)
+        : class_instance(std::move(class_instance)), itable(std::move(itable))
     {
     }
 };
@@ -699,6 +711,7 @@ struct Object : public std::enable_shared_from_this<Object>
         RecordObject_ptr,
         BagObject_ptr,
         TraitObject_ptr,
+        ClassInstance_ptr,
 
         // Types
 

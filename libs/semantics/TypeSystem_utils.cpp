@@ -246,6 +246,19 @@ bool TypeSystem::is_none_type(const Object_ptr type) const
     return type->is<NoneType_ptr>();
 }
 
+bool TypeSystem::is_native_type(const Object_ptr type) const
+{
+    Doctor::get().fatal_if_nullptr(type, WaspStage::Semantics);
+
+    return type->is<IntType_ptr>() || type->is<FloatType_ptr>() ||
+           type->is<StringType_ptr>() || type->is<BooleanType_ptr>() ||
+           type->is<NoneType_ptr>() || type->is<AnyType_ptr>() ||
+           type->is<LiteralType_ptr>() || type->is<ListType_ptr>() ||
+           type->is<SetType_ptr>() || type->is<MapType_ptr>() ||
+           type->is<TupleType_ptr>() || type->is<VariantType_ptr>() ||
+           type->is<IntersectionType_ptr>();
+}
+
 bool TypeSystem::is_condition_type(
     SymbolScope_ptr scope,
     const Object_ptr condition_type

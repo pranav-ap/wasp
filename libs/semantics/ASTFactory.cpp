@@ -64,16 +64,6 @@ Statement_ptr ASTFactory::create_function_definition(
     );
 }
 
-Statement_ptr ASTFactory::create_field_definition(
-    const std::string& field_name,
-    TypeAnnotation_ptr type_node
-)
-{
-    // FieldDefinition is a STATEMENT, not an expression
-    return make_statement(FieldDefinition{field_name, std::move(type_node)});
-}
-
-// Helper function (not a member of ASTFactory)
 Field ASTFactory::create_field(
     const std::string& name,
     TypeAnnotation_ptr type,

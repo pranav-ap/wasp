@@ -80,7 +80,11 @@ struct TypeSystem
         Object_ptr right_type
     );
 
-    Object_ptr infer(SymbolScope_ptr scope, Object_ptr left_type, TokenType op);
+    Object_ptr infer(
+        SymbolScope_ptr scope,
+        Object_ptr operand_type,
+        TokenType op
+    );
 
     bool implements_trait(
         SymbolScope_ptr scope,
@@ -159,6 +163,7 @@ struct TypeSystem
     bool is_float_type(const Object_ptr type) const;
     bool is_string_type(const Object_ptr type) const;
     bool is_none_type(const Object_ptr type) const;
+    bool is_native_type(const Object_ptr type) const;
 
     bool is_condition_type(
         SymbolScope_ptr scope,

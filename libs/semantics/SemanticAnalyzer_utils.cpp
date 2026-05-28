@@ -59,11 +59,9 @@ TemplateType_ptr SemanticAnalyzer::evaluate_template_params(
 
     for (const auto& field : template_params)
     {
-        // Visit the constraint type first
         Object_ptr constraint_type = visit(field.type);
         constraint_type = constraint_type->unwrap_type_alias();
 
-        // Create GenericType with name and constraint
         auto generic_type = std::make_shared<GenericType>(
             field.name,
             constraint_type
