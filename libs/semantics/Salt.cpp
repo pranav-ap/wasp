@@ -9,6 +9,7 @@
 
 #include <ctime>
 #include <string>
+#include <type_traits>
 #include <variant>
 
 template <class... Ts> struct overloaded : Ts...
@@ -38,18 +39,17 @@ Statement_ptr Salt::visit(const Statement_ptr statement)
     Doctor::get().fatal_if_nullptr(statement, WaspStage::Semantics);
 
     return std::visit(
-        [this](auto& node) -> Statement_ptr
+        [&](auto& node) -> Statement_ptr
         {
-            if constexpr (requires { this->visit(node); })
+            using T = std::decay_t<decltype(node)>;
+
+            if constexpr (requires { visit(node); })
             {
-                return this->visit(node);
+                return visit(node);
             }
             else
             {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "Salt does not handle this type of statement"
-                );
+                return statement;
             }
         },
         statement->data
@@ -169,18 +169,19 @@ Expression_ptr Salt::visit(const Expression_ptr expr)
     Doctor::get().fatal_if_nullptr(expr, WaspStage::Semantics);
 
     return std::visit(
-        [this](auto& node) -> Expression_ptr
+        [&](auto& node) -> Expression_ptr
         {
-            if constexpr (requires { this->visit(node); })
+            using T = std::decay_t<decltype(node)>;
+
+            if constexpr (requires { visit(node); })
             {
-                return this->visit(node);
+                return visit(node);
             }
             else
             {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "Unhandled Expression"
-                );
+                // No specific visitor
+                // return the original expression unchanged
+                return expr;
             }
         },
         expr->data

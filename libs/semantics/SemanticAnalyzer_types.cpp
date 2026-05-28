@@ -117,6 +117,23 @@ Object_ptr SemanticAnalyzer::visit(LiteralTypeNode& expr)
 
 Object_ptr SemanticAnalyzer::visit(TypeIdentifierNode& expr)
 {
+    if (expr.name == "int")
+    {
+        return workspace->pool->get_int_type();
+    }
+    else if (expr.name == "float")
+    {
+        return workspace->pool->get_float_type();
+    }
+    else if (expr.name == "str")
+    {
+        return workspace->pool->get_string_type();
+    }
+    else if (expr.name == "bool")
+    {
+        return workspace->pool->get_boolean_type();
+    }
+
     auto symbol = current_scope->lookup(expr.name);
 
     Doctor::get().fatal_if_nullptr(

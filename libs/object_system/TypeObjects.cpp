@@ -84,6 +84,22 @@ bool RecordType::contains_field(const std::string& field_name) const
 }
 
 // ============================================================================
+// Pocket Type
+// ============================================================================
+
+Object_ptr PocketType::PocketType::get_overload_type(int overload_index) const
+{
+    Doctor::get().assert(
+        overload_index >= 0 &&
+            overload_index < static_cast<int>(overload_types.size()),
+        WaspStage::Semantics,
+        "Invalid overload index: " + std::to_string(overload_index)
+    );
+
+    return overload_types[overload_index];
+}
+
+// ============================================================================
 // Bag Type
 // ============================================================================
 

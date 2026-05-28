@@ -1,241 +1,241 @@
-import my.io expose *
+# import my.io expose *
 
-# --------------------------
-# Core Traits
-# --------------------------
+# # --------------------------
+# # Core Traits
+# # --------------------------
 
-trait Printable
-    fun repr() => str
-        required
+# trait Printable
+#     fun repr() => str
+#         required
 
 
-trait Truthy
-    fun is_truthy() => bool
-        required
+# trait Truthy
+#     fun is_truthy() => bool
+#         required
 
 
-trait Hashable
-    pure fun hash() => int
-        required
+# trait Hashable
+#     pure fun hash() => int
+#         required
 
 
-trait Sized
-    fun size() => int
-        required
+# trait Sized
+#     fun size() => int
+#         required
 
-    fun is_empty() => bool
-        return self.size() == 0
+#     fun is_empty() => bool
+#         return self.size() == 0
 
 
-template
-    T: any
-trait Indexable
-    fun get(index: int) => T
-        required
+# template
+#     T: any
+# trait Indexable
+#     fun get(index: int) => T
+#         required
 
-    fun set(index: int, value: T)
-        required
+#     fun set(index: int, value: T)
+#         required
 
-# --------------------------
-# The Core Four
-# --------------------------
+# # --------------------------
+# # The Core Four
+# # --------------------------
 
-native bool is Printable & Truthy & Hashable
-    fun repr() => str
-        return if self then 'true' else 'false'
+# native bool is Printable & Truthy & Hashable
+#     fun repr() => str
+#         return if self then 'true' else 'false'
 
-    fun is_truthy() => bool
-        return self
+#     fun is_truthy() => bool
+#         return self
 
-    pure fun hash() => int
-        return if self then 1 else 0
+#     pure fun hash() => int
+#         return if self then 1 else 0
 
 
-fun bool::repr(self: bool) => str
-    return if self then 'true' else 'false'
+# fun bool::repr(self: bool) => str
+#     return if self then 'true' else 'false'
 
 
-native int is Printable & Truthy & Hashable
-    fun repr() => str
-        return '{self}'
+# native int is Printable & Truthy & Hashable
+#     fun repr() => str
+#         return '{self}'
 
-    fun is_truthy() => bool
-        return self > 0
+#     fun is_truthy() => bool
+#         return self > 0
 
-    pure fun hash() => int
-        return self
+#     pure fun hash() => int
+#         return self
 
 
-native float is Printable & Truthy
-    fun repr() => str
-        return '{self}'
+# native float is Printable & Truthy
+#     fun repr() => str
+#         return '{self}'
 
-    fun is_truthy() => bool
-        return self > 0
+#     fun is_truthy() => bool
+#         return self > 0
 
 
-native str is Printable & Truthy & Hashable & Sized
-    fun repr() => str
-        return self
+# native str is Printable & Truthy & Hashable & Sized
+#     fun repr() => str
+#         return self
 
-    fun is_truthy() => bool
-        return self.size() > 0
+#     fun is_truthy() => bool
+#         return self.size() > 0
 
-    pure fun hash() => int
-        native
+#     pure fun hash() => int
+#         native
 
-    fun size() => int
-        native
+#     fun size() => int
+#         native
 
-    fun slice(start: int, end: int) => str
-        native
+#     fun slice(start: int, end: int) => str
+#         native
 
-    fun trim() => str
-        native
+#     fun trim() => str
+#         native
 
 
-# --------------------------
-# Aliases
-# --------------------------
+# # --------------------------
+# # Aliases
+# # --------------------------
 
-type num = int | float
+# type num = int | float
 
-# --------------------------
-# Composites
-# --------------------------
+# # --------------------------
+# # Composites
+# # --------------------------
 
-template
-    T: any
-native List is Printable & Truthy & Sized & Indexable<T>
-    fun repr() => str
-        return 'list'
+# template
+#     T: any
+# native List is Printable & Truthy & Sized & Indexable<T>
+#     fun repr() => str
+#         return 'list'
 
-    fun size() => int
-        native
+#     fun size() => int
+#         native
 
-    fun is_truthy() => bool
-        return self.size() > 0
+#     fun is_truthy() => bool
+#         return self.size() > 0
 
-    fun get(index: int) => T
-        native
+#     fun get(index: int) => T
+#         native
 
-    fun set(index: int, value: T)
-        native
+#     fun set(index: int, value: T)
+#         native
 
 
-template
-    T: any
-native Set is Printable & Truthy & Sized
-    fun repr() => str
-        return 'set'
+# template
+#     T: any
+# native Set is Printable & Truthy & Sized
+#     fun repr() => str
+#         return 'set'
 
-    fun size() => int
-        native
+#     fun size() => int
+#         native
 
-    fun is_truthy() => bool
-        return self.size() > 0
+#     fun is_truthy() => bool
+#         return self.size() > 0
 
-    fun contains(value: T) => bool
-        native
+#     fun contains(value: T) => bool
+#         native
 
-    fun add(value: T)
-        native
+#     fun add(value: T)
+#         native
 
-    fun remove(value: T)
-        native
+#     fun remove(value: T)
+#         native
 
 
-template
-    K: Hashable
-    V: any
-native Map is Printable & Truthy & Sized
-    fun repr() => str
-        return 'map'
+# template
+#     K: Hashable
+#     V: any
+# native Map is Printable & Truthy & Sized
+#     fun repr() => str
+#         return 'map'
 
-    fun size() => int
-        native
+#     fun size() => int
+#         native
 
-    fun is_truthy() => bool
-        return self.size() > 0
+#     fun is_truthy() => bool
+#         return self.size() > 0
 
-    fun get(key: K) => V
-        native
+#     fun get(key: K) => V
+#         native
 
-    fun set(key: K, value: V)
-        native
+#     fun set(key: K, value: V)
+#         native
 
-    fun contains_key(key: K) => bool
-        native
+#     fun contains_key(key: K) => bool
+#         native
 
-    fun remove(key: K)
-        native
+#     fun remove(key: K)
+#         native
 
 
-# --------------------------
-# Option
-# --------------------------
+# # --------------------------
+# # Option
+# # --------------------------
 
-template
-    T: any
-native Option is Printable & Truthy
-    fun repr() => str
-        return if self.has_value() then 'some' else 'none'
+# template
+#     T: any
+# native Option is Printable & Truthy
+#     fun repr() => str
+#         return if self.has_value() then 'some' else 'none'
 
-    fun is_truthy() => bool
-        return self.has_value()
+#     fun is_truthy() => bool
+#         return self.has_value()
 
-    fun has_value() => bool
-        native
+#     fun has_value() => bool
+#         native
 
-    # panics if no value
-    fun get() => T
-        native
+#     # panics if no value
+#     fun get() => T
+#         native
 
-    # no panic
-    fun get_or(default: T) => T
-        native
+#     # no panic
+#     fun get_or(default: T) => T
+#         native
 
 
-template
-    T: any
-pure fun some(value: T) => Option<T>
-    native
+# template
+#     T: any
+# pure fun some(value: T) => Option<T>
+#     native
 
 
-let x = some(5)
-x.has_value()
-x?.repr()
-x.get_or(0)
+# let x = some(5)
+# x.has_value()
+# x?.repr()
+# x.get_or(0)
 
-# --------------------------
-# User Defined Class
-# --------------------------
+# # --------------------------
+# # User Defined Class
+# # --------------------------
 
 
-class Foo is Printable
-    score: int
+# class Foo is Printable
+#     score: int
 
-    fun repr() => str
-        return '{self.score}'
+#     fun repr() => str
+#         return '{self.score}'
 
 
-# ORIGINAL
+# # ORIGINAL
 
-import core.io as io
-import core.types expose *
+# import core.io as io
+# import core.types expose *
 
 
-class Foo is Printable
-    score: int
+# class Foo is Printable
+#     score: int
 
-    fun repr() => str
-        return '{self.score}'
+#     fun repr() => str
+#         return '{self.score}'
 
 
-fun show(p: Printable)
-    io.print(p)
+# fun show(p: Printable)
+#     io.print(p)
 
 
-let f = Foo(10)
-f.repr()
+# let f = Foo(10)
+# f.repr()
 

@@ -50,23 +50,23 @@ std::string get_raw_type_name(Object_ptr obj)
             },
             [](const IntType&)
             {
-                return std::string("@int");
+                return std::string("int");
             },
             [](const FloatType&)
             {
-                return std::string("@float");
+                return std::string("float");
             },
             [](const StringType&)
             {
-                return std::string("@string");
+                return std::string("string");
             },
             [](const BooleanType&)
             {
-                return std::string("@bool");
+                return std::string("bool");
             },
             [](const AnyType&)
             {
-                return std::string("@any");
+                return std::string("any");
             },
 
             [](const auto&) -> std::string

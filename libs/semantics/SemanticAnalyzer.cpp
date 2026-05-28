@@ -1,6 +1,7 @@
 #include "SemanticAnalyzer.h"
 #include "AST.h"
 #include "Doctor.h"
+#include "Expression.h"
 #include "Objects.h"
 #include "Statement.h"
 #include "SymbolScope.h"
@@ -131,14 +132,13 @@ Object_ptr SemanticAnalyzer::visit(const Expression_ptr expr)
     Doctor::get().fatal_if_nullptr(expr, WaspStage::Semantics);
 
     auto saltly_expr = salt->visit(expr);
-    visit(saltly_expr);
 
-    return std::visit(
+    auto resolved_type = std::visit(
         [&](auto& node) -> Object_ptr
         {
-            if constexpr (requires { this->visit(node); })
+            if constexpr (requires { visit(node); })
             {
-                return this->visit(node);
+                return visit(node);
             }
             else
             {
@@ -150,6 +150,69 @@ Object_ptr SemanticAnalyzer::visit(const Expression_ptr expr)
         },
         saltly_expr->data
     );
+    if (saltly_expr->is<Call>() && !saltly_expr->is_desugared)
+    {
+        desugar_call(saltly_expr);
+    }
+
+    return resolved_type;
+}
+
+void SemanticAnalyzer::desugar_call(Expression_ptr expr)
+{
+    Doctor::get().fatal_if_nullptr(expr, WaspStage::Semantics);
+
+    Doctor::get().assert(
+        expr->is<Call>(),
+        WaspStage::Semantics,
+        "Expected a Call expression for desugar_call."
+    );
+
+    Call call = expr->as<Call>();
+
+    // Check if this is a method call (callable is a MemberAccess)
+    if (call.callable->is<MemberAccess>())
+    {
+        auto& ma = call.callable->as<MemberAccess>();
+
+        if (ma.is_trait_dispatch)
+        {
+            // Trait method call
+            TraitMethodCall tmc;
+            tmc.callable = call.callable;
+            tmc.arguments = std::move(call.arguments);
+            tmc.overload_index = call.overload_index;
+            tmc.instance = ma.left;
+            tmc.method_index = ma.member_index;
+            tmc.trait_type_id = call.trait_type_id;
+
+            expr->data = std::move(tmc);
+        }
+        else
+        {
+            // Class method call
+            ClassMethodCall cmc;
+            cmc.callable = call.callable;
+            cmc.arguments = std::move(call.arguments);
+            cmc.overload_index = call.overload_index;
+            cmc.instance = ma.left;
+            cmc.method_index = ma.member_index;
+
+            expr->data = std::move(cmc);
+        }
+    }
+    else
+    {
+        // Standard function call
+        FunctionCall fc;
+        fc.callable = call.callable;
+        fc.arguments = std::move(call.arguments);
+        fc.overload_index = call.overload_index;
+
+        expr->data = std::move(fc);
+    }
+
+    expr->is_desugared = true;
 }
 
 } // namespace Wasp

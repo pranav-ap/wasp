@@ -199,11 +199,11 @@ void Compiler::visit(const Expression_ptr expr)
     Doctor::get().fatal_if_nullptr(expr, WaspStage::Compiler);
 
     std::visit(
-        [this](auto& node)
+        [&](auto& node)
         {
-            if constexpr (requires { this->visit(node); })
+            if constexpr (requires { visit(node); })
             {
-                this->visit(node);
+                visit(node);
             }
             else
             {

@@ -434,25 +434,151 @@ Object_ptr TypeSystem::infer(
 
     switch (op)
     {
+    case TokenType::PLUS:
+        if (is_string_type(left_type) || is_string_type(right_type))
+        {
+            bool left_valid = is_string_type(left_type) ||
+                              is_number_type(left_type);
+            bool right_valid = is_string_type(right_type) ||
+                               is_number_type(right_type);
+            if (!left_valid)
+            {
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Invalid concatenation: Left is '" +
+                        left_type->to_string() + "'"
+                );
+            }
+            if (!right_valid)
+            {
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Invalid concatenation: Right is '" +
+                        right_type->to_string() + "'"
+                );
+            }
+            return pool->get_string_type();
+        }
+        [[fallthrough]];
+    case TokenType::STAR:
+    case TokenType::POWER:
+    case TokenType::MINUS:
+    case TokenType::DIVISION:
+    case TokenType::MOD:
+        Doctor::get().assert(
+            is_number_type(left_type),
+            WaspStage::Semantics,
+            "Left operand must be a number, got '" + left_type->to_string() +
+                "'"
+        );
+
+        Doctor::get().assert(
+            is_number_type(right_type),
+            WaspStage::Semantics,
+            "Right operand must be a number, got '" + right_type->to_string() +
+                "'"
+        );
+
+        return (is_float_type(left_type) || is_float_type(right_type))
+                   ? pool->get_float_type()
+                   : pool->get_int_type();
+
+    case TokenType::LESSER_THAN:
+    case TokenType::LESSER_THAN_EQUAL:
+    case TokenType::GREATER_THAN:
+    case TokenType::GREATER_THAN_EQUAL:
+        Doctor::get().assert(
+            is_number_type(left_type),
+            WaspStage::Semantics,
+            "Left operand must be a number, got '" + left_type->to_string() +
+                "'"
+        );
+
+        Doctor::get().assert(
+            is_number_type(right_type),
+            WaspStage::Semantics,
+            "Right operand must be a number, got '" + right_type->to_string() +
+                "'"
+        );
+
+        return pool->get_boolean_type();
+
     case TokenType::EQUAL_EQUAL:
     case TokenType::BANG_EQUAL:
-        if (left_type->is<EnumMemberType_ptr>() &&
-            right_type->is<EnumMemberType_ptr>())
+        if (left_type->is<NoneType_ptr>() || right_type->is<NoneType_ptr>())
         {
-            auto left_enum = left_type->as<EnumMemberType_ptr>();
-            auto right_enum = right_type->as<EnumMemberType_ptr>();
-
+            return pool->get_boolean_type();
+        }
+        if (is_number_type(left_type))
+        {
             Doctor::get().assert(
-                left_enum->enum_type->type_id == right_enum->enum_type->type_id,
+                is_number_type(right_type),
                 WaspStage::Semantics,
-                "Cannot compare enum members of different types."
+                "Right operand must be a number, got '" +
+                    right_type->to_string() + "'"
+            );
+        }
+        else if (is_string_type(left_type))
+        {
+            Doctor::get().assert(
+                is_string_type(right_type),
+                WaspStage::Semantics,
+                "Right operand must be a string, got '" +
+                    right_type->to_string() + "'"
+            );
+        }
+        else if (is_boolean_type(left_type))
+        {
+            Doctor::get().assert(
+                is_boolean_type(right_type),
+                WaspStage::Semantics,
+                "Right operand must be a boolean, got '" +
+                    right_type->to_string() + "'"
+            );
+        }
+        else if (left_type->is<EnumType_ptr>())
+        {
+            Doctor::get().assert(
+                equal(scope, left_type, right_type),
+                WaspStage::Semantics,
+                "Enum mismatch"
+            );
+        }
+        else
+        {
+            Doctor::get().fatal(
+                WaspStage::Semantics,
+                "Cannot compare '" + left_type->to_string() + "' with '" +
+                    right_type->to_string() + "'"
             );
         }
         return pool->get_boolean_type();
 
+    case TokenType::AND:
+    case TokenType::OR:
+        Doctor::get().assert(
+            is_boolean_type(left_type),
+            WaspStage::Semantics,
+            "Left operand must be a boolean, got '" + left_type->to_string() +
+                "'"
+        );
+
+        Doctor::get().assert(
+            is_boolean_type(right_type),
+            WaspStage::Semantics,
+            "Right operand must be a boolean, got '" + right_type->to_string() +
+                "'"
+        );
+
+        return pool->get_boolean_type();
+
     default:
-        Doctor::get().fatal(WaspStage::Semantics, "Unsupported binary operator");
+        Doctor::get().fatal(
+            WaspStage::Semantics,
+            "Unsupported binary operator"
+        );
     }
+
     return pool->get_none_type();
 }
 

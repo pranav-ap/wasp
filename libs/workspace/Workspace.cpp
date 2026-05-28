@@ -104,6 +104,20 @@ Object_ptr Symbol::get_type() const
         return as<TypeAliasSymbol>().type;
     }
 
+    if (is<OverloadsSymbol>())
+    {
+        auto& overloads_data = as<OverloadsSymbol>();
+
+        ObjectVector overload_types;
+        for (const auto& overload : overloads_data.overloads)
+        {
+            overload_types.push_back(overload->get_type());
+        }
+
+        auto pocket_type = std::make_shared<PocketType>(overload_types);
+        return make_object(pocket_type);
+    }
+
     Doctor::get().fatal(
         WaspStage::Semantics,
         "Symbol does not have a type attribute : " + name

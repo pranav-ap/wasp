@@ -262,6 +262,21 @@ struct RecordType
     bool contains_field(const std::string& field_name) const;
 };
 
+struct PocketType
+{
+    ObjectVector overload_types;
+
+    PocketType(ObjectVector overload_types = {})
+        : overload_types(std::move(overload_types))
+    {
+    }
+
+    Object_ptr get_overload_type(int overload_index) const;
+};
+
+using PocketType_ptr = std::shared_ptr<PocketType>;
+using PocketTypeMap = std::map<std::string, PocketType_ptr>;
+
 struct BagType
 {
     ObjectStringMap overload_types;
@@ -558,17 +573,6 @@ struct NativeFunctionRuntimeObject
 using NativeFunctionRuntimeObject_ptr = std::shared_ptr<
     NativeFunctionRuntimeObject>;
 
-struct Pocket
-{
-    ObjectVector overloads;
-
-    void add_overload(Object_ptr overload);
-    Object_ptr get_overload(int overload_id) const;
-};
-
-using Pocket_ptr = std::shared_ptr<Pocket>;
-using PocketVector = std::vector<Pocket_ptr>;
-
 // ============================================================================
 // Oops
 // ============================================================================
@@ -588,6 +592,17 @@ struct RecordObject
 };
 
 using RecordObject_ptr = std::shared_ptr<RecordObject>;
+
+struct Pocket
+{
+    ObjectVector overloads;
+
+    void add_overload(Object_ptr overload);
+    Object_ptr get_overload(int overload_id) const;
+};
+
+using Pocket_ptr = std::shared_ptr<Pocket>;
+using PocketVector = std::vector<Pocket_ptr>;
 
 struct BagObject
 {
@@ -701,6 +716,7 @@ struct Object : public std::enable_shared_from_this<Object>
 
         ModuleType_ptr,
 
+        PocketType_ptr,
         Signature_ptr,
         ClassType_ptr,
         TraitType_ptr,
