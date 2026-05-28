@@ -102,7 +102,7 @@ Object_ptr SemanticAnalyzer::visit(Constructor& constructor)
                     "'."
             );
 
-            Object_ptr expected_type = cls->record_type.get_field(field_name);
+            Object_ptr expected_type = cls->record_type.get_type(field_name);
 
             Doctor::get().assert(
                 type_system->assignable(

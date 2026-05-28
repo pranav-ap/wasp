@@ -317,22 +317,17 @@ Object_ptr TypeSystem::substitute_generics(
 
                     // Substitute field types
                     for (const auto& [name, field_type] :
-                         cls->record_type.field_types)
+                         cls->record_type.types)
                     {
-                        new_cls->record_type.field_types[name] = sub(
-                            field_type
-                        );
+                        new_cls->record_type.types[name] = sub(field_type);
                     }
                     new_cls->record_type.ordered_keys = cls->record_type
                                                             .ordered_keys;
 
                     // Substitute method types (signatures)
-                    for (const auto& [name, method_type] :
-                         cls->bag_type.overload_types)
+                    for (const auto& [name, method_type] : cls->bag_type.types)
                     {
-                        new_cls->bag_type.overload_types[name] = sub(
-                            method_type
-                        );
+                        new_cls->bag_type.types[name] = sub(method_type);
                     }
                     new_cls->bag_type.ordered_keys = cls->bag_type.ordered_keys;
                     new_cls->bag_type.itables = cls->bag_type.itables;
@@ -380,22 +375,18 @@ Object_ptr TypeSystem::substitute_generics(
 
                     // Substitute field types
                     for (const auto& [name, field_type] :
-                         trait->record_type.field_types)
+                         trait->record_type.types)
                     {
-                        new_trait->record_type.field_types[name] = sub(
-                            field_type
-                        );
+                        new_trait->record_type.types[name] = sub(field_type);
                     }
                     new_trait->record_type.ordered_keys = trait->record_type
                                                               .ordered_keys;
 
                     // Substitute method types
                     for (const auto& [name, method_type] :
-                         trait->bag_type.overload_types)
+                         trait->bag_type.types)
                     {
-                        new_trait->bag_type.overload_types[name] = sub(
-                            method_type
-                        );
+                        new_trait->bag_type.types[name] = sub(method_type);
                     }
                     new_trait->bag_type.ordered_keys = trait->bag_type
                                                            .ordered_keys;
@@ -419,9 +410,9 @@ Object_ptr TypeSystem::substitute_generics(
                 },
 
                 // Pocket (OverloadSet)
-                [&](Pocket_ptr pocket) -> Object_ptr
+                [&](OverloadsSet_ptr pocket) -> Object_ptr
                 {
-                    auto new_pocket = std::make_shared<Pocket>();
+                    auto new_pocket = std::make_shared<OverloadsSet>();
                     memo[t] = make_object(new_pocket);
                     new_pocket->overloads = sub_all(pocket->overloads);
                     return memo[t];

@@ -411,10 +411,10 @@ Object_ptr SemanticAnalyzer::call_method(
             oops_type->name + "'."
     );
 
-    auto member_obj = oops_type->bag_type.get_overloads(method_name);
+    auto member_obj = oops_type->bag_type.get_signatures_set(method_name);
 
-    Doctor::get().assert(
-        member_obj != nullptr,
+    Doctor::get().fatal_if_nullptr(
+        member_obj,
         WaspStage::Semantics,
         "Member '" + method_name + "' not found in bag_type"
     );
@@ -436,7 +436,9 @@ Object_ptr SemanticAnalyzer::call_method(
                                                    argument_types
                                                );
 
-    access.member_index = oops_type->bag_type.get_overloads_index(method_name);
+    access.member_index = oops_type->bag_type.get_signatures_set_index(
+        method_name
+    );
     call.overload_index = overload_index;
     call.is_method_call = true;
 

@@ -2,12 +2,15 @@ import core.io expose *
 import core.types expose *
 import core.operators expose *
 
-fun show()
+
+fun show() => int
     let x = 1
     let y = 2
 
     let z = x + y
-    print(z)
+    return z
 
 
-show()
+let g = show()
+print(g)
+

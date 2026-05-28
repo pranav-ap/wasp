@@ -67,11 +67,11 @@ int RecordType::get_field_index(const std::string& field_name) const
     return static_cast<int>(std::distance(ordered_keys.begin(), it));
 }
 
-Object_ptr RecordType::get_field(const std::string& field_name) const
+Object_ptr RecordType::get_type(const std::string& field_name) const
 {
-    auto it = field_types.find(field_name);
+    auto it = types.find(field_name);
     Doctor::get().assert(
-        it != field_types.end(),
+        it != types.end(),
         WaspStage::Semantics,
         "Record does not contain field '" + field_name + "'."
     );
@@ -80,30 +80,29 @@ Object_ptr RecordType::get_field(const std::string& field_name) const
 
 bool RecordType::contains_field(const std::string& field_name) const
 {
-    return field_types.contains(field_name);
+    return types.contains(field_name);
 }
 
 // ============================================================================
 // Pocket Type
 // ============================================================================
 
-Object_ptr PocketType::PocketType::get_overload_type(int overload_index) const
+Object_ptr SignaturesSet::SignaturesSet::get_signature(int overload_index) const
 {
     Doctor::get().assert(
-        overload_index >= 0 &&
-            overload_index < static_cast<int>(overload_types.size()),
+        overload_index >= 0 && overload_index < static_cast<int>(types.size()),
         WaspStage::Semantics,
         "Invalid overload index: " + std::to_string(overload_index)
     );
 
-    return overload_types[overload_index];
+    return types[overload_index];
 }
 
 // ============================================================================
 // Bag Type
 // ============================================================================
 
-int BagType::get_overloads_index(const std::string& function_name) const
+int BagType::get_signatures_set_index(const std::string& function_name) const
 {
     auto it = std::find(
         ordered_keys.begin(),
@@ -118,11 +117,11 @@ int BagType::get_overloads_index(const std::string& function_name) const
     return static_cast<int>(std::distance(ordered_keys.begin(), it));
 }
 
-Object_ptr BagType::get_overloads(const std::string& function_name) const
+Object_ptr BagType::get_signatures_set(const std::string& function_name) const
 {
-    auto it = overload_types.find(function_name);
+    auto it = types.find(function_name);
     Doctor::get().assert(
-        it != overload_types.end(),
+        it != types.end(),
         WaspStage::Semantics,
         "Bag does not contain member '" + function_name + "'."
     );
@@ -135,10 +134,8 @@ Object_ptr BagType::get_overloads(const std::string& function_name) const
 
 bool OopsType::contains_member(const std::string& member_name) const
 {
-    return record_type.field_types.find(member_name) !=
-               record_type.field_types.end() ||
-           bag_type.overload_types.find(member_name) !=
-               bag_type.overload_types.end();
+    return record_type.types.find(member_name) != record_type.types.end() ||
+           bag_type.types.find(member_name) != bag_type.types.end();
 }
 
 // ============================================================================

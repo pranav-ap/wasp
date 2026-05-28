@@ -406,12 +406,12 @@ void VM::execute_GET_FUNCTION(CallFrame* frame)
     }
 
     Doctor::get().assert(
-        obj->is<Pocket_ptr>(),
+        obj->is<OverloadsSet_ptr>(),
         WaspStage::VM,
         "GET_FUNCTION expects an Overload Group or Function on the stack!"
     );
 
-    auto group = obj->as<Pocket_ptr>();
+    auto group = obj->as<OverloadsSet_ptr>();
 
     Doctor::get().assert(
         overload_index >= 0 &&
@@ -538,19 +538,19 @@ void VM::execute_STORE_FUNCTION_OVERLOAD(CallFrame* frame)
         initial_overloads.push_back(new_func);
 
         auto group = make_object(
-            std::make_shared<Pocket>(std::move(initial_overloads))
+            std::make_shared<OverloadsSet>(std::move(initial_overloads))
         );
         stack[absolute_idx] = group;
     }
     else
     {
         Doctor::get().assert(
-            existing_obj->is<Pocket_ptr>(),
+            existing_obj->is<OverloadsSet_ptr>(),
             WaspStage::VM,
             "Cannot add overload to a slot that contains a non-function object."
         );
 
-        auto group = existing_obj->as<Pocket_ptr>();
+        auto group = existing_obj->as<OverloadsSet_ptr>();
         group->overloads.push_back(new_func);
     }
 }
@@ -616,7 +616,9 @@ void VM::execute_BUILD_OVERLOAD_GROUP(CallFrame* frame)
     int count = std::to_integer<int>(frame->consume_byte());
     ObjectVector overloads = pop_n_from_stack(count);
 
-    auto group = make_object(std::make_shared<Pocket>(std::move(overloads)));
+    auto group = make_object(
+        std::make_shared<OverloadsSet>(std::move(overloads))
+    );
     push_to_stack(group);
 }
 

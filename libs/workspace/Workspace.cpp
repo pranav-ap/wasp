@@ -114,7 +114,7 @@ Object_ptr Symbol::get_type() const
             overload_types.push_back(overload->get_type());
         }
 
-        auto pocket_type = std::make_shared<PocketType>(overload_types);
+        auto pocket_type = std::make_shared<SignaturesSet>(overload_types);
         return make_object(pocket_type);
     }
 

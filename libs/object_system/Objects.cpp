@@ -212,7 +212,7 @@ std::string Object::to_string() const
             {
                 return "<Native function " + func->name + ">";
             },
-            [](Pocket_ptr) -> std::string
+            [](OverloadsSet_ptr) -> std::string
             {
                 return "<overload set>";
             },

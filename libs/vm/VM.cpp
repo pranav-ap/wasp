@@ -205,7 +205,7 @@ void VM::run(FunctionBlueprintObject_ptr function_object)
 
         case OpCode::PUSH_EMPTY_OVERLOAD_GROUP: {
             push_to_stack(
-                make_object(std::make_shared<Pocket>(ObjectVector{}))
+                make_object(std::make_shared<OverloadsSet>(ObjectVector{}))
             );
 
             break;

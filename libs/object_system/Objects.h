@@ -105,6 +105,13 @@ struct GenericType
 {
     std::string name;
     Object_ptr constraint_type;
+
+    GenericType() = default;
+
+    GenericType(std::string name, Object_ptr constraint_type)
+        : name(std::move(name)), constraint_type(std::move(constraint_type))
+    {
+    }
 };
 
 using GenericType_ptr = std::shared_ptr<GenericType>;
@@ -188,7 +195,7 @@ struct Signature
     Signature(
         ObjectVector parameter_types,
         Object_ptr return_type,
-        TemplateType_ptr template_type = nullptr
+        TemplateType_ptr template_type = std::make_shared<TemplateType>()
     )
         : parameter_types(std::move(parameter_types)),
           return_type(std::move(return_type)),
@@ -248,53 +255,50 @@ using ITablesMap = std::map<int, ITable>;
 
 struct RecordType
 {
-    ObjectStringMap field_types;
+    ObjectStringMap types;
     StringVector ordered_keys;
 
-    RecordType(ObjectStringMap field_types = {}, StringVector ordered_keys = {})
-        : field_types(std::move(field_types)),
-          ordered_keys(std::move(ordered_keys))
+    RecordType(ObjectStringMap types = {}, StringVector ordered_keys = {})
+        : types(std::move(types)), ordered_keys(std::move(ordered_keys))
     {
     }
 
     int get_field_index(const std::string& field_name) const;
-    Object_ptr get_field(const std::string& field_name) const;
+    Object_ptr get_type(const std::string& field_name) const;
     bool contains_field(const std::string& field_name) const;
 };
 
-struct PocketType
+struct SignaturesSet
 {
-    ObjectVector overload_types;
+    ObjectVector types;
 
-    PocketType(ObjectVector overload_types = {})
-        : overload_types(std::move(overload_types))
+    SignaturesSet(ObjectVector types = {}) : types(std::move(types))
     {
     }
 
-    Object_ptr get_overload_type(int overload_index) const;
+    Object_ptr get_signature(int overload_index) const;
 };
 
-using PocketType_ptr = std::shared_ptr<PocketType>;
-using PocketTypeMap = std::map<std::string, PocketType_ptr>;
+using SignaturesSet_ptr = std::shared_ptr<SignaturesSet>;
 
 struct BagType
 {
-    ObjectStringMap overload_types;
+    ObjectStringMap types;
     StringVector ordered_keys;
     ITablesMap itables;
 
     BagType(
-        ObjectStringMap overload_types = {},
+        ObjectStringMap types = {},
         StringVector ordered_keys = {},
         ITablesMap itables = {}
     )
-        : overload_types(std::move(overload_types)),
-          ordered_keys(std::move(ordered_keys)), itables(std::move(itables))
+        : types(std::move(types)), ordered_keys(std::move(ordered_keys)),
+          itables(std::move(itables))
     {
     }
 
-    int get_overloads_index(const std::string& function_name) const;
-    Object_ptr get_overloads(const std::string& function_name) const;
+    int get_signatures_set_index(const std::string& function_name) const;
+    Object_ptr get_signatures_set(const std::string& function_name) const;
 };
 
 struct OopsType
@@ -314,7 +318,7 @@ struct OopsType
         RecordType record_type = RecordType(),
         BagType bag_type = BagType(),
         ObjectVector traits = {},
-        TemplateType_ptr template_type = nullptr
+        TemplateType_ptr template_type = std::make_shared<TemplateType>()
     )
         : type_id(get_next_type_id()), name(std::move(name)),
           record_type(std::move(record_type)), bag_type(std::move(bag_type)),
@@ -351,7 +355,7 @@ struct TypeAlias
 
     TypeAlias(
         std::string name,
-        TemplateType_ptr template_type = nullptr,
+        TemplateType_ptr template_type = std::make_shared<TemplateType>(),
         Object_ptr underlying_type = nullptr
     )
         : name(std::move(name)), underlying_type(std::move(underlying_type)),
@@ -593,7 +597,7 @@ struct RecordObject
 
 using RecordObject_ptr = std::shared_ptr<RecordObject>;
 
-struct Pocket
+struct OverloadsSet
 {
     ObjectVector overloads;
 
@@ -601,20 +605,24 @@ struct Pocket
     Object_ptr get_overload(int overload_id) const;
 };
 
-using Pocket_ptr = std::shared_ptr<Pocket>;
-using PocketVector = std::vector<Pocket_ptr>;
+using OverloadsSet_ptr = std::shared_ptr<OverloadsSet>;
+using OverloadsSetVector = std::vector<OverloadsSet_ptr>;
 
 struct BagObject
 {
-    PocketVector pocket;
+    OverloadsSetVector overloads_set_vector;
     ITablesMap itables;
 
-    BagObject(PocketVector pocket = {}, ITablesMap itables = {})
-        : pocket(std::move(pocket)), itables(std::move(itables))
+    BagObject(
+        OverloadsSetVector overloads_set_vector = {},
+        ITablesMap itables = {}
+    )
+        : overloads_set_vector(std::move(overloads_set_vector)),
+          itables(std::move(itables))
     {
     }
 
-    Pocket_ptr get_overloads_object(int member_id) const;
+    OverloadsSet_ptr get_overloads_set(int member_id) const;
 };
 
 using BagObject_ptr = std::shared_ptr<BagObject>;
@@ -684,7 +692,7 @@ struct Object : public std::enable_shared_from_this<Object>
         FunctionBlueprintObject_ptr,
         FunctionRuntimeObject_ptr,
         NativeFunctionRuntimeObject_ptr,
-        Pocket_ptr,
+        OverloadsSet_ptr,
 
         ModuleObject_ptr,
 
@@ -716,7 +724,7 @@ struct Object : public std::enable_shared_from_this<Object>
 
         ModuleType_ptr,
 
-        PocketType_ptr,
+        SignaturesSet_ptr,
         Signature_ptr,
         ClassType_ptr,
         TraitType_ptr,

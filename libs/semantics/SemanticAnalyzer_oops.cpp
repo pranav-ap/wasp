@@ -136,13 +136,13 @@ void SemanticAnalyzer::fill_oops_member_names(
                 [&](const FieldDefinition& f)
                 {
                     Doctor::get().assert(
-                        !oop_type->record_type.field_types.contains(f.name),
+                        !oop_type->record_type.types.contains(f.name),
                         WaspStage::Semantics,
                         "Duplicate field '" + f.name + "'."
                     );
 
                     auto field_type = visit(f.type);
-                    oop_type->record_type.field_types[f.name] = field_type;
+                    oop_type->record_type.types[f.name] = field_type;
                     oop_type->record_type.ordered_keys.push_back(f.name);
                 },
                 [&](const MethodDefinition& m)
@@ -151,11 +151,10 @@ void SemanticAnalyzer::fill_oops_member_names(
 
                     // Store method signature placeholder (will be filled in
                     // hoist_methods) For now, just mark that it exists
-                    if (!oop_type->bag_type.overload_types.contains(m.name))
+                    if (!oop_type->bag_type.types.contains(m.name))
                     {
                         oop_type->bag_type
-                            .overload_types[m.name] = workspace->pool
-                                                          ->get_none_type();
+                            .types[m.name] = workspace->pool->get_none_type();
                     }
                 },
                 [&](const auto&)
@@ -206,7 +205,7 @@ void SemanticAnalyzer::hoist_methods(
             );
 
             // Store in bag_type
-            oop_type->bag_type.overload_types[method->name] = signature;
+            oop_type->bag_type.types[method->name] = signature;
         }
     }
 }
@@ -230,7 +229,7 @@ void SemanticAnalyzer::inherit_default_methods(
         for (const auto& method_name : trait->bag_type.ordered_keys)
         {
             // Get trait method signatures
-            auto trait_sig_obj = trait->bag_type.overload_types.at(method_name);
+            auto trait_sig_obj = trait->bag_type.types.at(method_name);
             Doctor::get().assert(
                 trait_sig_obj->is<Signature_ptr>(),
                 WaspStage::Semantics,
@@ -238,7 +237,7 @@ void SemanticAnalyzer::inherit_default_methods(
             );
 
             // Check if class already implements this method
-            bool is_implemented = oop_type->bag_type.overload_types.contains(
+            bool is_implemented = oop_type->bag_type.types.contains(
                 method_name
             );
 
@@ -285,11 +284,10 @@ void SemanticAnalyzer::inherit_default_methods(
 
                 def.members.push_back(cloned_stmt);
 
-                if (!oop_type->bag_type.overload_types.contains(method_name))
+                if (!oop_type->bag_type.types.contains(method_name))
                 {
                     oop_type->bag_type.ordered_keys.push_back(method_name);
-                    oop_type->bag_type
-                        .overload_types[method_name] = trait_sig_obj;
+                    oop_type->bag_type.types[method_name] = trait_sig_obj;
                 }
 
                 cloned_method->symbol = SymbolFactory::create_function(
@@ -336,17 +334,15 @@ void SemanticAnalyzer::check_trait_conformance(OopsType_ptr oop_type)
             const auto& method_name = trait->bag_type.ordered_keys[m_idx];
 
             Doctor::get().assert(
-                oop_type->bag_type.overload_types.contains(method_name),
+                oop_type->bag_type.types.contains(method_name),
                 WaspStage::Semantics,
                 "Class '" + oop_type->name +
                     "' fails to implement required method '" + method_name +
                     "' from trait '" + trait->name + "'."
             );
 
-            auto trait_sig_obj = trait->bag_type.overload_types.at(method_name);
-            auto class_sig_obj = oop_type->bag_type.overload_types.at(
-                method_name
-            );
+            auto trait_sig_obj = trait->bag_type.types.at(method_name);
+            auto class_sig_obj = oop_type->bag_type.types.at(method_name);
 
             Doctor::get().assert(
                 trait_sig_obj->is<Signature_ptr>() &&

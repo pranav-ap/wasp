@@ -347,12 +347,12 @@ bool VariantObject::has_value()
 // Function Overloads Object (Pocket)
 // ------------------------------------------------------------------------------
 
-void Pocket::add_overload(Object_ptr overload)
+void OverloadsSet::add_overload(Object_ptr overload)
 {
     overloads.push_back(std::move(overload));
 }
 
-Object_ptr Pocket::get_overload(int overload_id) const
+Object_ptr OverloadsSet::get_overload(int overload_id) const
 {
     Doctor::get().assert(
         overload_id >= 0 && overload_id < static_cast<int>(overloads.size()),
@@ -401,15 +401,16 @@ void RecordObject::set_field(int member_id, Object_ptr value)
 // Bag Object
 // -----------------------------------------------------------------------------
 
-Pocket_ptr BagObject::get_overloads_object(int member_id) const
+OverloadsSet_ptr BagObject::get_overloads_set(int member_id) const
 {
     Doctor::get().assert(
-        member_id >= 0 && member_id < static_cast<int>(pocket.size()),
+        member_id >= 0 &&
+            member_id < static_cast<int>(overloads_set_vector.size()),
         WaspStage::VM,
         "Bag member index out of bounds!"
     );
 
-    return pocket[member_id];
+    return overloads_set_vector[member_id];
 }
 
 // -----------------------------------------------------------------------------

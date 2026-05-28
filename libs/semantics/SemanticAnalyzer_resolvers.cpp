@@ -219,7 +219,7 @@ Object_ptr SemanticAnalyzer::resolve_member_access(
                 expr.member_index = type->record_type.get_field_index(
                     member_name
                 );
-                return type->record_type.get_field(member_name);
+                return type->record_type.get_type(member_name);
             },
 
             [&](TraitType_ptr type) -> Object_ptr
@@ -227,7 +227,7 @@ Object_ptr SemanticAnalyzer::resolve_member_access(
                 expr.member_index = type->record_type.get_field_index(
                     member_name
                 );
-                return type->record_type.get_field(member_name);
+                return type->record_type.get_type(member_name);
             },
 
             [&](GenericType_ptr type) -> Object_ptr
@@ -262,7 +262,7 @@ Object_ptr SemanticAnalyzer::resolve_member_access(
                                 );
 
                                 resulting_member_types.push_back(
-                                    oop_variant->record_type.get_field(
+                                    oop_variant->record_type.get_type(
                                         member_name
                                     )
                                 );
@@ -277,7 +277,7 @@ Object_ptr SemanticAnalyzer::resolve_member_access(
                                 );
 
                                 resulting_member_types.push_back(
-                                    oop_variant->record_type.get_field(
+                                    oop_variant->record_type.get_type(
                                         member_name
                                     )
                                 );

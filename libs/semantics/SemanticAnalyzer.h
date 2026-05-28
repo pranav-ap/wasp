@@ -88,6 +88,8 @@ private:
     Object_ptr visit(ElseTernaryBranch& expr);
 
     Object_ptr visit(Call& expr);
+
+    void desugar_expression(Expression_ptr expr);
     void desugar_call(Expression_ptr expr);
 
     Object_ptr visit(Constructor& expr);

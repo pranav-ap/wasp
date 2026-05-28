@@ -1,5 +1,6 @@
 #include "Doctor.h"
 #include "Objects.h"
+// required to remove symbol scope type incomplete error
 #include "SymbolScope.h"
 #include "TypeSystem.h"
 #include "Workspace.h"

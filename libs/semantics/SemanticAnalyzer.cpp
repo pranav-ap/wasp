@@ -131,7 +131,7 @@ Object_ptr SemanticAnalyzer::visit(const Expression_ptr expr)
 {
     Doctor::get().fatal_if_nullptr(expr, WaspStage::Semantics);
 
-    auto saltly_expr = salt->visit(expr);
+    auto salted_expr = salt->visit(expr);
 
     auto resolved_type = std::visit(
         [&](auto& node) -> Object_ptr
@@ -148,36 +148,60 @@ Object_ptr SemanticAnalyzer::visit(const Expression_ptr expr)
                 );
             }
         },
-        saltly_expr->data
+        salted_expr->data
     );
-    if (saltly_expr->is<Call>() && !saltly_expr->is_desugared)
+
+    // Desugar AFTER type checking, but BEFORE leaving the node
+    if (salted_expr->is<Call>() && !salted_expr->is_desugared)
     {
-        desugar_call(saltly_expr);
+        desugar_call(salted_expr);
     }
 
     return resolved_type;
 }
 
+void SemanticAnalyzer::desugar_expression(Expression_ptr expr)
+{
+    if (!expr)
+    {
+        return;
+    }
+
+    visit(expr);
+
+    if (expr->is<Call>() && !expr->is_desugared)
+    {
+        desugar_call(expr);
+    }
+}
+
 void SemanticAnalyzer::desugar_call(Expression_ptr expr)
 {
     Doctor::get().fatal_if_nullptr(expr, WaspStage::Semantics);
-
     Doctor::get().assert(
         expr->is<Call>(),
         WaspStage::Semantics,
         "Expected a Call expression for desugar_call."
     );
 
-    Call call = expr->as<Call>();
+    Call& call = expr->as<Call>();
 
-    // Check if this is a method call (callable is a MemberAccess)
+    if (call.callable)
+    {
+        desugar_expression(call.callable);
+    }
+
+    for (auto& arg : call.arguments)
+    {
+        desugar_expression(arg);
+    }
+
     if (call.callable->is<MemberAccess>())
     {
         auto& ma = call.callable->as<MemberAccess>();
 
         if (ma.is_trait_dispatch)
         {
-            // Trait method call
             TraitMethodCall tmc;
             tmc.callable = call.callable;
             tmc.arguments = std::move(call.arguments);
@@ -190,7 +214,6 @@ void SemanticAnalyzer::desugar_call(Expression_ptr expr)
         }
         else
         {
-            // Class method call
             ClassMethodCall cmc;
             cmc.callable = call.callable;
             cmc.arguments = std::move(call.arguments);
@@ -203,7 +226,6 @@ void SemanticAnalyzer::desugar_call(Expression_ptr expr)
     }
     else
     {
-        // Standard function call
         FunctionCall fc;
         fc.callable = call.callable;
         fc.arguments = std::move(call.arguments);
