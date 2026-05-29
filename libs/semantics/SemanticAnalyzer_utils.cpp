@@ -1,5 +1,6 @@
 #include "AST.h"
 #include "Doctor.h"
+#include "Expression.h"
 #include "Objects.h"
 #include "SemanticAnalyzer.h"
 #include "Statement.h"
@@ -45,15 +46,20 @@ void SemanticAnalyzer::leave_scope_keep_symbol(Symbol_ptr symbol_to_keep)
     }
 }
 
-TemplateType_ptr SemanticAnalyzer::evaluate_template_params(
+void SemanticAnalyzer::bind_identifier(Identifier& id, Symbol_ptr symbol)
+{
+    id.symbol = symbol;
+
+    if (symbol->should_be_captured(current_scope->get_closure_depth()))
+    {
+        id.must_be_captured = true;
+    }
+}
+
+TemplateType_ptr SemanticAnalyzer::create_template_type(
     const FieldDefinitionVector& template_params
 )
 {
-    if (template_params.empty())
-    {
-        return nullptr;
-    }
-
     ObjectStringMap template_params_map;
     StringVector ordered_names;
 
@@ -62,11 +68,9 @@ TemplateType_ptr SemanticAnalyzer::evaluate_template_params(
         Object_ptr constraint_type = visit(field.type);
         constraint_type = constraint_type->unwrap_type_alias();
 
-        auto generic_type = std::make_shared<GenericType>(
-            field.name,
-            constraint_type
+        auto generic_type_obj = make_object(
+            std::make_shared<GenericType>(field.name, constraint_type)
         );
-        auto template_param_type = make_object(generic_type);
 
         Doctor::get().assert(
             !template_params_map.contains(field.name),
@@ -74,7 +78,7 @@ TemplateType_ptr SemanticAnalyzer::evaluate_template_params(
             "Duplicate template parameter name: " + field.name
         );
 
-        template_params_map[field.name] = template_param_type;
+        template_params_map[field.name] = generic_type_obj;
         ordered_names.push_back(field.name);
     }
 

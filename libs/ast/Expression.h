@@ -446,4 +446,24 @@ template <typename T> inline Expression_ptr make_expression(T&& data, bool is_de
     return expr;
 }
 
+inline std::string get_operator_name(TokenType fixity, TokenType op_type)
+{
+    std::string fix;
+
+    if (fixity == TokenType::INFIX)
+    {
+        fix = "infix_";
+    }
+    if (fixity == TokenType::PREFIX)
+    {
+        fix = "prefix_";
+    }
+    if (fixity == TokenType::POSTFIX)
+    {
+        fix = "postfix_";
+    }
+
+    return fix + to_string(op_type);
+}
+
 } // namespace Wasp

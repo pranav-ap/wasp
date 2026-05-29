@@ -1,5 +1,6 @@
 #include "AST.h"
 #include "Doctor.h"
+#include "Expression.h"
 #include "Parser.h"
 #include "Statement.h"
 #include "Token.h"
@@ -11,10 +12,6 @@
 #include <utility>
 #include <variant>
 #include <vector>
-
-#define MAKE_TYPE(x) std::make_shared<TypeAnnotation>(x)
-#define MAKE_RECURSIVE_TYPE(T, ...)                                            \
-    std::make_shared<TypeAnnotation>(std::make_shared<T>(__VA_ARGS__))
 
 template <class... Ts> struct overloaded : Ts...
 {

@@ -40,7 +40,7 @@ void SemanticAnalyzer::hoist_names(StatementVector& statements)
             overloaded{
                 [&](Import& stmt)
                 {
-                    hoist_import(stmt);
+                    hoist(stmt);
                 },
                 [&](ClassDefinition& def)
                 {
@@ -121,40 +121,35 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
                     auto alias_type = def.symbol->get_type()
                                           ->as<TypeAlias_ptr>();
 
-                    alias_type->template_type = evaluate_template_params(
+                    alias_type->template_type = create_template_type(
                         def.template_params
                     );
 
                     enter_scope(ScopeType::CLASS);
 
-                    if (alias_type->template_type)
+                    for (const auto& name :
+                         alias_type->template_type->ordered_parameter_names)
                     {
-                        for (const auto& name :
-                             alias_type->template_type->ordered_parameter_names)
-                        {
-                            auto generic_type_obj = alias_type->template_type
-                                                        ->template_parameters
-                                                        .at(name);
+                        auto generic_type_obj = alias_type->template_type
+                                                    ->template_parameters.at(
+                                                        name
+                                                    );
 
-                            Doctor::get().assert(
-                                generic_type_obj->is<GenericType_ptr>(),
-                                WaspStage::Semantics,
-                                "Expected GenericType for template "
-                                "parameter: " +
-                                    name
-                            );
+                        Doctor::get().assert(
+                            generic_type_obj->is<GenericType_ptr>(),
+                            WaspStage::Semantics
+                        );
 
-                            auto symbol = SymbolFactory::
-                                create_template_parameter(
-                                    name,
-                                    generic_type_obj
-                                );
+                        auto symbol = SymbolFactory::create_template_parameter(
+                            name,
+                            generic_type_obj
+                        );
 
-                            current_scope->define(symbol);
-                        }
+                        current_scope->define(symbol);
                     }
 
                     alias_type->underlying_type = visit(def.ref_type);
+
                     leave_scope();
                 },
                 [&](ClassDefinition& def)
@@ -162,7 +157,7 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
                     auto class_type = def.symbol->get_type()
                                           ->as<ClassType_ptr>();
 
-                    class_type->template_type = evaluate_template_params(
+                    class_type->template_type = create_template_type(
                         def.template_params
                     );
 
@@ -177,7 +172,7 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
                     auto trait_type = def.symbol->get_type()
                                           ->as<TraitType_ptr>();
 
-                    trait_type->template_type = evaluate_template_params(
+                    trait_type->template_type = create_template_type(
                         def.template_params
                     );
 
@@ -189,19 +184,7 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
                 },
                 [&](FunctionDefinition& def)
                 {
-                    hoist_function_definition(def);
-
-                    auto& function_data = def.symbol->as<FunctionSymbol>();
-
-                    ASTCloner cloner;
-                    function_data.definition = cloner.clone(
-                        make_statement(def)
-                    );
-                    function_data.declaration_scope = current_scope;
-                },
-                [&](OperatorDefinition& def)
-                {
-                    hoist_function_definition(def);
+                    hoist(def);
 
                     auto& function_data = def.symbol->as<FunctionSymbol>();
 
@@ -219,7 +202,7 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
     }
 }
 
-void SemanticAnalyzer::hoist_import(Import& stmt)
+void SemanticAnalyzer::hoist(Import& stmt)
 {
     auto mod = workspace->get_module(stmt.absolute_path);
     Doctor::get().fatal_if_nullptr(mod, WaspStage::Semantics);
@@ -300,30 +283,28 @@ void SemanticAnalyzer::hoist_import(Import& stmt)
     }
 }
 
-void SemanticAnalyzer::hoist_function_definition(AbstractCallable& def)
+void SemanticAnalyzer::hoist(CallableDefinition& def)
 {
     enter_scope(ScopeType::FUNCTION);
 
-    auto template_type = evaluate_template_params(def.template_params);
+    auto template_type = create_template_type(def.template_params);
 
-    if (template_type)
+    for (const auto& name : template_type->ordered_parameter_names)
     {
-        for (const auto& name : template_type->ordered_parameter_names)
-        {
-            auto generic_type_obj = template_type->template_parameters.at(name);
+        auto generic_type_obj = template_type->template_parameters.at(name);
 
-            Doctor::get().assert(
-                generic_type_obj->is<GenericType_ptr>(),
-                WaspStage::Semantics,
-                "Expected GenericType for template parameter: " + name
-            );
+        Doctor::get().assert(
+            generic_type_obj->is<GenericType_ptr>(),
+            WaspStage::Semantics,
+            "Expected GenericType for template parameter: " + name
+        );
 
-            auto symbol = SymbolFactory::create_template_parameter(
-                name,
-                generic_type_obj
-            );
-            current_scope->define(symbol);
-        }
+        auto symbol = SymbolFactory::create_template_parameter(
+            name,
+            generic_type_obj
+        );
+
+        current_scope->define(symbol);
     }
 
     Object_ptr return_type = def.return_type ? visit(def.return_type)

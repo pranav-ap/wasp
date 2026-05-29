@@ -317,20 +317,21 @@ Object_ptr TypeSystem::substitute_generics(
 
                     // Substitute field types
                     for (const auto& [name, field_type] :
-                         cls->record_type.types)
+                         cls->record_type->types)
                     {
-                        new_cls->record_type.types[name] = sub(field_type);
+                        new_cls->record_type->types[name] = sub(field_type);
                     }
-                    new_cls->record_type.ordered_keys = cls->record_type
-                                                            .ordered_keys;
+                    new_cls->record_type->ordered_keys = cls->record_type
+                                                             ->ordered_keys;
 
                     // Substitute method types (signatures)
-                    for (const auto& [name, method_type] : cls->bag_type.types)
+                    for (const auto& [name, method_type] : cls->bag_type->types)
                     {
-                        new_cls->bag_type.types[name] = sub(method_type);
+                        new_cls->bag_type->types[name] = sub(method_type);
                     }
-                    new_cls->bag_type.ordered_keys = cls->bag_type.ordered_keys;
-                    new_cls->bag_type.itables = cls->bag_type.itables;
+                    new_cls->bag_type->ordered_keys = cls->bag_type
+                                                          ->ordered_keys;
+                    new_cls->bag_type->itables = cls->bag_type->itables;
 
                     return memo[t];
                 },
@@ -375,22 +376,22 @@ Object_ptr TypeSystem::substitute_generics(
 
                     // Substitute field types
                     for (const auto& [name, field_type] :
-                         trait->record_type.types)
+                         trait->record_type->types)
                     {
-                        new_trait->record_type.types[name] = sub(field_type);
+                        new_trait->record_type->types[name] = sub(field_type);
                     }
-                    new_trait->record_type.ordered_keys = trait->record_type
-                                                              .ordered_keys;
+                    new_trait->record_type->ordered_keys = trait->record_type
+                                                               ->ordered_keys;
 
                     // Substitute method types
                     for (const auto& [name, method_type] :
-                         trait->bag_type.types)
+                         trait->bag_type->types)
                     {
-                        new_trait->bag_type.types[name] = sub(method_type);
+                        new_trait->bag_type->types[name] = sub(method_type);
                     }
-                    new_trait->bag_type.ordered_keys = trait->bag_type
-                                                           .ordered_keys;
-                    new_trait->bag_type.itables = trait->bag_type.itables;
+                    new_trait->bag_type->ordered_keys = trait->bag_type
+                                                            ->ordered_keys;
+                    new_trait->bag_type->itables = trait->bag_type->itables;
 
                     return memo[t];
                 },

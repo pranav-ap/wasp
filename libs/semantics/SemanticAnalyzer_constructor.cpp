@@ -17,12 +17,11 @@ void SemanticAnalyzer::analyze_template_parameter_constructor(
     const ObjectVector& argument_types
 )
 {
-    Object_ptr constraint = template_parameter_type->constraint_type;
-    constraint = constraint->unwrap_type_alias();
+    Object_ptr constraint = template_parameter_type->constraint_type
+                                ->unwrap_type_alias();
 
     std::vector<ClassType_ptr> classes_to_check;
 
-    // Check if constraint is a VariantType (union of types)
     if (constraint->is<VariantType_ptr>())
     {
         auto variant_type = constraint->as<VariantType_ptr>();
@@ -35,7 +34,6 @@ void SemanticAnalyzer::analyze_template_parameter_constructor(
             }
         }
     }
-    // Check if constraint is a single ClassType
     else if (constraint->is<ClassType_ptr>())
     {
         classes_to_check.push_back(constraint->as<ClassType_ptr>());
@@ -52,11 +50,11 @@ void SemanticAnalyzer::analyze_template_parameter_constructor(
     {
         Doctor::get().assert(
             argument_types.size() ==
-                class_type->record_type.ordered_keys.size(),
+                class_type->record_type->ordered_keys.size(),
             WaspStage::Semantics,
             "Constructor arguments count mismatch for class: " +
                 class_type->name + ". Expected " +
-                std::to_string(class_type->record_type.ordered_keys.size()) +
+                std::to_string(class_type->record_type->ordered_keys.size()) +
                 ", got " + std::to_string(argument_types.size()) + "."
         );
     }
@@ -83,26 +81,26 @@ Object_ptr SemanticAnalyzer::visit(Constructor& constructor)
         auto cls = target_type->as<ClassType_ptr>();
 
         Doctor::get().assert(
-            argument_types.size() == cls->record_type.ordered_keys.size(),
+            argument_types.size() == cls->record_type->ordered_keys.size(),
             WaspStage::Semantics,
             "Constructor Arguments Count Mismatch for class '" + cls->name +
                 "'. Expected " +
-                std::to_string(cls->record_type.ordered_keys.size()) +
+                std::to_string(cls->record_type->ordered_keys.size()) +
                 ", got " + std::to_string(argument_types.size()) + "."
         );
 
         for (size_t i = 0; i < argument_types.size(); ++i)
         {
-            const std::string& field_name = cls->record_type.ordered_keys[i];
+            const std::string& field_name = cls->record_type->ordered_keys[i];
 
             Doctor::get().assert(
-                cls->record_type.contains_field(field_name),
+                cls->record_type->contains_field(field_name),
                 WaspStage::Semantics,
                 "Field '" + field_name + "' not found in class '" + cls->name +
                     "'."
             );
 
-            Object_ptr expected_type = cls->record_type.get_type(field_name);
+            Object_ptr expected_type = cls->record_type->get_type(field_name);
 
             Doctor::get().assert(
                 type_system->assignable(

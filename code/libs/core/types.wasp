@@ -40,7 +40,7 @@
 # # The Core Four
 # # --------------------------
 
-# native bool is Printable & Truthy & Hashable
+# native class bool is Printable & Truthy & Hashable
 #     fun repr() => str
 #         return if self then 'true' else 'false'
 
@@ -51,11 +51,7 @@
 #         return if self then 1 else 0
 
 
-# fun bool::repr(self: bool) => str
-#     return if self then 'true' else 'false'
-
-
-# native int is Printable & Truthy & Hashable
+# native class int is Printable & Truthy & Hashable
 #     fun repr() => str
 #         return '{self}'
 
@@ -66,7 +62,7 @@
 #         return self
 
 
-# native float is Printable & Truthy
+# native class float is Printable & Truthy
 #     fun repr() => str
 #         return '{self}'
 
@@ -74,7 +70,7 @@
 #         return self > 0
 
 
-# native str is Printable & Truthy & Hashable & Sized
+# native class str is Printable & Truthy & Hashable & Sized
 #     fun repr() => str
 #         return self
 
@@ -106,7 +102,7 @@
 
 # template
 #     T: any
-# native List is Printable & Truthy & Sized & Indexable<T>
+# class list is Printable & Truthy & Sized & Indexable<T>
 #     fun repr() => str
 #         return 'list'
 
@@ -125,7 +121,7 @@
 
 # template
 #     T: any
-# native Set is Printable & Truthy & Sized
+# class set is Printable & Truthy & Sized
 #     fun repr() => str
 #         return 'set'
 
@@ -148,7 +144,7 @@
 # template
 #     K: Hashable
 #     V: any
-# native Map is Printable & Truthy & Sized
+# class map is Printable & Truthy & Sized
 #     fun repr() => str
 #         return 'map'
 
@@ -177,7 +173,7 @@
 
 # template
 #     T: any
-# native Option is Printable & Truthy
+# class option is Printable & Truthy
 #     fun repr() => str
 #         return if self.has_value() then 'some' else 'none'
 

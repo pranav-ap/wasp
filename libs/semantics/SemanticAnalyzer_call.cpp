@@ -29,14 +29,10 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
         overloaded{
             [&](Identifier& id)
             {
-                auto unresolved = current_scope->lookup(id.name);
-                Doctor::get().fatal_if_nullptr(
-                    unresolved,
-                    WaspStage::Semantics,
-                    "Undefined callable: '" + id.name + "'"
+                auto symbol = current_scope->lookup_required_and_resolve(
+                    id.name
                 );
 
-                auto symbol = unresolved->resolve();
                 bind_identifier(id, symbol);
 
                 return resolve_standard_overload(call, symbol, argument_types);
@@ -102,8 +98,7 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                 Doctor::get().fatal(
                     WaspStage::Semantics,
                     "Expected an Identifier, TemplateAngular, or MemberAccess "
-                    "as "
-                    "the callable."
+                    "as the callable."
                 );
             }
         },
@@ -161,8 +156,7 @@ Object_ptr SemanticAnalyzer::resolve_standard_overload(
         );
     }
 
-    if (signature->template_type &&
-        !signature->template_type->ordered_parameter_names.empty())
+    if (!signature->template_type->ordered_parameter_names.empty())
     {
         return resolve_implicit_template(
             call,
@@ -174,6 +168,7 @@ Object_ptr SemanticAnalyzer::resolve_standard_overload(
 
     // Count number of concrete functions before the winner
     int runtime_index = 0;
+
     for (const auto& candidate : candidates)
     {
         if (candidate == function_symbol)
@@ -182,8 +177,7 @@ Object_ptr SemanticAnalyzer::resolve_standard_overload(
         }
 
         auto cand_sig = candidate->get_type()->as<Signature_ptr>();
-        if (cand_sig->template_type &&
-            !cand_sig->template_type->ordered_parameter_names.empty())
+        if (!cand_sig->template_type->ordered_parameter_names.empty())
         {
             runtime_index++;
         }
@@ -270,7 +264,7 @@ Symbol_ptr SemanticAnalyzer::monomorphize_callable_template(
             {
                 def.name = specialized_name;
                 def.template_params.clear();
-                hoist_function_definition(def);
+                hoist(def);
                 visit(def);
                 specialized_group_symbol = def.group_symbol;
             },
@@ -411,7 +405,7 @@ Object_ptr SemanticAnalyzer::call_method(
             oops_type->name + "'."
     );
 
-    auto member_obj = oops_type->bag_type.get_signatures_set(method_name);
+    auto member_obj = oops_type->bag_type->get_signatures_set(method_name);
 
     Doctor::get().fatal_if_nullptr(
         member_obj,
@@ -436,7 +430,7 @@ Object_ptr SemanticAnalyzer::call_method(
                                                    argument_types
                                                );
 
-    access.member_index = oops_type->bag_type.get_signatures_set_index(
+    access.member_index = oops_type->bag_type->get_signatures_set_index(
         method_name
     );
     call.overload_index = overload_index;

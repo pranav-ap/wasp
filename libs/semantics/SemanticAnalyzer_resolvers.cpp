@@ -5,7 +5,6 @@
 #include "SemanticAnalyzer.h"
 #include "Workspace.h"
 
-#include <algorithm>
 #include <cctype>
 #include <ctime>
 #include <memory>
@@ -26,16 +25,6 @@ namespace Wasp
 // Resolvers
 // ============================================================================
 
-void SemanticAnalyzer::bind_identifier(Identifier& id, Symbol_ptr symbol)
-{
-    id.symbol = symbol;
-
-    if (symbol->should_be_captured(current_scope->get_closure_depth()))
-    {
-        id.must_be_captured = true;
-    }
-}
-
 Symbol_ptr SemanticAnalyzer::get_module_member_symbol(MemberAccess& access)
 {
     Doctor::get().assert(
@@ -47,10 +36,9 @@ Symbol_ptr SemanticAnalyzer::get_module_member_symbol(MemberAccess& access)
     auto& module_identifier = access.left->as<Identifier>();
     auto& member_identifier = access.right->as<Identifier>();
 
-    Symbol_ptr unresolved_module_symbol = current_scope->lookup(
+    Symbol_ptr unresolved_module_symbol = current_scope->lookup_required(
         module_identifier.name
     );
-    Doctor::get().fatal_if_nullptr(unresolved_module_symbol, WaspStage::Semantics);
 
     bind_identifier(module_identifier, unresolved_module_symbol);
 
@@ -72,32 +60,33 @@ Symbol_ptr SemanticAnalyzer::get_module_member_symbol(MemberAccess& access)
 
 Symbol_ptr SemanticAnalyzer::resolve_target_symbol(Expression_ptr target)
 {
-    Symbol_ptr target_symbol = nullptr;
+    return std::visit(
+        overloaded{
+            [&](Identifier& id) -> Symbol_ptr
+            {
+                auto symbol = current_scope->lookup_required_and_resolve(
+                    id.name
+                );
 
-    if (auto* id = target->try_as<Identifier>())
-    {
-        Symbol_ptr unresolved = current_scope->lookup(id->name);
-        Doctor::get().fatal_if_nullptr(
-            unresolved,
-            WaspStage::Semantics,
-            "Undefined identifier: '" + id->name + "'"
-        );
-
-        target_symbol = unresolved->resolve();
-        bind_identifier(*id, target_symbol);
-    }
-    else if (auto* access = target->try_as<MemberAccess>())
-    {
-        auto member_symbol = get_module_member_symbol(*access);
-        target_symbol = member_symbol;
-        access->right->as<Identifier>().symbol = target_symbol;
-    }
-    else
-    {
-        Doctor::get().fatal(WaspStage::Semantics, "Invalid target expression.");
-    }
-
-    return target_symbol;
+                bind_identifier(id, symbol);
+                return symbol;
+            },
+            [&](MemberAccess& access) -> Symbol_ptr
+            {
+                auto member_symbol = get_module_member_symbol(access);
+                access.right->as<Identifier>().symbol = member_symbol;
+                return member_symbol;
+            },
+            [&](auto&) -> Symbol_ptr
+            {
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Invalid target expression."
+                );
+            }
+        },
+        target->data
+    );
 }
 
 // ============================================================================
@@ -106,13 +95,7 @@ Symbol_ptr SemanticAnalyzer::resolve_target_symbol(Expression_ptr target)
 
 Object_ptr SemanticAnalyzer::visit(Identifier& identifier)
 {
-    Symbol_ptr symbol = current_scope->lookup(identifier.name);
-    Doctor::get().fatal_if_nullptr(
-        symbol,
-        WaspStage::Semantics,
-        "Undefined identifier: " + identifier.name
-    );
-
+    Symbol_ptr symbol = current_scope->lookup_required(identifier.name);
     bind_identifier(identifier, symbol);
     return symbol->get_type();
 }
@@ -133,71 +116,12 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
     }
 
     Object_ptr left_type = visit(expr.left);
-    return resolve_member_access(expr, left_type, expr.right->as<Identifier>().name);
-}
 
-StringVector SemanticAnalyzer::unfurl_member_access(const MemberAccess& expr)
-{
-    StringVector path = {expr.right->as<Identifier>().name};
-    Expression_ptr current = expr.left;
-
-    while (current && current->is<MemberAccess>())
-    {
-        auto& nested_ma = current->as<MemberAccess>();
-        if (!nested_ma.right->is<Identifier>())
-        {
-            break;
-        }
-
-        path.push_back(nested_ma.right->as<Identifier>().name);
-        current = nested_ma.left;
-    }
-
-    if (current && current->is<Identifier>())
-    {
-        path.push_back(current->as<Identifier>().name);
-    }
-
-    std::reverse(path.begin(), path.end());
-    return path;
-}
-
-std::optional<Object_ptr> SemanticAnalyzer::try_resolve_as_enum(MemberAccess& ma)
-{
-    StringVector path = unfurl_member_access(ma);
-
-    if (path.size() < 2)
-    {
-        return std::nullopt;
-    }
-
-    Symbol_ptr base_sym = current_scope->lookup(path.front());
-    if (!base_sym || !base_sym->get_type())
-    {
-        return std::nullopt;
-    }
-
-    Object_ptr base_type = base_sym->get_type();
-    if (base_type->is<TypeAlias_ptr>())
-    {
-        base_type = base_type->unwrap_type_alias();
-    }
-
-    if (!base_type->is<EnumType_ptr>())
-    {
-        return std::nullopt;
-    }
-
-    auto enum_type = base_type->as<EnumType_ptr>();
-    int value = enum_type->get_value(path);
-
-    Doctor::get().assert(value != -1, WaspStage::Semantics, "Enum member not found.");
-
-    ma.is_enum_value = true;
-    ma.enum_member_value = value;
-    ma.enum_type_id = enum_type->type_id;
-
-    return make_object(std::make_shared<EnumMemberType>(enum_type, value));
+    return resolve_member_access(
+        expr,
+        left_type,
+        expr.right->as<Identifier>().name
+    );
 }
 
 Object_ptr SemanticAnalyzer::resolve_member_access(
@@ -214,20 +138,32 @@ Object_ptr SemanticAnalyzer::resolve_member_access(
                 return type->get_member(member_name);
             },
 
+            [&](RecordType_ptr record) -> Object_ptr
+            {
+                expr.member_index = record->get_field_index(member_name);
+                return record->get_type(member_name);
+            },
+
+            [&](BagType_ptr bag) -> Object_ptr
+            {
+                expr.member_index = bag->get_signatures_set_index(member_name);
+                return bag->types.at(member_name);
+            },
+
             [&](ClassType_ptr type) -> Object_ptr
             {
-                expr.member_index = type->record_type.get_field_index(
+                expr.member_index = type->record_type->get_field_index(
                     member_name
                 );
-                return type->record_type.get_type(member_name);
+                return type->record_type->get_type(member_name);
             },
 
             [&](TraitType_ptr type) -> Object_ptr
             {
-                expr.member_index = type->record_type.get_field_index(
+                expr.member_index = type->record_type->get_field_index(
                     member_name
                 );
-                return type->record_type.get_type(member_name);
+                return type->record_type->get_type(member_name);
             },
 
             [&](GenericType_ptr type) -> Object_ptr
@@ -244,69 +180,31 @@ Object_ptr SemanticAnalyzer::resolve_member_access(
                 );
             },
 
-            [&](VariantType& variant_type) -> Object_ptr
+            [&](VariantType_ptr variant) -> Object_ptr
             {
-                ObjectVector resulting_member_types;
+                ObjectVector result_types;
 
-                for (const auto& variant_obj : variant_type.types)
+                for (const auto& t : variant->types)
                 {
-                    std::visit(
-                        overloaded{
-                            [&](ClassType_ptr oop_variant)
-                            {
-                                Doctor::get().assert(
-                                    oop_variant->contains_member(member_name),
-                                    WaspStage::Semantics,
-                                    "Member '" + member_name +
-                                        "' not found in class variant."
-                                );
-
-                                resulting_member_types.push_back(
-                                    oop_variant->record_type.get_type(
-                                        member_name
-                                    )
-                                );
-                            },
-                            [&](TraitType_ptr oop_variant)
-                            {
-                                Doctor::get().assert(
-                                    oop_variant->contains_member(member_name),
-                                    WaspStage::Semantics,
-                                    "Member '" + member_name +
-                                        "' not found in trait variant."
-                                );
-
-                                resulting_member_types.push_back(
-                                    oop_variant->record_type.get_type(
-                                        member_name
-                                    )
-                                );
-                            },
-                            [&](auto&)
-                            {
-                                Doctor::get().fatal(
-                                    WaspStage::Semantics,
-                                    "Variant contains a non-OOP type, cannot access "
-                                    "member '" +
-                                        member_name + "'."
-                                );
-                            }
-                        },
-                        variant_obj->value
+                    result_types.push_back(
+                        resolve_member_access(expr, t, member_name)
                     );
                 }
 
-                ObjectVector unique_types = type_system->remove_duplicates(
+                auto resolved_type = type_system->unify(
                     current_scope,
-                    resulting_member_types
+                    result_types
                 );
 
-                if (unique_types.size() == 1)
-                {
-                    return unique_types.front();
-                }
+                return resolved_type;
+            },
 
-                return make_object(std::make_shared<VariantType>(unique_types));
+            [&](IntersectionType_ptr intersection) -> Object_ptr
+            {
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "No support for member access on intersection types yet"
+                );
             },
 
             [&](auto&) -> Object_ptr
@@ -323,14 +221,14 @@ Object_ptr SemanticAnalyzer::resolve_member_access(
 
 Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
 {
-    // 1. Resolve angular arguments (e.g., <int>)
+    // Resolve angular arguments (e.g., <int>)
     ObjectVector angular_arguments;
     for (const auto& arg_node : node.angular_nodes)
     {
         angular_arguments.push_back(visit(arg_node));
     }
 
-    // 2. Resolve the target symbol (e.g., 'greet' or 'Box')
+    // Resolve the target symbol (e.g., 'greet' or 'Box')
     Symbol_ptr target_symbol = resolve_target_symbol(node.target);
     node.symbol = target_symbol;
 
@@ -399,8 +297,6 @@ Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
             "Ambiguous generic reference for '" + target_symbol->name + "'."
         );
 
-        // Store the specific overload index so the Backend knows which
-        // specialized version of the function to call.
         node.overload_index = result.original_indices[0];
 
         return result.signatures[0];

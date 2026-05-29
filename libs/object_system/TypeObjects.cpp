@@ -134,8 +134,8 @@ Object_ptr BagType::get_signatures_set(const std::string& function_name) const
 
 bool OopsType::contains_member(const std::string& member_name) const
 {
-    return record_type.types.find(member_name) != record_type.types.end() ||
-           bag_type.types.find(member_name) != bag_type.types.end();
+    return record_type->types.find(member_name) != record_type->types.end() ||
+           bag_type->types.find(member_name) != bag_type->types.end();
 }
 
 // ============================================================================

@@ -318,14 +318,29 @@ Object_ptr VM::execute_GET_MEMBER(Object_ptr obj, int member_index)
             },
             [&](ClassInstance_ptr instance) -> Object_ptr
             {
-                return execute_GET_MEMBER(instance->record, member_index);
+                Doctor::get().assert(
+                    member_index >= 0 &&
+                        member_index <
+                            static_cast<int>(instance->record->fields.size()),
+                    WaspStage::VM,
+                    "Field index out of bounds!"
+                );
+
+                return instance->record->fields[member_index];
             },
             [&](TraitObject_ptr trait_obj) -> Object_ptr
             {
-                return execute_GET_MEMBER(
-                    trait_obj->class_instance,
-                    member_index
+                Doctor::get().assert(
+                    member_index >= 0 &&
+                        member_index <
+                            static_cast<int>(
+                                trait_obj->class_instance->record->fields.size()
+                            ),
+                    WaspStage::VM,
+                    "Field index out of bounds!"
                 );
+
+                return trait_obj->class_instance->record->fields[member_index];
             },
             [&](auto&) -> Object_ptr
             {
@@ -360,15 +375,29 @@ void VM::execute_SET_MEMBER(Object_ptr obj, int member_index, Object_ptr value)
             },
             [&](ClassInstance_ptr instance)
             {
-                execute_SET_MEMBER(instance->record, member_index, value);
+                Doctor::get().assert(
+                    member_index >= 0 &&
+                        member_index <
+                            static_cast<int>(instance->record->fields.size()),
+                    WaspStage::VM,
+                    "Field index out of bounds!"
+                );
+
+                instance->record->fields[member_index] = value;
             },
             [&](TraitObject_ptr trait_obj)
             {
-                execute_SET_MEMBER(
-                    trait_obj->class_instance,
-                    member_index,
-                    value
+                Doctor::get().assert(
+                    member_index >= 0 &&
+                        member_index <
+                            static_cast<int>(
+                                trait_obj->class_instance->record->fields.size()
+                            ),
+                    WaspStage::VM,
+                    "Field index out of bounds!"
                 );
+
+                trait_obj->class_instance->record->fields[member_index] = value;
             },
             [&](auto&)
             {

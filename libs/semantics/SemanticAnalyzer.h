@@ -118,8 +118,8 @@ private:
     void hoist_statements(StatementVector& statements);
     void hoist_names(StatementVector& statements);
     void hoist_signatures(StatementVector& statements);
-    void hoist_import(Import& stmt);
-    void hoist_function_definition(AbstractCallable& def);
+    void hoist(Import& stmt);
+    void hoist(CallableDefinition& def);
 
     // OOP Analysis
     void analyze_oops_definition(AbstractOopsDefinition& def, OopsType_ptr oop_type);
@@ -130,7 +130,6 @@ private:
     void check_trait_conformance(OopsType_ptr oop_type);
     void inherit_default_methods(AbstractOopsDefinition& def, OopsType_ptr oop_type);
 
-    StringVector unfurl_member_access(const MemberAccess& expr);
     std::optional<Object_ptr> try_resolve_as_enum(MemberAccess& expr);
 
     void validate_purity_constraints(Symbol_ptr target_symbol) const;
@@ -170,10 +169,10 @@ private:
         const ObjectVector& argument_types
     );
 
-    void analyze_callable(AbstractCallable& def, ScopeType scope_type);
+    void analyze_callable(CallableDefinition& def, ScopeType scope_type);
 
     // Templates & Generics
-    TemplateType_ptr evaluate_template_params(
+    TemplateType_ptr create_template_type(
         const FieldDefinitionVector& template_params
     );
     void analyze_template_parameter_constructor(

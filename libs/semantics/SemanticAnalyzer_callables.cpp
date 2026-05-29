@@ -28,7 +28,7 @@ void SemanticAnalyzer::visit(FunctionDefinition& def)
 }
 
 void SemanticAnalyzer::analyze_callable(
-    AbstractCallable& def,
+    CallableDefinition& def,
     ScopeType scope_type
 )
 {
@@ -38,28 +38,24 @@ void SemanticAnalyzer::analyze_callable(
     return_type_stack.push_back(signature->return_type);
 
     // Handle template parameters
-    if (signature->template_type)
+    for (const auto& name : signature->template_type->ordered_parameter_names)
     {
-        for (const auto& name :
-             signature->template_type->ordered_parameter_names)
-        {
-            auto generic_type_obj = signature->template_type
-                                        ->template_parameters.at(name);
+        auto generic_type_obj = signature->template_type->template_parameters
+                                    .at(name);
 
-            Doctor::get().assert(
-                generic_type_obj->is<GenericType_ptr>(),
-                WaspStage::Semantics,
-                "Expected GenericType for template parameter: " + name
-            );
+        Doctor::get().assert(
+            generic_type_obj->is<GenericType_ptr>(),
+            WaspStage::Semantics,
+            "Expected GenericType for template parameter: " + name
+        );
 
-            auto generic_type = generic_type_obj->as<GenericType_ptr>();
-            auto symbol = SymbolFactory::create_template_parameter(
-                name,
-                generic_type->constraint_type
-            );
+        auto generic_type = generic_type_obj->as<GenericType_ptr>();
+        auto symbol = SymbolFactory::create_template_parameter(
+            name,
+            generic_type->constraint_type
+        );
 
-            current_scope->define(symbol);
-        }
+        current_scope->define(symbol);
     }
 
     // Bind Parameters
@@ -163,7 +159,7 @@ void SemanticAnalyzer::visit(Placeholder& statement)
         statement.type == TokenType::NATIVE ||
             statement.type == TokenType::REQUIRED,
         WaspStage::Semantics,
-        "Expected 'native', or 'required' placeholder"
+        "Expected 'native' or 'required' placeholder"
     );
 
     if (statement.type == TokenType::REQUIRED)
@@ -184,8 +180,7 @@ void SemanticAnalyzer::visit(Placeholder& statement)
         Doctor::get().assert(
             path.find("/libs/core/") != std::string::npos,
             WaspStage::Semantics,
-            "The 'native' keyword is strictly reserved for internal core "
-            "libraries."
+            "Native blocks are reserved for internals"
         );
     }
 }

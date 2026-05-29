@@ -196,6 +196,41 @@ Symbol_ptr SymbolScope::lookup(const std::string& name) const
     return nullptr;
 }
 
+Symbol_ptr SymbolScope::lookup_required(const std::string& name) const
+{
+    const SymbolScope* current = this;
+
+    while (current)
+    {
+        auto it = current->symbols.find(name);
+        if (it != current->symbols.end())
+        {
+            return it->second;
+        }
+
+        current = current->enclosing_scope.get();
+    }
+
+    Doctor::get().fatal(
+        WaspStage::Semantics,
+        "Undefined symbol: '" + name + "'"
+    );
+}
+
+Symbol_ptr SymbolScope::lookup_required_and_resolve(
+    const std::string& name
+) const
+{
+    Symbol_ptr unresolved = this->lookup(name);
+    Doctor::get().fatal_if_nullptr(
+        unresolved,
+        WaspStage::Semantics,
+        "Undefined symbol: '" + name + "'"
+    );
+
+    return unresolved->resolve();
+}
+
 bool SymbolScope::contains_in_current_scope(const std::string& name) const
 {
     return symbols.find(name) != symbols.end();

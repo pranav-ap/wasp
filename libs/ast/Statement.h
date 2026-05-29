@@ -80,7 +80,7 @@ struct Field
     }
 };
 
-struct AbstractCallable : public Definition, public Templatable
+struct CallableDefinition : public Definition, public Templatable
 {
     std::vector<Field> parameters;
     std::vector<std::shared_ptr<Symbol>> parameter_symbols;
@@ -93,9 +93,9 @@ struct AbstractCallable : public Definition, public Templatable
 
     bool is_pure = false;
 
-    AbstractCallable() = default;
+    CallableDefinition() = default;
 
-    AbstractCallable(
+    CallableDefinition(
         std::string name,
         std::vector<Field> params,
         TypeAnnotation_ptr ret,
@@ -110,12 +110,12 @@ struct AbstractCallable : public Definition, public Templatable
     }
 };
 
-struct FunctionDefinition : public AbstractCallable
+struct FunctionDefinition : public CallableDefinition
 {
-    using AbstractCallable::AbstractCallable;
+    using CallableDefinition::CallableDefinition;
 };
 
-struct MethodDefinition : public AbstractCallable
+struct MethodDefinition : public CallableDefinition
 {
     bool is_static = false;
 
@@ -130,7 +130,7 @@ struct MethodDefinition : public AbstractCallable
         bool is_static = false,
         FieldDefinitionVector template_params = {}
     )
-        : AbstractCallable(
+        : CallableDefinition(
               std::move(name),
               std::move(params),
               std::move(ret),
@@ -143,7 +143,7 @@ struct MethodDefinition : public AbstractCallable
     }
 };
 
-struct OperatorDefinition : public AbstractCallable
+struct OperatorDefinition : public CallableDefinition
 {
     TokenType op_type;
     TokenType fixity;
@@ -159,7 +159,7 @@ struct OperatorDefinition : public AbstractCallable
         StatementVector body,
         FieldDefinitionVector template_params = {}
     )
-        : AbstractCallable(
+        : CallableDefinition(
               std::move(mangled),
               std::move(params),
               std::move(ret),
@@ -445,26 +445,6 @@ struct Statement : public AstNode<StatementVariant>
 template <typename T> inline Statement_ptr make_statement(T&& data)
 {
     return std::make_shared<Statement>(std::forward<T>(data));
-}
-
-inline std::string get_operator_name(TokenType fixity, TokenType op_type)
-{
-    std::string fix;
-
-    if (fixity == TokenType::INFIX)
-    {
-        fix = "infix_";
-    }
-    if (fixity == TokenType::PREFIX)
-    {
-        fix = "prefix_";
-    }
-    if (fixity == TokenType::POSTFIX)
-    {
-        fix = "postfix_";
-    }
-
-    return fix + to_string(op_type);
 }
 
 } // namespace Wasp

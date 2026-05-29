@@ -268,6 +268,8 @@ struct RecordType
     bool contains_field(const std::string& field_name) const;
 };
 
+using RecordType_ptr = std::shared_ptr<RecordType>;
+
 struct SignaturesSet
 {
     ObjectVector types;
@@ -301,13 +303,15 @@ struct BagType
     Object_ptr get_signatures_set(const std::string& function_name) const;
 };
 
+using BagType_ptr = std::shared_ptr<BagType>;
+
 struct OopsType
 {
     int type_id;
     std::string name;
 
-    RecordType record_type;
-    BagType bag_type;
+    RecordType_ptr record_type;
+    BagType_ptr bag_type;
 
     ObjectVector traits;
 
@@ -315,8 +319,8 @@ struct OopsType
 
     explicit OopsType(
         std::string name,
-        RecordType record_type = RecordType(),
-        BagType bag_type = BagType(),
+        RecordType_ptr record_type = std::make_shared<RecordType>(),
+        BagType_ptr bag_type = std::make_shared<BagType>(),
         ObjectVector traits = {},
         TemplateType_ptr template_type = std::make_shared<TemplateType>()
     )
@@ -737,10 +741,13 @@ struct Object : public std::enable_shared_from_this<Object>
 
         ModuleType_ptr,
 
+        RecordType_ptr,
         SignaturesSet_ptr,
         Signature_ptr,
+
         ClassType_ptr,
         TraitType_ptr,
+
         EnumType_ptr,
         TypeAlias_ptr>;
 
