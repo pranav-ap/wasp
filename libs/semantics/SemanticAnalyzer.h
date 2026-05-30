@@ -92,6 +92,7 @@ private:
 
     void desugar_expression(Expression_ptr expr);
     void desugar_call(Expression_ptr expr);
+    void desugar_member_access(Expression_ptr expr);
 
     Object_ptr visit(Constructor& expr);
 
@@ -122,12 +123,11 @@ private:
     void hoist(Import& stmt);
     void hoist(CallableDefinition& def);
 
+    // Overload Management
     void define_or_add_to_overload_set(
         const std::string& name,
         Symbol_ptr new_function
     );
-
-    void define_template_parameters(TemplateType_ptr template_type);
 
     void validate_unique_signature(
         const OverloadsSymbol& overload_symbol,
@@ -135,25 +135,83 @@ private:
         const std::string& function_name
     );
 
+    // Call Handlers
+    Object_ptr handle_identifier_call(
+        Call& call,
+        Identifier& id,
+        const ObjectVector& argument_types
+    );
+
+    Object_ptr handle_member_call(
+        Call& call,
+        MemberAccess& ma,
+        const ObjectVector& argument_types
+    );
+
+    // Template Helpers
+    void define_template_parameters(TemplateType_ptr template_type);
+    void bind_template_parameters(TemplateType_ptr template_type);
+
+    // Parameter Binding
     void bind_parameters(
         CallableDefinition& def,
         Signature_ptr signature,
         ScopeType scope_type
     );
 
-    void validate_native_location();
-
+    // Placeholder Handling
     bool handle_placeholder(CallableDefinition& def);
     std::optional<TokenType> find_placeholder(const StatementVector& body);
+    void validate_native_location();
+
+    // Overload Resolution Helpers
+    void box_arguments_if_needed(
+        Call& call,
+        const ObjectVector& argument_types,
+        const Signature_ptr& signature
+    );
+
+    int compute_runtime_overload_index(
+        const SymbolVector& candidates,
+        Symbol_ptr winner
+    );
+
+    ObjectVector validate_and_collect_deduced_args(
+        const Signature_ptr& signature,
+        const ObjectStringMap& substitutions
+    );
+
+    void replace_callable_with_specialized(
+        Call& call,
+        const std::string& specialized_name,
+        Symbol_ptr specialized_group
+    );
+
+    // Angular Arguments Helpers
+    ObjectVector resolve_angular_arguments(TemplateAngular& template_angular);
+    Symbol_ptr resolve_template_target(TemplateAngular& template_angular);
+    ObjectStringMap build_substitutions_from_angular_args(
+        Symbol_ptr blueprint_symbol,
+        const ObjectVector& angular_args
+    );
 
     // OOP Analysis
-    void analyze_oops_definition(AbstractOopsDefinition& def, OopsType_ptr oop_type);
+    void analyze_oops_definition(
+        AbstractOopsDefinition& def,
+        OopsType_ptr oop_type
+    );
     void resolve_traits(AbstractOopsDefinition& def, OopsType_ptr oop_type);
-    void fill_oops_member_names(AbstractOopsDefinition& def, OopsType_ptr oop_type);
+    void fill_oops_member_names(
+        AbstractOopsDefinition& def,
+        OopsType_ptr oop_type
+    );
     void hoist_methods(AbstractOopsDefinition& def, OopsType_ptr oop_type);
     void analyze_methods(AbstractOopsDefinition& def);
     void check_trait_conformance(OopsType_ptr oop_type);
-    void inherit_default_methods(AbstractOopsDefinition& def, OopsType_ptr oop_type);
+    void inherit_default_methods(
+        AbstractOopsDefinition& def,
+        OopsType_ptr oop_type
+    );
 
     std::optional<Object_ptr> try_resolve_as_enum(MemberAccess& expr);
 
@@ -166,8 +224,13 @@ private:
     );
 
     // Resolvers
-    Object_ptr resolve_literal(Resolvable& expr, const std::string& type_name, Object_ptr type_obj);
+    Object_ptr resolve_literal(
+        Resolvable& expr,
+        const std::string& type_name,
+        Object_ptr type_obj
+    );
     Symbol_ptr resolve_target_symbol(Expression_ptr target);
+
     Object_ptr resolve_member_access(
         MemberAccess& expr,
         Object_ptr target_type,
@@ -195,31 +258,41 @@ private:
     );
 
     void analyze_callable(CallableDefinition& def, ScopeType scope_type);
+    void bind_callable_parameters(
+        CallableDefinition& def,
+        Signature_ptr signature,
+        ScopeType scope_type
+    );
 
     // Templates & Generics
     TemplateType_ptr create_template_type(
         const FieldDefinitionVector& template_params
     );
+
     void analyze_template_parameter_constructor(
         GenericType_ptr template_param,
         const ObjectVector& argument_types
     );
+
     Object_ptr resolve_implicit_template(
         Call& call,
         Symbol_ptr function_symbol,
         Signature_ptr signature,
         const ObjectVector& argument_types
     );
+
     Symbol_ptr monomorphize_callable_template(
         Symbol_ptr blueprint_symbol,
         const ObjectStringMap& substitutions,
         const std::string& specialized_name
     );
+
     Symbol_ptr monomorphize_class_template(
         Symbol_ptr blueprint_symbol,
         const ObjectStringMap& substitutions,
         const std::string& specialized_name
     );
+
     std::optional<Object_ptr> try_monomorphize_operator(
         OperatorExpression& expr,
         Symbol_ptr function_symbol,
@@ -229,7 +302,10 @@ private:
 
     // Variables & Mutation
     Object_ptr define_variable(Assignment& assign);
-    Object_ptr mutate_variable(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
+    Object_ptr mutate_variable(
+        Expression_ptr lhs_expr,
+        Expression_ptr rhs_expr
+    );
     Object_ptr mutate_member(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
 };
 

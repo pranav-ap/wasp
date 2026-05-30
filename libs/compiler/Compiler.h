@@ -150,7 +150,9 @@ private:
     void visit(BooleanLiteral& expr);
 
     void visit(Identifier& expr);
+
     void visit(MemberAccess& expr);
+    void visit(EnumMember& expr);
 
     void visit(FunctionCall& expr);
     void visit(ClassMethodCall& expr);

@@ -138,23 +138,12 @@ Object_ptr SemanticAnalyzer::resolve_member_access(
                 return type->get_member(member_name);
             },
 
-            [&](RecordType_ptr record) -> Object_ptr
-            {
-                expr.member_index = record->get_field_index(member_name);
-                return record->get_type(member_name);
-            },
-
-            [&](BagType_ptr bag) -> Object_ptr
-            {
-                expr.member_index = bag->get_signatures_set_index(member_name);
-                return bag->types.at(member_name);
-            },
-
             [&](ClassType_ptr type) -> Object_ptr
             {
                 expr.member_index = type->record_type->get_field_index(
                     member_name
                 );
+
                 return type->record_type->get_type(member_name);
             },
 
@@ -163,6 +152,7 @@ Object_ptr SemanticAnalyzer::resolve_member_access(
                 expr.member_index = type->record_type->get_field_index(
                     member_name
                 );
+
                 return type->record_type->get_type(member_name);
             },
 
@@ -197,14 +187,6 @@ Object_ptr SemanticAnalyzer::resolve_member_access(
                 );
 
                 return resolved_type;
-            },
-
-            [&](IntersectionType_ptr intersection) -> Object_ptr
-            {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "No support for member access on intersection types yet"
-                );
             },
 
             [&](auto&) -> Object_ptr

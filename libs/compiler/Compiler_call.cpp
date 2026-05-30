@@ -17,8 +17,8 @@ void Compiler::visit(FunctionCall& expr)
 {
     visit(expr.callable);
 
-    int resolve_idx = expr.overload_index == -1 ? 0 : expr.overload_index;
-    emit(OpCode::GET_FUNCTION, resolve_idx);
+    int overload_index = expr.overload_index == -1 ? 0 : expr.overload_index;
+    emit(OpCode::GET_FUNCTION, overload_index);
 
     for (const auto& arg : expr.arguments)
     {
@@ -34,10 +34,10 @@ void Compiler::visit(ClassMethodCall& expr)
     // Push the instance onto the stack
     visit(expr.instance);
 
-    int resolve_idx = expr.overload_index == -1 ? 0 : expr.overload_index;
+    int overload_index = expr.overload_index == -1 ? 0 : expr.overload_index;
 
     // Get the class method by its index
-    emit(OpCode::GET_CLASS_METHOD, expr.method_index, resolve_idx);
+    emit(OpCode::GET_CLASS_METHOD, expr.method_index, overload_index);
 
     // Visit all arguments
     for (const auto& arg : expr.arguments)
@@ -55,10 +55,10 @@ void Compiler::visit(TraitMethodCall& expr)
     // Push the instance onto the stack
     visit(expr.instance);
 
-    int resolve_idx = expr.overload_index == -1 ? 0 : expr.overload_index;
+    int overload_index = expr.overload_index == -1 ? 0 : expr.overload_index;
 
     // Get the trait method using trait_type_id and method_index
-    emit(OpCode::GET_TRAIT_METHOD, expr.method_index, resolve_idx);
+    emit(OpCode::GET_TRAIT_METHOD, expr.method_index, overload_index);
 
     // Visit all arguments
     for (const auto& arg : expr.arguments)

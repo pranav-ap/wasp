@@ -14,3 +14,9 @@ fun show() => int
 let g = show()
 print(g)
 
+
+# class Foo
+#     score: int
+
+#     fun repr() => str
+#         return '{self.score}'

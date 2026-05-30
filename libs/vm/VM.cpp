@@ -210,6 +210,11 @@ void VM::run(FunctionBlueprintObject_ptr function_object)
 
             break;
         }
+        case OpCode::PUSH_EMPTY_CLASS_BLUEPRINT: {
+            push_to_stack(make_object(std::make_shared<ClassInstance>()));
+            break;
+        }
+
         case OpCode::BUILD_CLASS: {
             execute_BUILD_CLASS(frame);
             break;

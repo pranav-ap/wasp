@@ -32,23 +32,27 @@ void SemanticAnalyzer::run(const std::vector<Module_ptr>& build_order)
         current_module = mod;
 
         enter_scope(ScopeType::MODULE);
-        hoist_statements(mod->stmts);
 
-        StatementVector updated_stmts;
+        StatementVector desugared_stmts;
 
         for (const auto& stmt : mod->stmts)
         {
-            auto saltly_stmt = salt->visit(stmt);
-            visit(saltly_stmt);
+            desugared_stmts.push_back(salt->visit(stmt));
+        }
 
+        hoist_statements(desugared_stmts);
+
+        StatementVector updated_stmts;
+
+        for (const auto& stmt : desugared_stmts)
+        {
             for (const auto& tmpl : pending_templates)
             {
                 updated_stmts.push_back(tmpl);
             }
 
             pending_templates.clear();
-
-            updated_stmts.push_back(saltly_stmt);
+            updated_stmts.push_back(stmt);
         }
 
         mod->stmts = std::move(updated_stmts);
@@ -155,6 +159,10 @@ Object_ptr SemanticAnalyzer::visit(const Expression_ptr expr)
     {
         desugar_call(salted_expr);
     }
+    else if (salted_expr->is<MemberAccess>() && !salted_expr->is_desugared)
+    {
+        desugar_member_access(salted_expr);
+    }
 
     return resolved_type;
 }
@@ -171,6 +179,17 @@ void SemanticAnalyzer::desugar_expression(Expression_ptr expr)
     if (expr->is<Call>() && !expr->is_desugared)
     {
         desugar_call(expr);
+    }
+}
+
+void SemanticAnalyzer::desugar_member_access(Expression_ptr expr)
+{
+    auto& ma = expr->as<MemberAccess>();
+
+    if (ma.is_enum_value)
+    {
+        EnumMember em(ma.enum_type_id, ma.enum_member_value);
+        expr->data = em;
     }
 }
 

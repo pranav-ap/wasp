@@ -141,7 +141,7 @@ void SemanticAnalyzer::fill_oops_member_names(
                     oop_type->record_type->types[f.name] = field_type;
                     oop_type->record_type->ordered_keys.push_back(f.name);
                 },
-                [&](const MethodDefinition& m)
+                [&](const FunctionDefinition& m)
                 {
                     push_unique(oop_type->bag_type->ordered_keys, m.name);
 
@@ -171,7 +171,7 @@ void SemanticAnalyzer::hoist_methods(
 {
     for (auto& stmt : def.members)
     {
-        if (auto* method = stmt->try_as<MethodDefinition>())
+        if (auto* method = stmt->try_as<FunctionDefinition>())
         {
             ObjectVector param_types;
             for (const auto& param : method->parameters)
@@ -239,11 +239,11 @@ void SemanticAnalyzer::inherit_default_methods(
             {
                 // Find the method AST in the trait definition
                 Statement_ptr source_stmt_ptr = nullptr;
-                MethodDefinition* source_method_ast = nullptr;
+                FunctionDefinition* source_method_ast = nullptr;
 
                 for (auto& stmt : trait_ast->members)
                 {
-                    if (auto* m = stmt->try_as<MethodDefinition>())
+                    if (auto* m = stmt->try_as<FunctionDefinition>())
                     {
                         if (m->name == method_name)
                         {
@@ -274,7 +274,7 @@ void SemanticAnalyzer::inherit_default_methods(
                 // Clone and add the default implementation
                 ASTCloner cloner;
                 Statement_ptr cloned_stmt = cloner.clone(source_stmt_ptr);
-                auto* cloned_method = cloned_stmt->try_as<MethodDefinition>();
+                auto* cloned_method = cloned_stmt->try_as<FunctionDefinition>();
 
                 def.members.push_back(cloned_stmt);
 
@@ -306,7 +306,7 @@ void SemanticAnalyzer::analyze_methods(AbstractOopsDefinition& def)
 
     for (auto& stmt : def.members)
     {
-        if (auto* method = stmt->try_as<MethodDefinition>())
+        if (auto* method = stmt->try_as<FunctionDefinition>())
         {
             ScopeType scope_type = method->is_pure ? ScopeType::PURE_METHOD
                                                    : ScopeType::METHOD;

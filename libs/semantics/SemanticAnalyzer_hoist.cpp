@@ -127,25 +127,7 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
 
                     enter_scope(ScopeType::CLASS);
 
-                    auto ordered_generics = alias_type->template_type
-                                                ->get_ordered_generics();
-
-                    for (const auto& [name, generic_type_obj] :
-                         ordered_generics)
-                    {
-                        Doctor::get().assert(
-                            generic_type_obj->is<GenericType_ptr>(),
-                            WaspStage::Semantics
-                        );
-
-                        auto symbol = SymbolFactory::create_template_parameter(
-                            name,
-                            generic_type_obj
-                        );
-
-                        current_scope->define(symbol);
-                    }
-
+                    define_template_parameters(alias_type->template_type);
                     alias_type->underlying_type = visit(def.ref_type);
 
                     leave_scope();

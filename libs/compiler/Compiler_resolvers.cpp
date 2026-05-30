@@ -53,15 +53,14 @@ void Compiler::visit(Identifier& expr)
 
 void Compiler::visit(MemberAccess& access)
 {
-    if (access.is_enum_value)
-    {
-        int const_id = workspace->pool->allocate(access.member_index);
-        emit(OpCode::LOAD_CONSTANT, const_id);
-        return;
-    }
-
     visit(access.left);
     emit(OpCode::GET_MEMBER, access.member_index);
+}
+
+void Compiler::visit(EnumMember& enum_member)
+{
+    int const_id = workspace->pool->allocate(enum_member.enum_member_value);
+    emit(OpCode::LOAD_CONSTANT, const_id);
 }
 
 void Compiler::visit(TemplateAngular& expr)

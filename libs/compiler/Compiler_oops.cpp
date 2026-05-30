@@ -41,7 +41,7 @@ void Compiler::visit(ClassDefinition& def)
         // Find all methods with this name in the class members
         for (auto& stmt : def.members)
         {
-            auto* func = stmt->try_as<MethodDefinition>();
+            auto* func = stmt->try_as<FunctionDefinition>();
 
             if (!func || func->name != method_name)
             {
