@@ -56,6 +56,34 @@ void SemanticAnalyzer::bind_identifier(Identifier& id, Symbol_ptr symbol)
     }
 }
 
+void SemanticAnalyzer::define_template_parameters(
+    TemplateType_ptr template_type
+)
+{
+    if (!template_type || template_type->ordered_parameter_names.empty())
+    {
+        return;
+    }
+
+    for (const auto& [name, generic_type_obj] :
+         template_type->get_ordered_generics())
+    {
+        Doctor::get().assert(
+            generic_type_obj->is<GenericType_ptr>(),
+            WaspStage::Semantics,
+            "Expected GenericType for template parameter: " + name
+        );
+
+        auto generic_type = generic_type_obj->as<GenericType_ptr>();
+        auto symbol = SymbolFactory::create_template_parameter(
+            name,
+            generic_type->constraint_type
+        );
+
+        current_scope->define(symbol);
+    }
+}
+
 TemplateType_ptr SemanticAnalyzer::create_template_type(
     const FieldDefinitionVector& template_params
 )

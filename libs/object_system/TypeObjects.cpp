@@ -6,10 +6,15 @@
 #include <iterator>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace Wasp
 {
+
+// ============================================================================
+// Overload Coordinate
+// ============================================================================
 
 bool OverloadCoordinate::operator<(const OverloadCoordinate& other) const
 {
@@ -24,6 +29,46 @@ bool OverloadCoordinate::operator==(const OverloadCoordinate& other) const
 {
     return member_index == other.member_index &&
            overload_index == other.overload_index;
+}
+
+// ============================================================================
+// Template Type
+// ============================================================================
+
+int TemplateType::generics_count() const
+{
+    return static_cast<int>(ordered_parameter_names.size());
+}
+
+bool TemplateType::exists() const
+{
+    return !ordered_parameter_names.empty();
+}
+
+std::pair<std::string, Object_ptr> TemplateType::get_generic(size_t index) const
+{
+    Doctor::get().assert(
+        index < ordered_parameter_names.size(),
+        WaspStage::Semantics,
+        "Template does not have generic at index " + std::to_string(index)
+    );
+
+    const std::string& name = ordered_parameter_names[index];
+    Object_ptr constraint_type = template_parameters.at(name);
+    return {name, constraint_type};
+}
+
+std::vector<std::pair<std::string, Object_ptr>> TemplateType::
+    get_ordered_generics() const
+{
+    std::vector<std::pair<std::string, Object_ptr>> generics;
+
+    for (const auto& name : ordered_parameter_names)
+    {
+        generics.emplace_back(name, template_parameters.at(name));
+    }
+
+    return generics;
 }
 
 // ============================================================================

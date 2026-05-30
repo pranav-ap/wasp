@@ -48,6 +48,17 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
 
                 return std::visit(
                     overloaded{
+                        [&](ModuleType_ptr module_type) -> Object_ptr
+                        {
+                            auto member_symbol = get_module_member_symbol(ma);
+                            ma.right->as<Identifier>().symbol = member_symbol;
+
+                            return resolve_standard_overload(
+                                call,
+                                member_symbol,
+                                argument_types
+                            );
+                        },
                         [&](ClassType_ptr class_type) -> Object_ptr
                         {
                             return call_method(
@@ -70,23 +81,11 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
                                 trait_type
                             );
                         },
-                        [&](ModuleType_ptr module_type) -> Object_ptr
-                        {
-                            auto member_symbol = get_module_member_symbol(ma);
-                            ma.right->as<Identifier>().symbol = member_symbol;
-
-                            return resolve_standard_overload(
-                                call,
-                                member_symbol,
-                                argument_types
-                            );
-                        },
                         [&](auto&) -> Object_ptr
                         {
                             Doctor::get().fatal(
                                 WaspStage::Semantics,
-                                "LHS of call must be a module, class, or "
-                                "template"
+                                "Invalid member call LHS"
                             );
                         }
                     },
@@ -95,11 +94,7 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
             },
             [&](auto&) -> Object_ptr
             {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "Expected an Identifier, TemplateAngular, or MemberAccess "
-                    "as the callable."
-                );
+                Doctor::get().fatal(WaspStage::Semantics, "Invalid callable");
             }
         },
         call.callable->data

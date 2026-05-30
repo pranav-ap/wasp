@@ -5,8 +5,6 @@
 #include "TypeSystem.h"
 #include "Workspace.h"
 
-
-#include <algorithm>
 #include <cstddef>
 #include <memory>
 #include <string>
@@ -21,29 +19,6 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
-
-SymbolVector::iterator TypeSystem::find_matching_signature(
-    SymbolScope_ptr scope,
-    SymbolVector& target_vector,
-    const ObjectVector& parameter_types
-)
-{
-    return std::find_if(
-        target_vector.begin(),
-        target_vector.end(),
-        [&](const Symbol_ptr& symbol)
-        {
-            auto type = symbol->get_type();
-
-            return type && type->is<Signature_ptr>() &&
-                   equal(
-                       scope,
-                       type->as<Signature_ptr>()->parameter_types,
-                       parameter_types
-                   );
-        }
-    );
-}
 
 std::tuple<Symbol_ptr, int> TypeSystem::get_best_function_symbol(
     SymbolScope_ptr scope,
@@ -152,118 +127,6 @@ std::tuple<Object_ptr, int> TypeSystem::get_best_function_object(
         .assert(index != -1, WaspStage::Semantics, "No matching signature found");
 
     return {best_match, index};
-}
-
-void TypeSystem::validate_new_function_overload(
-    SymbolScope_ptr scope,
-    std::string& name,
-    const Symbol_ptr new_func
-)
-{
-    auto existing = scope->lookup(name);
-    if (!existing)
-    {
-        return;
-    }
-
-    auto type = new_func->get_type();
-    Doctor::get().assert(
-        type && type->is<Signature_ptr>(),
-        WaspStage::Semantics,
-        "Missing function type"
-    );
-    auto new_sig = type->as<Signature_ptr>();
-
-    auto check_duplicate = [&](const Symbol_ptr& sibling)
-    {
-        if (sibling == new_func)
-        {
-            return;
-        }
-        auto s_type = sibling->get_type();
-        if (s_type && s_type->is<Signature_ptr>() &&
-            equal(
-                scope,
-                s_type->as<Signature_ptr>()->parameter_types,
-                new_sig->parameter_types
-            ))
-        {
-            Doctor::get().fatal(
-                WaspStage::Semantics,
-                "Duplicate signature for '" + name + "'"
-            );
-        }
-    };
-
-    if (existing->is<OverloadsSymbol>())
-    {
-        auto& group = existing->as<OverloadsSymbol>();
-        for (const auto& sibling : group.overloads)
-        {
-            check_duplicate(sibling);
-        }
-
-        auto it = std::find_if(
-            group.parents.begin(),
-            group.parents.end(),
-            [&](const Symbol_ptr& p)
-            {
-                auto pt = p->get_type();
-                return pt && pt->is<Signature_ptr>() &&
-                       equal(
-                           scope,
-                           pt->as<Signature_ptr>()->parameter_types,
-                           new_sig->parameter_types
-                       );
-            }
-        );
-        if (it != group.parents.end())
-        {
-            group.parents.erase(it);
-        }
-    }
-    else if (existing->is<FunctionSymbol>())
-    {
-        check_duplicate(existing);
-    }
-    else
-    {
-        Doctor::get().fatal(WaspStage::Semantics, "'" + name + "' cannot be overloaded");
-    }
-}
-
-void TypeSystem::validate_new_method_overload(
-    SymbolScope_ptr scope,
-    ObjectVector existing,
-    const Symbol_ptr new_method
-)
-{
-    auto type = new_method->get_type();
-    Doctor::get().assert(
-        type && type->is<Signature_ptr>(),
-        WaspStage::Semantics,
-        "Missing method type"
-    );
-    auto new_sig = type->as<Signature_ptr>();
-
-    for (const auto& overload : existing)
-    {
-        Doctor::get().assert(
-            overload->is<Signature_ptr>(),
-            WaspStage::Semantics,
-            "Exepcted method overloads to be of type Signature"
-        );
-
-        Doctor::get().assert(
-            equal(
-                scope,
-                overload->as<Signature_ptr>()->parameter_types,
-                new_sig->parameter_types
-            ),
-            WaspStage::Semantics,
-            "Duplicate method signature for '" + new_method->name + "'"
-        );
-    }
 }
 
 } // namespace Wasp

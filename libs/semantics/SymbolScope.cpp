@@ -33,139 +33,6 @@ SymbolScope::SymbolScope(ScopeType type, SymbolScope_ptr enclosing)
     }
 }
 
-Symbol_ptr SymbolScope::define(Symbol_ptr symbol)
-{
-    Doctor::get().fatal_if_nullptr(
-        symbol,
-        WaspStage::Semantics,
-        "Cannot define a null symbol"
-    );
-
-    if (symbol->is<FunctionSymbol>())
-    {
-        return define_function(symbol);
-    }
-
-    if (symbol->is<OverloadsSymbol>())
-    {
-        return define_overloads(symbol);
-    }
-
-    Doctor::get().assert(
-        !contains_in_current_scope(symbol->name),
-        WaspStage::Semantics,
-        symbol->name + " is already declared in this scope"
-    );
-
-    symbols[symbol->name] = symbol;
-    return symbol;
-}
-
-Symbol_ptr SymbolScope::define_function(Symbol_ptr new_symbol)
-{
-    Doctor::get().assert(
-        new_symbol->is<FunctionSymbol>(),
-        WaspStage::Semantics,
-        "Expected a function symbol"
-    );
-
-    if (contains_in_current_scope(new_symbol->name))
-    {
-        auto overload_group = symbols[new_symbol->name];
-        Doctor::get().assert(
-            overload_group->is<OverloadsSymbol>(),
-            WaspStage::Semantics,
-            new_symbol->name + " already declared and is not an overload set"
-        );
-
-        overload_group->as<OverloadsSymbol>().overloads.push_back(new_symbol);
-        return overload_group;
-    }
-
-    auto overload_group = SymbolFactory::create_overloads(
-        new_symbol->name,
-        new_symbol->closure_depth,
-        new_symbol->lexical_depth
-    );
-
-    overload_group->as<OverloadsSymbol>().overloads.push_back(new_symbol);
-    symbols[new_symbol->name] = overload_group;
-
-    merge_parent_overloads(overload_group);
-
-    return overload_group;
-}
-
-Symbol_ptr SymbolScope::define_overloads(Symbol_ptr new_symbol)
-{
-    Doctor::get().assert(
-        new_symbol->is<OverloadsSymbol>(),
-        WaspStage::Semantics,
-        "Expected an overloads symbol"
-    );
-
-    if (contains_in_current_scope(new_symbol->name))
-    {
-        auto existing = symbols[new_symbol->name];
-        Doctor::get().assert(
-            existing->is<OverloadsSymbol>(),
-            WaspStage::Semantics,
-            new_symbol->name + " is already declared and is not an overload set"
-        );
-
-        auto& existing_data = existing->as<OverloadsSymbol>();
-        const auto& incoming = new_symbol->as<OverloadsSymbol>();
-
-        existing_data.overloads.insert(
-            existing_data.overloads.end(),
-            incoming.overloads.begin(),
-            incoming.overloads.end()
-        );
-
-        existing_data.parents.insert(
-            existing_data.parents.end(),
-            incoming.parents.begin(),
-            incoming.parents.end()
-        );
-
-        return existing;
-    }
-
-    symbols[new_symbol->name] = new_symbol;
-    merge_parent_overloads(new_symbol);
-
-    return new_symbol;
-}
-
-void SymbolScope::merge_parent_overloads(Symbol_ptr new_overloads_symbol)
-{
-    if (!enclosing_scope)
-    {
-        return;
-    }
-
-    auto parent_symbol = enclosing_scope->lookup(new_overloads_symbol->name);
-    if (!parent_symbol || !parent_symbol->is<OverloadsSymbol>())
-    {
-        return;
-    }
-
-    const auto& parent_data = parent_symbol->as<OverloadsSymbol>();
-    auto& group_data = new_overloads_symbol->as<OverloadsSymbol>();
-
-    group_data.parents.insert(
-        group_data.parents.end(),
-        parent_data.overloads.begin(),
-        parent_data.overloads.end()
-    );
-
-    group_data.parents.insert(
-        group_data.parents.end(),
-        parent_data.parents.begin(),
-        parent_data.parents.end()
-    );
-}
-
 Symbol_ptr SymbolScope::lookup_local(const std::string& name) const
 {
     auto it = symbols.find(name);
@@ -308,4 +175,33 @@ bool SymbolScope::is_required() const
     return placeholder.has_value() &&
            placeholder.value() == TokenType::REQUIRED;
 }
+
+// ------------------------------------------
+// Define
+// ------------------------------------------
+
+Symbol_ptr SymbolScope::define(Symbol_ptr symbol)
+{
+    Doctor::get().fatal_if_nullptr(
+        symbol,
+        WaspStage::Semantics,
+        "Cannot define a null symbol"
+    );
+
+    Doctor::get().assert(
+        !symbol->is<FunctionSymbol>(),
+        WaspStage::Semantics,
+        "Cannot directly define a function symbol"
+    );
+
+    Doctor::get().assert(
+        !contains_in_current_scope(symbol->name),
+        WaspStage::Semantics,
+        symbol->name + " is already declared in this scope"
+    );
+
+    symbols[symbol->name] = symbol;
+    return symbol;
+}
+
 } // namespace Wasp

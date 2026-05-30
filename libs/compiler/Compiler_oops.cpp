@@ -27,8 +27,7 @@ void Compiler::visit(ClassDefinition& def)
     auto class_type_obj = def.symbol->get_type();
     auto class_type = class_type_obj->as<ClassType_ptr>();
 
-    // Get methods from bag_type.ordered_keys
-    const auto& method_names = class_type->bag_type.ordered_keys;
+    const auto& method_names = class_type->bag_type->ordered_keys;
     int unique_method_count = static_cast<int>(method_names.size());
 
     // Allocate class type in constant pool

@@ -37,81 +37,19 @@ void SemanticAnalyzer::analyze_callable(
     enter_scope(scope_type);
     return_type_stack.push_back(signature->return_type);
 
-    // Handle template parameters
-    for (const auto& name : signature->template_type->ordered_parameter_names)
+    auto template_type = create_template_type(def.template_params);
+    define_template_parameters(template_type);
+
+    bind_parameters(def, signature, scope_type);
+
+    if (handle_placeholder(def))
     {
-        auto generic_type_obj = signature->template_type->template_parameters
-                                    .at(name);
-
-        Doctor::get().assert(
-            generic_type_obj->is<GenericType_ptr>(),
-            WaspStage::Semantics,
-            "Expected GenericType for template parameter: " + name
-        );
-
-        auto generic_type = generic_type_obj->as<GenericType_ptr>();
-        auto symbol = SymbolFactory::create_template_parameter(
-            name,
-            generic_type->constraint_type
-        );
-
-        current_scope->define(symbol);
+        return_type_stack.pop_back();
+        leave_scope();
+        return;
     }
 
-    // Bind Parameters
-    def.parameter_symbols.clear();
-
-    for (size_t i = 0; i < def.parameters.size(); ++i)
-    {
-        Object_ptr actual_type = signature->parameter_types[i];
-
-        bool is_mutable =
-            (scope_type != ScopeType::PURE_FUNCTION &&
-             scope_type != ScopeType::PURE_METHOD);
-
-        auto param_symbol = SymbolFactory::create_variable(
-            def.parameters[i].name,
-            actual_type,
-            is_mutable,
-            current_scope->get_closure_depth(),
-            current_scope->get_lexical_depth()
-        );
-
-        def.parameter_symbols.push_back(current_scope->define(param_symbol));
-    }
-
-    // Lonely Placeholder Rule (native, required)
-    std::optional<TokenType> placeholder;
-
-    for (const auto& stmt : def.body)
-    {
-        if (stmt->is<Placeholder>())
-        {
-            placeholder = stmt->as<Placeholder>().type;
-            break;
-        }
-    }
-
-    if (placeholder.has_value())
-    {
-        Doctor::get().assert(
-            def.body.size() == 1,
-            WaspStage::Semantics,
-            "The keywords 'native', 'pass' or 'required' must be the only "
-            "statement in the body."
-        );
-
-        if (placeholder == TokenType::NATIVE)
-        {
-            def.symbol->mark_as_native();
-        }
-        else if (placeholder == TokenType::REQUIRED)
-        {
-            def.symbol->mark_as_required();
-        }
-    }
-
-    // Only analyze body if no placeholder and no template parameters
+    // Analyze function body if not a template
     if (def.template_params.empty())
     {
         visit(def.body);
@@ -119,6 +57,102 @@ void SemanticAnalyzer::analyze_callable(
 
     return_type_stack.pop_back();
     leave_scope();
+}
+
+void SemanticAnalyzer::bind_parameters(
+    CallableDefinition& def,
+    Signature_ptr signature,
+    ScopeType scope_type
+)
+{
+    def.parameter_symbols.clear();
+
+    bool is_pure =
+        (scope_type == ScopeType::PURE_FUNCTION ||
+         scope_type == ScopeType::PURE_METHOD);
+
+    for (size_t i = 0; i < def.parameters.size(); ++i)
+    {
+        auto& param = def.parameters[i];
+        Object_ptr param_type = signature->parameter_types[i];
+
+        auto symbol = SymbolFactory::create_variable(
+            param.name,
+            param_type,
+            !is_pure, // mutable if not pure
+            current_scope->get_closure_depth(),
+            current_scope->get_lexical_depth()
+        );
+
+        def.parameter_symbols.push_back(current_scope->define(symbol));
+    }
+}
+
+bool SemanticAnalyzer::handle_placeholder(CallableDefinition& def)
+{
+    auto placeholder = find_placeholder(def.body);
+
+    if (!placeholder.has_value())
+    {
+        return false;
+    }
+
+    // Validate placeholder is alone
+    Doctor::get().assert(
+        def.body.size() == 1,
+        WaspStage::Semantics,
+        "The keywords 'native' or 'required' must be the only statement in the "
+        "body."
+    );
+
+    switch (placeholder.value())
+    {
+    case TokenType::NATIVE:
+        def.symbol->mark_as_native();
+        validate_native_location();
+        break;
+
+    case TokenType::REQUIRED:
+        def.symbol->mark_as_required();
+        current_scope->mark_as_required();
+        break;
+
+    default:
+        Doctor::get().fatal(WaspStage::Semantics, "Invalid placeholder type");
+    }
+
+    return true;
+}
+
+std::optional<TokenType> SemanticAnalyzer::find_placeholder(
+    const StatementVector& body
+)
+{
+    for (const auto& stmt : body)
+    {
+        if (stmt->is<Placeholder>())
+        {
+            return stmt->as<Placeholder>().type;
+        }
+    }
+
+    return std::nullopt;
+}
+
+void SemanticAnalyzer::validate_native_location()
+{
+    Doctor::get().fatal_if_nullptr(
+        current_module,
+        WaspStage::Semantics,
+        "Current module is nullptr while analyzing native statement"
+    );
+
+    std::string path = current_module->absolute_filepath.generic_string();
+    Doctor::get().assert(
+        path.find("/libs/core/") != std::string::npos,
+        WaspStage::Semantics,
+        "Native blocks are strictly reserved for internal core libraries."
+    );
 }
 
 void SemanticAnalyzer::visit(Return& statement)
@@ -134,15 +168,12 @@ void SemanticAnalyzer::visit(Return& statement)
         "'return' statement used outside of a function."
     );
 
-    Object_ptr expected = return_type_stack.back();
-    expected = expected->unwrap_completely();
-
+    Object_ptr expected = return_type_stack.back()->unwrap_completely();
     Object_ptr actual = workspace->pool->get_none_type();
 
     if (statement.expression)
     {
-        actual = visit(statement.expression.value());
-        actual = actual->unwrap_completely();
+        actual = visit(statement.expression.value())->unwrap_completely();
     }
 
     Doctor::get().assert(
@@ -159,29 +190,17 @@ void SemanticAnalyzer::visit(Placeholder& statement)
         statement.type == TokenType::NATIVE ||
             statement.type == TokenType::REQUIRED,
         WaspStage::Semantics,
-        "Expected 'native' or 'required' placeholder"
+        "Expected 'native' or 'required' placeholder, got: " +
+            to_string(statement.type)
     );
 
     if (statement.type == TokenType::REQUIRED)
     {
         current_scope->mark_as_required();
     }
-
-    Doctor::get().fatal_if_nullptr(
-        current_module,
-        WaspStage::Semantics,
-        "Current module is nullptr while analyzing native statement"
-    );
-
-    if (statement.type == TokenType::NATIVE)
+    else if (statement.type == TokenType::NATIVE)
     {
-        std::string path = current_module->absolute_filepath.generic_string();
-
-        Doctor::get().assert(
-            path.find("/libs/core/") != std::string::npos,
-            WaspStage::Semantics,
-            "Native blocks are reserved for internals"
-        );
+        validate_native_location();
     }
 }
 

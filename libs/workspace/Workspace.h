@@ -211,7 +211,6 @@ public:
     static Symbol_ptr create_function(
         const std::string& name,
         Object_ptr type,
-        bool is_native = false,
         int closure_depth = 0,
         int lexical_depth = 0
     );

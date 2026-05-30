@@ -131,6 +131,11 @@ struct TemplateType
           ordered_parameter_names(std::move(ordered_parameter_names))
     {
     }
+
+    int generics_count() const;
+    bool exists() const;
+    std::pair<std::string, Object_ptr> get_generic(size_t index) const;
+    std::vector<std::pair<std::string, Object_ptr>> get_ordered_generics() const;
 };
 
 using TemplateType_ptr = std::shared_ptr<TemplateType>;
@@ -183,30 +188,6 @@ using VariantType_ptr = std::shared_ptr<VariantType>;
 using IntersectionType_ptr = std::shared_ptr<IntersectionType>;
 
 // ============================================================================
-// Signature
-// ============================================================================
-
-struct Signature
-{
-    ObjectVector parameter_types;
-    Object_ptr return_type;
-    TemplateType_ptr template_type;
-
-    Signature(
-        ObjectVector parameter_types,
-        Object_ptr return_type,
-        TemplateType_ptr template_type = std::make_shared<TemplateType>()
-    )
-        : parameter_types(std::move(parameter_types)),
-          return_type(std::move(return_type)),
-          template_type(std::move(template_type))
-    {
-    }
-};
-
-using Signature_ptr = std::shared_ptr<Signature>;
-
-// ============================================================================
 // Enum Type
 // ============================================================================
 
@@ -235,6 +216,42 @@ struct EnumMemberType
 
 using EnumMemberType_ptr = std::shared_ptr<EnumMemberType>;
 
+// ============================================================================
+// Signature
+// ============================================================================
+
+struct Signature
+{
+    ObjectVector parameter_types;
+    Object_ptr return_type;
+    TemplateType_ptr template_type;
+
+    Signature(
+        ObjectVector parameter_types,
+        Object_ptr return_type,
+        TemplateType_ptr template_type = std::make_shared<TemplateType>()
+    )
+        : parameter_types(std::move(parameter_types)),
+          return_type(std::move(return_type)),
+          template_type(std::move(template_type))
+    {
+    }
+};
+
+using Signature_ptr = std::shared_ptr<Signature>;
+
+struct SignaturesSet
+{
+    ObjectVector types;
+
+    SignaturesSet(ObjectVector types = {}) : types(std::move(types))
+    {
+    }
+
+    Object_ptr get_signature(int overload_index) const;
+};
+
+using SignaturesSet_ptr = std::shared_ptr<SignaturesSet>;
 // ============================================================================
 // Oops Types
 // ============================================================================
@@ -269,19 +286,6 @@ struct RecordType
 };
 
 using RecordType_ptr = std::shared_ptr<RecordType>;
-
-struct SignaturesSet
-{
-    ObjectVector types;
-
-    SignaturesSet(ObjectVector types = {}) : types(std::move(types))
-    {
-    }
-
-    Object_ptr get_signature(int overload_index) const;
-};
-
-using SignaturesSet_ptr = std::shared_ptr<SignaturesSet>;
 
 struct BagType
 {
@@ -329,6 +333,8 @@ struct OopsType
           traits(std::move(traits)), template_type(std::move(template_type))
     {
     }
+
+    virtual ~OopsType() = default;
 
     bool contains_member(const std::string& member_name) const;
 };

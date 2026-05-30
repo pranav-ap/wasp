@@ -7,6 +7,7 @@
 #include "Salt.h"
 #include "Statement.h"
 #include "SymbolScope.h"
+#include "Token.h"
 #include "TypeAnnotation.h"
 #include "TypeSystem.h"
 #include "Workspace.h"
@@ -120,6 +121,30 @@ private:
     void hoist_signatures(StatementVector& statements);
     void hoist(Import& stmt);
     void hoist(CallableDefinition& def);
+
+    void define_or_add_to_overload_set(
+        const std::string& name,
+        Symbol_ptr new_function
+    );
+
+    void define_template_parameters(TemplateType_ptr template_type);
+
+    void validate_unique_signature(
+        const OverloadsSymbol& overload_symbol,
+        const Signature_ptr& new_signature,
+        const std::string& function_name
+    );
+
+    void bind_parameters(
+        CallableDefinition& def,
+        Signature_ptr signature,
+        ScopeType scope_type
+    );
+
+    void validate_native_location();
+
+    bool handle_placeholder(CallableDefinition& def);
+    std::optional<TokenType> find_placeholder(const StatementVector& body);
 
     // OOP Analysis
     void analyze_oops_definition(AbstractOopsDefinition& def, OopsType_ptr oop_type);

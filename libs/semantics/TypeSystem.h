@@ -96,12 +96,6 @@ struct TypeSystem
     // Overloads
     // =========================================================================
 
-    SymbolVector::iterator find_matching_signature(
-        SymbolScope_ptr scope,
-        SymbolVector& target_vector,
-        const ObjectVector& parameter_types
-    );
-
     std::tuple<Symbol_ptr, int> get_best_function_symbol(
         SymbolScope_ptr scope,
         const SymbolVector& candidates,
@@ -113,18 +107,6 @@ struct TypeSystem
         const ObjectVector& candidates,
         const ObjectVector& argument_types
     ) const;
-
-    void validate_new_function_overload(
-        SymbolScope_ptr scope,
-        std::string& function_name,
-        const Symbol_ptr new_func_symbol
-    );
-
-    void validate_new_method_overload(
-        SymbolScope_ptr scope,
-        ObjectVector existing_overloads,
-        const Symbol_ptr new_method_symbol
-    );
 
     // =========================================================================
     // Templates

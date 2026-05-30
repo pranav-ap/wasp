@@ -127,14 +127,12 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
 
                     enter_scope(ScopeType::CLASS);
 
-                    for (const auto& name :
-                         alias_type->template_type->ordered_parameter_names)
-                    {
-                        auto generic_type_obj = alias_type->template_type
-                                                    ->template_parameters.at(
-                                                        name
-                                                    );
+                    auto ordered_generics = alias_type->template_type
+                                                ->get_ordered_generics();
 
+                    for (const auto& [name, generic_type_obj] :
+                         ordered_generics)
+                    {
                         Doctor::get().assert(
                             generic_type_obj->is<GenericType_ptr>(),
                             WaspStage::Semantics
@@ -288,24 +286,7 @@ void SemanticAnalyzer::hoist(CallableDefinition& def)
     enter_scope(ScopeType::FUNCTION);
 
     auto template_type = create_template_type(def.template_params);
-
-    for (const auto& name : template_type->ordered_parameter_names)
-    {
-        auto generic_type_obj = template_type->template_parameters.at(name);
-
-        Doctor::get().assert(
-            generic_type_obj->is<GenericType_ptr>(),
-            WaspStage::Semantics,
-            "Expected GenericType for template parameter: " + name
-        );
-
-        auto symbol = SymbolFactory::create_template_parameter(
-            name,
-            generic_type_obj
-        );
-
-        current_scope->define(symbol);
-    }
+    define_template_parameters(template_type);
 
     Object_ptr return_type = def.return_type ? visit(def.return_type)
                                              : workspace->pool->get_none_type();
@@ -322,18 +303,74 @@ void SemanticAnalyzer::hoist(CallableDefinition& def)
         std::make_shared<Signature>(param_types, return_type, template_type)
     );
 
-    auto symbol = SymbolFactory::create_function(
+    auto function_symbol = SymbolFactory::create_function(
         def.name,
         signature,
         current_scope->get_closure_depth(),
         current_scope->get_lexical_depth()
     );
 
-    type_system
-        ->validate_new_function_overload(current_scope, def.name, symbol);
+    define_or_add_to_overload_set(def.name, function_symbol);
 
-    def.symbol = symbol;
-    def.group_symbol = current_scope->define(symbol);
+    def.symbol = function_symbol;
+    def.group_symbol = current_scope->lookup(def.name);
+}
+
+void SemanticAnalyzer::define_or_add_to_overload_set(
+    const std::string& name,
+    Symbol_ptr new_function
+)
+{
+    auto existing = current_scope->lookup(name);
+
+    if (!existing)
+    {
+        auto overload_set = SymbolFactory::create_overloads(
+            name,
+            current_scope->get_closure_depth(),
+            current_scope->get_lexical_depth()
+        );
+
+        overload_set->add_overload(new_function);
+        current_scope->define(overload_set);
+
+        return;
+    }
+
+    Doctor::get().assert(
+        existing->is<OverloadsSymbol>(),
+        WaspStage::Semantics,
+        "'" + name + "' already exists and is not a function"
+    );
+
+    auto& overload_symbol = existing->as<OverloadsSymbol>();
+    auto new_signature = new_function->get_type()->as<Signature_ptr>();
+
+    validate_unique_signature(overload_symbol, new_signature, name);
+
+    overload_symbol.overloads.push_back(new_function);
+}
+
+void SemanticAnalyzer::validate_unique_signature(
+    const OverloadsSymbol& overload_symbol,
+    const Signature_ptr& new_signature,
+    const std::string& function_name
+)
+{
+    for (const auto& existing_func : overload_symbol.overloads)
+    {
+        auto existing_sig = existing_func->get_type()->as<Signature_ptr>();
+
+        Doctor::get().assert(
+            !type_system->equal(
+                current_scope,
+                existing_sig->parameter_types,
+                new_signature->parameter_types
+            ),
+            WaspStage::Semantics,
+            "Duplicate function signature for " + function_name
+        );
+    }
 }
 
 } // namespace Wasp

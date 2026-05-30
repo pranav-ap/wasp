@@ -163,10 +163,13 @@ bool Symbol::is_native() const
 
 void Symbol::mark_as_native()
 {
-    if (is<FunctionSymbol>())
-    {
-        as<FunctionSymbol>().is_native = true;
-    }
+    Doctor::get().assert(
+        is<FunctionSymbol>(),
+        WaspStage::Semantics,
+        "Only function symbols can be marked as native."
+    );
+
+    as<FunctionSymbol>().is_native = true;
 }
 
 // ============================================================================
@@ -175,10 +178,13 @@ void Symbol::mark_as_native()
 
 void Symbol::mark_as_required()
 {
-    if (is<FunctionSymbol>())
-    {
-        as<FunctionSymbol>().required_in_class = true;
-    }
+    Doctor::get().assert(
+        is<FunctionSymbol>(),
+        WaspStage::Semantics,
+        "Only function symbols can be marked as native."
+    );
+
+    as<FunctionSymbol>().required_in_class = true;
 }
 
 // ============================================================================
@@ -187,26 +193,24 @@ void Symbol::mark_as_required()
 
 void Symbol::add_overload(Symbol_ptr overload)
 {
-    if (is<OverloadsSymbol>())
-    {
-        as<OverloadsSymbol>().overloads.push_back(overload);
-    }
-    else
-    {
-        Doctor::get().fatal(
-            WaspStage::Semantics,
-            "Cannot add overload to non-overload symbol: " + name
-        );
-    }
+    Doctor::get().assert(
+        is<OverloadsSymbol>(),
+        WaspStage::Semantics,
+        "Only overload group symbols can have overloads added."
+    );
+
+    as<OverloadsSymbol>().overloads.push_back(overload);
 }
 
 SymbolVector Symbol::get_overloads() const
 {
-    if (is<OverloadsSymbol>())
-    {
-        return as<OverloadsSymbol>().overloads;
-    }
-    return {};
+    Doctor::get().assert(
+        is<OverloadsSymbol>(),
+        WaspStage::Semantics,
+        "Only overload group symbols can have overloads added."
+    );
+
+    return as<OverloadsSymbol>().overloads;
 }
 
 // ============================================================================
@@ -310,14 +314,13 @@ Symbol_ptr SymbolFactory::create_variable(
 Symbol_ptr SymbolFactory::create_function(
     const std::string& name,
     Object_ptr type,
-    bool is_native,
     int closure_depth,
     int lexical_depth
 )
 {
     return create_symbol(
         name,
-        FunctionSymbol{type, is_native},
+        FunctionSymbol{type, false},
         closure_depth,
         lexical_depth
     );

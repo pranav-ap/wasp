@@ -694,7 +694,7 @@ void VM::execute_BUILD_CLASS(CallFrame* frame)
         auto overloads_set = methods[i]->as<OverloadsSet_ptr>();
         bag->overloads_set_vector.push_back(overloads_set);
     }
-    bag->itables = class_type->bag_type.itables;
+    bag->itables = class_type->bag_type->itables;
 
     // Create the ClassInstance blueprint
     auto blueprint = std::make_shared<ClassInstance>(record, bag);
