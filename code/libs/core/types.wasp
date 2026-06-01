@@ -12,27 +12,27 @@ trait Truthy
         required
 
 
-# trait Hashable
-#     pure fun hash() => int
-#         required
+trait Hashable
+    pure fun hash() => int
+        required
 
 
-# trait Sized
-#     fun size() => int
-#         required
+trait Sized
+    fun size() => int
+        required
 
-#     fun is_empty() => bool
-#         return self.size() == 0
+    fun is_empty() => bool
+        return self.size() == 0
 
 
-# template
-#     T: any
-# trait Indexable
-#     fun get(index: int) => T
-#         required
+template
+    T: any
+trait Indexable
+    fun get(index: int) => T
+        required
 
-#     fun set(index: int, value: T)
-#         required
+    fun set(index: int, value: T)
+        required
 
 # # --------------------------
 # # The Core Four
@@ -88,11 +88,11 @@ trait Truthy
 #         native
 
 
-# # --------------------------
-# # Aliases
-# # --------------------------
+# --------------------------
+# Aliases
+# --------------------------
 
-# type num = int | float
+type num = int | float
 
 # # --------------------------
 # # Composites

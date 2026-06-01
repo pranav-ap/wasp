@@ -14,7 +14,6 @@ namespace Wasp
 
 void Compiler::visit(Call& expr)
 {
-    // Handle method calls (when callable is a MemberAccess)
     if (expr.callable->is<MemberAccess>())
     {
         auto& member_access = expr.callable->as<MemberAccess>();
@@ -22,13 +21,10 @@ void Compiler::visit(Call& expr)
         // Push the instance (left side) onto the stack
         visit(member_access.left);
 
-        // Get the method using member_index and overload_index
-        int overload_index = expr.overload_index == -1 ? 0
-                                                       : expr.overload_index;
+        int overload_index = expr.overload_index;
 
         if (member_access.is_trait_dispatch)
         {
-            // Trait method dispatch
             emit(
                 OpCode::GET_TRAIT_METHOD,
                 member_access.member_index,
@@ -37,7 +33,6 @@ void Compiler::visit(Call& expr)
         }
         else
         {
-            // Class method dispatch
             emit(
                 OpCode::GET_CLASS_METHOD,
                 member_access.member_index,
@@ -45,7 +40,6 @@ void Compiler::visit(Call& expr)
             );
         }
 
-        // Visit all explicit arguments
         for (const auto& arg : expr.arguments)
         {
             visit(arg);
@@ -60,8 +54,7 @@ void Compiler::visit(Call& expr)
         // Regular function call
         visit(expr.callable);
 
-        int overload_index = expr.overload_index == -1 ? 0
-                                                       : expr.overload_index;
+        int overload_index = expr.overload_index;
         emit(OpCode::GET_FUNCTION, overload_index);
 
         for (const auto& arg : expr.arguments)

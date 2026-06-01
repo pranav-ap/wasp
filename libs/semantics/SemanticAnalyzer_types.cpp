@@ -133,6 +133,10 @@ Object_ptr SemanticAnalyzer::visit(TypeIdentifierNode& expr)
     {
         return workspace->pool->get_boolean_type();
     }
+    else if (expr.name == "any")
+    {
+        return workspace->pool->get_any_type();
+    }
 
     auto symbol = current_scope->lookup(expr.name);
 

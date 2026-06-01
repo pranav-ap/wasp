@@ -88,13 +88,10 @@
     X(IS, "is", true)                                                          \
     X(AS, "as", true)                                                          \
     X(FUN, "fun", true)                                                        \
-    X(GET, "get", true)                                                        \
-    X(SET, "set", true)                                                        \
     X(RETURN_KEYWORD, "return", true)                                          \
     X(YIELD_KEYWORD, "yield", true)                                            \
     X(CLASS, "class", true)                                                    \
     X(TRAIT, "trait", true)                                                    \
-    X(IMPL, "impl", true)                                                      \
     X(TEMPLATE, "template", true)                                              \
     X(PURE, "pure", true)                                                      \
     X(RECORD, "record", true)                                                  \

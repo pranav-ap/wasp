@@ -7,12 +7,11 @@ class Foo is Printable
     score: int
 
     fun repr() => str
-        return '{self.score}'
+        return 'Foo : {self.score}'
 
 
 let f = Foo(1)
-let g = f.repr()
-print(g)
+print(f)
 
 
 fun show() => int

@@ -80,7 +80,7 @@ std::tuple<Symbol_ptr, int> TypeSystem::get_best_function_symbol(
             auto signature = valid_matches[i]->get_type()->as<Signature_ptr>();
 
             // If the signature has no expected generics, it is purely concrete
-            if (signature->template_type->ordered_parameter_names.empty())
+            if (!signature->template_type->exists())
             {
                 best_concrete = valid_matches[i];
                 best_concrete_index = match_indices[i];

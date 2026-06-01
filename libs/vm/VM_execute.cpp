@@ -60,6 +60,11 @@ void VM::execute_GET_FIELD(CallFrame* frame)
                 auto record = instance->record;
                 push_to_stack(record->fields[member_index]);
             },
+            [&](TraitObject_ptr trait_obj)
+            {
+                auto record = trait_obj->class_instance->record;
+                push_to_stack(record->fields[member_index]);
+            },
             [&](auto&)
             {
                 Doctor::get().fatal(

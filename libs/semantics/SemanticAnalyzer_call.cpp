@@ -169,7 +169,7 @@ int SemanticAnalyzer::compute_runtime_overload_index(
 
         auto sig = candidate->get_type()->as<Signature_ptr>();
 
-        if (sig->template_type->exists())
+        if (!sig->template_type->exists())
         {
             index++;
         }
