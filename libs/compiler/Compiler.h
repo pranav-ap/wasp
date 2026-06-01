@@ -155,9 +155,7 @@ private:
     void visit(MemberAccess& expr);
     void visit(EnumMember& expr);
 
-    void visit(FunctionCall& expr);
-    void visit(ClassMethodCall& expr);
-    void visit(TraitMethodCall& expr);
+    void visit(Call& expr);
 
     void visit(Constructor& expr);
 

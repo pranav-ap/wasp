@@ -25,7 +25,5 @@ fun show() => int
 let g = show()
 print(g)
 
-# fun show(p: Printable)
-#     print(p)
 
 

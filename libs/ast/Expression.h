@@ -287,83 +287,6 @@ struct Call
     }
 };
 
-struct SugarCall
-{
-    Expression_ptr callable;
-    ExpressionVector arguments;
-    int overload_index = -1;
-
-    SugarCall() = default;
-
-    SugarCall(
-        Expression_ptr callable,
-        ExpressionVector arguments,
-        int overload_index
-    )
-        : callable(callable), arguments(std::move(arguments)),
-          overload_index(overload_index)
-    {
-    }
-};
-
-struct FunctionCall : public SugarCall
-{
-    FunctionCall() = default;
-
-    FunctionCall(
-        Expression_ptr callable,
-        ExpressionVector arguments,
-        int overload_index
-    )
-        : SugarCall(std::move(callable), std::move(arguments), overload_index)
-    {
-    }
-};
-
-struct ClassMethodCall : public SugarCall
-{
-    Expression_ptr instance;
-    int method_index = -1;
-
-    ClassMethodCall() = default;
-
-    ClassMethodCall(
-        Expression_ptr callable,
-        ExpressionVector arguments,
-        Expression_ptr instance,
-        int method_index,
-        int overload_index
-    )
-        : SugarCall(std::move(callable), std::move(arguments), overload_index),
-          instance(std::move(instance)), method_index(method_index)
-    {
-    }
-};
-
-struct TraitMethodCall : public SugarCall
-{
-    Expression_ptr instance;
-
-    int trait_type_id = -1;
-    int method_index = -1;
-
-    TraitMethodCall() = default;
-
-    TraitMethodCall(
-        Expression_ptr callable,
-        ExpressionVector arguments,
-        Expression_ptr instance,
-        int trait_type_id,
-        int method_index,
-        int overload_index
-    )
-        : SugarCall(std::move(callable), std::move(arguments), overload_index),
-          instance(std::move(instance)), trait_type_id(trait_type_id),
-          method_index(method_index)
-    {
-    }
-};
-
 struct Constructor
 {
     Expression_ptr construtable;
@@ -416,9 +339,6 @@ using ExpressionVariant = std::variant<
     EnumMember,
 
     Call,
-    FunctionCall,
-    ClassMethodCall,
-    TraitMethodCall,
 
     Constructor,
     TemplateAngular,

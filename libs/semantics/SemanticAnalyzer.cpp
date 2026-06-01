@@ -161,11 +161,7 @@ Object_ptr SemanticAnalyzer::visit(Expression_ptr expr)
         expr->data
     );
 
-    if (expr->is<Call>() && !expr->is_desugared)
-    {
-        desugar_call(expr);
-    }
-    else if (expr->is<MemberAccess>() && !expr->is_desugared)
+    if (expr->is<MemberAccess>() && !expr->is_desugared)
     {
         desugar_member_access(expr);
     }
@@ -209,21 +205,6 @@ Object_ptr SemanticAnalyzer::desugar_interpolated_string(
     return visit(expr);
 }
 
-void SemanticAnalyzer::desugar_expression(Expression_ptr expr)
-{
-    if (!expr)
-    {
-        return;
-    }
-
-    visit(expr);
-
-    if (expr->is<Call>() && !expr->is_desugared)
-    {
-        desugar_call(expr);
-    }
-}
-
 void SemanticAnalyzer::desugar_member_access(Expression_ptr expr)
 {
     auto& ma = expr->as<MemberAccess>();
@@ -233,67 +214,6 @@ void SemanticAnalyzer::desugar_member_access(Expression_ptr expr)
         EnumMember em(ma.enum_type_id, ma.enum_member_value);
         expr->data = em;
     }
-}
-
-void SemanticAnalyzer::desugar_call(Expression_ptr expr)
-{
-    Doctor::get().fatal_if_nullptr(expr, WaspStage::Semantics);
-    Doctor::get().assert(expr->is<Call>(), WaspStage::Semantics);
-
-    Call& call = expr->as<Call>();
-
-    if (call.callable)
-    {
-        desugar_expression(call.callable);
-    }
-
-    for (auto& arg : call.arguments)
-    {
-        desugar_expression(arg);
-    }
-
-    if (call.callable->is<MemberAccess>())
-    {
-        auto& ma = call.callable->as<MemberAccess>();
-
-        if (ma.is_trait_dispatch)
-        {
-            TraitMethodCall tmc(
-                call.callable,
-                std::move(call.arguments),
-                ma.left,
-                call.trait_type_id,
-                ma.member_index,
-                call.overload_index
-            );
-
-            expr->data = tmc;
-        }
-        else
-        {
-            ClassMethodCall cmc(
-                call.callable,
-                std::move(call.arguments),
-                ma.left,
-                ma.member_index,
-                call.overload_index
-            );
-
-            expr->data = cmc;
-        }
-    }
-    else
-    {
-        FunctionCall fc(
-            call.callable,
-            std::move(call.arguments),
-            call.overload_index
-        );
-
-        expr->data = fc;
-    }
-
-    expr->is_desugared = true;
 }
 
 } // namespace Wasp

@@ -90,8 +90,6 @@ private:
 
     Object_ptr visit(Call& expr);
 
-    void desugar_expression(Expression_ptr expr);
-    void desugar_call(Expression_ptr expr);
     void desugar_member_access(Expression_ptr expr);
     Object_ptr desugar_interpolated_string(const Expression_ptr& expr);
 

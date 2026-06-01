@@ -224,41 +224,11 @@ ExpressionVariant ASTCloner::clone_expr_data(const ExpressionVariant& data)
             [&](const Call& c) -> ExpressionVariant
             {
                 Call new_call(clone(c.callable), clone(c.arguments));
-                new_call.is_method_call = false;
-                new_call.overload_index = -1;
-                new_call.is_trait_dispatch = false;
+                new_call.is_method_call = c.is_method_call;
+                new_call.overload_index = c.overload_index;
+                new_call.is_trait_dispatch = c.is_trait_dispatch;
+                new_call.trait_type_id = c.trait_type_id;
                 return new_call;
-            },
-
-            [&](const FunctionCall& fc) -> ExpressionVariant
-            {
-                FunctionCall cloned;
-                cloned.callable = clone(fc.callable);
-                cloned.arguments = clone(fc.arguments);
-                cloned.overload_index = fc.overload_index;
-                return make_expression(std::move(cloned));
-            },
-            [&](const ClassMethodCall& mc) -> ExpressionVariant
-            {
-                ClassMethodCall cloned;
-                cloned.callable = clone(mc.callable);
-                cloned.instance = clone(mc.instance);
-                cloned.arguments = clone(mc.arguments);
-                cloned.method_index = mc.method_index;
-                cloned.overload_index = mc.overload_index;
-                return make_expression(std::move(cloned));
-            },
-
-            [&](const TraitMethodCall& mc) -> ExpressionVariant
-            {
-                TraitMethodCall cloned;
-                cloned.callable = clone(mc.callable);
-                cloned.instance = clone(mc.instance);
-                cloned.arguments = clone(mc.arguments);
-                cloned.method_index = mc.method_index;
-                cloned.trait_type_id = mc.trait_type_id;
-                cloned.overload_index = mc.overload_index;
-                return make_expression(std::move(cloned));
             },
 
             [&](const Constructor& c) -> ExpressionVariant
