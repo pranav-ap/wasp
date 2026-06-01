@@ -143,6 +143,17 @@ Object_ptr SignaturesSet::SignaturesSet::get_signature(int overload_index) const
     return types[overload_index];
 }
 
+void SignaturesSet::add_signature(const Object_ptr signature)
+{
+    Doctor::get().assert(
+        signature->is<Signature_ptr>(),
+        WaspStage::Semantics,
+        "Only Signature objects can be added to SignaturesSet."
+    );
+
+    types.push_back(signature);
+}
+
 // ============================================================================
 // Bag Type
 // ============================================================================

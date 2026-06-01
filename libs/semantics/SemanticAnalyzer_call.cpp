@@ -66,10 +66,11 @@ Object_ptr SemanticAnalyzer::handle_identifier_call(
 Object_ptr SemanticAnalyzer::handle_member_call(
     Call& call,
     MemberAccess& ma,
-    const ObjectVector& argument_types
+    ObjectVector& argument_types
 )
 {
     Object_ptr left_type = visit(ma.left)->unwrap_completely();
+    argument_types.insert(argument_types.begin(), left_type);
 
     return std::visit(
         overloaded{

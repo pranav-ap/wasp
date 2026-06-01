@@ -249,6 +249,7 @@ struct SignaturesSet
     }
 
     Object_ptr get_signature(int overload_index) const;
+    void add_signature(const Object_ptr signature);
 };
 
 using SignaturesSet_ptr = std::shared_ptr<SignaturesSet>;

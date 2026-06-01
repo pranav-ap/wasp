@@ -136,6 +136,13 @@ private:
         const std::string& function_name
     );
 
+    void validate_method_signature(
+        const SignaturesSet_ptr& existing_signatures,
+        const Signature_ptr& new_signature,
+        const std::string& method_name,
+        const std::string& class_name
+    );
+
     // Call Handlers
     Object_ptr handle_identifier_call(
         Call& call,
@@ -146,7 +153,7 @@ private:
     Object_ptr handle_member_call(
         Call& call,
         MemberAccess& ma,
-        const ObjectVector& argument_types
+        ObjectVector& argument_types
     );
 
     // Template Helpers

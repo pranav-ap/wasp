@@ -22,4 +22,5 @@ class Foo
 
 
 let f = Foo(1)
-f.repr()
+let g = f.repr()
+print(g)
