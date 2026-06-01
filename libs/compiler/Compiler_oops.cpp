@@ -101,4 +101,20 @@ void Compiler::visit(ClassDefinition& def)
     emit(OpCode::SET_LOCAL, slot, "update local slot");
 }
 
+void Compiler::visit(TraitDefinition& statement)
+{
+    int physical_index = get_or_add_local_index(statement.symbol);
+
+    if (physical_index != -1)
+    {
+        // Load none as placeholder for compile-time only value
+        emit(OpCode::LOAD_NONE);
+        emit(
+            OpCode::SET_LOCAL,
+            physical_index,
+            "compile-time trait: " + statement.name
+        );
+    }
+}
+
 } // namespace Wasp

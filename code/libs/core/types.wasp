@@ -1,17 +1,17 @@
-# import my.io expose *
+import my.io expose *
 
-# # --------------------------
-# # Core Traits
-# # --------------------------
+# --------------------------
+# Core Traits
+# --------------------------
 
-# trait Printable
-#     fun repr() => str
-#         required
+trait Printable
+    fun repr() => str
+        required
 
 
-# trait Truthy
-#     fun is_truthy() => bool
-#         required
+trait Truthy
+    fun is_truthy() => bool
+        required
 
 
 # trait Hashable
@@ -203,35 +203,4 @@
 # x?.repr()
 # x.get_or(0)
 
-# # --------------------------
-# # User Defined Class
-# # --------------------------
-
-
-# class Foo is Printable
-#     score: int
-
-#     fun repr() => str
-#         return '{self.score}'
-
-
-# # ORIGINAL
-
-# import core.io as io
-# import core.types expose *
-
-
-# class Foo is Printable
-#     score: int
-
-#     fun repr() => str
-#         return '{self.score}'
-
-
-# fun show(p: Printable)
-#     io.print(p)
-
-
-# let f = Foo(10)
-# f.repr()
 
