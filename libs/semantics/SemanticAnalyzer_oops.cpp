@@ -383,31 +383,21 @@ void SemanticAnalyzer::check_trait_conformance(OopsType_ptr oop_type)
             );
 
             auto trait_entry = trait->bag_type->types.at(method_name);
-            auto class_entry = oop_type->bag_type->types.at(method_name);
-
-            // Both must be SignaturesSet_ptr - no other types allowed
             Doctor::get().assert(
-                trait_entry->is<SignaturesSet_ptr>() &&
-                    class_entry->is<SignaturesSet_ptr>(),
-                WaspStage::Semantics,
-                "Expected SignaturesSet for method: " + method_name
+                trait_entry->is<SignaturesSet_ptr>(),
+                WaspStage::Semantics
+            );
+
+            auto class_entry = oop_type->bag_type->types.at(method_name);
+            Doctor::get().assert(
+                class_entry->is<SignaturesSet_ptr>(),
+                WaspStage::Semantics
             );
 
             auto trait_set = trait_entry->as<SignaturesSet_ptr>();
             auto class_set = class_entry->as<SignaturesSet_ptr>();
 
-            // Find class method index once
-            int class_member_idx = -1;
-            for (size_t c_idx = 0;
-                 c_idx < oop_type->bag_type->ordered_keys.size();
-                 ++c_idx)
-            {
-                if (oop_type->bag_type->ordered_keys[c_idx] == method_name)
-                {
-                    class_member_idx = static_cast<int>(c_idx);
-                    break;
-                }
-            }
+            int class_member_idx = oop_type->bag_type->get_index(method_name);
 
             Doctor::get().assert(
                 class_member_idx != -1,
@@ -427,22 +417,40 @@ void SemanticAnalyzer::check_trait_conformance(OopsType_ptr oop_type)
                     auto class_sig = class_set->types[c_idx]
                                          ->as<Signature_ptr>();
 
-                    // Compare parameter types
-                    if (trait_sig->parameter_types.size() !=
-                        class_sig->parameter_types.size())
+                    // Skip the 'self' parameter (first parameter) for both
+                    // Method parameters: [self, param1, param2, ...]
+                    size_t trait_param_start = trait_sig->parameter_types
+                                                       .empty()
+                                                   ? 0
+                                                   : 1;
+                    size_t class_param_start = class_sig->parameter_types
+                                                       .empty()
+                                                   ? 0
+                                                   : 1;
+
+                    size_t trait_param_count = trait_sig->parameter_types
+                                                   .size() -
+                                               trait_param_start;
+                    size_t class_param_count = class_sig->parameter_types
+                                                   .size() -
+                                               class_param_start;
+
+                    // Compare parameter counts (excluding self)
+                    if (trait_param_count != class_param_count)
                     {
                         continue;
                     }
 
+                    // Compare parameter types (excluding self)
                     bool params_match = true;
-                    for (size_t p_idx = 0;
-                         p_idx < trait_sig->parameter_types.size();
-                         ++p_idx)
+                    for (size_t p_idx = 0; p_idx < trait_param_count; ++p_idx)
                     {
                         if (!type_system->equal(
                                 current_scope,
-                                trait_sig->parameter_types[p_idx],
-                                class_sig->parameter_types[p_idx]
+                                trait_sig->parameter_types
+                                    [trait_param_start + p_idx],
+                                class_sig
+                                    ->parameter_types[class_param_start + p_idx]
                             ))
                         {
                             params_match = false;
@@ -450,7 +458,12 @@ void SemanticAnalyzer::check_trait_conformance(OopsType_ptr oop_type)
                         }
                     }
 
-                    if (params_match)
+                    // Compare return types (don't skip anything here)
+                    if (params_match && type_system->equal(
+                                            current_scope,
+                                            trait_sig->return_type,
+                                            class_sig->return_type
+                                        ))
                     {
                         OverloadCoordinate trait_coord{
                             static_cast<int>(m_idx),
@@ -477,65 +490,6 @@ void SemanticAnalyzer::check_trait_conformance(OopsType_ptr oop_type)
             }
         }
     }
-}
-
-Symbol_ptr SemanticAnalyzer::monomorphize_class_template(
-    Symbol_ptr blueprint_symbol,
-    const ObjectStringMap& substitutions,
-    const std::string& specialized_name
-)
-{
-    auto& class_data = blueprint_symbol->as<OopsSymbol>();
-
-    ASTCloner cloner(substitutions);
-    Statement_ptr specialized_stmt = cloner.clone(class_data.definition);
-
-    Symbol_ptr specialized_symbol = nullptr;
-
-    SymbolScope_ptr previous_scope = current_scope;
-    current_scope = class_data.declaration_scope;
-
-    std::visit(
-        overloaded{
-            [&](ClassDefinition& def)
-            {
-                def.name = specialized_name;
-                def.template_params.clear();
-
-                auto type = make_object(std::make_shared<ClassType>(def.name));
-                def.symbol = current_scope->define(
-                    SymbolFactory::create_oops(
-                        def.name,
-                        type,
-                        current_scope->get_closure_depth(),
-                        current_scope->get_lexical_depth()
-                    )
-                );
-
-                auto class_type = type->as<ClassType_ptr>();
-                class_type->template_type = std::make_shared<TemplateType>();
-
-                visit(def);
-
-                specialized_symbol = def.symbol;
-            },
-            [&](auto&)
-            {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "Expected a class definition"
-                );
-            }
-        },
-        specialized_stmt->data
-    );
-
-    Doctor::get().fatal_if_nullptr(specialized_symbol, WaspStage::Semantics);
-
-    current_scope = previous_scope;
-    pending_templates.push_back(specialized_stmt);
-
-    return specialized_symbol;
 }
 
 } // namespace Wasp

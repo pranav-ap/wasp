@@ -1,9 +1,11 @@
+import my.types expose Printable
+
 # print
 
 fun print(x: bool | int | float | str)
     native
 
 
-# fun print(x: Printable)
-#     print(x.repr())
+fun print(x: Printable)
+    print(x.repr())
 

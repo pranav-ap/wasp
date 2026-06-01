@@ -1,8 +1,10 @@
 #include "AST.h"
+#include "ASTCloner.h"
 #include "Doctor.h"
 #include "Expression.h"
 #include "Objects.h"
 #include "SemanticAnalyzer.h"
+#include "Statement.h"
 #include "Workspace.h"
 
 #include <cctype>
@@ -315,6 +317,65 @@ Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
         WaspStage::Semantics,
         "Target '" + target_symbol->name + "' does not support template angulars."
     );
+}
+
+Symbol_ptr SemanticAnalyzer::monomorphize_class_template(
+    Symbol_ptr blueprint_symbol,
+    const ObjectStringMap& substitutions,
+    const std::string& specialized_name
+)
+{
+    auto& class_data = blueprint_symbol->as<OopsSymbol>();
+
+    ASTCloner cloner(substitutions);
+    Statement_ptr specialized_stmt = cloner.clone(class_data.definition);
+
+    Symbol_ptr specialized_symbol = nullptr;
+
+    SymbolScope_ptr previous_scope = current_scope;
+    current_scope = class_data.declaration_scope;
+
+    std::visit(
+        overloaded{
+            [&](ClassDefinition& def)
+            {
+                def.name = specialized_name;
+                def.template_params.clear();
+
+                auto type = make_object(std::make_shared<ClassType>(def.name));
+                def.symbol = current_scope->define(
+                    SymbolFactory::create_oops(
+                        def.name,
+                        type,
+                        current_scope->get_closure_depth(),
+                        current_scope->get_lexical_depth()
+                    )
+                );
+
+                auto class_type = type->as<ClassType_ptr>();
+                class_type->template_type = std::make_shared<TemplateType>();
+
+                visit(def);
+
+                specialized_symbol = def.symbol;
+            },
+            [&](auto&)
+            {
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Expected a class definition"
+                );
+            }
+        },
+        specialized_stmt->data
+    );
+
+    Doctor::get().fatal_if_nullptr(specialized_symbol, WaspStage::Semantics);
+
+    current_scope = previous_scope;
+    pending_templates.push_back(specialized_stmt);
+
+    return specialized_symbol;
 }
 
 } // namespace Wasp
