@@ -65,7 +65,7 @@ private:
     void visit(Placeholder& statement);
     void visit(Return& statement);
 
-    Object_ptr visit(const Expression_ptr expr);
+    Object_ptr visit(Expression_ptr expr);
     ObjectVector visit(ExpressionVector expressions);
 
     Object_ptr visit(Identifier& expr);
@@ -93,6 +93,7 @@ private:
     void desugar_expression(Expression_ptr expr);
     void desugar_call(Expression_ptr expr);
     void desugar_member_access(Expression_ptr expr);
+    Object_ptr desugar_interpolated_string(const Expression_ptr& expr);
 
     Object_ptr visit(Constructor& expr);
 

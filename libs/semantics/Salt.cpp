@@ -56,12 +56,6 @@ Statement_ptr Salt::visit(const Statement_ptr statement)
     );
 }
 
-Statement_ptr Salt::visit(ExpressionStatement& statement)
-{
-    auto desugared_expr = visit(statement.expression);
-    return make_statement(ExpressionStatement(desugared_expr));
-}
-
 static Statement_ptr convert_method_to_function(
     const MethodDefinition& method,
     const std::string& class_name
@@ -162,61 +156,6 @@ Statement_ptr Salt::visit(OperatorDefinition& def)
     );
 
     return function_definition;
-}
-
-Expression_ptr Salt::visit(const Expression_ptr expr)
-{
-    Doctor::get().fatal_if_nullptr(expr, WaspStage::Semantics);
-
-    return std::visit(
-        [&](auto& node) -> Expression_ptr
-        {
-            using T = std::decay_t<decltype(node)>;
-
-            if constexpr (requires { visit(node); })
-            {
-                return visit(node);
-            }
-            else
-            {
-                // No specific visitor
-                // return the original expression unchanged
-                return expr;
-            }
-        },
-        expr->data
-    );
-}
-
-ExpressionVector Salt::visit(ExpressionVector expressions)
-{
-    ExpressionVector computed_types;
-    computed_types.reserve(expressions.size());
-
-    for (const auto& expr : expressions)
-    {
-        computed_types.push_back(visit(expr));
-    }
-
-    return computed_types;
-}
-
-Expression_ptr Salt::visit(InterpolatedString& expr)
-{
-    if (expr.parts.empty())
-    {
-        return make_expression(StringLiteral{""});
-    }
-
-    Expression_ptr root = expr.parts[0];
-
-    for (size_t i = 1; i < expr.parts.size(); ++i)
-    {
-        Token plus_token{TokenType::PLUS, "+"};
-        root = make_expression(Infix{root, plus_token, expr.parts[i]});
-    }
-
-    return root;
 }
 
 } // namespace Wasp

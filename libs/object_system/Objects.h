@@ -252,6 +252,7 @@ struct SignaturesSet
 };
 
 using SignaturesSet_ptr = std::shared_ptr<SignaturesSet>;
+
 // ============================================================================
 // Oops Types
 // ============================================================================
@@ -280,9 +281,9 @@ struct RecordType
     {
     }
 
-    int get_field_index(const std::string& field_name) const;
+    int get_index(const std::string& field_name) const;
     Object_ptr get_type(const std::string& field_name) const;
-    bool contains_field(const std::string& field_name) const;
+    bool contains(const std::string& field_name) const;
 };
 
 using RecordType_ptr = std::shared_ptr<RecordType>;
@@ -303,8 +304,9 @@ struct BagType
     {
     }
 
-    int get_signatures_set_index(const std::string& function_name) const;
-    Object_ptr get_signatures_set(const std::string& function_name) const;
+    int get_index(const std::string& function_name) const;
+    Object_ptr get_signatures(const std::string& function_name) const;
+    bool contains(const std::string& field_name) const;
 };
 
 using BagType_ptr = std::shared_ptr<BagType>;
@@ -325,18 +327,22 @@ struct OopsType
         std::string name,
         RecordType_ptr record_type = std::make_shared<RecordType>(),
         BagType_ptr bag_type = std::make_shared<BagType>(),
-        ObjectVector traits = {},
         TemplateType_ptr template_type = std::make_shared<TemplateType>()
     )
         : type_id(get_next_type_id()), name(std::move(name)),
           record_type(std::move(record_type)), bag_type(std::move(bag_type)),
-          traits(std::move(traits)), template_type(std::move(template_type))
+          traits({}), template_type(std::move(template_type))
     {
     }
 
     virtual ~OopsType() = default;
 
     bool contains_member(const std::string& member_name) const;
+    StringVector get_ordered_names() const;
+
+    bool is_field(const std::string& member_name) const;
+    bool is_method(const std::string& member_name) const;
+    int get_flat_index(const std::string& member_name) const;
 };
 
 struct ClassType : public OopsType
@@ -594,10 +600,8 @@ using NativeFunctionRuntimeObject_ptr = std::shared_ptr<
 struct RecordObject
 {
     ObjectVector fields;
-    ITablesMap itables;
 
-    RecordObject(ObjectVector fields, ITablesMap itables = {})
-        : fields(std::move(fields)), itables(std::move(itables))
+    RecordObject(ObjectVector fields) : fields(std::move(fields))
     {
     }
 
@@ -636,6 +640,19 @@ struct BagObject
 };
 
 using BagObject_ptr = std::shared_ptr<BagObject>;
+
+struct ClassBlueprint
+{
+    BagObject_ptr bag;
+
+    ClassBlueprint() = default;
+
+    ClassBlueprint(BagObject_ptr bag) : bag(std::move(bag))
+    {
+    }
+};
+
+using ClassBlueprint_ptr = std::shared_ptr<ClassBlueprint>;
 
 struct ClassInstance
 {
@@ -721,6 +738,8 @@ struct Object : public std::enable_shared_from_this<Object>
         RecordObject_ptr,
         BagObject_ptr,
         TraitObject_ptr,
+
+        ClassBlueprint_ptr,
         ClassInstance_ptr,
 
         // Types

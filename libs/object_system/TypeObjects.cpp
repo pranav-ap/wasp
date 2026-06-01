@@ -101,7 +101,7 @@ int EnumType::get_value(const std::vector<std::string>& path) const
 // Record Type
 // ============================================================================
 
-int RecordType::get_field_index(const std::string& field_name) const
+int RecordType::get_index(const std::string& field_name) const
 {
     auto it = std::find(ordered_keys.begin(), ordered_keys.end(), field_name);
     Doctor::get().assert(
@@ -123,7 +123,7 @@ Object_ptr RecordType::get_type(const std::string& field_name) const
     return it->second;
 }
 
-bool RecordType::contains_field(const std::string& field_name) const
+bool RecordType::contains(const std::string& field_name) const
 {
     return types.contains(field_name);
 }
@@ -147,7 +147,7 @@ Object_ptr SignaturesSet::SignaturesSet::get_signature(int overload_index) const
 // Bag Type
 // ============================================================================
 
-int BagType::get_signatures_set_index(const std::string& function_name) const
+int BagType::get_index(const std::string& function_name) const
 {
     auto it = std::find(
         ordered_keys.begin(),
@@ -162,7 +162,7 @@ int BagType::get_signatures_set_index(const std::string& function_name) const
     return static_cast<int>(std::distance(ordered_keys.begin(), it));
 }
 
-Object_ptr BagType::get_signatures_set(const std::string& function_name) const
+Object_ptr BagType::get_signatures(const std::string& function_name) const
 {
     auto it = types.find(function_name);
     Doctor::get().assert(
@@ -173,6 +173,11 @@ Object_ptr BagType::get_signatures_set(const std::string& function_name) const
     return it->second;
 }
 
+bool BagType::contains(const std::string& field_name) const
+{
+    return types.contains(field_name);
+}
+
 // ============================================================================
 // Oops Type
 // ============================================================================
@@ -181,6 +186,49 @@ bool OopsType::contains_member(const std::string& member_name) const
 {
     return record_type->types.find(member_name) != record_type->types.end() ||
            bag_type->types.find(member_name) != bag_type->types.end();
+}
+
+StringVector OopsType::get_ordered_names() const
+{
+    StringVector names = record_type->ordered_keys;
+    names.insert(
+        names.end(),
+        bag_type->ordered_keys.begin(),
+        bag_type->ordered_keys.end()
+    );
+    return names;
+}
+
+bool OopsType::is_field(const std::string& member_name) const
+{
+    return record_type->types.find(member_name) != record_type->types.end();
+}
+
+bool OopsType::is_method(const std::string& member_name) const
+{
+    return bag_type->types.find(member_name) != bag_type->types.end();
+}
+
+int OopsType::get_flat_index(const std::string& member_name) const
+{
+    auto field_it = record_type->types.find(member_name);
+    if (field_it != record_type->types.end())
+    {
+        return record_type->get_index(member_name);
+    }
+
+    int size = static_cast<int>(record_type->ordered_keys.size());
+
+    auto method_it = bag_type->types.find(member_name);
+    if (method_it != bag_type->types.end())
+    {
+        return bag_type->get_index(member_name) + size;
+    }
+
+    Doctor::get().fatal(
+        WaspStage::Semantics,
+        "Type '" + name + "' does not contain member '" + member_name + "'."
+    );
 }
 
 // ============================================================================

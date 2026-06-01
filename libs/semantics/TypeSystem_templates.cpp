@@ -309,9 +309,11 @@ Object_ptr TypeSystem::substitute_generics(
                         spec_name,
                         cls->record_type,
                         cls->bag_type,
-                        sub_all(cls->traits),
                         make_template_if_needed(remaining, remaining_names)
                     );
+
+                    auto sub_t = sub_all(cls->traits);
+                    new_cls->traits = sub_t;
 
                     memo[t] = make_object(new_cls);
 
@@ -368,9 +370,11 @@ Object_ptr TypeSystem::substitute_generics(
                         spec_name,
                         trait->record_type,
                         trait->bag_type,
-                        sub_all(trait->traits),
                         make_template_if_needed(remaining, remaining_names)
                     );
+
+                    auto sub_t = sub_all(trait->traits);
+                    new_trait->traits = sub_t;
 
                     memo[t] = make_object(new_trait);
 

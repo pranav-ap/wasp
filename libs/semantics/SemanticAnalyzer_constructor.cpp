@@ -94,7 +94,7 @@ Object_ptr SemanticAnalyzer::visit(Constructor& constructor)
             const std::string& field_name = cls->record_type->ordered_keys[i];
 
             Doctor::get().assert(
-                cls->record_type->contains_field(field_name),
+                cls->record_type->contains(field_name),
                 WaspStage::Semantics,
                 "Field '" + field_name + "' not found in class '" + cls->name +
                     "'."

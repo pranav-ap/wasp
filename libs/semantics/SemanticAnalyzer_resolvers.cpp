@@ -125,7 +125,7 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
 }
 
 Object_ptr SemanticAnalyzer::resolve_member_access(
-    MemberAccess& expr,
+    MemberAccess& ma,
     Object_ptr target_type,
     const std::string& member_name
 )
@@ -134,26 +134,53 @@ Object_ptr SemanticAnalyzer::resolve_member_access(
         overloaded{
             [&](ModuleType_ptr type) -> Object_ptr
             {
-                expr.member_index = type->get_member_index(member_name);
+                ma.is_module_access = true;
+                ma.member_index = type->get_member_index(member_name);
                 return type->get_member(member_name);
             },
 
             [&](ClassType_ptr type) -> Object_ptr
             {
-                expr.member_index = type->record_type->get_field_index(
-                    member_name
+                Doctor::get().assert(
+                    type->contains_member(member_name),
+                    WaspStage::Semantics,
+                    "Class " + type->name + " has no member named " +
+                        member_name
                 );
 
-                return type->record_type->get_type(member_name);
+                ma.is_field = type->is_field(member_name);
+
+                if (ma.is_field)
+                {
+                    ma.member_index = type->record_type->get_index(member_name);
+                    return type->record_type->get_type(member_name);
+                }
+
+                ma.member_index = type->bag_type->get_index(member_name);
+                return type->bag_type->get_signatures(member_name);
             },
 
             [&](TraitType_ptr type) -> Object_ptr
             {
-                expr.member_index = type->record_type->get_field_index(
-                    member_name
+                ma.is_trait_dispatch = true;
+
+                Doctor::get().assert(
+                    type->contains_member(member_name),
+                    WaspStage::Semantics,
+                    "Trait " + type->name + " has no member named " +
+                        member_name
                 );
 
-                return type->record_type->get_type(member_name);
+                ma.is_field = type->is_field(member_name);
+
+                if (ma.is_field)
+                {
+                    ma.member_index = type->record_type->get_index(member_name);
+                    return type->record_type->get_type(member_name);
+                }
+
+                ma.member_index = type->bag_type->get_index(member_name);
+                return type->bag_type->get_signatures(member_name);
             },
 
             [&](GenericType_ptr type) -> Object_ptr
@@ -164,7 +191,7 @@ Object_ptr SemanticAnalyzer::resolve_member_access(
                 );
 
                 return resolve_member_access(
-                    expr,
+                    ma,
                     type->constraint_type,
                     member_name
                 );
@@ -177,7 +204,7 @@ Object_ptr SemanticAnalyzer::resolve_member_access(
                 for (const auto& t : variant->types)
                 {
                     result_types.push_back(
-                        resolve_member_access(expr, t, member_name)
+                        resolve_member_access(ma, t, member_name)
                     );
                 }
 

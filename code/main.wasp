@@ -2,21 +2,24 @@ import core.io expose *
 import core.types expose *
 import core.operators expose *
 
+# fun show() => int
+#     let x = 1
+#     let y = 2
 
-fun show() => int
-    let x = 1
-    let y = 2
-
-    let z = x + y
-    return z
-
-
-let g = show()
-print(g)
+#     let z = x + y
+#     return z
 
 
-# class Foo
-#     score: int
+# let g = show()
+# print(g)
 
-#     fun repr() => str
-#         return '{self.score}'
+
+class Foo
+    score: int
+
+    fun repr() => str
+        return '{self.score}'
+
+
+let f = Foo(1)
+f.repr()

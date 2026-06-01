@@ -54,7 +54,16 @@ void Compiler::visit(Identifier& expr)
 void Compiler::visit(MemberAccess& access)
 {
     visit(access.left);
-    emit(OpCode::GET_MEMBER, access.member_index);
+
+    if (access.is_module_access)
+    {
+        emit(OpCode::GET_IMPORTED_MEMBER, access.member_index);
+    }
+
+    else if (access.is_field)
+    {
+        emit(OpCode::GET_FIELD, access.member_index);
+    }
 }
 
 void Compiler::visit(EnumMember& enum_member)

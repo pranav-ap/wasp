@@ -238,6 +238,10 @@ struct MemberAccess
 
     int member_index = -1;
 
+    bool is_module_access = false;
+
+    bool is_field = false;
+
     bool is_trait_dispatch = false;
 
     bool is_enum_value = false;

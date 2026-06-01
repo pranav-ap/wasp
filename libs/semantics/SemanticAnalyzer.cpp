@@ -5,6 +5,7 @@
 #include "Objects.h"
 #include "Statement.h"
 #include "SymbolScope.h"
+#include "Token.h"
 #include "Workspace.h"
 
 #include <ctime>
@@ -37,7 +38,8 @@ void SemanticAnalyzer::run(const std::vector<Module_ptr>& build_order)
 
         for (const auto& stmt : mod->stmts)
         {
-            desugared_stmts.push_back(salt->visit(stmt));
+            auto salted_stmt = salt->visit(stmt);
+            desugared_stmts.push_back(salted_stmt);
         }
 
         hoist_statements(desugared_stmts);
@@ -46,6 +48,8 @@ void SemanticAnalyzer::run(const std::vector<Module_ptr>& build_order)
 
         for (const auto& stmt : desugared_stmts)
         {
+            visit(stmt);
+
             for (const auto& tmpl : pending_templates)
             {
                 updated_stmts.push_back(tmpl);
@@ -71,8 +75,7 @@ void SemanticAnalyzer::visit(StatementVector& statements)
 
     for (const auto& stmt : statements)
     {
-        auto saltly_stmt = salt->visit(stmt);
-        visit(saltly_stmt);
+        visit(stmt);
     }
 }
 
@@ -131,11 +134,14 @@ ObjectVector SemanticAnalyzer::visit(ExpressionVector expressions)
     return computed_types;
 }
 
-Object_ptr SemanticAnalyzer::visit(const Expression_ptr expr)
+Object_ptr SemanticAnalyzer::visit(Expression_ptr expr)
 {
     Doctor::get().fatal_if_nullptr(expr, WaspStage::Semantics);
 
-    auto salted_expr = salt->visit(expr);
+    if (expr->is<InterpolatedString>())
+    {
+        return desugar_interpolated_string(expr);
+    }
 
     auto resolved_type = std::visit(
         [&](auto& node) -> Object_ptr
@@ -152,19 +158,55 @@ Object_ptr SemanticAnalyzer::visit(const Expression_ptr expr)
                 );
             }
         },
-        salted_expr->data
+        expr->data
     );
 
-    if (salted_expr->is<Call>() && !salted_expr->is_desugared)
+    if (expr->is<Call>() && !expr->is_desugared)
     {
-        desugar_call(salted_expr);
+        desugar_call(expr);
     }
-    else if (salted_expr->is<MemberAccess>() && !salted_expr->is_desugared)
+    else if (expr->is<MemberAccess>() && !expr->is_desugared)
     {
-        desugar_member_access(salted_expr);
+        desugar_member_access(expr);
     }
 
     return resolved_type;
+}
+
+Object_ptr SemanticAnalyzer::desugar_interpolated_string(
+    const Expression_ptr& expr
+)
+{
+    auto& interp = expr->as<InterpolatedString>();
+
+    if (interp.parts.empty())
+    {
+        expr->data = StringLiteral{""};
+        expr->is_desugared = true;
+        return visit(expr);
+    }
+
+    if (interp.parts.size() == 1)
+    {
+        interp.parts.push_back(make_expression(StringLiteral{""}));
+    }
+
+    Expression_ptr root = interp.parts[0];
+
+    for (size_t i = 1; i < interp.parts.size(); ++i)
+    {
+        Token plus_token;
+        plus_token.type = TokenType::PLUS;
+        plus_token.lexeme = "+";
+
+        root = make_expression(Infix{root, plus_token, interp.parts[i]});
+    }
+
+    expr->data = std::move(root->data);
+    expr->is_desugared = true;
+
+    // Re-visit so Infix nodes are desugared into method calls
+    return visit(expr);
 }
 
 void SemanticAnalyzer::desugar_expression(Expression_ptr expr)

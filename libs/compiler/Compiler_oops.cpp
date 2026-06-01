@@ -55,9 +55,11 @@ void Compiler::visit(ClassDefinition& def)
                     def.name,
                     func->symbol->module_path
                 );
+
                 int registry_id = workspace->native_registry->get_native_index(
                     mangled
                 );
+
                 emit(OpCode::GET_NATIVE, registry_id, "load native " + mangled);
             }
             else
@@ -69,6 +71,7 @@ void Compiler::visit(ClassDefinition& def)
                     func->context_symbol
                 );
             }
+
             overload_count++;
         }
 
@@ -80,17 +83,21 @@ void Compiler::visit(ClassDefinition& def)
     }
 
     // Build the class at runtime
+
     emit(
         OpCode::LOAD_CONSTANT,
         class_type_pool_id,
         "load class type from pool"
     );
-    emit(OpCode::GET_LOCAL, slot, "load blueprint for population");
+
+    emit(OpCode::GET_LOCAL, slot, "load class blueprint");
+
     emit(
         OpCode::BUILD_CLASS,
         unique_method_count,
         "populate class " + def.name
     );
+
     emit(OpCode::SET_LOCAL, slot, "update local slot");
 }
 

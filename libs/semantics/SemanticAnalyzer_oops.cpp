@@ -61,25 +61,7 @@ void SemanticAnalyzer::analyze_oops_definition(
 {
     enter_scope(ScopeType::CLASS);
 
-    for (const auto& name : oop_type->template_type->ordered_parameter_names)
-    {
-        auto generic_type_obj = oop_type->template_type->template_parameters.at(
-            name
-        );
-
-        Doctor::get().assert(
-            generic_type_obj->is<GenericType_ptr>(),
-            WaspStage::Semantics,
-            "Expected GenericType for template parameter: " + name
-        );
-
-        auto symbol = SymbolFactory::create_template_parameter(
-            name,
-            generic_type_obj
-        );
-
-        current_scope->define(symbol);
-    }
+    define_template_parameters(oop_type->template_type);
 
     resolve_traits(def, oop_type);
     fill_oops_member_names(def, oop_type);
@@ -117,14 +99,6 @@ void SemanticAnalyzer::fill_oops_member_names(
     OopsType_ptr oop_type
 )
 {
-    auto push_unique = [](StringVector& vec, const std::string& name)
-    {
-        if (std::find(vec.begin(), vec.end(), name) == vec.end())
-        {
-            vec.push_back(name);
-        }
-    };
-
     for (auto& stmt : def.members)
     {
         std::visit(
@@ -138,12 +112,25 @@ void SemanticAnalyzer::fill_oops_member_names(
                     );
 
                     auto field_type = visit(f.type);
+
+                    Doctor::get().fatal_if_nullptr(
+                        field_type,
+                        WaspStage::Semantics,
+                        "Field '" + f.name + "' has invalid type"
+                    );
+
                     oop_type->record_type->types[f.name] = field_type;
                     oop_type->record_type->ordered_keys.push_back(f.name);
                 },
                 [&](const FunctionDefinition& m)
                 {
-                    push_unique(oop_type->bag_type->ordered_keys, m.name);
+                    auto& names = oop_type->bag_type->ordered_keys;
+
+                    if (std::find(names.begin(), names.end(), m.name) ==
+                        names.end())
+                    {
+                        names.push_back(m.name);
+                    }
 
                     if (!oop_type->bag_type->types.contains(m.name))
                     {
@@ -198,8 +185,19 @@ void SemanticAnalyzer::hoist_methods(
                 current_scope->get_lexical_depth()
             );
 
-            // Store in bag_type
-            oop_type->bag_type->types[method->name] = signature;
+            if (oop_type->bag_type->types.contains(method->name))
+            {
+                Doctor::get().assert(
+                    oop_type->bag_type->types[method->name]
+                        ->is<SignaturesSet_ptr>(),
+                    WaspStage::Semantics,
+                    "Expected signatures set for method " + method->name
+                );
+
+                auto signatures_set = oop_type->bag_type->types[method->name]
+                                          ->as<SignaturesSet_ptr>();
+                oop_type->bag_type->types[method->name] = signature;
+            }
         }
     }
 }
@@ -302,8 +300,6 @@ void SemanticAnalyzer::inherit_default_methods(
 
 void SemanticAnalyzer::analyze_methods(AbstractOopsDefinition& def)
 {
-    auto type_obj = def.symbol->get_type();
-
     for (auto& stmt : def.members)
     {
         if (auto* method = stmt->try_as<FunctionDefinition>())
@@ -407,7 +403,7 @@ Symbol_ptr SemanticAnalyzer::monomorphize_class_template(
                 );
 
                 auto class_type = type->as<ClassType_ptr>();
-                class_type->template_type = nullptr; // Clear template params
+                class_type->template_type = std::make_shared<TemplateType>();
 
                 visit(def);
 

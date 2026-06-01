@@ -443,9 +443,7 @@ Object_ptr SemanticAnalyzer::call_method(
             oops_type->name + "'."
     );
 
-    auto signatures_set_obj = oops_type->bag_type->get_signatures_set(
-        method_name
-    );
+    auto signatures_set_obj = oops_type->bag_type->get_signatures(method_name);
 
     Doctor::get().fatal_if_nullptr(
         signatures_set_obj,
@@ -468,9 +466,7 @@ Object_ptr SemanticAnalyzer::call_method(
                                                         argument_types
                                                     );
 
-    access.member_index = oops_type->bag_type->get_signatures_set_index(
-        method_name
-    );
+    access.member_index = oops_type->bag_type->get_index(method_name);
 
     call.overload_index = overload_index;
     call.is_method_call = true;
