@@ -358,6 +358,7 @@ void SemanticAnalyzer::analyze_methods(AbstractOopsDefinition& def)
         {
             ScopeType scope_type = method->is_pure ? ScopeType::PURE_METHOD
                                                    : ScopeType::METHOD;
+
             analyze_callable(*method, scope_type);
         }
     }

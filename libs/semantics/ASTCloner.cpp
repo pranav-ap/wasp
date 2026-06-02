@@ -58,7 +58,7 @@ std::string get_raw_type_name(Object_ptr obj)
             },
             [](const StringType&)
             {
-                return std::string("string");
+                return std::string("str");
             },
             [](const BooleanType&)
             {
@@ -83,10 +83,11 @@ std::string get_raw_type_name(Object_ptr obj)
 
 Expression_ptr ASTCloner::clone(const Expression_ptr& expr)
 {
-    if (!expr)
-    {
-        return nullptr;
-    }
+    Doctor::get().fatal_if_nullptr(
+        expr,
+        WaspStage::Semantics,
+        "Cannot clone a nullptr expression"
+    );
 
     auto cloned = make_expression(clone_expr_data(expr->data), expr->is_desugared);
     return cloned;
@@ -94,10 +95,11 @@ Expression_ptr ASTCloner::clone(const Expression_ptr& expr)
 
 Statement_ptr ASTCloner::clone(const Statement_ptr& stmt)
 {
-    if (!stmt)
-    {
-        return nullptr;
-    }
+    Doctor::get().fatal_if_nullptr(
+        stmt,
+        WaspStage::Semantics,
+        "Cannot clone a nullptr statement"
+    );
 
     auto cloned = make_statement(clone_stmt_data(stmt->data));
     return cloned;
@@ -105,10 +107,11 @@ Statement_ptr ASTCloner::clone(const Statement_ptr& stmt)
 
 TypeAnnotation_ptr ASTCloner::clone(const TypeAnnotation_ptr& type)
 {
-    if (!type)
-    {
-        return nullptr;
-    }
+    Doctor::get().fatal_if_nullptr(
+        type,
+        WaspStage::Semantics,
+        "Cannot clone a nullptr type annotation"
+    );
 
     return make_type_annotation(clone_type_data(type->data));
 }
@@ -206,8 +209,6 @@ ExpressionVariant ASTCloner::clone_expr_data(const ExpressionVariant& data)
             [&](const MemberAccess& ma) -> ExpressionVariant
             {
                 MemberAccess c(clone(ma.left), clone(ma.right));
-                c.member_index = -1;
-                c.is_enum_value = false;
                 return c;
             },
 

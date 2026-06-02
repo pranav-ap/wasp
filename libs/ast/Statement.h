@@ -3,6 +3,7 @@
 #include "AST.h"
 #include "Resolvable.h"
 #include "Token.h"
+#include <cctype>
 #include <filesystem>
 #include <memory>
 #include <optional>
@@ -178,6 +179,7 @@ struct AbstractOopsDefinition : public Definition, public Templatable
 {
     TypeAnnotationVector traits;
     StatementVector members;
+    bool is_native;
 
     AbstractOopsDefinition() = default;
 
@@ -188,7 +190,10 @@ struct AbstractOopsDefinition : public Definition, public Templatable
         FieldDefinitionVector template_params = {}
     )
         : Definition(std::move(name)), Templatable(std::move(template_params)),
-          traits(std::move(traits)), members(std::move(members))
+          traits(std::move(traits)), members(std::move(members)),
+          is_native(
+              !name.empty() && std::islower(static_cast<unsigned char>(name[0]))
+          )
     {
     }
 };

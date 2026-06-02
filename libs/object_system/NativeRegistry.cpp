@@ -160,6 +160,38 @@ void NativeRegistry::load_stdlib()
             return native_input(args);
         }
     );
+
+    add_native(
+        "libs.core.types.str.hash",
+        [this](const std::vector<Object_ptr>& args)
+        {
+            return pool->get_none_object();
+        }
+    );
+
+    add_native(
+        "libs.core.types.str.size",
+        [this](const std::vector<Object_ptr>& args)
+        {
+            return pool->get_none_object();
+        }
+    );
+
+    add_native(
+        "libs.core.types.str.slice",
+        [this](const std::vector<Object_ptr>& args)
+        {
+            return pool->get_none_object();
+        }
+    );
+
+    add_native(
+        "libs.core.types.str.trim",
+        [this](const std::vector<Object_ptr>& args)
+        {
+            return pool->get_none_object();
+        }
+    );
 }
 
 } // namespace Wasp

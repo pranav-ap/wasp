@@ -18,10 +18,10 @@ let f = Foo(1)
 
 fun lol(x: Printable)
     print(x)
-    print("------")
 
 fun lol(x: Printable & Truthy)
     print(x)
+    print("------")
 
 lol(f)
 

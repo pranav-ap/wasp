@@ -17,58 +17,58 @@ trait Hashable
         required
 
 
-trait Sized
-    fun size() => int
-        required
+# trait Sized
+#     fun size() => int
+#         required
 
-    fun is_empty() => bool
-        return self.size() == 0
-
-
-template
-    T: any
-trait Indexable
-    fun get(index: int) => T
-        required
-
-    fun set(index: int, value: T)
-        required
-
-# # --------------------------
-# # The Core Four
-# # --------------------------
-
-# native class bool is Printable & Truthy & Hashable
-#     fun repr() => str
-#         return if self then "true" else "false"
-
-#     fun is_truthy() => bool
-#         return self
-
-#     pure fun hash() => int
-#         return if self then 1 else 0
+#     fun is_empty() => bool
+#         return self.size() == 0
 
 
-# native class int is Printable & Truthy & Hashable
-#     fun repr() => str
-#         return "{self}"
+# template
+#     T: any
+# trait Indexable
+#     fun get(index: int) => T
+#         required
 
-#     fun is_truthy() => bool
-#         return self > 0
+#     fun set(index: int, value: T)
+#         required
 
-#     pure fun hash() => int
-#         return self
+# --------------------------
+# The Core Four
+# --------------------------
+
+class bool is Printable & Truthy & Hashable
+    fun repr() => str
+        return if self then "true" else "false"
+
+    fun is_truthy() => bool
+        return self
+
+    pure fun hash() => int
+        return if self then 1 else 0
 
 
-# native class float is Printable & Truthy
-#     fun repr() => str
-#         return "{self}"
+class int is Printable & Truthy & Hashable
+    fun repr() => str
+        return "{self}"
 
-#     fun is_truthy() => bool
-#         return self > 0
+    fun is_truthy() => bool
+        return self > 0
+
+    pure fun hash() => int
+        return self
 
 
-# native class str is Printable & Truthy & Hashable & Sized
+class float is Printable & Truthy
+    fun repr() => str
+        return "{self}"
+
+    fun is_truthy() => bool
+        return self > 0
+
+
+# class str is Printable & Truthy & Hashable & Sized
 #     fun repr() => str
 #         return self
 
@@ -94,9 +94,9 @@ trait Indexable
 
 type num = int | float
 
-# # --------------------------
-# # Composites
-# # --------------------------
+# --------------------------
+# Composites
+# --------------------------
 
 # template
 #     T: any
@@ -165,9 +165,9 @@ type num = int | float
 #         native
 
 
-# # --------------------------
-# # Option
-# # --------------------------
+# --------------------------
+# Option
+# --------------------------
 
 # template
 #     T: any
