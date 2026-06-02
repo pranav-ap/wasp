@@ -10,6 +10,7 @@
 #include <string>
 #include <utility>
 #include <variant>
+#include <vector>
 
 namespace Wasp
 {
@@ -69,9 +70,15 @@ struct InterpolatedString
 
 struct Box
 {
-    // TODO : only supports single trait for now, will need to be extended for multiple traits
     Expression_ptr expr;
-    int trait_type_id;
+    std::vector<int> trait_type_ids;
+
+    Box() = default;
+
+    Box(Expression_ptr expr, std::vector<int> trait_type_ids)
+        : expr(std::move(expr)), trait_type_ids(std::move(trait_type_ids))
+    {
+    }
 };
 
 struct OperatorExpression : public Resolvable

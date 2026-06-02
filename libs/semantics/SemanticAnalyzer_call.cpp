@@ -11,6 +11,7 @@
 #include <ctime>
 #include <string>
 #include <variant>
+#include <vector>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -97,6 +98,38 @@ Object_ptr SemanticAnalyzer::handle_member_call(
 
                 return call_method(call, ma, argument_types, trait_type);
             },
+
+            [&](IntersectionType_ptr inter_type) -> Object_ptr
+            {
+                ma.is_trait_dispatch = true;
+                call.is_trait_dispatch = true;
+
+                // Find the trait in the intersection that contains the method
+                for (const auto& type : inter_type->types)
+                {
+                    Doctor::get().assert(
+                        type->is<TraitType_ptr>(),
+                        WaspStage::Semantics,
+                        "Expected all types in an intersection to be traits "
+                        "for method calls."
+                    );
+
+                    auto trait = type->as<TraitType_ptr>();
+
+                    if (trait->contains_member(ma.right->as<Identifier>().name))
+                    {
+                        call.trait_type_id = trait->type_id;
+                        return call_method(call, ma, argument_types, trait);
+                    }
+                }
+
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "None of the traits in the intersection contain method : " +
+                        ma.right->as<Identifier>().name
+                );
+            },
+
             [&](auto&) -> Object_ptr
             {
                 Doctor::get().fatal(
@@ -189,12 +222,6 @@ Object_ptr SemanticAnalyzer::resolve_implicit_template(
     const ObjectVector& argument_types
 )
 {
-    Doctor::get().assert(
-        signature->template_type != nullptr,
-        WaspStage::Semantics,
-        "Expected template_type for implicit template resolution"
-    );
-
     auto substitutions = type_system->infer_template_arguments(
         signature,
         argument_types
@@ -501,14 +528,42 @@ Expression_ptr SemanticAnalyzer::try_box_expression(
     Object_ptr expected_type
 )
 {
+    if (expected_type->is<IntersectionType_ptr>())
+    {
+        auto intersection = expected_type->as<IntersectionType_ptr>();
+        std::vector<int> trait_ids;
+
+        for (const auto& trait_type : intersection->types)
+        {
+            Doctor::get().assert(
+                trait_type->is<TraitType_ptr>(),
+                WaspStage::Semantics,
+                "Expected all types in an intersection to be traits for boxing."
+            );
+
+            Doctor::get().assert(
+                actual_type->is<ClassType_ptr>(),
+                WaspStage::Semantics,
+                "Expected a class type to be boxed into a trait intersection."
+            );
+
+            auto trait = trait_type->as<TraitType_ptr>();
+            trait_ids.push_back(trait->type_id);
+        }
+
+        return make_expression(Box(expr, trait_ids));
+    }
+
+    // Handle single trait
     if (expected_type->is<TraitType_ptr>() && actual_type->is<ClassType_ptr>())
     {
         if (type_system->assignable(current_scope, expected_type, actual_type))
         {
             auto trait = expected_type->as<TraitType_ptr>();
-            return make_expression(Box{expr, trait->type_id});
+            return make_expression(Box(expr, {trait->type_id}));
         }
     }
+
     return expr;
 }
 

@@ -218,7 +218,7 @@ ExpressionVariant ASTCloner::clone_expr_data(const ExpressionVariant& data)
 
             [&](const Box& b) -> ExpressionVariant
             {
-                return Box{clone(b.expr), b.trait_type_id};
+                return Box{clone(b.expr), b.trait_type_ids};
             },
 
             [&](const Call& c) -> ExpressionVariant

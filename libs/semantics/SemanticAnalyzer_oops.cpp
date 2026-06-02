@@ -418,7 +418,6 @@ void SemanticAnalyzer::check_trait_conformance(OopsType_ptr oop_type)
                                          ->as<Signature_ptr>();
 
                     // Skip the 'self' parameter (first parameter) for both
-                    // Method parameters: [self, param1, param2, ...]
                     size_t trait_param_start = trait_sig->parameter_types
                                                        .empty()
                                                    ? 0
@@ -435,7 +434,6 @@ void SemanticAnalyzer::check_trait_conformance(OopsType_ptr oop_type)
                                                    .size() -
                                                class_param_start;
 
-                    // Compare parameter counts (excluding self)
                     if (trait_param_count != class_param_count)
                     {
                         continue;
@@ -458,7 +456,7 @@ void SemanticAnalyzer::check_trait_conformance(OopsType_ptr oop_type)
                         }
                     }
 
-                    // Compare return types (don't skip anything here)
+                    // Compare return types
                     if (params_match && type_system->equal(
                                             current_scope,
                                             trait_sig->return_type,

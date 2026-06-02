@@ -673,10 +673,11 @@ using ClassInstance_ptr = std::shared_ptr<ClassInstance>;
 struct TraitObject
 {
     ClassInstance_ptr class_instance;
-    ITable itable;
+    std::vector<int> trait_ids;
 
-    TraitObject(ClassInstance_ptr class_instance, ITable itable)
-        : class_instance(std::move(class_instance)), itable(std::move(itable))
+    TraitObject(ClassInstance_ptr class_instance, std::vector<int> trait_ids)
+        : class_instance(std::move(class_instance)),
+          trait_ids(std::move(trait_ids))
     {
     }
 };

@@ -5,6 +5,7 @@
 #include "OpCode.h"
 #include "Workspace.h"
 
+#include <cstddef>
 #include <memory>
 #include <string>
 
@@ -81,7 +82,17 @@ void Compiler::visit(Box& node)
 {
     // Push class instance onto stack
     visit(node.expr);
-    emit(OpCode::BOX, node.trait_type_id);
-}
 
+    // Emit BOX with count and all trait IDs
+    emit(
+        OpCode::BOX,
+        static_cast<int>(node.trait_type_ids.size()),
+        "box for trait(s)"
+    );
+
+    for (int trait_id : node.trait_type_ids)
+    {
+        emit_raw_byte(static_cast<std::byte>(trait_id));
+    }
+}
 } // namespace Wasp

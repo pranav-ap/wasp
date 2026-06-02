@@ -3,7 +3,6 @@
 #include "VM.h"
 
 #include <cstddef>
-#include <map>
 #include <memory>
 #include <string>
 #include <utility>
@@ -25,20 +24,19 @@ namespace Wasp
 
 void VM::execute_BOX(CallFrame* frame)
 {
-    int trait_id = static_cast<int>(frame->consume_byte());
-    Object_ptr instance_obj = pop_from_stack();
+    int trait_count = static_cast<int>(frame->consume_byte());
+    std::vector<int> trait_ids;
 
-    // Get the ClassInstance (contains both record and bag)
+    for (int i = 0; i < trait_count; i++)
+    {
+        trait_ids.push_back(static_cast<int>(frame->consume_byte()));
+    }
+
+    Object_ptr instance_obj = pop_from_stack();
     auto class_instance = instance_obj->as<ClassInstance_ptr>();
     Doctor::get().fatal_if_nullptr(class_instance, WaspStage::VM);
 
-    // Get the itable for this trait from the class instance's record
-    auto& itables = class_instance->bag->itables;
-    auto itable = itables.at(trait_id);
-
-    // Create TraitObject with ClassInstance and itable
-    auto trait_obj = std::make_shared<TraitObject>(class_instance, itable);
-
+    auto trait_obj = std::make_shared<TraitObject>(class_instance, trait_ids);
     push_to_stack(make_object(trait_obj));
 }
 

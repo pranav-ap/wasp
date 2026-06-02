@@ -89,7 +89,7 @@ using ByteVector = std::vector<std::byte>;
       1) /* [overload groups...] -> [Class BP] | <methods count> */            \
     X(PUSH_EMPTY_CLASS_BLUEPRINT, 0)                                           \
     X(INSTANTIATE, 1) /* [args..., Class BP] -> [instance] | <args count> */   \
-    X(BOX, 1)                                                                  \
+    X(BOX, 2)         /* count, trait id list */                               \
     /* --- Template --- */                                                     \
     X(BUILD_TEMPLATE, 1)
 
