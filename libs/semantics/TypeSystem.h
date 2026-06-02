@@ -108,6 +108,13 @@ struct TypeSystem
         const ObjectVector& argument_types
     ) const;
 
+    std::tuple<Object_ptr, int> get_possible_best_function_object(
+        SymbolScope_ptr scope,
+        const ObjectVector& candidates,
+        const ObjectVector& argument_types
+    ) const;
+
+
     // =========================================================================
     // Templates
     // =========================================================================

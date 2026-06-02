@@ -129,4 +129,29 @@ std::tuple<Object_ptr, int> TypeSystem::get_best_function_object(
     return {best_match, index};
 }
 
+std::tuple<Object_ptr, int> TypeSystem::get_possible_best_function_object(
+    SymbolScope_ptr scope,
+    const ObjectVector& candidates,
+    const ObjectVector& argument_types
+) const
+{
+    Object_ptr best_match = nullptr;
+    int index = -1;
+
+    for (size_t i = 0; i < candidates.size(); ++i)
+    {
+        auto signature = candidates[i]->as<Signature_ptr>();
+        if (assignable(scope, signature->parameter_types, argument_types))
+        {
+            Doctor::get()
+                .assert(index == -1, WaspStage::Semantics, "Ambiguous call");
+
+            best_match = candidates[i];
+            index = static_cast<int>(i);
+        }
+    }
+
+    return {best_match, index};
+}
+
 } // namespace Wasp

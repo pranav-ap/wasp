@@ -118,8 +118,18 @@ Object_ptr SemanticAnalyzer::handle_member_call(
 
                     if (trait->contains_member(ma.right->as<Identifier>().name))
                     {
-                        call.trait_type_id = trait->type_id;
-                        return call_method(call, ma, argument_types, trait);
+                        auto return_type = call_possible_method(
+                            call,
+                            ma,
+                            argument_types,
+                            trait
+                        );
+
+                        if (return_type)
+                        {
+                            call.trait_type_id = trait->type_id;
+                            return return_type;
+                        }
                     }
                 }
 
@@ -493,6 +503,60 @@ Object_ptr SemanticAnalyzer::call_method(
                                                         signatures_set->types,
                                                         argument_types
                                                     );
+
+    access.member_index = oops_type->bag_type->get_index(method_name);
+
+    call.overload_index = overload_index;
+    call.is_method_call = true;
+
+    return best_signature_obj->as<Signature_ptr>()->return_type;
+}
+
+Object_ptr SemanticAnalyzer::call_possible_method(
+    Call& call,
+    MemberAccess& access,
+    const ObjectVector& argument_types,
+    OopsType_ptr oops_type
+)
+{
+    auto method_name = access.right->as<Identifier>().name;
+
+    Doctor::get().assert(
+        oops_type->contains_member(method_name),
+        WaspStage::Semantics,
+        "Method '" + method_name + "()' does not exist on class '" +
+            oops_type->name + "'."
+    );
+
+    auto signatures_set_obj = oops_type->bag_type->get_signatures(method_name);
+
+    Doctor::get().fatal_if_nullptr(
+        signatures_set_obj,
+        WaspStage::Semantics,
+        "Member '" + method_name + "' not found in bag_type"
+    );
+
+    Doctor::get().assert(
+        signatures_set_obj->is<SignaturesSet_ptr>(),
+        WaspStage::Semantics,
+        "Member '" + method_name + "' must be a SignaturesSet."
+    );
+
+    auto signatures_set = signatures_set_obj->as<SignaturesSet_ptr>();
+
+    auto
+        [best_signature_obj,
+         overload_index] = type_system
+                               ->get_possible_best_function_object(
+                                   current_scope,
+                                   signatures_set->types,
+                                   argument_types
+                               );
+
+    if (overload_index == -1)
+    {
+        return nullptr;
+    }
 
     access.member_index = oops_type->bag_type->get_index(method_name);
 

@@ -7,14 +7,14 @@ class Foo is Printable & Truthy
     score: int
 
     fun repr() => str
-        return 'Foo : {self.score}'
+        return "Foo : {self.score}"
 
     fun is_truthy() => bool
         return self.score > 10
 
 
 let f = Foo(1)
-print(f)
+# print(f)
 
 
 fun lol(x: Printable & Truthy)

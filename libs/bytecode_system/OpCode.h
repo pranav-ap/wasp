@@ -63,8 +63,8 @@ using ByteVector = std::vector<std::byte>;
     X(SET_FIELD, 1)           /* <member index> */                             \
     X(GET_FIELD, 1)           /* <member index> */                             \
     X(GET_FUNCTION, 1)        /* <overload index> */                           \
-    X(GET_CLASS_METHOD, 2)    /* <member index> */                             \
-    X(GET_TRAIT_METHOD, 2)    /* <member index> */                             \
+    X(GET_CLASS_METHOD, 2)    /* <member index, overload_index> */             \
+    X(GET_TRAIT_METHOD, 3) /* <trait type id, member index, overload_index> */ \
     /* --- Scopes --- */                                                       \
     X(PUSH_SCOPE, 0)                                                           \
     X(POP_SCOPE, 0)                                                            \

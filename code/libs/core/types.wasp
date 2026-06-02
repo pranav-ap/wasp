@@ -40,7 +40,7 @@ trait Indexable
 
 # native class bool is Printable & Truthy & Hashable
 #     fun repr() => str
-#         return if self then 'true' else 'false'
+#         return if self then "true" else "false"
 
 #     fun is_truthy() => bool
 #         return self
@@ -51,7 +51,7 @@ trait Indexable
 
 # native class int is Printable & Truthy & Hashable
 #     fun repr() => str
-#         return '{self}'
+#         return "{self}"
 
 #     fun is_truthy() => bool
 #         return self > 0
@@ -62,7 +62,7 @@ trait Indexable
 
 # native class float is Printable & Truthy
 #     fun repr() => str
-#         return '{self}'
+#         return "{self}"
 
 #     fun is_truthy() => bool
 #         return self > 0
@@ -102,7 +102,7 @@ type num = int | float
 #     T: any
 # class list is Printable & Truthy & Sized & Indexable<T>
 #     fun repr() => str
-#         return 'list'
+#         return "list"
 
 #     fun size() => int
 #         native
@@ -121,7 +121,7 @@ type num = int | float
 #     T: any
 # class set is Printable & Truthy & Sized
 #     fun repr() => str
-#         return 'set'
+#         return "set"
 
 #     fun size() => int
 #         native
@@ -144,7 +144,7 @@ type num = int | float
 #     V: any
 # class map is Printable & Truthy & Sized
 #     fun repr() => str
-#         return 'map'
+#         return "map"
 
 #     fun size() => int
 #         native
@@ -173,7 +173,7 @@ type num = int | float
 #     T: any
 # class option is Printable & Truthy
 #     fun repr() => str
-#         return if self.has_value() then 'some' else 'none'
+#         return if self.has_value() then "some" else "none"
 
 #     fun is_truthy() => bool
 #         return self.has_value()

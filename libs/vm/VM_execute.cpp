@@ -166,6 +166,7 @@ void VM::execute_GET_CLASS_METHOD(CallFrame* frame)
 
 void VM::execute_GET_TRAIT_METHOD(CallFrame* frame)
 {
+    int trait_type_id = static_cast<int>(frame->consume_byte());
     int trait_member_index = static_cast<int>(frame->consume_byte());
     int trait_overload_index = static_cast<int>(frame->consume_byte());
 
@@ -178,15 +179,27 @@ void VM::execute_GET_TRAIT_METHOD(CallFrame* frame)
         "Expected boxed trait on stack."
     );
 
+    // Get the itable from the class instance's bag using trait_type_id
+    auto& itables = trait_obj->class_instance->bag->itables;
+    auto it = itables.find(trait_type_id);
+
+    Doctor::get().assert(
+        it != itables.end(),
+        WaspStage::VM,
+        "Trait ITable not found for trait_type_id: " +
+            std::to_string(trait_type_id)
+    );
+
+    const auto& itable = it->second;
     OverloadCoordinate trait_coord{trait_member_index, trait_overload_index};
 
     Doctor::get().assert(
-        trait_obj->itable.find(trait_coord) != trait_obj->itable.end(),
+        itable.find(trait_coord) != itable.end(),
         WaspStage::VM,
         "Trait ITable is missing the requested overload coordinate."
     );
 
-    OverloadCoordinate class_coord = trait_obj->itable.at(trait_coord);
+    OverloadCoordinate class_coord = itable.at(trait_coord);
 
     auto overloads_set = trait_obj->class_instance->bag->get_overloads_set(
         class_coord.member_index

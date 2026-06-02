@@ -93,7 +93,8 @@ Token Lexer::next_token() {
         return consume_number_literal();
     }
 
-    if (current_char == '\'') {
+    if (current_char == '\"')
+    {
         return consume_string_literal();
     }
 
@@ -173,7 +174,7 @@ Token Lexer::consume_string_literal()
         }
     };
 
-    while (get_current_char() != '\'' && get_current_char() != '\0')
+    while (get_current_char() != '\"' && get_current_char() != '\0')
     {
         if (get_current_char() == '{')
         {
@@ -212,7 +213,7 @@ Token Lexer::consume_string_literal()
 
     flush_string();
 
-    if (get_current_char() == '\'')
+    if (get_current_char() == '\"')
     {
         next(); // Skip closing quote
     }
@@ -231,12 +232,12 @@ Token Lexer::consume_string_literal()
 
     // If it IS interpolated, wrap it in our boundary tokens and flush to the
     // main queue
-    pending_tokens.push(Token{TokenType::INTERPOLATION_START, "'"});
+    pending_tokens.push(Token{TokenType::INTERPOLATION_START, "\""});
     for (const auto& t : local_pending)
     {
         pending_tokens.push(t);
     }
-    pending_tokens.push(Token{TokenType::INTERPOLATION_END, "'"});
+    pending_tokens.push(Token{TokenType::INTERPOLATION_END, "\""});
 
     // Pop and return the first token from the queue
     Token first = pending_tokens.front();

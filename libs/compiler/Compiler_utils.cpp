@@ -250,6 +250,19 @@ void Compiler::emit(OpCode opcode, int operand_1, int operand_2, std::string com
         .emit(opcode, operand_1, operand_2, std::move(comment));
 }
 
+void Compiler::emit(
+    OpCode opcode,
+    int operand_1,
+    int operand_2,
+    int operand_3,
+    std::string comment
+)
+{
+    graph.get_block(current_block_id)
+        .get_code()
+        .emit(opcode, operand_1, operand_2, operand_3, std::move(comment));
+}
+
 void Compiler::emit_local_cleanups(int target_depth)
 {
     int scopes_to_pop = current_lexical_scope_depth - target_depth;

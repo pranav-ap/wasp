@@ -12,21 +12,22 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-void Compiler::visit(Call& expr)
+void Compiler::visit(Call& call)
 {
-    if (expr.callable->is<MemberAccess>())
+    if (call.callable->is<MemberAccess>())
     {
-        auto& member_access = expr.callable->as<MemberAccess>();
+        auto& member_access = call.callable->as<MemberAccess>();
 
         // Push the instance (left side) onto the stack
         visit(member_access.left);
 
-        int overload_index = expr.overload_index;
+        int overload_index = call.overload_index;
 
         if (member_access.is_trait_dispatch)
         {
             emit(
                 OpCode::GET_TRAIT_METHOD,
+                call.trait_type_id,
                 member_access.member_index,
                 overload_index
             );
@@ -40,29 +41,29 @@ void Compiler::visit(Call& expr)
             );
         }
 
-        for (const auto& arg : expr.arguments)
+        for (const auto& arg : call.arguments)
         {
             visit(arg);
         }
 
         // Total arguments includes the instance (self) + explicit arguments
-        int total_arguments = static_cast<int>(expr.arguments.size()) + 1;
+        int total_arguments = static_cast<int>(call.arguments.size()) + 1;
         emit(OpCode::CALL, total_arguments);
     }
     else
     {
         // Regular function call
-        visit(expr.callable);
+        visit(call.callable);
 
-        int overload_index = expr.overload_index;
+        int overload_index = call.overload_index;
         emit(OpCode::GET_FUNCTION, overload_index);
 
-        for (const auto& arg : expr.arguments)
+        for (const auto& arg : call.arguments)
         {
             visit(arg);
         }
 
-        int total_arguments = static_cast<int>(expr.arguments.size());
+        int total_arguments = static_cast<int>(call.arguments.size());
         emit(OpCode::CALL, total_arguments);
     }
 }
