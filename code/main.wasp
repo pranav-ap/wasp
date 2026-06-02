@@ -16,6 +16,9 @@ class Foo is Printable & Truthy
 let f = Foo(1)
 # print(f)
 
+fun lol(x: Printable)
+    print(x)
+    print("------")
 
 fun lol(x: Printable & Truthy)
     print(x)
