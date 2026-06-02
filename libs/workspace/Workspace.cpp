@@ -21,8 +21,7 @@ namespace Wasp
 // ============================================================================
 
 FunctionSymbol::FunctionSymbol(Object_ptr type, bool is_native)
-    : type(std::move(type)), is_native(is_native), definition(nullptr),
-      declaration_scope(nullptr)
+    : type(std::move(type)), is_native(is_native)
 {
 }
 
@@ -31,8 +30,7 @@ VariableSymbol::VariableSymbol(Object_ptr type, bool is_mutable)
 {
 }
 
-OopsSymbol::OopsSymbol(Object_ptr type)
-    : type(std::move(type)), definition(nullptr), declaration_scope(nullptr)
+OopsSymbol::OopsSymbol(Object_ptr type) : type(std::move(type))
 {
 }
 

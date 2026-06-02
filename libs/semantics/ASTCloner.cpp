@@ -83,11 +83,10 @@ std::string get_raw_type_name(Object_ptr obj)
 
 Expression_ptr ASTCloner::clone(const Expression_ptr& expr)
 {
-    Doctor::get().fatal_if_nullptr(
-        expr,
-        WaspStage::Semantics,
-        "Cannot clone a nullptr expression"
-    );
+    if (!expr)
+    {
+        return nullptr;
+    }
 
     auto cloned = make_expression(clone_expr_data(expr->data), expr->is_desugared);
     return cloned;
@@ -95,11 +94,10 @@ Expression_ptr ASTCloner::clone(const Expression_ptr& expr)
 
 Statement_ptr ASTCloner::clone(const Statement_ptr& stmt)
 {
-    Doctor::get().fatal_if_nullptr(
-        stmt,
-        WaspStage::Semantics,
-        "Cannot clone a nullptr statement"
-    );
+    if (!stmt)
+    {
+        return nullptr;
+    }
 
     auto cloned = make_statement(clone_stmt_data(stmt->data));
     return cloned;
@@ -107,11 +105,10 @@ Statement_ptr ASTCloner::clone(const Statement_ptr& stmt)
 
 TypeAnnotation_ptr ASTCloner::clone(const TypeAnnotation_ptr& type)
 {
-    Doctor::get().fatal_if_nullptr(
-        type,
-        WaspStage::Semantics,
-        "Cannot clone a nullptr type annotation"
-    );
+    if (!type)
+    {
+        return nullptr;
+    }
 
     return make_type_annotation(clone_type_data(type->data));
 }
@@ -219,7 +216,7 @@ ExpressionVariant ASTCloner::clone_expr_data(const ExpressionVariant& data)
 
             [&](const Box& b) -> ExpressionVariant
             {
-                return Box{clone(b.expr), b.trait_type_ids};
+                return Box(clone(b.expr), b.trait_type_ids);
             },
 
             [&](const Call& c) -> ExpressionVariant
@@ -369,7 +366,8 @@ StatementVariant ASTCloner::clone_stmt_data(const StatementVariant& data)
                     param.type = clone(param.type);
                 }
 
-                wipe_callable(c);
+                // wipe_callable(c);
+                c.symbol = n.symbol;
 
                 return c;
             },
@@ -385,7 +383,9 @@ StatementVariant ASTCloner::clone_stmt_data(const StatementVariant& data)
             {
                 ClassDefinition
                     c(n.name, n.traits, clone(n.members), n.template_params);
-                wipe_resolvable(c);
+                // wipe_resolvable(c);
+
+                c.symbol = n.symbol;
                 return c;
             },
 
@@ -393,7 +393,8 @@ StatementVariant ASTCloner::clone_stmt_data(const StatementVariant& data)
             {
                 TraitDefinition
                     c(n.name, n.traits, clone(n.members), n.template_params);
-                wipe_resolvable(c);
+                // wipe_resolvable(c);
+                c.symbol = n.symbol;
                 return c;
             },
 

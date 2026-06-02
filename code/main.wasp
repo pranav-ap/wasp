@@ -14,7 +14,7 @@ class Foo is Printable & Truthy
 
 
 let f = Foo(1)
-# print(f)
+print(f)
 
 fun lol(x: Printable)
     print(x)
@@ -25,15 +25,15 @@ fun lol(x: Printable & Truthy)
 
 lol(f)
 
-# fun show() => int
-#     let x = 1
+fun show() => int
+    let x = 1
 
-#     let z = x + 2
-#     return z
+    let z = x + 2
+    return z
 
 
-# let g = show()
-# print(g)
+let g = show()
+print(g)
 
 
 

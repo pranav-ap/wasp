@@ -116,4 +116,29 @@ TemplateType_ptr SemanticAnalyzer::create_template_type(
     );
 }
 
+Statement_ptr SemanticAnalyzer::get_ast(Symbol_ptr symbol) const
+{
+    Doctor::get().fatal_if_nullptr(
+        symbol,
+        WaspStage::Semantics,
+        "Cannot get AST: symbol is null"
+    );
+
+    auto it = forest.find(symbol);
+
+    Doctor::get().assert(
+        it != forest.end(),
+        WaspStage::Semantics,
+        "AST not found for symbol: " + symbol->name
+    );
+
+    Doctor::get().fatal_if_nullptr(
+        it->second,
+        WaspStage::Semantics,
+        "AST is null for symbol: " + symbol->name
+    );
+
+    return it->second;
+}
+
 } // namespace Wasp

@@ -39,7 +39,7 @@ private:
 
     template <typename T> void wipe_resolvable(T& node)
     {
-        node.symbol = nullptr;
+        // node.symbol = nullptr;
     }
 
     template <typename T> void wipe_callable(T& node)

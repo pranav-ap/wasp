@@ -16,8 +16,8 @@ add_library(
     SemanticAnalyzer_definitions.cpp
     SemanticAnalyzer_operators.cpp
     SemanticAnalyzer_utils.cpp
-    SymbolScope.cpp
     DependencyCrawler.cpp
+    SymbolScope.cpp
     TypeSystem_overloads.cpp
     TypeSystem_infer.cpp
     TypeSystem_templates.cpp

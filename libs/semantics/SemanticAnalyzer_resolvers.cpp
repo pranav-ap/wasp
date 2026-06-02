@@ -328,12 +328,13 @@ Symbol_ptr SemanticAnalyzer::monomorphize_class_template(
     auto& class_data = blueprint_symbol->as<OopsSymbol>();
 
     ASTCloner cloner(substitutions);
-    Statement_ptr specialized_stmt = cloner.clone(class_data.definition);
+    auto ast = forest[blueprint_symbol];
+    Statement_ptr specialized_stmt = cloner.clone(ast);
 
     Symbol_ptr specialized_symbol = nullptr;
 
     SymbolScope_ptr previous_scope = current_scope;
-    current_scope = class_data.declaration_scope;
+    // current_scope = class_data.declaration_scope;
 
     std::visit(
         overloaded{

@@ -15,6 +15,9 @@
 namespace Wasp
 {
 
+struct Statement;
+using Statement_ptr = std::shared_ptr<Statement>;
+
 struct Object;
 using Object_ptr = std::shared_ptr<Object>;
 using ObjectVector = std::vector<Object_ptr>;

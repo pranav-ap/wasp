@@ -12,6 +12,7 @@
 #include "TypeSystem.h"
 #include "Workspace.h"
 
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -37,6 +38,8 @@ private:
     SymbolScope_ptr current_scope;
     ObjectVector return_type_stack;
 
+    std::map<Symbol_ptr, Statement_ptr> forest;
+
     StatementVector pending_templates;
 
     // Scope & Module
@@ -46,6 +49,8 @@ private:
     void setup_exports(Module_ptr mod, StringVector ordered_export_names);
     StringVector setup_ordered_export_names(Module_ptr mod);
     void extract_module_type(Module_ptr mod);
+
+    Statement_ptr get_ast(Symbol_ptr symbol) const;
 
     // Main Visitors
     void visit(const Statement_ptr statement);
@@ -118,7 +123,7 @@ private:
     void inject_prelude();
     void hoist_statements(StatementVector& statements);
     void hoist_names(StatementVector& statements);
-    void hoist_signatures(StatementVector& statements);
+    void hoist_signatures_and_store_ast(StatementVector& statements);
     void hoist(Import& stmt);
     void hoist(CallableDefinition& def);
 

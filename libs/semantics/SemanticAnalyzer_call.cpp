@@ -420,14 +420,15 @@ Symbol_ptr SemanticAnalyzer::monomorphize_callable_template(
     const std::string& specialized_name
 )
 {
-    auto& function_data = blueprint_symbol->as<FunctionSymbol>();
+    auto ast = forest[blueprint_symbol];
+    Doctor::get().fatal_if_nullptr(ast, WaspStage::Semantics);
 
     ASTCloner cloner(substitutions);
-    Statement_ptr specialized_stmt = cloner.clone(function_data.definition);
+    Statement_ptr specialized_stmt = cloner.clone(ast);
 
     Symbol_ptr specialized_group_symbol = nullptr;
-    SymbolScope_ptr previous_scope = current_scope;
-    current_scope = function_data.declaration_scope;
+    // SymbolScope_ptr previous_scope = current_scope;
+    // current_scope = function_data.declaration_scope;
 
     std::visit(
         overloaded{
@@ -455,7 +456,7 @@ Symbol_ptr SemanticAnalyzer::monomorphize_callable_template(
         WaspStage::Semantics
     );
 
-    current_scope = previous_scope;
+    // current_scope = previous_scope;
     pending_templates.push_back(specialized_stmt);
 
     return specialized_group_symbol;

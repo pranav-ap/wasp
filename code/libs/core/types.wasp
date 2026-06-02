@@ -17,12 +17,12 @@ trait Hashable
         required
 
 
-# trait Sized
-#     fun size() => int
-#         required
+trait Sized
+    fun size() => int
+        required
 
-#     fun is_empty() => bool
-#         return self.size() == 0
+    fun is_empty() => bool
+        return self.size() == 0
 
 
 # template
@@ -68,24 +68,24 @@ class float is Printable & Truthy
         return self > 0
 
 
-# class str is Printable & Truthy & Hashable & Sized
-#     fun repr() => str
-#         return self
+class str is Printable & Truthy & Hashable & Sized
+    fun repr() => str
+        return self
 
-#     fun is_truthy() => bool
-#         return self.size() > 0
+    fun is_truthy() => bool
+        return true
 
-#     pure fun hash() => int
-#         native
+    pure fun hash() => int
+        native
 
-#     fun size() => int
-#         native
+    fun size() => int
+        native
 
-#     fun slice(start: int, end: int) => str
-#         native
+    fun slice(start: int, end: int) => str
+        native
 
-#     fun trim() => str
-#         native
+    fun trim() => str
+        native
 
 
 # --------------------------

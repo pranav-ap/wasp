@@ -63,9 +63,9 @@ void SemanticAnalyzer::analyze_oops_definition(
     define_template_parameters(oop_type->template_type);
 
     resolve_traits(def, oop_type);
+    inherit_default_methods(def, oop_type);
     fill_oops_member_names(def, oop_type);
     hoist_methods(def, oop_type);
-    inherit_default_methods(def, oop_type);
     analyze_methods(def);
     check_trait_conformance(oop_type);
 
@@ -148,6 +148,32 @@ void SemanticAnalyzer::fill_oops_member_names(
     }
 }
 
+void SemanticAnalyzer::inherit_default_methods(
+    AbstractOopsDefinition& def,
+    OopsType_ptr oop_type
+)
+{
+    for (const auto& trait_obj : oop_type->traits)
+    {
+        auto trait = trait_obj->as<TraitType_ptr>();
+
+        Symbol_ptr trait_symbol = current_scope->lookup(trait->name);
+        Doctor::get().fatal_if_nullptr(trait_symbol, WaspStage::Semantics);
+
+        auto ast = forest[trait_symbol];
+        Doctor::get().fatal_if_nullptr(ast, WaspStage::Semantics);
+
+        auto trait_ast = ast->try_as<TraitDefinition>();
+        Doctor::get().fatal_if_nullptr(trait_ast, WaspStage::Semantics);
+
+        def.members.insert(
+            def.members.end(),
+            trait_ast->members.begin(),
+            trait_ast->members.end()
+        );
+    }
+}
+
 void SemanticAnalyzer::hoist_methods(
     AbstractOopsDefinition& def,
     OopsType_ptr oop_type
@@ -175,12 +201,19 @@ void SemanticAnalyzer::hoist_methods(
                 )
             );
 
-            method->symbol = SymbolFactory::create_function(
-                method->name,
-                new_signature,
-                current_scope->get_closure_depth(),
-                current_scope->get_lexical_depth()
-            );
+            if (method->symbol)
+            {
+                method->symbol->set_type(new_signature);
+            }
+            else
+            {
+                method->symbol = SymbolFactory::create_function(
+                    method->name,
+                    new_signature,
+                    current_scope->get_closure_depth(),
+                    current_scope->get_lexical_depth()
+                );
+            }
 
             Doctor::get().assert(
                 oop_type->bag_type->types.contains(method->name),
@@ -240,113 +273,6 @@ void SemanticAnalyzer::validate_method_signature(
             WaspStage::Semantics,
             "Duplicate method " + method_name + " in class " + class_name
         );
-    }
-}
-
-void SemanticAnalyzer::inherit_default_methods(
-    AbstractOopsDefinition& def,
-    OopsType_ptr oop_type
-)
-{
-    for (const auto& trait_obj : oop_type->traits)
-    {
-        auto trait = trait_obj->as<TraitType_ptr>();
-
-        Symbol_ptr trait_symbol = current_scope->lookup(trait->name);
-        Doctor::get().fatal_if_nullptr(trait_symbol, WaspStage::Semantics);
-
-        auto& trait_data = trait_symbol->as<OopsSymbol>();
-        auto trait_ast = trait_data.definition->try_as<TraitDefinition>();
-        Doctor::get().fatal_if_nullptr(trait_ast, WaspStage::Semantics);
-
-        for (const auto& method_name : trait->bag_type->ordered_keys)
-        {
-            // Get trait method signatures
-            auto trait_sig_obj = trait->bag_type->types.at(method_name);
-            Doctor::get().assert(
-                trait_sig_obj->is<SignaturesSet_ptr>(),
-                WaspStage::Semantics,
-                "Expected signature for trait method"
-            );
-
-            auto trait_signatures = trait_sig_obj->as<SignaturesSet_ptr>();
-
-            // Check if class already implements this method
-            bool is_implemented = oop_type->bag_type->types.contains(
-                method_name
-            );
-
-            if (is_implemented)
-            {
-                continue;
-            }
-
-            // Find the method AST in the trait definition
-            Statement_ptr source_stmt_ptr = nullptr;
-            FunctionDefinition* source_method_ast = nullptr;
-
-            for (auto& stmt : trait_ast->members)
-            {
-                if (auto* m = stmt->try_as<FunctionDefinition>())
-                {
-                    if (m->name == method_name)
-                    {
-                        source_stmt_ptr = stmt;
-                        source_method_ast = m;
-                        break;
-                    }
-                }
-            }
-
-            Doctor::get().fatal_if_nullptr(
-                source_method_ast,
-                WaspStage::Semantics
-            );
-
-            bool is_required = source_method_ast->symbol->as<FunctionSymbol>()
-                                   .required_in_class;
-
-            Doctor::get().assert(
-                !is_required,
-                WaspStage::Semantics,
-                "Class '" + oop_type->name +
-                    "' fails to implement required method '" + method_name +
-                    "' from trait '" + trait->name + "'."
-            );
-
-            // Clone and add the default implementation
-            ASTCloner cloner;
-            Statement_ptr cloned_stmt = cloner.clone(source_stmt_ptr);
-            auto* cloned_method = cloned_stmt->try_as<FunctionDefinition>();
-
-            def.members.push_back(cloned_stmt);
-
-            if (!oop_type->bag_type->types.contains(method_name))
-            {
-                oop_type->bag_type->ordered_keys.push_back(method_name);
-
-                auto signatures = std::make_shared<SignaturesSet>();
-                auto signatures_obj = make_object(signatures);
-
-                for (const auto& sig_obj : trait_signatures->types)
-                {
-                    signatures->add_signature(sig_obj);
-                }
-
-                oop_type->bag_type->types[method_name] = signatures_obj;
-            }
-
-            cloned_method->symbol = SymbolFactory::create_function(
-                cloned_method->name,
-                trait_sig_obj,
-                current_scope->get_closure_depth(),
-                current_scope->get_lexical_depth()
-            );
-
-            auto& function_data = cloned_method->symbol->as<FunctionSymbol>();
-            function_data.definition = cloned_stmt;
-            function_data.declaration_scope = current_scope;
-        }
     }
 }
 

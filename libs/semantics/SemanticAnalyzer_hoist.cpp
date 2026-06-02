@@ -26,7 +26,7 @@ namespace Wasp
 void SemanticAnalyzer::hoist_statements(StatementVector& statements)
 {
     hoist_names(statements);
-    hoist_signatures(statements);
+    hoist_signatures_and_store_ast(statements);
 }
 
 void SemanticAnalyzer::hoist_names(StatementVector& statements)
@@ -110,7 +110,9 @@ void SemanticAnalyzer::hoist_names(StatementVector& statements)
     }
 }
 
-void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
+void SemanticAnalyzer::hoist_signatures_and_store_ast(
+    StatementVector& statements
+)
 {
     for (auto& stmt_ptr : statements)
     {
@@ -131,48 +133,46 @@ void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
                     alias_type->underlying_type = visit(def.ref_type);
 
                     leave_scope();
+
+                    ASTCloner cloner;
+                    auto clone = cloner.clone(make_statement(def));
+
+                    forest[def.symbol] = clone;
                 },
                 [&](ClassDefinition& def)
                 {
-                    auto class_type = def.symbol->get_type()
-                                          ->as<ClassType_ptr>();
+                    auto type = def.symbol->get_type()->as<ClassType_ptr>();
 
-                    class_type->template_type = create_template_type(
+                    type->template_type = create_template_type(
                         def.template_params
                     );
 
-                    auto& class_data = def.symbol->as<OopsSymbol>();
-
                     ASTCloner cloner;
-                    class_data.definition = cloner.clone(make_statement(def));
-                    class_data.declaration_scope = current_scope;
+                    auto clone = cloner.clone(make_statement(def));
+                    forest[def.symbol] = make_statement(def);
                 },
                 [&](TraitDefinition& def)
                 {
-                    auto trait_type = def.symbol->get_type()
-                                          ->as<TraitType_ptr>();
+                    auto type = def.symbol->get_type()->as<TraitType_ptr>();
 
-                    trait_type->template_type = create_template_type(
+                    type->template_type = create_template_type(
                         def.template_params
                     );
 
-                    auto& trait_data = def.symbol->as<OopsSymbol>();
-
                     ASTCloner cloner;
-                    trait_data.definition = cloner.clone(make_statement(def));
-                    trait_data.declaration_scope = current_scope;
+                    auto clone = cloner.clone(make_statement(def));
+                    forest[def.symbol] = make_statement(def);
                 },
                 [&](FunctionDefinition& def)
                 {
                     hoist(def);
 
-                    auto& function_data = def.symbol->as<FunctionSymbol>();
+                    auto signature = def.symbol->get_type()
+                                         ->as<Signature_ptr>();
 
                     ASTCloner cloner;
-                    function_data.definition = cloner.clone(
-                        make_statement(def)
-                    );
-                    function_data.declaration_scope = current_scope;
+                    auto clone = cloner.clone(make_statement(def));
+                    forest[def.symbol] = make_statement(def);
                 },
                 [](auto&)
                 { /* No signature hoisting needed for other statements */ }

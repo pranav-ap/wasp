@@ -42,8 +42,6 @@ struct FunctionSymbol
 {
     Object_ptr type;
     bool is_native;
-    Statement_ptr definition = nullptr;
-    std::shared_ptr<SymbolScope> declaration_scope = nullptr;
     bool required_in_class = false;
 
     FunctionSymbol(Object_ptr type, bool is_native);
@@ -71,8 +69,6 @@ struct VariableSymbol
 struct OopsSymbol
 {
     Object_ptr type;
-    Statement_ptr definition;
-    std::shared_ptr<SymbolScope> declaration_scope;
 
     explicit OopsSymbol(Object_ptr type);
 };
