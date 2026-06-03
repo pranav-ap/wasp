@@ -13,6 +13,17 @@ greet<int>(3)
 greet(3)
 
 
+template
+    T: int | float | str
+class Santa
+    a: T
+
+    fun gift()
+        print(self.a)
+
+let s = Santa("3")
+s.gift()
+
 # class Foo is Printable & Truthy
 #     score: int
 
