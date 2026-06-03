@@ -86,10 +86,6 @@ Object_ptr SemanticAnalyzer::handle_member_call(
                     argument_types
                 );
             },
-            [&](ClassType_ptr class_type) -> Object_ptr
-            {
-                return call_method(call, ma, argument_types, class_type);
-            },
 
             [&](BooleanType_ptr type) -> Object_ptr
             {
@@ -106,6 +102,11 @@ Object_ptr SemanticAnalyzer::handle_member_call(
             [&](StringType_ptr type) -> Object_ptr
             {
                 return call_native_method(call, ma, argument_types, "str");
+            },
+
+            [&](ClassType_ptr class_type) -> Object_ptr
+            {
+                return call_method(call, ma, argument_types, class_type);
             },
 
             [&](TraitType_ptr trait_type) -> Object_ptr
