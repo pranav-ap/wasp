@@ -54,10 +54,10 @@ std::vector<Token> Lexer::run(const std::string source_code) {
         tokens.push_back(token);
     }
 
-    tokens.push_back(Token{TokenType::EOL, to_string(TokenType::EOL), LINE_NUM, COL_NUM});
+    tokens.push_back(Token{TokenType::EOL, to_string(TokenType::EOL)});
     next();
     tokens.push_back(
-        Token{TokenType::END_OF_FILE, to_string(TokenType::END_OF_FILE), LINE_NUM, COL_NUM}
+        Token{TokenType::END_OF_FILE, to_string(TokenType::END_OF_FILE)}
     );
 
     return tokens;
@@ -93,7 +93,8 @@ Token Lexer::next_token() {
         return consume_number_literal();
     }
 
-    if (current_char == '\'') {
+    if (current_char == '\"')
+    {
         return consume_string_literal();
     }
 
@@ -118,7 +119,7 @@ Token Lexer::consume_identifier_or_keyword() {
         type = get_keyword_token_type(value);
     }
 
-    return Token{type, value, LINE_NUM, COL_NUM};
+    return Token{type, value};
 }
 
 Token Lexer::consume_number_literal() {
@@ -149,7 +150,7 @@ Token Lexer::consume_number_literal() {
         current_char = get_current_char();
     }
 
-    return Token{TokenType::NUMBER_LITERAL, value, LINE_NUM, COL_NUM};
+    return Token{TokenType::NUMBER_LITERAL, value};
 }
 
 Token Lexer::consume_string_literal()
@@ -167,18 +168,13 @@ Token Lexer::consume_string_literal()
         if (!current_chars.empty())
         {
             local_pending.push_back(
-                Token{
-                    TokenType::STRING_LITERAL,
-                    current_chars,
-                    start_line,
-                    start_col
-                }
+                Token{TokenType::STRING_LITERAL, current_chars}
             );
             current_chars.clear();
         }
     };
 
-    while (get_current_char() != '\'' && get_current_char() != '\0')
+    while (get_current_char() != '\"' && get_current_char() != '\0')
     {
         if (get_current_char() == '{')
         {
@@ -186,14 +182,7 @@ Token Lexer::consume_string_literal()
             flush_string();
 
             // Push the '{'
-            local_pending.push_back(
-                Token{
-                    TokenType::OPEN_CURLY_BRACE,
-                    "{",
-                    token_position.get_line_num(),
-                    token_position.get_column_num()
-                }
-            );
+            local_pending.push_back(Token{TokenType::OPEN_CURLY_BRACE, "{"});
             next();
 
             int brace_depth = 1;
@@ -224,7 +213,7 @@ Token Lexer::consume_string_literal()
 
     flush_string();
 
-    if (get_current_char() == '\'')
+    if (get_current_char() == '\"')
     {
         next(); // Skip closing quote
     }
@@ -238,26 +227,17 @@ Token Lexer::consume_string_literal()
     // If it's an empty string ''
     if (!is_interpolated && local_pending.empty())
     {
-        return Token{TokenType::STRING_LITERAL, "", start_line, start_col};
+        return Token{TokenType::STRING_LITERAL, ""};
     }
 
     // If it IS interpolated, wrap it in our boundary tokens and flush to the
     // main queue
-    pending_tokens.push(
-        Token{TokenType::INTERPOLATION_START, "'", start_line, start_col}
-    );
+    pending_tokens.push(Token{TokenType::INTERPOLATION_START, "\""});
     for (const auto& t : local_pending)
     {
         pending_tokens.push(t);
     }
-    pending_tokens.push(
-        Token{
-            TokenType::INTERPOLATION_END,
-            "'",
-            token_position.get_line_num(),
-            token_position.get_column_num()
-        }
-    );
+    pending_tokens.push(Token{TokenType::INTERPOLATION_END, "\""});
 
     // Pop and return the first token from the queue
     Token first = pending_tokens.front();
@@ -302,191 +282,191 @@ Token Lexer::consume_plus() {
     next();
 
     if (expect_current_char('=')) {
-        return Token(TokenType::PLUS_EQUAL, "+=", LINE_NUM, COL_NUM);
+        return Token(TokenType::PLUS_EQUAL, "+=");
     }
 
     if (expect_current_char('+')) {
-        return Token(TokenType::PLUS_PLUS, "++", LINE_NUM, COL_NUM);
+        return Token(TokenType::PLUS_PLUS, "++");
     }
 
-    return Token(TokenType::PLUS, "+", LINE_NUM, COL_NUM);
+    return Token(TokenType::PLUS, "+");
 }
 
 Token Lexer::consume_minus() {
     next();
     if (expect_current_char('=')) {
-        return Token(TokenType::MINUS_EQUAL, "-=", LINE_NUM, COL_NUM);
+        return Token(TokenType::MINUS_EQUAL, "-=");
     }
 
     if (expect_current_char('-')) {
-        return Token(TokenType::MINUS_MINUS, "--", LINE_NUM, COL_NUM);
+        return Token(TokenType::MINUS_MINUS, "--");
     }
 
-    return Token(TokenType::MINUS, "-", LINE_NUM, COL_NUM);
+    return Token(TokenType::MINUS, "-");
 }
 
 Token Lexer::consume_star() {
     next();
     if (expect_current_char('=')) {
-        return Token(TokenType::STAR_EQUAL, "*=", LINE_NUM, COL_NUM);
+        return Token(TokenType::STAR_EQUAL, "*=");
     }
-    return Token(TokenType::STAR, "*", LINE_NUM, COL_NUM);
+    return Token(TokenType::STAR, "*");
 }
 
 Token Lexer::consume_division() {
     next();
     if (expect_current_char('=')) {
-        return Token(TokenType::DIVISION_EQUAL, "/=", LINE_NUM, COL_NUM);
+        return Token(TokenType::DIVISION_EQUAL, "/=");
     }
-    return Token(TokenType::DIVISION, "/", LINE_NUM, COL_NUM);
+    return Token(TokenType::DIVISION, "/");
 }
 
 Token Lexer::consume_reminder() {
     next();
     if (expect_current_char('=')) {
-        return Token(TokenType::MOD_EQUAL, "%=", LINE_NUM, COL_NUM);
+        return Token(TokenType::MOD_EQUAL, "%=");
     }
-    return Token(TokenType::MOD, "%", LINE_NUM, COL_NUM);
+    return Token(TokenType::MOD, "%");
 }
 
 Token Lexer::consume_power() {
     next();
     if (expect_current_char('=')) {
-        return Token(TokenType::POWER_EQUAL, "**=", LINE_NUM, COL_NUM);
+        return Token(TokenType::POWER_EQUAL, "**=");
     }
-    return Token(TokenType::POWER, "**", LINE_NUM, COL_NUM);
+    return Token(TokenType::POWER, "**");
 }
 
 Token Lexer::consume_bang() {
     next();
     if (expect_current_char('=')) {
-        return Token(TokenType::BANG_EQUAL, "!=", LINE_NUM, COL_NUM);
+        return Token(TokenType::BANG_EQUAL, "!=");
     }
-    return Token(TokenType::BANG, "!", LINE_NUM, COL_NUM);
+    return Token(TokenType::BANG, "!");
 }
 
 Token Lexer::consume_equal() {
     next();
     if (expect_current_char('=')) {
-        return Token(TokenType::EQUAL_EQUAL, "==", LINE_NUM, COL_NUM);
+        return Token(TokenType::EQUAL_EQUAL, "==");
     } else if (expect_current_char('>')) {
-        return Token(TokenType::ARROW, "=>", LINE_NUM, COL_NUM);
+        return Token(TokenType::ARROW, "=>");
     }
 
-    return Token(TokenType::EQUAL, "=", LINE_NUM, COL_NUM);
+    return Token(TokenType::EQUAL, "=");
 }
 
 Token Lexer::consume_colon() {
     next();
     if (expect_current_char(':')) {
-        return Token(TokenType::COLON_COLON, "::", LINE_NUM, COL_NUM);
+        return Token(TokenType::COLON_COLON, "::");
     }
-    return Token(TokenType::COLON, ":", LINE_NUM, COL_NUM);
+    return Token(TokenType::COLON, ":");
 }
 
 Token Lexer::consume_dot() {
     next();
     if (expect_current_char('.')) {
         if (expect_current_char('=')) {
-            return Token(TokenType::DOT_DOT_EQUAL, "..=", LINE_NUM, COL_NUM);
+            return Token(TokenType::DOT_DOT_EQUAL, "..=");
         }
 
         if (expect_current_char('<')) {
-            return Token(TokenType::DOT_DOT_LESS, "..<", LINE_NUM, COL_NUM);
+            return Token(TokenType::DOT_DOT_LESS, "..<");
         }
 
-        return Token(TokenType::DOT_DOT, "..", LINE_NUM, COL_NUM);
+        return Token(TokenType::DOT_DOT, "..");
     }
 
-    return Token(TokenType::DOT, ".", LINE_NUM, COL_NUM);
+    return Token(TokenType::DOT, ".");
 }
 
 Token Lexer::consume_question() {
     next();
     if (expect_current_char('.')) {
-        return Token(TokenType::QUESTION_DOT, "?.", LINE_NUM, COL_NUM);
+        return Token(TokenType::QUESTION_DOT, "?.");
     }
 
     if (expect_current_char('=')) {
-        return Token(TokenType::QUESTION_EQUAL, "?=", LINE_NUM, COL_NUM);
+        return Token(TokenType::QUESTION_EQUAL, "?=");
     }
 
-    return Token(TokenType::QUESTION, "?", LINE_NUM, COL_NUM);
+    return Token(TokenType::QUESTION, "?");
 }
 
 Token Lexer::consume_greater_than() {
     next();
     if (expect_current_char('=')) {
-        return Token(TokenType::GREATER_THAN_EQUAL, ">=", LINE_NUM, COL_NUM);
+        return Token(TokenType::GREATER_THAN_EQUAL, ">=");
     }
     if (expect_current_char('>')) {
-        return Token(TokenType::GREATER_THAN_2, ">>", LINE_NUM, COL_NUM);
+        return Token(TokenType::GREATER_THAN_2, ">>");
     }
-    return Token(TokenType::GREATER_THAN, ">", LINE_NUM, COL_NUM);
+    return Token(TokenType::GREATER_THAN, ">");
 }
 
 Token Lexer::consume_lesser_than() {
     next();
     if (expect_current_char('=')) {
         if (expect_current_char('>')) {
-            return Token(TokenType::ROCKET, "<=>", LINE_NUM, COL_NUM);
+            return Token(TokenType::ROCKET, "<=>");
         }
         if (expect_current_char('<')) {
-            return Token(TokenType::LESSER_THAN_2, "<<", LINE_NUM, COL_NUM);
+            return Token(TokenType::LESSER_THAN_2, "<<");
         }
-        return Token(TokenType::LESSER_THAN_EQUAL, "<=", LINE_NUM, COL_NUM);
+        return Token(TokenType::LESSER_THAN_EQUAL, "<=");
     }
 
     if (expect_current_char('>')) {
-        return Token(TokenType::ZIP, "<>", LINE_NUM, COL_NUM);
+        return Token(TokenType::ZIP, "<>");
     }
-    return Token(TokenType::LESSER_THAN, "<", LINE_NUM, COL_NUM);
+    return Token(TokenType::LESSER_THAN, "<");
 }
 
 Token Lexer::consume_single_char_punctuation(char ch) {
     switch (ch) {
     case '(':
         next();
-        return Token(TokenType::OPEN_PARENTHESIS, "(", LINE_NUM, COL_NUM);
+        return Token(TokenType::OPEN_PARENTHESIS, "(");
     case ')':
         next();
-        return Token(TokenType::CLOSE_PARENTHESIS, ")", LINE_NUM, COL_NUM);
+        return Token(TokenType::CLOSE_PARENTHESIS, ")");
     case '{':
         next();
-        return Token(TokenType::OPEN_CURLY_BRACE, "{", LINE_NUM, COL_NUM);
+        return Token(TokenType::OPEN_CURLY_BRACE, "{");
     case '}':
         next();
-        return Token(TokenType::CLOSE_CURLY_BRACE, "}", LINE_NUM, COL_NUM);
+        return Token(TokenType::CLOSE_CURLY_BRACE, "}");
     case '[':
         next();
-        return Token(TokenType::OPEN_SQUARE_BRACKET, "[", LINE_NUM, COL_NUM);
+        return Token(TokenType::OPEN_SQUARE_BRACKET, "[");
     case ']':
         next();
-        return Token(TokenType::CLOSE_SQUARE_BRACKET, "]", LINE_NUM, COL_NUM);
+        return Token(TokenType::CLOSE_SQUARE_BRACKET, "]");
     case '\\':
         next();
-        return Token(TokenType::BACKWARD_SLASH, "\\", LINE_NUM, COL_NUM);
+        return Token(TokenType::BACKWARD_SLASH, "\\");
     case ',':
         next();
-        return Token(TokenType::COMMA, ",", LINE_NUM, COL_NUM);
+        return Token(TokenType::COMMA, ",");
     case '|':
         next();
-        return Token(TokenType::VERTICAL_BAR, "|", LINE_NUM, COL_NUM);
+        return Token(TokenType::VERTICAL_BAR, "|");
     case '_':
         next();
-        return Token(TokenType::UNDERSCORE, "_", LINE_NUM, COL_NUM);
+        return Token(TokenType::UNDERSCORE, "_");
     case '$':
         next();
-        return Token(TokenType::DOLLAR, "$", LINE_NUM, COL_NUM);
+        return Token(TokenType::DOLLAR, "$");
     case '&':
         next();
-        return Token(TokenType::AMPERSAND, "&", LINE_NUM, COL_NUM);
+        return Token(TokenType::AMPERSAND, "&");
     case '~':
         next();
-        return Token(TokenType::TILDE, "~", LINE_NUM, COL_NUM);
+        return Token(TokenType::TILDE, "~");
     case '@':
         next();
-        return Token(TokenType::AT_SIGN, "@", LINE_NUM, COL_NUM);
+        return Token(TokenType::AT_SIGN, "@");
     case '#': {
         next();
 
@@ -500,7 +480,7 @@ Token Lexer::consume_single_char_punctuation(char ch) {
             current_char = get_current_char();
         }
 
-        return Token(TokenType::COMMENT, comment, LINE_NUM, COL_NUM);
+        return Token(TokenType::COMMENT, comment);
     }
     default:
         return consume_unknown_token();
@@ -509,23 +489,23 @@ Token Lexer::consume_single_char_punctuation(char ch) {
 
 Token Lexer::consume_eol() {
     next();
-    return Token(TokenType::EOL, "\\n", LINE_NUM, COL_NUM);
+    return Token(TokenType::EOL, "\\n");
 }
 
 Token Lexer::consume_space() {
     next();
-    return Token(TokenType::SPACE, " ", LINE_NUM, COL_NUM);
+    return Token(TokenType::SPACE, " ");
 }
 
 Token Lexer::consume_tab() {
     next();
-    return Token(TokenType::TAB, "\t", LINE_NUM, COL_NUM);
+    return Token(TokenType::TAB, "\t");
 }
 
 Token Lexer::consume_unknown_token() {
     const char current_char = get_current_char();
     next();
-    return Token(TokenType::UNKNOWN, std::string(1, current_char), LINE_NUM, COL_NUM);
+    return Token(TokenType::UNKNOWN, std::string(1, current_char));
 }
 
 // UTILS

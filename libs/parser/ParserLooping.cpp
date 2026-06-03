@@ -59,14 +59,10 @@ Statement_ptr Parser::parse_for_in_loop(int loop_indent_level)
     if (!expression->is<Infix>())
     {
         auto current_token = token_pipe.current();
-        int line = current_token ? current_token->line : 0;
-        int col = current_token ? current_token->column : 0;
 
         Doctor::get().fatal(
             WaspStage::Parser,
-            "Expected 'EXPR in ITERABLE' after for",
-            line,
-            col
+            "Expected 'EXPR in ITERABLE' after for"
         );
     }
 
@@ -77,9 +73,7 @@ Statement_ptr Parser::parse_for_in_loop(int loop_indent_level)
         Doctor::get().fatal(
             WaspStage::Parser,
             "Expected 'in' keyword in for loop, but got " +
-                to_string(infix.op.type),
-            infix.op.line,
-            infix.op.column
+                to_string(infix.op.type)
         );
     }
 

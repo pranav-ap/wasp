@@ -5,6 +5,7 @@
 #include "OpCode.h"
 #include "Workspace.h"
 
+#include <cstddef>
 #include <memory>
 #include <string>
 
@@ -53,15 +54,23 @@ void Compiler::visit(Identifier& expr)
 
 void Compiler::visit(MemberAccess& access)
 {
-    if (access.is_enum_value)
+    visit(access.left);
+
+    if (access.is_module_access)
     {
-        int const_id = workspace->pool->allocate(access.member_index);
-        emit(OpCode::LOAD_CONSTANT, const_id);
-        return;
+        emit(OpCode::GET_IMPORTED_MEMBER, access.member_index);
     }
 
-    visit(access.left);
-    emit(OpCode::GET_MEMBER, access.member_index);
+    else if (access.is_field)
+    {
+        emit(OpCode::GET_FIELD, access.member_index);
+    }
+}
+
+void Compiler::visit(EnumMember& enum_member)
+{
+    int const_id = workspace->pool->allocate(enum_member.enum_member_value);
+    emit(OpCode::LOAD_CONSTANT, const_id);
 }
 
 void Compiler::visit(TemplateAngular& expr)
@@ -73,7 +82,17 @@ void Compiler::visit(Box& node)
 {
     // Push class instance onto stack
     visit(node.expr);
-    emit(OpCode::BOX, node.trait_type_id);
-}
 
+    // Emit BOX with count and all trait IDs
+    emit(
+        OpCode::BOX,
+        static_cast<int>(node.trait_type_ids.size()),
+        "box for trait(s)"
+    );
+
+    for (int trait_id : node.trait_type_ids)
+    {
+        emit_raw_byte(static_cast<std::byte>(trait_id));
+    }
+}
 } // namespace Wasp

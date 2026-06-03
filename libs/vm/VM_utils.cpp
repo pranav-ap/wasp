@@ -20,9 +20,13 @@ namespace Wasp
 void VM::execute_stack_op(OpCode op)
 {
     if (op == OpCode::POP)
+    {
         pop_from_stack();
+    }
     else if (op == OpCode::DUP)
+    {
         push_to_stack(peek_tos());
+    }
 }
 
 void VM::push_to_stack(Object_ptr value)
@@ -41,7 +45,7 @@ ObjectVector VM::pop_n_from_stack(size_t n)
 {
     ObjectVector values(n);
 
-    for (int i = n - 1; i >= 0; --i)
+    for (int i = static_cast<int>(n) - 1; i >= 0; --i)
     {
         values[i] = pop_from_stack();
     }
@@ -58,57 +62,51 @@ bool VM::is_truthy(Object_ptr obj) const
 {
     return std::visit(
         overloaded{
-            [](std::monostate&)
+            [](std::monostate)
             {
                 return false;
             },
 
-            [](NoneObject&)
+            [](NoneObject_ptr)
             {
                 return false;
             },
 
-            [](BooleanObject& b)
+            [](BooleanObject_ptr b)
             {
-                return b.value;
+                return b->value;
             },
 
-            [](IntObject& i)
+            [](IntObject_ptr i)
             {
-                return i.value > 0;
+                return i->value > 0;
             },
-            [](FloatObject& f)
+            [](FloatObject_ptr f)
             {
-                return f.value > 0.0;
-            },
-
-            [](StringObject& s)
-            {
-                return !s.value.empty();
+                return f->value > 0.0;
             },
 
-            [](ListObject& l)
+            [](StringObject_ptr s)
             {
-                return !l.values.empty();
-            },
-            [](TupleObject& t)
-            {
-                return !t.values.empty();
-            },
-            [](SetObject& s)
-            {
-                return !s.values.empty();
-            },
-            [](MapObject& m)
-            {
-                return !m.pairs.empty();
+                return !s->value.empty();
             },
 
-            [](ErrorObject& e)
+            [](ListObject_ptr l)
             {
-                return false;
+                return !l->values.empty();
             },
-
+            [](TupleObject_ptr t)
+            {
+                return !t->values.empty();
+            },
+            [](SetObject_ptr s)
+            {
+                return !s->values.empty();
+            },
+            [](MapObject_ptr m)
+            {
+                return !m->pairs.empty();
+            },
             [](auto&)
             {
                 return true;

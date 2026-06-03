@@ -3,65 +3,41 @@ import core.types expose *
 import core.operators expose *
 
 
-trait Debug
-    pure fun repr() => str
-        required
+class Foo is Printable & Truthy
+    score: int
 
-    pure fun repr(a: int) => str
-        pass
+    fun repr() => str
+        return "Foo : {self.score}"
 
+    fun is_truthy() => bool
+        return self.score > 10
 
-trait Player
-    fun play()
-        required
-
-
-class Jordan is Debug & Player
-    name: str
-
-    pure fun repr() => str
-        return 'name = {my.name}'
-
-    pure fun repr(a: int) => str
-        return 'hi'
-
-    fun play()
-        let k = 9
-        k.repr()
+    our fun shout()
+        print("Ahhhh!")
 
 
-fun shout(d: Debug)
-    let y = d.repr()
-    y.repr()
+let f = Foo(1)
+print(f)
+# Foo.shout()
 
-let j = Jordan('jordan')
-let g = j.repr()
-g.repr()
+fun lol(x: Printable)
+    print(x)
 
-shout(j)
+fun lol(x: Printable & Truthy)
+    print(x)
+    print("------")
 
+lol(f)
 
-enum Status
-    Okay
-    enum Alive
-        Barely
-        Totally
+fun show() => int
+    let x = 1
 
-
-Status.Alive.Totally
-
-
-let xxx = Status.Okay
-xxx.repr()
+    let z = x + 2
+    return z
 
 
-# x?.run()
-# x!.run()
+let g = show()
+print(g)
 
 
-# pure fun catch(e: DivisionByZeroError)
-#     pass
-
-
-# raise DivisionByZeroError()
-
+# print("sam".size())

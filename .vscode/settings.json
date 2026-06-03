@@ -15,7 +15,7 @@
         "markdown": false,
         "scminput": false,
         "python": false,
-        "cpp": true,
+        "cpp": false,
         "c": true
     },
     // -----------------------------------------------------------------

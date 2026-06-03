@@ -46,9 +46,7 @@ Token TokenPipe::require(TokenType token_type) {
         Doctor::get().fatal(
             WaspStage::Parser,
             "Expected token of type " + to_string(token_type) + " but got " +
-                to_string(token->type),
-            token->line,
-            token->column
+                to_string(token->type)
         );
     }
 
@@ -77,9 +75,8 @@ Token TokenPipe::require(const std::vector<TokenType>& token_types) {
 
     Doctor::get().fatal(
         WaspStage::Parser,
-        "Expected one of { " + expected_types + "} but got " + to_string(token->type),
-        token->line,
-        token->column
+        "Expected one of { " + expected_types + "} but got " +
+            to_string(token->type)
     );
 }
 
@@ -204,9 +201,7 @@ void TokenPipe::expect_no_indents_or_spaces() const {
         Doctor::get().assert(
             token->type != TokenType::TAB && token->type != TokenType::SPACE,
             WaspStage::Parser,
-            "Unexpected indent or space",
-            token->line,
-            token->column
+            "Unexpected indent or space"
         );
     }
 }
@@ -220,9 +215,8 @@ void TokenPipe::expect_n_indents(const int n) {
         Doctor::get().assert(
             token->type == TokenType::TAB,
             WaspStage::Parser,
-            "Expected " + std::to_string(n) + " indents but got " + std::to_string(i),
-            token->line,
-            token->column
+            "Expected " + std::to_string(n) + " indents but got " +
+                std::to_string(i)
         );
 
         advance_pointer();

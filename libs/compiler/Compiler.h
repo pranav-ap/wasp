@@ -102,6 +102,13 @@ private:
         int operand_2,
         std::string comment = ""
     );
+    void emit(
+        OpCode opcode,
+        int operand_1,
+        int operand_2,
+        int operand_3,
+        std::string comment = ""
+    );
     void emit_raw_byte(std::byte b);
 
     void emit_local_cleanups(int target_depth);
@@ -127,6 +134,7 @@ private:
 
     void visit(FunctionDefinition& statement);
     void visit(ClassDefinition& statement);
+    void visit(TraitDefinition& statement);
     void visit(TypeAliasDefinition& statement);
     void visit(EnumDefinition& statement);
 
@@ -150,10 +158,11 @@ private:
     void visit(BooleanLiteral& expr);
 
     void visit(Identifier& expr);
-    void visit(MemberAccess& expr);
 
-    void visit(FunctionCall& expr);
-    void visit(MethodCall& expr);
+    void visit(MemberAccess& expr);
+    void visit(EnumMember& expr);
+
+    void visit(Call& expr);
 
     void visit(Constructor& expr);
 
@@ -210,8 +219,6 @@ private:
         const std::string& class_name,
         const std::string& path_override
     );
-
-    Object_ptr get_default_value_for_type(Object_ptr type);
 
     CodeObject flatten();
 };

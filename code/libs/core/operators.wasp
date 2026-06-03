@@ -1,16 +1,4 @@
-import my.types expose *
-
-template
-    T: Int | Float | String
-
-infix + (left: T, right: T) => T
-    return T(left.value + right.value)
+# import my.types expose *
 
 
-infix + (left: String, right: Int) => String
-    return String(left.value + right.value)
-
-
-infix + (left: Int, right: String) => String
-    return String(left.value + right.value)
 

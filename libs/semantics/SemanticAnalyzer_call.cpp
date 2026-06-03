@@ -5,13 +5,13 @@
 #include "Objects.h"
 #include "SemanticAnalyzer.h"
 #include "Statement.h"
-#include "SymbolScope.h"
 #include "Workspace.h"
 
 #include <cctype>
 #include <ctime>
 #include <string>
 #include <variant>
+#include <vector>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -30,94 +30,149 @@ Object_ptr SemanticAnalyzer::visit(Call& call)
         overloaded{
             [&](Identifier& id)
             {
-                auto unresolved = current_scope->lookup(id.name);
-                Doctor::get().fatal_if_nullptr(
-                    unresolved,
-                    WaspStage::Semantics,
-                    "Undefined callable: '" + id.name + "'"
-                );
-
-                auto symbol = unresolved->resolve();
-                bind_identifier(id, symbol);
-
-                return resolve_standard_overload(call, symbol, argument_types);
+                return handle_identifier_call(call, id, argument_types);
             },
             [&](TemplateAngular& ta)
             {
                 return call_template_function(call, ta, argument_types);
             },
-            [&](MemberAccess& ma) -> Object_ptr
+            [&](MemberAccess& ma)
             {
-                Object_ptr left_type = visit(ma.left);
-                left_type = unwrap_completely(left_type);
-
-                return std::visit(
-                    overloaded{
-                        [&](ClassType_ptr class_type) -> Object_ptr
-                        {
-                            return call_method(call, ma, argument_types, class_type);
-                        },
-                        [&](TraitType_ptr trait_type) -> Object_ptr
-                        {
-                            ma.is_trait_dispatch = true;
-                            call.is_trait_dispatch = true;
-                            call.trait_type_id = trait_type->type_id;
-
-                            return call_method(call, ma, argument_types, trait_type);
-                        },
-                        [&](ModuleType_ptr module_type) -> Object_ptr
-                        {
-                            auto member_symbol = get_module_member_symbol(ma);
-                            ma.right->as<Identifier>().symbol = member_symbol;
-
-                            return resolve_standard_overload(
-                                call,
-                                member_symbol,
-                                argument_types
-                            );
-                        },
-                        [&](auto&) -> Object_ptr
-                        {
-                            Doctor::get().fatal(
-                                WaspStage::Semantics,
-                                "LHS of call must be a module, class, or template"
-                            );
-                        }
-                    },
-                    left_type->value
-                );
+                return handle_member_call(call, ma, argument_types);
             },
             [&](auto&) -> Object_ptr
             {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "Expected an Identifier, TemplateAngular, or MemberAccess as "
-                    "the callable."
-                );
+                Doctor::get().fatal(WaspStage::Semantics, "Invalid callable");
             }
         },
         call.callable->data
     );
 }
 
-Expression_ptr SemanticAnalyzer::try_box_expression(
-    Expression_ptr expr,
-    Object_ptr actual_type,
-    Object_ptr expected_type
+// ============================================================================
+// Call Handlers
+// ============================================================================
+
+Object_ptr SemanticAnalyzer::handle_identifier_call(
+    Call& call,
+    Identifier& id,
+    const ObjectVector& argument_types
 )
 {
-    if (expected_type->is<TraitType_ptr>() && actual_type->is<ClassType_ptr>())
-    {
-        if (type_system->assignable(current_scope, expected_type, actual_type))
-        {
-            auto trait = expected_type->as<TraitType_ptr>();
-            int trait_type_id = trait->type_id;
-            return make_expression(Box{expr, trait_type_id});
-        }
-    }
-
-    return expr;
+    auto symbol = current_scope->lookup_required_and_resolve(id.name);
+    bind_identifier(id, symbol);
+    return resolve_standard_overload(call, symbol, argument_types);
 }
+
+Object_ptr SemanticAnalyzer::handle_member_call(
+    Call& call,
+    MemberAccess& ma,
+    ObjectVector& argument_types
+)
+{
+    Object_ptr left_type = visit(ma.left)->unwrap_completely();
+    argument_types.insert(argument_types.begin(), left_type);
+
+    return std::visit(
+        overloaded{
+            [&](ModuleType_ptr module_type) -> Object_ptr
+            {
+                auto member_symbol = get_module_member_symbol(ma);
+                ma.right->as<Identifier>().symbol = member_symbol;
+
+                return resolve_standard_overload(
+                    call,
+                    member_symbol,
+                    argument_types
+                );
+            },
+            [&](ClassType_ptr class_type) -> Object_ptr
+            {
+                return call_method(call, ma, argument_types, class_type);
+            },
+
+            [&](BooleanType_ptr type) -> Object_ptr
+            {
+                return call_native_method(call, ma, argument_types, "bool");
+            },
+            [&](IntType_ptr type) -> Object_ptr
+            {
+                return call_native_method(call, ma, argument_types, "int");
+            },
+            [&](FloatType_ptr type) -> Object_ptr
+            {
+                return call_native_method(call, ma, argument_types, "float");
+            },
+            [&](StringType_ptr type) -> Object_ptr
+            {
+                return call_native_method(call, ma, argument_types, "str");
+            },
+
+            [&](TraitType_ptr trait_type) -> Object_ptr
+            {
+                ma.is_trait_dispatch = true;
+                call.is_trait_dispatch = true;
+                call.trait_type_id = trait_type->type_id;
+
+                return call_method(call, ma, argument_types, trait_type);
+            },
+
+            [&](IntersectionType_ptr inter_type) -> Object_ptr
+            {
+                ma.is_trait_dispatch = true;
+                call.is_trait_dispatch = true;
+
+                // Find the trait in the intersection that contains the method
+                for (const auto& type : inter_type->types)
+                {
+                    Doctor::get().assert(
+                        type->is<TraitType_ptr>(),
+                        WaspStage::Semantics,
+                        "Expected all types in an intersection to be traits "
+                        "for method calls."
+                    );
+
+                    auto trait = type->as<TraitType_ptr>();
+
+                    if (trait->contains_member(ma.right->as<Identifier>().name))
+                    {
+                        auto return_type = call_possible_method(
+                            call,
+                            ma,
+                            argument_types,
+                            trait
+                        );
+
+                        if (return_type)
+                        {
+                            call.trait_type_id = trait->type_id;
+                            return return_type;
+                        }
+                    }
+                }
+
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "None of the traits in the intersection contain method : " +
+                        ma.right->as<Identifier>().name
+                );
+            },
+
+            [&](auto&) -> Object_ptr
+            {
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Invalid member call LHS"
+                );
+            }
+        },
+        left_type->value
+    );
+}
+
+// ============================================================================
+// Standard Overload Resolution
+// ============================================================================
 
 Object_ptr SemanticAnalyzer::resolve_standard_overload(
     Call& call,
@@ -126,13 +181,12 @@ Object_ptr SemanticAnalyzer::resolve_standard_overload(
 )
 {
     Doctor::get().assert(
-        overload_symbol->payload_is<OverloadsData>(),
+        overload_symbol->is<OverloadsSymbol>(),
         WaspStage::Semantics,
         "Symbol must hold function overloads."
     );
 
     auto candidates = overload_symbol->get_overloads();
-
     auto [function_symbol, raw_index] = type_system->get_best_function_symbol(
         current_scope,
         candidates,
@@ -140,17 +194,9 @@ Object_ptr SemanticAnalyzer::resolve_standard_overload(
     );
 
     auto signature = function_symbol->get_type()->as<Signature_ptr>();
+    box_arguments_if_needed(call, argument_types, signature);
 
-    for (size_t i = 0; i < call.arguments.size(); ++i)
-    {
-        call.arguments[i] = try_box_expression(
-            call.arguments[i],
-            argument_types[i],
-            signature->parameter_types[i]
-        );
-    }
-
-    if (!signature->ordered_template_parameter_names.empty())
+    if (signature->template_type->exists())
     {
         return resolve_implicit_template(
             call,
@@ -160,28 +206,42 @@ Object_ptr SemanticAnalyzer::resolve_standard_overload(
         );
     }
 
-    // Count number of concrete functions before the winner
+    call.overload_index = compute_runtime_overload_index(
+        candidates,
+        function_symbol
+    );
 
-    int runtime_index = 0;
+    return signature->return_type;
+}
+
+int SemanticAnalyzer::compute_runtime_overload_index(
+    const SymbolVector& candidates,
+    Symbol_ptr winner
+)
+{
+    int index = 0;
 
     for (const auto& candidate : candidates)
     {
-        if (candidate == function_symbol)
+        if (candidate == winner)
         {
             break;
         }
 
-        auto cand_sig = candidate->get_type()->as<Signature_ptr>();
+        auto sig = candidate->get_type()->as<Signature_ptr>();
 
-        if (cand_sig->ordered_template_parameter_names.empty())
+        if (!sig->template_type->exists())
         {
-            runtime_index++;
+            index++;
         }
     }
 
-    call.overload_index = runtime_index;
-    return signature->return_type;
+    return index;
 }
+
+// ============================================================================
+// Implicit Template Resolution
+// ============================================================================
 
 Object_ptr SemanticAnalyzer::resolve_implicit_template(
     Call& call,
@@ -190,38 +250,187 @@ Object_ptr SemanticAnalyzer::resolve_implicit_template(
     const ObjectVector& argument_types
 )
 {
-    ObjectStringMap substitutions = type_system->infer_template_arguments(
+    auto substitutions = type_system->infer_template_arguments(
         signature,
         argument_types
     );
-
-    ObjectVector deduced_args;
-    for (const auto& name : signature->ordered_template_parameter_names)
-    {
-        deduced_args.push_back(substitutions[name]);
-    }
+    auto deduced_args = validate_and_collect_deduced_args(
+        signature,
+        substitutions
+    );
 
     std::string specialized_name = function_symbol->name + "_" +
-                                   mangle_object(deduced_args);
+                                   Object::mangle_object(deduced_args);
 
-    Symbol_ptr specialized_group_symbol = monomorphize_callable_template(
+    auto specialized_group = monomorphize_callable_template(
         function_symbol,
         substitutions,
         specialized_name
     );
 
     call.overload_index = 0;
-
-    Identifier specialized_id(specialized_name);
-    specialized_id.symbol = specialized_group_symbol;
-    call.callable->data = specialized_id;
-
-    auto overloads = specialized_group_symbol->get_overloads();
-
-    return unwrap_completely(
-        overloads[0]->get_type()->as<Signature_ptr>()->return_type
+    replace_callable_with_specialized(
+        call,
+        specialized_name,
+        specialized_group
     );
+
+    auto overloads = specialized_group->get_overloads();
+    return overloads[0]
+        ->get_type()
+        ->as<Signature_ptr>()
+        ->return_type->unwrap_completely();
 }
+
+ObjectVector SemanticAnalyzer::validate_and_collect_deduced_args(
+    const Signature_ptr& signature,
+    const ObjectStringMap& substitutions
+)
+{
+    ObjectVector deduced_args;
+    for (const auto& param : signature->template_type->ordered_parameter_names)
+    {
+        if (!substitutions.contains(param))
+        {
+            Doctor::get().fatal(
+                WaspStage::Semantics,
+                "Could not deduce template parameter '" + param +
+                    "'. Explicit template arguments are required."
+            );
+        }
+        deduced_args.push_back(substitutions.at(param));
+    }
+    return deduced_args;
+}
+
+void SemanticAnalyzer::replace_callable_with_specialized(
+    Call& call,
+    const std::string& specialized_name,
+    Symbol_ptr specialized_group
+)
+{
+    Identifier specialized_id(specialized_name);
+    specialized_id.symbol = specialized_group;
+    call.callable->data = specialized_id;
+}
+
+// ============================================================================
+// Template Function Call with Explicit Angular Arguments
+// ============================================================================
+
+Object_ptr SemanticAnalyzer::call_template_function(
+    Call& call,
+    TemplateAngular& template_angular,
+    const ObjectVector& argument_types
+)
+{
+    auto angular_args = resolve_angular_arguments(template_angular);
+    auto target_symbol = resolve_template_target(template_angular);
+
+    auto candidates = target_symbol->get_overloads();
+    auto generic_candidates = type_system->filter_by_generic_arity(
+        candidates,
+        angular_args.size()
+    );
+
+    auto
+        [specialized_candidates,
+         original_indices] = type_system
+                                 ->specialize_candidates(
+                                     generic_candidates,
+                                     angular_args
+                                 );
+
+    auto [best_signature, subset_index] = type_system->get_best_function_object(
+        current_scope,
+        specialized_candidates,
+        argument_types
+    );
+
+    auto blueprint_symbol = candidates[original_indices[subset_index]];
+    auto substitutions = build_substitutions_from_angular_args(
+        blueprint_symbol,
+        angular_args
+    );
+
+    std::string specialized_name = blueprint_symbol->name + "_" +
+                                   Object::mangle_object(angular_args);
+
+    auto specialized_group = monomorphize_callable_template(
+        blueprint_symbol,
+        substitutions,
+        specialized_name
+    );
+
+    template_angular.symbol = specialized_group;
+    call.overload_index = 0;
+
+    replace_callable_with_specialized(
+        call,
+        specialized_name,
+        specialized_group
+    );
+
+    auto overloads = specialized_group->get_overloads();
+    return overloads[0]
+        ->get_type()
+        ->as<Signature_ptr>()
+        ->return_type->unwrap_completely();
+}
+
+ObjectVector SemanticAnalyzer::resolve_angular_arguments(
+    TemplateAngular& template_angular
+)
+{
+    ObjectVector args;
+    for (auto& node : template_angular.angular_nodes)
+    {
+        args.push_back(visit(node));
+    }
+    return args;
+}
+
+Symbol_ptr SemanticAnalyzer::resolve_template_target(
+    TemplateAngular& template_angular
+)
+{
+    auto symbol = resolve_target_symbol(template_angular.target);
+    template_angular.symbol = symbol;
+
+    Doctor::get().assert(
+        template_angular.target->is<Identifier>(),
+        WaspStage::Semantics,
+        "Expected template target to be an identifier."
+    );
+
+    bind_identifier(template_angular.target->as<Identifier>(), symbol);
+    return symbol;
+}
+
+ObjectStringMap SemanticAnalyzer::build_substitutions_from_angular_args(
+    Symbol_ptr blueprint_symbol,
+    const ObjectVector& angular_args
+)
+{
+    auto signature = blueprint_symbol->get_type()->as<Signature_ptr>();
+    Doctor::get().fatal_if_nullptr(
+        signature->template_type,
+        WaspStage::Semantics,
+        "Expected template_type on function signature"
+    );
+
+    ObjectStringMap substitutions;
+    const auto& param_names = signature->template_type->ordered_parameter_names;
+    for (size_t i = 0; i < param_names.size(); ++i)
+    {
+        substitutions[param_names[i]] = angular_args[i];
+    }
+    return substitutions;
+}
+
+// ============================================================================
+// Monomorphization
+// ============================================================================
 
 Symbol_ptr SemanticAnalyzer::monomorphize_callable_template(
     Symbol_ptr blueprint_symbol,
@@ -229,15 +438,15 @@ Symbol_ptr SemanticAnalyzer::monomorphize_callable_template(
     const std::string& specialized_name
 )
 {
-    auto& function_data = blueprint_symbol->get_payload_as<CallableData>();
+    auto ast = forest[blueprint_symbol];
+    Doctor::get().fatal_if_nullptr(ast, WaspStage::Semantics);
 
     ASTCloner cloner(substitutions);
-    Statement_ptr specialized_stmt = cloner.clone(function_data.definition);
+    Statement_ptr specialized_stmt = cloner.clone(ast);
 
     Symbol_ptr specialized_group_symbol = nullptr;
-
-    SymbolScope_ptr previous_scope = current_scope;
-    current_scope = function_data.declaration_scope;
+    // SymbolScope_ptr previous_scope = current_scope;
+    // current_scope = function_data.declaration_scope;
 
     std::visit(
         overloaded{
@@ -245,15 +454,7 @@ Symbol_ptr SemanticAnalyzer::monomorphize_callable_template(
             {
                 def.name = specialized_name;
                 def.template_params.clear();
-                hoist_function_definition(def);
-                visit(def);
-                specialized_group_symbol = def.group_symbol;
-            },
-            [&](OperatorDefinition& def)
-            {
-                def.name = specialized_name;
-                def.template_params.clear();
-                hoist_function_definition(def);
+                hoist(def);
                 visit(def);
                 specialized_group_symbol = def.group_symbol;
             },
@@ -268,103 +469,20 @@ Symbol_ptr SemanticAnalyzer::monomorphize_callable_template(
         specialized_stmt->data
     );
 
-    Doctor::get().fatal_if_nullptr(specialized_group_symbol, WaspStage::Semantics);
+    Doctor::get().fatal_if_nullptr(
+        specialized_group_symbol,
+        WaspStage::Semantics
+    );
 
-    current_scope = previous_scope;
+    // current_scope = previous_scope;
     pending_templates.push_back(specialized_stmt);
 
     return specialized_group_symbol;
 }
 
-Object_ptr SemanticAnalyzer::call_template_function(
-    Call& call,
-    TemplateAngular& template_angular,
-    const ObjectVector& argument_types
-)
-{
-    ObjectVector angular_args;
-    for (auto& node : template_angular.angular_nodes)
-    {
-        angular_args.push_back(visit(node));
-    }
-
-    template_angular.symbol = resolve_target_symbol(template_angular.target);
-
-    Doctor::get().assert(
-        template_angular.target->is<Identifier>(),
-        WaspStage::Semantics,
-        "Expected template target to be an identifier."
-    );
-
-    bind_identifier(
-        template_angular.target->as<Identifier>(),
-        template_angular.symbol
-    );
-
-    auto candidates = template_angular.symbol->get_overloads();
-
-    auto generic_candidates = type_system->filter_by_generic_arity(
-        candidates,
-        angular_args.size()
-    );
-
-    auto [specialized_candidates, original_indices] = type_system
-                                                          ->specialize_candidates(
-                                                              generic_candidates,
-                                                              angular_args
-                                                          );
-
-    auto [best_signature_object, subset_index] = type_system
-                                                     ->get_best_function_object(
-                                                         current_scope,
-                                                         specialized_candidates,
-                                                         argument_types
-                                                     );
-
-    int winning_index = original_indices[subset_index];
-    Symbol_ptr blueprint_symbol = candidates[winning_index];
-
-    Doctor::get().assert(
-        blueprint_symbol->payload_is<CallableData>(),
-        WaspStage::Semantics,
-        "Resolved template symbol does not contain CallableData."
-    );
-
-    // Build the substitutions map
-    ObjectStringMap substitutions;
-    auto expected_names = blueprint_symbol->get_type()
-                              ->as<Signature_ptr>()
-                              ->ordered_template_parameter_names;
-
-    for (size_t i = 0; i < expected_names.size(); ++i)
-    {
-        substitutions[expected_names[i]] = angular_args[i];
-    }
-
-    // Name Mangling
-    std::string specialized_name = blueprint_symbol->name + "_" +
-                                   mangle_object(angular_args);
-
-    Symbol_ptr specialized_group_symbol = monomorphize_callable_template(
-        blueprint_symbol,
-        substitutions,
-        specialized_name
-    );
-
-    // Update AST Nodes
-    template_angular.symbol = specialized_group_symbol;
-    call.overload_index = 0;
-
-    Identifier specialized_id(specialized_name);
-    specialized_id.symbol = specialized_group_symbol;
-    call.callable->data = specialized_id;
-
-    // Get the return type safely
-    auto overloads = specialized_group_symbol->get_overloads();
-    return unwrap_completely(
-        overloads[0]->get_type()->as<Signature_ptr>()->return_type
-    );
-}
+// ============================================================================
+// Method Call
+// ============================================================================
 
 Object_ptr SemanticAnalyzer::call_method(
     Call& call,
@@ -378,31 +496,177 @@ Object_ptr SemanticAnalyzer::call_method(
     Doctor::get().assert(
         oops_type->contains_member(method_name),
         WaspStage::Semantics,
-        "Method '" + method_name + "()' does not exist on class '" + oops_type->name + "'."
+        "Method '" + method_name + "()' does not exist on class '" +
+            oops_type->name + "'."
     );
 
-    auto member = oops_type->get_member(method_name);
+    auto signatures_set_obj = oops_type->bag_type->get_signatures(method_name);
+
+    Doctor::get().fatal_if_nullptr(
+        signatures_set_obj,
+        WaspStage::Semantics,
+        "Member '" + method_name + "' not found in bag_type"
+    );
 
     Doctor::get().assert(
-        member->is<ObjectOverloadList_ptr>(),
+        signatures_set_obj->is<SignaturesSet_ptr>(),
         WaspStage::Semantics,
-        "Member '" + method_name + "' must be an object overload group."
+        "Member '" + method_name + "' must be a SignaturesSet."
     );
 
-    const auto& overloads = member->as<ObjectOverloadList_ptr>()->overloads;
+    auto signatures_set = signatures_set_obj->as<SignaturesSet_ptr>();
 
-    auto [signature_obj, overload_index] = type_system->get_best_function_object(
-        current_scope,
-        overloads,
-        argument_types
-    );
+    auto [best_signature_obj, overload_index] = type_system
+                                                    ->get_best_function_object(
+                                                        current_scope,
+                                                        signatures_set->types,
+                                                        argument_types
+                                                    );
 
-    access.member_index = oops_type->get_member_index(method_name);
+    access.member_index = oops_type->bag_type->get_index(method_name);
+
     call.overload_index = overload_index;
-
     call.is_method_call = true;
 
-    return signature_obj->as<Signature_ptr>()->return_type;
+    return best_signature_obj->as<Signature_ptr>()->return_type;
+}
+
+Object_ptr SemanticAnalyzer::call_possible_method(
+    Call& call,
+    MemberAccess& access,
+    const ObjectVector& argument_types,
+    OopsType_ptr oops_type
+)
+{
+    auto method_name = access.right->as<Identifier>().name;
+
+    Doctor::get().assert(
+        oops_type->contains_member(method_name),
+        WaspStage::Semantics,
+        "Method '" + method_name + "()' does not exist on class '" +
+            oops_type->name + "'."
+    );
+
+    auto signatures_set_obj = oops_type->bag_type->get_signatures(method_name);
+
+    Doctor::get().fatal_if_nullptr(
+        signatures_set_obj,
+        WaspStage::Semantics,
+        "Member '" + method_name + "' not found in bag_type"
+    );
+
+    Doctor::get().assert(
+        signatures_set_obj->is<SignaturesSet_ptr>(),
+        WaspStage::Semantics,
+        "Member '" + method_name + "' must be a SignaturesSet."
+    );
+
+    auto signatures_set = signatures_set_obj->as<SignaturesSet_ptr>();
+
+    auto
+        [best_signature_obj,
+         overload_index] = type_system
+                               ->get_possible_best_function_object(
+                                   current_scope,
+                                   signatures_set->types,
+                                   argument_types
+                               );
+
+    if (overload_index == -1)
+    {
+        return nullptr;
+    }
+
+    access.member_index = oops_type->bag_type->get_index(method_name);
+
+    call.overload_index = overload_index;
+    call.is_method_call = true;
+
+    return best_signature_obj->as<Signature_ptr>()->return_type;
+}
+
+Object_ptr SemanticAnalyzer::call_native_method(
+    Call& call,
+    MemberAccess& ma,
+    const ObjectVector& argument_types,
+    std::string native_class_name
+)
+{
+    call.is_native_method_call = true;
+
+    auto native_class = current_scope->lookup_required_and_resolve(
+        native_class_name
+    );
+
+    auto native_class_type = native_class->get_type()->as<ClassType_ptr>();
+    native_class_type->is_native = true;
+
+    return call_method(call, ma, argument_types, native_class_type);
+}
+
+// ============================================================================
+// Boxing Helper
+// ============================================================================
+
+void SemanticAnalyzer::box_arguments_if_needed(
+    Call& call,
+    const ObjectVector& argument_types,
+    const Signature_ptr& signature
+)
+{
+    for (size_t i = 0; i < call.arguments.size(); ++i)
+    {
+        call.arguments[i] = try_box_expression(
+            call.arguments[i],
+            argument_types[i],
+            signature->parameter_types[i]
+        );
+    }
+}
+
+Expression_ptr SemanticAnalyzer::try_box_expression(
+    Expression_ptr expr,
+    Object_ptr actual_type,
+    Object_ptr expected_type
+)
+{
+    if (expected_type->is<IntersectionType_ptr>())
+    {
+        auto intersection = expected_type->as<IntersectionType_ptr>();
+        std::vector<int> trait_ids;
+
+        for (const auto& trait_type : intersection->types)
+        {
+            Doctor::get().assert(
+                trait_type->is<TraitType_ptr>(),
+                WaspStage::Semantics,
+                "Expected all types in an intersection to be traits for boxing."
+            );
+
+            Doctor::get().assert(
+                actual_type->is<ClassType_ptr>(),
+                WaspStage::Semantics,
+                "Expected a class type to be boxed into a trait intersection."
+            );
+
+            auto trait = trait_type->as<TraitType_ptr>();
+            trait_ids.push_back(trait->type_id);
+        }
+
+        return make_expression(Box(expr, trait_ids));
+    }
+
+    // Handle single trait
+    if (expected_type->is<TraitType_ptr>() && actual_type->is<ClassType_ptr>())
+    {
+        if (type_system->assignable(current_scope, expected_type, actual_type))
+        {
+            auto trait = expected_type->as<TraitType_ptr>();
+            return make_expression(Box(expr, {trait->type_id}));
+        }
+    }
+
+    return expr;
 }
 
 } // namespace Wasp

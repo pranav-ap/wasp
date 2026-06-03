@@ -72,22 +72,6 @@ namespace Wasp
         int get_precedence() const;
     };
 
-    class PrefixRangeParselet : public IPrefixParselet
-    {
-        bool is_inclusive;
-
-    public:
-        explicit PrefixRangeParselet(bool is_inclusive) : is_inclusive(is_inclusive) {}
-        Expression_ptr parse(Parser &parser, const Token &token) override;
-        int get_precedence() const;
-    };
-
-    class PlaceholderDotParselet : public IPrefixParselet
-    {
-    public:
-        Expression_ptr parse(Parser &parser, const Token &token) override;
-    };
-
     // INFIX PARSELETS
 
     class IInfixParselet
@@ -126,16 +110,6 @@ namespace Wasp
     {
     public:
         Expression_ptr parse(Parser &parser, const Expression_ptr left, const Token &token) override;
-        int get_precedence() const override;
-    };
-
-    class InfixRangeParselet : public IInfixParselet
-    {
-        bool is_inclusive;
-
-    public:
-        explicit InfixRangeParselet(bool is_inclusive) : is_inclusive(is_inclusive) {}
-        Expression_ptr parse(Parser &parser, Expression_ptr left, const Token &token) override;
         int get_precedence() const override;
     };
 

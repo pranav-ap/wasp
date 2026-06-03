@@ -22,29 +22,32 @@ namespace Wasp
 namespace
 {
 
-static Object_ptr native_print(const std::vector<Object_ptr>& args, ConstantPool_ptr pool)
+static Object_ptr native_print(
+    const std::vector<Object_ptr>& args,
+    ConstantPool_ptr pool
+)
 {
     for (const auto& arg : args)
     {
         std::visit(
             overloaded{
-                [](const IntObject& i)
+                [](IntObject_ptr i)
                 {
-                    std::cout << i.value;
+                    std::cout << i->value;
                 },
-                [](const FloatObject& f)
+                [](FloatObject_ptr f)
                 {
-                    std::cout << f.value;
+                    std::cout << f->value;
                 },
-                [](const StringObject& s)
+                [](StringObject_ptr s)
                 {
-                    std::cout << s.value;
+                    std::cout << s->value;
                 },
-                [](const BooleanObject& b)
+                [](BooleanObject_ptr b)
                 {
-                    std::cout << (b.value ? "true" : "false");
+                    std::cout << (b->value ? "true" : "false");
                 },
-                [](const NoneObject&)
+                [](NoneObject_ptr)
                 {
                     std::cout << "none";
                 },
@@ -52,7 +55,8 @@ static Object_ptr native_print(const std::vector<Object_ptr>& args, ConstantPool
                 {
                     Doctor::get().fatal(
                         WaspStage::VM,
-                        "Native Registry : Unhandled type provided as args to print()"
+                        "Native Registry : Unhandled type provided as args to "
+                        "print()"
                     );
                 }
             },
@@ -72,20 +76,22 @@ static Object_ptr native_input(const std::vector<Object_ptr>& args)
         Doctor::get().assert(
             args.size() == 1,
             WaspStage::VM,
-            "Native Registry : input() takes at most one argument (the prompt string)"
+            "Native Registry : input() takes at most one argument (the prompt "
+            "string)"
         );
 
         std::visit(
             overloaded{
-                [](const StringObject& s)
+                [](StringObject_ptr s)
                 {
-                    std::cout << s.value << " ";
+                    std::cout << s->value << " ";
                 },
                 [](const auto&)
                 {
                     Doctor::get().fatal(
                         WaspStage::VM,
-                        "Native Registry : Unhandled type provided as args to input()"
+                        "Native Registry : Unhandled type provided as args to "
+                        "input()"
                     );
                 }
             },
@@ -96,7 +102,7 @@ static Object_ptr native_input(const std::vector<Object_ptr>& args)
     std::string input_line;
     std::getline(std::cin, input_line);
 
-    return make_object(StringObject(input_line));
+    return make_object(std::make_shared<StringObject>(input_line));
 }
 
 } // namespace
@@ -131,7 +137,9 @@ void NativeRegistry::add_native(const std::string& name, NativeFnType function)
 
     native_names[name] = global_index;
 
-    auto obj = make_object(std::make_shared<NativeFunctionObject>(function, name));
+    auto obj = make_object(
+        std::make_shared<NativeFunctionRuntimeObject>(function, name)
+    );
     native_objects.push_back(obj);
 }
 
@@ -154,21 +162,36 @@ void NativeRegistry::load_stdlib()
     );
 
     add_native(
-        "libs.core.greet.Greeter.greet",
+        "libs.core.types.str.hash",
         [this](const std::vector<Object_ptr>& args)
         {
-            auto instance_ptr = args[0];
-            auto& instance = std::get<std::shared_ptr<ClassInstanceObject>>(
-                instance_ptr->value
-            );
+            return pool->get_none_object();
+        }
+    );
 
-            Object_ptr name_obj = instance->get_field(0);
+    add_native(
+        "libs.core.types.str.size",
+        [this](const std::vector<Object_ptr>& args)
+        {
+            return pool->get_none_object();
+        }
+    );
 
-            std::cout << "Hello! I am " << std::get<StringObject>(name_obj->value).value << "!"
-                      << std::endl;
+    add_native(
+        "libs.core.types.str.slice",
+        [this](const std::vector<Object_ptr>& args)
+        {
+            return pool->get_none_object();
+        }
+    );
 
+    add_native(
+        "libs.core.types.str.trim",
+        [this](const std::vector<Object_ptr>& args)
+        {
             return pool->get_none_object();
         }
     );
 }
+
 } // namespace Wasp

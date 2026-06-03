@@ -1,14 +1,16 @@
 #include "AST.h"
+#include "ASTCloner.h"
 #include "Doctor.h"
 #include "Expression.h"
 #include "Objects.h"
 #include "SemanticAnalyzer.h"
+#include "Statement.h"
 #include "Workspace.h"
 
-#include <algorithm>
 #include <cctype>
 #include <ctime>
 #include <memory>
+#include <optional>
 #include <string>
 #include <variant>
 
@@ -25,16 +27,6 @@ namespace Wasp
 // Resolvers
 // ============================================================================
 
-void SemanticAnalyzer::bind_identifier(Identifier& id, Symbol_ptr symbol)
-{
-    id.symbol = symbol;
-
-    if (symbol->should_be_captured(current_scope->get_closure_depth()))
-    {
-        id.must_be_captured = true;
-    }
-}
-
 Symbol_ptr SemanticAnalyzer::get_module_member_symbol(MemberAccess& access)
 {
     Doctor::get().assert(
@@ -46,15 +38,14 @@ Symbol_ptr SemanticAnalyzer::get_module_member_symbol(MemberAccess& access)
     auto& module_identifier = access.left->as<Identifier>();
     auto& member_identifier = access.right->as<Identifier>();
 
-    Symbol_ptr unresolved_module_symbol = current_scope->lookup(
+    Symbol_ptr unresolved_module_symbol = current_scope->lookup_required(
         module_identifier.name
     );
-    Doctor::get().fatal_if_nullptr(unresolved_module_symbol, WaspStage::Semantics);
 
     bind_identifier(module_identifier, unresolved_module_symbol);
 
     Symbol_ptr resolved_module_symbol = unresolved_module_symbol->resolve();
-    auto& module_data = resolved_module_symbol->get_payload_as<ModuleData>();
+    auto& module_data = resolved_module_symbol->as<ModuleSymbol>();
 
     Symbol_ptr member_symbol = module_data.mod->get_member(member_identifier.name);
 
@@ -71,32 +62,33 @@ Symbol_ptr SemanticAnalyzer::get_module_member_symbol(MemberAccess& access)
 
 Symbol_ptr SemanticAnalyzer::resolve_target_symbol(Expression_ptr target)
 {
-    Symbol_ptr target_symbol = nullptr;
+    return std::visit(
+        overloaded{
+            [&](Identifier& id) -> Symbol_ptr
+            {
+                auto symbol = current_scope->lookup_required_and_resolve(
+                    id.name
+                );
 
-    if (auto* id = target->try_as<Identifier>())
-    {
-        Symbol_ptr unresolved = current_scope->lookup(id->name);
-        Doctor::get().fatal_if_nullptr(
-            unresolved,
-            WaspStage::Semantics,
-            "Undefined identifier: '" + id->name + "'"
-        );
-
-        target_symbol = unresolved->resolve();
-        bind_identifier(*id, target_symbol);
-    }
-    else if (auto* access = target->try_as<MemberAccess>())
-    {
-        auto member_symbol = get_module_member_symbol(*access);
-        target_symbol = member_symbol;
-        access->right->as<Identifier>().symbol = target_symbol;
-    }
-    else
-    {
-        Doctor::get().fatal(WaspStage::Semantics, "Invalid target expression.");
-    }
-
-    return target_symbol;
+                bind_identifier(id, symbol);
+                return symbol;
+            },
+            [&](MemberAccess& access) -> Symbol_ptr
+            {
+                auto member_symbol = get_module_member_symbol(access);
+                access.right->as<Identifier>().symbol = member_symbol;
+                return member_symbol;
+            },
+            [&](auto&) -> Symbol_ptr
+            {
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Invalid target expression."
+                );
+            }
+        },
+        target->data
+    );
 }
 
 // ============================================================================
@@ -105,13 +97,7 @@ Symbol_ptr SemanticAnalyzer::resolve_target_symbol(Expression_ptr target)
 
 Object_ptr SemanticAnalyzer::visit(Identifier& identifier)
 {
-    Symbol_ptr symbol = current_scope->lookup(identifier.name);
-    Doctor::get().fatal_if_nullptr(
-        symbol,
-        WaspStage::Semantics,
-        "Undefined identifier: " + identifier.name
-    );
-
+    Symbol_ptr symbol = current_scope->lookup_required(identifier.name);
     bind_identifier(identifier, symbol);
     return symbol->get_type();
 }
@@ -124,80 +110,24 @@ Object_ptr SemanticAnalyzer::visit(MemberAccess& expr)
         "RHS of member access must be an identifier."
     );
 
-    StringVector path = unfurl_member_access(expr);
+    auto enum_type_object = try_resolve_as_enum(expr);
 
-    if (try_resolve_as_enum(expr, path))
+    if (enum_type_object.has_value())
     {
-        return get_core_symbol("int")->get_type();
+        return enum_type_object.value();
     }
 
     Object_ptr left_type = visit(expr.left);
-    return resolve_member_access(expr, left_type, expr.right->as<Identifier>().name);
-}
 
-StringVector SemanticAnalyzer::unfurl_member_access(const MemberAccess& expr)
-{
-    StringVector path = {expr.right->as<Identifier>().name};
-    Expression_ptr current = expr.left;
-
-    while (current && current->is<MemberAccess>())
-    {
-        auto& nested_ma = current->as<MemberAccess>();
-        if (!nested_ma.right->is<Identifier>())
-        {
-            break;
-        }
-
-        path.push_back(nested_ma.right->as<Identifier>().name);
-        current = nested_ma.left;
-    }
-
-    if (current && current->is<Identifier>())
-    {
-        path.push_back(current->as<Identifier>().name);
-    }
-
-    std::reverse(path.begin(), path.end());
-    return path;
-}
-
-bool SemanticAnalyzer::try_resolve_as_enum(MemberAccess& expr, const StringVector& path)
-{
-    if (path.size() < 2)
-    {
-        return false;
-    }
-
-    Symbol_ptr base_sym = current_scope->lookup(path.front());
-    if (!base_sym || !base_sym->get_type())
-    {
-        return false;
-    }
-
-    Object_ptr base_type = base_sym->get_type();
-    if (base_type->is<TypeAlias_ptr>())
-    {
-        base_type = unwrap_type_alias(base_type);
-    }
-
-    if (!base_type->is<EnumType_ptr>())
-    {
-        return false;
-    }
-
-    auto enum_type = base_type->as<EnumType_ptr>();
-    int value = enum_type->get_value(path);
-
-    Doctor::get().assert(value != -1, WaspStage::Semantics, "Enum member not found.");
-
-    expr.member_index = value;
-    expr.is_enum_value = true;
-
-    return true;
+    return resolve_member_access(
+        expr,
+        left_type,
+        expr.right->as<Identifier>().name
+    );
 }
 
 Object_ptr SemanticAnalyzer::resolve_member_access(
-    MemberAccess& expr,
+    MemberAccess& ma,
     Object_ptr target_type,
     const std::string& member_name
 )
@@ -206,23 +136,56 @@ Object_ptr SemanticAnalyzer::resolve_member_access(
         overloaded{
             [&](ModuleType_ptr type) -> Object_ptr
             {
-                expr.member_index = type->get_member_index(member_name);
+                ma.is_module_access = true;
+                ma.member_index = type->get_member_index(member_name);
                 return type->get_member(member_name);
             },
 
             [&](ClassType_ptr type) -> Object_ptr
             {
-                expr.member_index = type->get_member_index(member_name);
-                return type->get_member(member_name);
+                Doctor::get().assert(
+                    type->contains_member(member_name),
+                    WaspStage::Semantics,
+                    "Class " + type->name + " has no member named " +
+                        member_name
+                );
+
+                ma.is_field = type->is_field(member_name);
+
+                if (ma.is_field)
+                {
+                    ma.member_index = type->record_type->get_index(member_name);
+                    return type->record_type->get_type(member_name);
+                }
+
+                ma.member_index = type->bag_type->get_index(member_name);
+                return type->bag_type->get_signatures(member_name);
             },
 
             [&](TraitType_ptr type) -> Object_ptr
             {
-                expr.member_index = type->get_member_index(member_name);
-                return type->get_member(member_name);
+                ma.is_trait_dispatch = true;
+
+                Doctor::get().assert(
+                    type->contains_member(member_name),
+                    WaspStage::Semantics,
+                    "Trait " + type->name + " has no member named " +
+                        member_name
+                );
+
+                ma.is_field = type->is_field(member_name);
+
+                if (ma.is_field)
+                {
+                    ma.member_index = type->record_type->get_index(member_name);
+                    return type->record_type->get_type(member_name);
+                }
+
+                ma.member_index = type->bag_type->get_index(member_name);
+                return type->bag_type->get_signatures(member_name);
             },
 
-            [&](TemplateParameterType_ptr type) -> Object_ptr
+            [&](GenericType_ptr type) -> Object_ptr
             {
                 Doctor::get().fatal_if_nullptr(
                     type->constraint_type,
@@ -230,71 +193,29 @@ Object_ptr SemanticAnalyzer::resolve_member_access(
                 );
 
                 return resolve_member_access(
-                    expr,
+                    ma,
                     type->constraint_type,
                     member_name
                 );
             },
 
-            [&](VariantType& variant_type) -> Object_ptr
+            [&](VariantType_ptr variant) -> Object_ptr
             {
-                ObjectVector resulting_member_types;
+                ObjectVector result_types;
 
-                for (const auto& variant_obj : variant_type.types)
+                for (const auto& t : variant->types)
                 {
-                    std::visit(
-                        overloaded{
-                            [&](ClassType_ptr oop_variant)
-                            {
-                                Doctor::get().assert(
-                                    oop_variant->contains_member(member_name),
-                                    WaspStage::Semantics,
-                                    "Member '" + member_name +
-                                        "' not found in class variant."
-                                );
-
-                                resulting_member_types.push_back(
-                                    oop_variant->get_member(member_name)
-                                );
-                            },
-                            [&](TraitType_ptr oop_variant)
-                            {
-                                Doctor::get().assert(
-                                    oop_variant->contains_member(member_name),
-                                    WaspStage::Semantics,
-                                    "Member '" + member_name +
-                                        "' not found in trait variant."
-                                );
-
-                                resulting_member_types.push_back(
-                                    oop_variant->get_member(member_name)
-                                );
-                            },
-                            [&](auto&)
-                            {
-                                Doctor::get().fatal(
-                                    WaspStage::Semantics,
-                                    "Variant contains a non-OOP type, cannot access "
-                                    "member '" +
-                                        member_name + "'."
-                                );
-                            }
-                        },
-                        variant_obj->value
+                    result_types.push_back(
+                        resolve_member_access(ma, t, member_name)
                     );
                 }
 
-                ObjectVector unique_types = type_system->remove_duplicates(
+                auto resolved_type = type_system->unify(
                     current_scope,
-                    resulting_member_types
+                    result_types
                 );
 
-                if (unique_types.size() == 1)
-                {
-                    return unique_types.front();
-                }
-
-                return make_object(VariantType{unique_types});
+                return resolved_type;
             },
 
             [&](auto&) -> Object_ptr
@@ -311,19 +232,19 @@ Object_ptr SemanticAnalyzer::resolve_member_access(
 
 Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
 {
-    // 1. Resolve angular arguments (e.g., <int>)
+    // Resolve angular arguments (e.g., <int>)
     ObjectVector angular_arguments;
     for (const auto& arg_node : node.angular_nodes)
     {
         angular_arguments.push_back(visit(arg_node));
     }
 
-    // 2. Resolve the target symbol (e.g., 'greet' or 'Box')
+    // Resolve the target symbol (e.g., 'greet' or 'Box')
     Symbol_ptr target_symbol = resolve_target_symbol(node.target);
     node.symbol = target_symbol;
 
     // Case A: Template Classes
-    if (target_symbol->payload_is<OopsData>())
+    if (target_symbol->is<OopsSymbol>())
     {
         Object_ptr base = target_symbol->get_type();
         auto names = type_system->get_generics_declaration_order(base);
@@ -343,7 +264,7 @@ Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
         }
 
         std::string specialized_name = target_symbol->name + "_" +
-                                       mangle_object(angular_arguments);
+                                       Object::mangle_object(angular_arguments);
 
         if (auto existing_symbol = current_scope->lookup(specialized_name))
         {
@@ -362,9 +283,9 @@ Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
     }
 
     // Case B: Template Functions (Overloads)
-    if (target_symbol->payload_is<OverloadsData>())
+    if (target_symbol->is<OverloadsSymbol>())
     {
-        auto candidates = target_symbol->get_payload_as<OverloadsData>()
+        auto candidates = target_symbol->as<OverloadsSymbol>()
                               .get_overloads_with_indices();
 
         // specialize_candidates must filter by generic count AND verify
@@ -387,8 +308,6 @@ Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
             "Ambiguous generic reference for '" + target_symbol->name + "'."
         );
 
-        // Store the specific overload index so the Backend knows which
-        // specialized version of the function to call.
         node.overload_index = result.original_indices[0];
 
         return result.signatures[0];
@@ -400,4 +319,67 @@ Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
     );
 }
 
+Symbol_ptr SemanticAnalyzer::monomorphize_class_template(
+    Symbol_ptr blueprint_symbol,
+    const ObjectStringMap& substitutions,
+    const std::string& specialized_name
+)
+{
+    auto ast = forest[blueprint_symbol];
+    Doctor::get().fatal_if_nullptr(
+        ast,
+        WaspStage::Semantics,
+        "AST not found for symbol: " + blueprint_symbol->name
+    );
+
+    ASTCloner cloner(substitutions);
+    Statement_ptr specialized_stmt = cloner.clone(ast);
+
+    Symbol_ptr specialized_symbol = nullptr;
+
+    SymbolScope_ptr previous_scope = current_scope;
+
+    std::visit(
+        overloaded{
+            [&](ClassDefinition& def)
+            {
+                def.name = specialized_name;
+                def.template_params.clear();
+
+                auto type = make_object(std::make_shared<ClassType>(def.name));
+                def.symbol = current_scope->define(
+                    SymbolFactory::create_oops(
+                        def.name,
+                        type,
+                        current_scope->get_closure_depth(),
+                        current_scope->get_lexical_depth()
+                    )
+                );
+
+                auto class_type = type->as<ClassType_ptr>();
+                class_type->template_type = std::make_shared<TemplateType>();
+
+                visit(def);
+                forest[def.symbol] = specialized_stmt;
+
+                specialized_symbol = def.symbol;
+            },
+            [&](auto&)
+            {
+                Doctor::get().fatal(
+                    WaspStage::Semantics,
+                    "Expected a class definition for monomorphization"
+                );
+            }
+        },
+        specialized_stmt->data
+    );
+
+    Doctor::get().fatal_if_nullptr(specialized_symbol, WaspStage::Semantics);
+
+    current_scope = previous_scope;
+    pending_templates.push_back(specialized_stmt);
+
+    return specialized_symbol;
+}
 } // namespace Wasp

@@ -2,7 +2,6 @@
 
 #include "ConstantPool.h"
 #include "Objects.h"
-#include "SymbolScope.h"
 #include "Token.h"
 #include "Workspace.h"
 
@@ -23,8 +22,21 @@ struct TypeSystem
     TypeSystem(ConstantPool_ptr pool) : pool(pool) {};
 
     // =========================================================================
-    // Type Equality & Assignability
+    // Type Inference
     // =========================================================================
+
+    Object_ptr get_least_upper_bound(
+        SymbolScope_ptr scope,
+        ObjectVector types
+    ) const;
+
+    Object_ptr get_least_upper_bound(
+        SymbolScope_ptr scope,
+        Object_ptr a,
+        Object_ptr b
+    ) const;
+
+    Object_ptr unify(SymbolScope_ptr scope, const ObjectVector& types);
 
     bool equal(
         SymbolScope_ptr scope,
@@ -56,14 +68,10 @@ struct TypeSystem
         const ObjectVector& type_vector_2
     ) const;
 
-    // =========================================================================
-    // Type Inference & Extraction
-    // =========================================================================
-
     ObjectStringMap infer_template_arguments(
         Signature_ptr signature,
         const ObjectVector& argument_types
-    );
+    ) const;
 
     Object_ptr infer(
         SymbolScope_ptr scope,
@@ -72,24 +80,21 @@ struct TypeSystem
         Object_ptr right_type
     );
 
-    Object_ptr infer(SymbolScope_ptr scope, Object_ptr left_type, TokenType op);
-
-    Object_ptr spread_type(Object_ptr type);
-
-    Object_ptr extract_iterable_element_type(
+    Object_ptr infer(
         SymbolScope_ptr scope,
-        const Object_ptr type
-    ) const;
-
-    // =========================================================================
-    // Overload Resolution & Selection
-    // =========================================================================
-
-    SymbolVector::iterator find_matching_signature(
-        SymbolScope_ptr scope,
-        SymbolVector& target_vector,
-        const ObjectVector& parameter_types
+        Object_ptr operand_type,
+        TokenType op
     );
+
+    bool implements_trait(
+        SymbolScope_ptr scope,
+        Object_ptr candidate_type,
+        const std::string& trait_name
+    );
+
+    // =========================================================================
+    // Overloads
+    // =========================================================================
 
     std::tuple<Symbol_ptr, int> get_best_function_symbol(
         SymbolScope_ptr scope,
@@ -103,24 +108,15 @@ struct TypeSystem
         const ObjectVector& argument_types
     ) const;
 
-    // =========================================================================
-    // Validation
-    // =========================================================================
-
-    void validate_new_function_overload(
+    std::tuple<Object_ptr, int> get_possible_best_function_object(
         SymbolScope_ptr scope,
-        std::string& function_name,
-        const Symbol_ptr new_func_symbol
-    );
+        const ObjectVector& candidates,
+        const ObjectVector& argument_types
+    ) const;
 
-    void validate_new_method_overload(
-        SymbolScope_ptr scope,
-        ObjectVector existing_overloads,
-        const Symbol_ptr new_method_symbol
-    );
 
     // =========================================================================
-    // Generics & Templates
+    // Templates
     // =========================================================================
 
     struct SpecializationResult
@@ -156,54 +152,41 @@ struct TypeSystem
     bool is_float_type(const Object_ptr type) const;
     bool is_string_type(const Object_ptr type) const;
     bool is_none_type(const Object_ptr type) const;
+    bool is_native_type(const Object_ptr type) const;
+
     bool is_condition_type(
         SymbolScope_ptr scope,
         const Object_ptr condition_type
     ) const;
+
     bool is_spreadable_type(
         SymbolScope_ptr scope,
         const Object_ptr condition_type
     ) const;
+
     bool is_iterable_type(SymbolScope_ptr scope, const Object_ptr type) const;
     bool is_key_type(SymbolScope_ptr scope, const Object_ptr type) const;
 
     // =========================================================================
-    // Assertions
-    // =========================================================================
-
-    void expect_boolean_type(const Object_ptr type) const;
-    void expect_number_type(const Object_ptr type) const;
-    void expect_int_type(const Object_ptr type) const;
-    void expect_float_type(const Object_ptr type) const;
-    void expect_string_type(const Object_ptr type) const;
-    void expect_none_type(const Object_ptr type) const;
-    void expect_condition_type(
-        SymbolScope_ptr scope,
-        const Object_ptr condition_type
-    ) const;
-    void expect_spreadable_type(
-        SymbolScope_ptr scope,
-        const Object_ptr condition_type
-    ) const;
-    void expect_iterable_type(SymbolScope_ptr scope, const Object_ptr type) const;
-    void expect_key_type(SymbolScope_ptr scope, const Object_ptr type) const;
-
-    // =========================================================================
     // Utilities
     // =========================================================================
-
-    bool any_eq(
-        SymbolScope_ptr scope,
-        const ObjectVector& vec,
-        const Object_ptr x
-    ) const;
 
     ObjectVector remove_duplicates(
         SymbolScope_ptr scope,
         const ObjectVector& vec
     ) const;
 
-    Object_ptr resolve_type(Object_ptr type, bool resolve_generics = false) const;
+    Object_ptr resolve_type(
+        Object_ptr type,
+        bool resolve_generics = false
+    ) const;
+
+    Object_ptr spread_type(Object_ptr type);
+
+    Object_ptr extract_iterable_element_type(
+        SymbolScope_ptr scope,
+        const Object_ptr type
+    ) const;
 };
 
 using TypeSystem_ptr = std::shared_ptr<TypeSystem>;

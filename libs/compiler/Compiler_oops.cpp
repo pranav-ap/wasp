@@ -1,5 +1,5 @@
-#include "Compiler.h"
 #include "AST.h"
+#include "Compiler.h"
 #include "Objects.h"
 #include "OpCode.h"
 #include "Statement.h"
@@ -26,17 +26,22 @@ void Compiler::visit(ClassDefinition& def)
 
     auto class_type_obj = def.symbol->get_type();
     auto class_type = class_type_obj->as<ClassType_ptr>();
-    int unique_method_count = 0;
 
+    const auto& method_names = class_type->bag_type->ordered_keys;
+    int unique_method_count = static_cast<int>(method_names.size());
+
+    // Allocate class type in constant pool
     int class_type_pool_id = workspace->pool->allocate_type(class_type_obj);
 
-    for (const std::string& method_name : class_type->methods)
+    // Compile each method
+    for (const std::string& method_name : method_names)
     {
         int overload_count = 0;
 
+        // Find all methods with this name in the class members
         for (auto& stmt : def.members)
         {
-            auto* func = stmt->try_as<MethodDefinition>();
+            auto* func = stmt->try_as<FunctionDefinition>();
 
             if (!func || func->name != method_name)
             {
@@ -45,7 +50,11 @@ void Compiler::visit(ClassDefinition& def)
 
             if (func->symbol->is_native())
             {
-                std::string mangled = mangle_name(func->name, def.name, func->symbol->module_path);
+                std::string mangled = mangle_name(
+                    func->name,
+                    def.name,
+                    func->symbol->module_path
+                );
 
                 int registry_id = workspace->native_registry->get_native_index(
                     mangled
@@ -62,6 +71,7 @@ void Compiler::visit(ClassDefinition& def)
                     func->context_symbol
                 );
             }
+
             overload_count++;
         }
 
@@ -70,13 +80,41 @@ void Compiler::visit(ClassDefinition& def)
             overload_count,
             "overloads for " + method_name
         );
-        unique_method_count++;
     }
 
-    emit(OpCode::LOAD_CONSTANT, class_type_pool_id, "load class type from pool");
-    emit(OpCode::GET_LOCAL, slot, "load blueprint for population");
-    emit(OpCode::BUILD_CLASS, unique_method_count, "populate class " + def.name);
+    // Build the class at runtime
+
+    emit(
+        OpCode::LOAD_CONSTANT,
+        class_type_pool_id,
+        "load class type from pool"
+    );
+
+    emit(OpCode::GET_LOCAL, slot, "load class blueprint");
+
+    emit(
+        OpCode::BUILD_CLASS,
+        unique_method_count,
+        "populate class " + def.name
+    );
+
     emit(OpCode::SET_LOCAL, slot, "update local slot");
+}
+
+void Compiler::visit(TraitDefinition& statement)
+{
+    int physical_index = get_or_add_local_index(statement.symbol);
+
+    if (physical_index != -1)
+    {
+        // Load none as placeholder for compile-time only value
+        emit(OpCode::LOAD_NONE);
+        emit(
+            OpCode::SET_LOCAL,
+            physical_index,
+            "compile-time trait: " + statement.name
+        );
+    }
 }
 
 } // namespace Wasp

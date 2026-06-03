@@ -10,18 +10,12 @@
 #include <string>
 #include <utility>
 #include <variant>
+#include <vector>
 
 namespace Wasp
 {
 
-struct BoxableLiteral : public Resolvable
-{
-    Expression_ptr constructible = nullptr;
-
-    BoxableLiteral() = default;
-};
-
-struct IntegerLiteral : public BoxableLiteral
+struct IntegerLiteral
 {
     int value;
 
@@ -32,7 +26,7 @@ struct IntegerLiteral : public BoxableLiteral
     }
 };
 
-struct FloatLiteral : public BoxableLiteral
+struct FloatLiteral
 {
     double value;
 
@@ -43,7 +37,7 @@ struct FloatLiteral : public BoxableLiteral
     }
 };
 
-struct StringLiteral : public BoxableLiteral
+struct StringLiteral
 {
     std::string value;
 
@@ -54,7 +48,7 @@ struct StringLiteral : public BoxableLiteral
     }
 };
 
-struct BooleanLiteral : public BoxableLiteral
+struct BooleanLiteral
 {
     bool value;
 
@@ -69,10 +63,6 @@ struct NoneLiteral
 {
 };
 
-struct DotLiteral : public Resolvable
-{
-};
-
 struct InterpolatedString
 {
     ExpressionVector parts;
@@ -80,15 +70,19 @@ struct InterpolatedString
 
 struct Box
 {
-    // TODO : only supports single trait for now, will need to be extended for multiple traits
     Expression_ptr expr;
-    int trait_type_id;
+    std::vector<int> trait_type_ids;
+
+    Box() = default;
+
+    Box(Expression_ptr expr, std::vector<int> trait_type_ids)
+        : expr(std::move(expr)), trait_type_ids(std::move(trait_type_ids))
+    {
+    }
 };
 
 struct OperatorExpression : public Resolvable
 {
-    int overload_index = -1;
-
     OperatorExpression() = default;
 };
 
@@ -132,7 +126,7 @@ struct Postfix : public OperatorExpression
     }
 };
 
-struct SequenceLiteral : public BoxableLiteral
+struct SequenceLiteral
 {
     ExpressionVector expressions;
 
@@ -156,7 +150,7 @@ struct SetLiteral : public SequenceLiteral
     using SequenceLiteral::SequenceLiteral;
 };
 
-struct MapLiteral : public BoxableLiteral
+struct MapLiteral
 {
     std::map<Expression_ptr, Expression_ptr> pairs;
 
@@ -207,7 +201,9 @@ struct IfTernaryBranch : public TernaryBranch
 {
     Expression_ptr test;
     Expression_ptr true_expression;
-    Expression_ptr alternative; // IfTernaryBranch or ElseTernaryBranch
+
+    // IfTernaryBranch or ElseTernaryBranch
+    Expression_ptr alternative;
 
     IfTernaryBranch() = default;
 
@@ -248,8 +244,16 @@ struct MemberAccess
     Expression_ptr right;
 
     int member_index = -1;
-    bool is_enum_value = false;
+
+    bool is_module_access = false;
+
+    bool is_field = false;
+
     bool is_trait_dispatch = false;
+
+    bool is_enum_value = false;
+    int enum_member_value = -1;
+    int enum_type_id = -1;
 
     MemberAccess() = default;
 
@@ -259,11 +263,25 @@ struct MemberAccess
     }
 };
 
+struct EnumMember
+{
+    int enum_type_id = -1;
+    int enum_member_value = -1;
+
+    EnumMember() = default;
+
+    EnumMember(int enum_type_id, int enum_member_value)
+        : enum_type_id(enum_type_id), enum_member_value(enum_member_value)
+    {
+    }
+};
+
 struct Call
 {
     Expression_ptr callable;
     ExpressionVector arguments;
 
+    bool is_native_method_call = false;
     bool is_method_call = false;
     bool is_trait_dispatch = false;
     int trait_type_id = -1;
@@ -275,27 +293,6 @@ struct Call
         : callable(callable), arguments(std::move(arguments))
     {
     }
-};
-
-struct SugarCall
-{
-    Expression_ptr callable;
-    ExpressionVector arguments;
-    int overload_index = -1;
-};
-
-struct FunctionCall : public SugarCall
-{
-};
-
-struct MethodCall : public SugarCall
-{
-    Expression_ptr instance;
-
-    int method_index = -1;
-
-    bool is_trait_dispatch = false;
-    int trait_type_id = -1;
 };
 
 struct Constructor
@@ -328,32 +325,6 @@ struct TemplateAngular : public Resolvable
     }
 };
 
-// Others
-
-struct RangeLiteral
-{
-    Expression_ptr start;
-    Expression_ptr end;
-    Expression_ptr step;
-    bool is_inclusive;
-
-    RangeLiteral()
-        : start(nullptr), end(nullptr), step(nullptr), is_inclusive(false)
-    {
-    }
-
-    RangeLiteral(
-        Expression_ptr start,
-        Expression_ptr end,
-        Expression_ptr step,
-        bool is_inclusive
-    )
-        : start(std::move(start)), end(std::move(end)), step(std::move(step)),
-          is_inclusive(is_inclusive)
-    {
-    }
-};
-
 // Expression
 
 using ExpressionVariant = std::variant<
@@ -367,15 +338,15 @@ using ExpressionVariant = std::variant<
     InterpolatedString,
 
     NoneLiteral,
-    DotLiteral,
-    Identifier,
-    MemberAccess,
 
     Box,
 
+    Identifier,
+
+    MemberAccess,
+    EnumMember,
+
     Call,
-    FunctionCall,
-    MethodCall,
 
     Constructor,
     TemplateAngular,
@@ -388,7 +359,6 @@ using ExpressionVariant = std::variant<
     TupleLiteral,
     MapLiteral,
     SetLiteral,
-    RangeLiteral,
 
     Assignment,
 
@@ -398,31 +368,34 @@ using ExpressionVariant = std::variant<
 struct Expression : public AstNode<ExpressionVariant>
 {
     using AstNode::AstNode;
-
-    Token start_token;
-    Token end_token;
-
     bool is_desugared = false;
 };
 
-template <typename T> inline Expression_ptr make_expression(T&& data)
-{
-    return std::make_shared<Expression>(std::forward<T>(data));
-}
-
-template <typename T>
-inline Expression_ptr make_expression(
-    T&& data,
-    Token start_token,
-    Token end_token,
-    bool is_desugared = false
-)
+template <typename T> inline Expression_ptr make_expression(T&& data, bool is_desugared = false)
 {
     auto expr = std::make_shared<Expression>(std::forward<T>(data));
-    expr->start_token = std::move(start_token);
-    expr->end_token = std::move(end_token);
     expr->is_desugared = is_desugared;
     return expr;
+}
+
+inline std::string get_operator_name(TokenType fixity, TokenType op_type)
+{
+    std::string fix;
+
+    if (fixity == TokenType::INFIX)
+    {
+        fix = "infix_";
+    }
+    if (fixity == TokenType::PREFIX)
+    {
+        fix = "prefix_";
+    }
+    if (fixity == TokenType::POSTFIX)
+    {
+        fix = "postfix_";
+    }
+
+    return fix + to_string(op_type);
 }
 
 } // namespace Wasp

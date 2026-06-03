@@ -1,7 +1,6 @@
 #include "CFGraph.h"
 #include "Compiler.h"
 #include "Doctor.h"
-#include "Objects.h"
 #include "OpCode.h"
 #include "Workspace.h"
 
@@ -12,7 +11,6 @@
 #include <map>
 #include <string>
 #include <utility>
-#include <variant>
 #include <vector>
 
 template <class... Ts> struct overloaded : Ts...
@@ -252,6 +250,19 @@ void Compiler::emit(OpCode opcode, int operand_1, int operand_2, std::string com
         .emit(opcode, operand_1, operand_2, std::move(comment));
 }
 
+void Compiler::emit(
+    OpCode opcode,
+    int operand_1,
+    int operand_2,
+    int operand_3,
+    std::string comment
+)
+{
+    graph.get_block(current_block_id)
+        .get_code()
+        .emit(opcode, operand_1, operand_2, operand_3, std::move(comment));
+}
+
 void Compiler::emit_local_cleanups(int target_depth)
 {
     int scopes_to_pop = current_lexical_scope_depth - target_depth;
@@ -260,40 +271,6 @@ void Compiler::emit_local_cleanups(int target_depth)
     {
         emit(OpCode::POP_SCOPE);
     }
-}
-
-// --------------------------------------------------------
-// Defaults
-// --------------------------------------------------------
-
-Object_ptr Compiler::get_default_value_for_type(Object_ptr type)
-{
-    return std::visit(
-        overloaded{
-            [&](const IntType&) -> Object_ptr
-            {
-                return workspace->pool->get_int_default();
-            },
-            [&](const FloatType&) -> Object_ptr
-            {
-                return workspace->pool->get_float_default();
-            },
-            [&](const StringType&) -> Object_ptr
-            {
-                return workspace->pool->get_string_default();
-            },
-            [&](const BooleanType&) -> Object_ptr
-            {
-                return workspace->pool->get_boolean_default();
-            },
-
-            [&](auto&) -> Object_ptr
-            {
-                return workspace->pool->get_none_object();
-            }
-        },
-        type->value
-    );
 }
 
 // -----------------------------------------------------------------------

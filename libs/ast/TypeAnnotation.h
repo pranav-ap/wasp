@@ -1,7 +1,6 @@
 #pragma once
 
 #include "AST.h"
-#include "Token.h"
 
 #include <memory>
 #include <string>
@@ -13,17 +12,6 @@ namespace Wasp
 
 struct NoneTypeNode
 {
-};
-
-struct NativeTypeNode
-{
-    TypeAnnotation_ptr underlying_type;
-    explicit NativeTypeNode() = default;
-
-    explicit NativeTypeNode(TypeAnnotation_ptr underlying_type)
-        : underlying_type(std::move(underlying_type))
-    {
-    }
 };
 
 struct LiteralTypeNode
@@ -126,17 +114,6 @@ struct FunctionTypeNode
     }
 };
 
-struct RecordTypeNode
-{
-    StatementVector fields;
-
-    explicit RecordTypeNode() = default;
-
-    explicit RecordTypeNode(StatementVector fields) : fields(std::move(fields))
-    {
-    }
-};
-
 // Foo<T>
 struct TemplateAngularTypeNode
 {
@@ -160,7 +137,6 @@ using TypeAnnotationVariant = std::variant<
     NoneTypeNode,
     LiteralTypeNode,
     TypeIdentifierNode,
-    NativeTypeNode,
 
     std::shared_ptr<ListTypeNode>,
     std::shared_ptr<TupleTypeNode>,
@@ -169,33 +145,16 @@ using TypeAnnotationVariant = std::variant<
     std::shared_ptr<VariantTypeNode>,
     std::shared_ptr<IntersectionTypeNode>,
     std::shared_ptr<FunctionTypeNode>,
-    std::shared_ptr<RecordTypeNode>,
     std::shared_ptr<TemplateAngularTypeNode>>;
 
 struct TypeAnnotation : public AstNode<TypeAnnotationVariant>
 {
     using AstNode::AstNode;
-
-    Token start_token;
-    Token end_token;
 };
 
 template <typename T> inline TypeAnnotation_ptr make_type_annotation(T&& data)
 {
     return std::make_shared<TypeAnnotation>(std::forward<T>(data));
-}
-
-template <typename T>
-inline TypeAnnotation_ptr make_type_annotation(
-    T&& data,
-    Token start_token,
-    Token end_token
-)
-{
-    auto type_node = std::make_shared<TypeAnnotation>(std::forward<T>(data));
-    type_node->start_token = std::move(start_token);
-    type_node->end_token = std::move(end_token);
-    return type_node;
 }
 
 } // namespace Wasp

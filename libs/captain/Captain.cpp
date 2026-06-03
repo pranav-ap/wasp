@@ -5,8 +5,6 @@
 #include "Lexer.h"
 #include "Parser.h"
 #include "SemanticAnalyzer.h"
-#include "SmartLiar.h"
-#include "StupidLiar.h"
 #include "VM.h"
 #include "Workspace.h"
 
@@ -82,9 +80,6 @@ void Captain::parse_module(const std::filesystem::path& file_path)
     Parser parser;
     auto stmts = parser.run(tokens);
 
-    StupidLiar stupid_liar;
-    // stmts = liar.run(stmts);
-
     auto module = std::make_shared<Module>(abs_path, stmts);
     workspace->add_module(abs_path, module);
 }
@@ -104,9 +99,6 @@ Workspace_ptr Captain::build()
 
     SemanticAnalyzer sa(workspace);
     sa.run(build_order);
-
-    SmartLiar smart_liar;
-    smart_liar.run(build_order);
 
     for (const auto& module : build_order)
     {

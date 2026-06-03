@@ -1,17 +1,15 @@
 #include "AST.h"
 #include "Doctor.h"
+#include "Expression.h"
 #include "Objects.h"
 #include "SemanticAnalyzer.h"
 #include "Statement.h"
 #include "SymbolScope.h"
-#include "Token.h"
 #include "Workspace.h"
 
 #include <ctime>
 #include <memory>
-#include <string>
 #include <utility>
-#include <vector>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -31,7 +29,7 @@ void SemanticAnalyzer::leave_scope()
 {
     if (current_scope)
     {
-        current_scope = current_scope->get_enclosing();
+        current_scope = current_scope->get_enclosing_scope();
     }
 }
 
@@ -39,7 +37,7 @@ void SemanticAnalyzer::leave_scope_keep_symbol(Symbol_ptr symbol_to_keep)
 {
     if (current_scope)
     {
-        current_scope = current_scope->get_enclosing();
+        current_scope = current_scope->get_enclosing_scope();
 
         if (current_scope)
         {
@@ -48,16 +46,46 @@ void SemanticAnalyzer::leave_scope_keep_symbol(Symbol_ptr symbol_to_keep)
     }
 }
 
-std::string SemanticAnalyzer::get_operator_symbol_name(
-    TokenType fixity,
-    TokenType op_type
-)
+void SemanticAnalyzer::bind_identifier(Identifier& id, Symbol_ptr symbol)
 {
-    return to_string(fixity) + "_" + to_string(op_type);
+    id.symbol = symbol;
+
+    if (symbol->should_be_captured(current_scope->get_closure_depth()))
+    {
+        id.must_be_captured = true;
+    }
 }
 
-std::pair<ObjectStringMap, StringVector> SemanticAnalyzer::evaluate_template_params(
-    const std::vector<FieldDefinition>& template_params
+void SemanticAnalyzer::define_template_parameters(
+    TemplateType_ptr template_type
+)
+{
+    if (!template_type || template_type->ordered_parameter_names.empty())
+    {
+        return;
+    }
+
+    for (const auto& [name, generic_type_obj] :
+         template_type->get_ordered_generics())
+    {
+        Doctor::get().assert(
+            generic_type_obj->is<GenericType_ptr>(),
+            WaspStage::Semantics,
+            "Expected GenericType for template parameter: " + name
+        );
+
+        auto generic_type = generic_type_obj->as<GenericType_ptr>();
+        auto symbol = SymbolFactory::create_template_parameter(
+            name,
+            generic_type->constraint_type
+        );
+
+        current_scope->define(symbol);
+    }
+}
+
+TemplateType_ptr SemanticAnalyzer::create_template_type(
+    const FieldDefinitionVector& template_params
 )
 {
     ObjectStringMap template_params_map;
@@ -65,21 +93,52 @@ std::pair<ObjectStringMap, StringVector> SemanticAnalyzer::evaluate_template_par
 
     for (const auto& field : template_params)
     {
-        auto template_param_type = make_object(
-            std::make_shared<TemplateParameterType>(field.name, visit(field.type))
+        Object_ptr constraint_type = visit(field.type);
+        constraint_type = constraint_type->unwrap_type_alias();
+
+        auto generic_type_obj = make_object(
+            std::make_shared<GenericType>(field.name, constraint_type)
         );
 
         Doctor::get().assert(
             !template_params_map.contains(field.name),
             WaspStage::Semantics,
-            "Duplicate template parameter name '" + field.name + "'."
+            "Duplicate template parameter name: " + field.name
         );
 
-        template_params_map[field.name] = template_param_type;
+        template_params_map[field.name] = generic_type_obj;
         ordered_names.push_back(field.name);
     }
 
-    return {template_params_map, ordered_names};
+    return std::make_shared<TemplateType>(
+        std::move(template_params_map),
+        std::move(ordered_names)
+    );
+}
+
+Statement_ptr SemanticAnalyzer::get_ast(Symbol_ptr symbol) const
+{
+    Doctor::get().fatal_if_nullptr(
+        symbol,
+        WaspStage::Semantics,
+        "Cannot get AST: symbol is null"
+    );
+
+    auto it = forest.find(symbol);
+
+    Doctor::get().assert(
+        it != forest.end(),
+        WaspStage::Semantics,
+        "AST not found for symbol: " + symbol->name
+    );
+
+    Doctor::get().fatal_if_nullptr(
+        it->second,
+        WaspStage::Semantics,
+        "AST is null for symbol: " + symbol->name
+    );
+
+    return it->second;
 }
 
 } // namespace Wasp

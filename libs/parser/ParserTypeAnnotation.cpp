@@ -75,7 +75,6 @@ TypeAnnotation_ptr Parser::parse_intersection_type()
 TypeAnnotation_ptr Parser::parse_base_type()
 {
     TypeAnnotation_ptr type;
-    bool is_native = token_pipe.consume_optional_in_line(TokenType::AT_SIGN).has_value();
 
     if (token_pipe.consume_optional_in_line(TokenType::OPEN_SQUARE_BRACKET))
     {
@@ -109,11 +108,6 @@ TypeAnnotation_ptr Parser::parse_base_type()
                 std::make_shared<TemplateAngularTypeNode>(type, std::move(generic_args))
             );
         }
-    }
-
-    if (is_native)
-    {
-        type = make_type_annotation(NativeTypeNode(type));
     }
 
     return type;
@@ -170,11 +164,8 @@ TypeAnnotation_ptr Parser::consume_datatype_word()
     default: {
         Doctor::get().fatal(
             WaspStage::Parser,
-            "Unexpected token in datatype: " + to_string(token->type),
-            token->line,
-            token->column
+            "Unexpected token in datatype: " + to_string(token->type)
         );
-        return nullptr;
     }
     }
 }

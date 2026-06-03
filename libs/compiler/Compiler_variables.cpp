@@ -69,7 +69,7 @@ void Compiler::compile_member_assignment(
     );
 
     auto target_name = access.right->as<Identifier>().name;
-    emit(OpCode::SET_MEMBER, access.member_index, target_name);
+    emit(OpCode::SET_IMPORTED_MEMBER, access.member_index, target_name);
 }
 
 } // namespace Wasp

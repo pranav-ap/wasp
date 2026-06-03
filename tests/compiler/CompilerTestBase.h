@@ -7,7 +7,6 @@
 #include "Objects.h"
 #include "OpCode.h"
 #include "SemanticAnalyzer.h"
-#include "SmartLiar.h"
 #include "Workspace.h"
 #include "test_utils.h"
 
@@ -69,9 +68,6 @@ protected:
 
         Wasp::SemanticAnalyzer semantic_analyzer(workspace);
         semantic_analyzer.run(build_order);
-
-        Wasp::SmartLiar smart_liar;
-        smart_liar.run(build_order);
 
         Wasp::Compiler compiler(workspace);
 

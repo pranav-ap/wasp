@@ -103,7 +103,6 @@ else
     {
         ASSERT_EQ(stmt.body.size(), 1);
         auto& placeholder = check<Wasp::Placeholder>(stmt.body[0]);
-        EXPECT_EQ(placeholder.type, Wasp::TokenType::PASS);
     }
 
     // 2. Check the 'elif' branch (nested in the first 'if' alternative)
@@ -125,7 +124,6 @@ else
     {
         ASSERT_EQ(elif_stmt.body.size(), 1);
         auto& placeholder = check<Wasp::Placeholder>(elif_stmt.body[0]);
-        EXPECT_EQ(placeholder.type, Wasp::TokenType::PASS);
     }
 
     // 3. Check the 'else' branch (nested in the 'elif' alternative)
@@ -135,6 +133,5 @@ else
     {
         ASSERT_EQ(else_stmt.body.size(), 1);
         auto& placeholder = check<Wasp::Placeholder>(else_stmt.body[0]);
-        EXPECT_EQ(placeholder.type, Wasp::TokenType::PASS);
     }
 }

@@ -63,19 +63,24 @@ private:
     void execute_stack_op(OpCode op);
     void execute_build_collection(OpCode op, CallFrame* frame);
     void execute_iter(OpCode op, CallFrame* frame);
-    void execute_member(OpCode op, CallFrame* frame);
     void execute_BOX(CallFrame* frame);
 
-    Object_ptr execute_GET_MEMBER(Object_ptr obj, int member_index);
-    void execute_SET_MEMBER(Object_ptr obj, int member_index, Object_ptr value);
+    void execute_GET_IMPORTED_MEMBER(CallFrame* frame);
+    void execute_SET_IMPORTED_MEMBER(CallFrame* frame);
+    void execute_UNPACK_MODULE_MEMBERS(CallFrame* frame);
 
     // --- Dispatch & OOPS ---
     void execute_BUILD_FUNCTION(CallFrame* frame);
     void execute_STORE_FUNCTION_OVERLOAD(CallFrame* frame);
     void execute_GET_FUNCTION(CallFrame* frame);
+
     void execute_BUILD_OVERLOAD_GROUP(CallFrame* frame);
     void execute_BUILD_CLASS(CallFrame* frame);
     void execute_INSTANTIATE(CallFrame* frame);
+
+    void execute_GET_FIELD(CallFrame* frame);
+    void execute_SET_FIELD(CallFrame* frame);
+
     void execute_GET_CLASS_METHOD(CallFrame* frame);
     void execute_GET_TRAIT_METHOD(CallFrame* frame);
 

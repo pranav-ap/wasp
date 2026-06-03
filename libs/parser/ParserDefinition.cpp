@@ -1,5 +1,6 @@
 #include "AST.h"
 #include "Doctor.h"
+#include "Expression.h"
 #include "Parser.h"
 #include "Statement.h"
 #include "Token.h"
@@ -11,10 +12,6 @@
 #include <utility>
 #include <variant>
 #include <vector>
-
-#define MAKE_TYPE(x) std::make_shared<TypeAnnotation>(x)
-#define MAKE_RECURSIVE_TYPE(T, ...)                                            \
-    std::make_shared<TypeAnnotation>(std::make_shared<T>(__VA_ARGS__))
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -110,16 +107,6 @@ std::pair<std::string, TypeAnnotation_ptr> Parser::parse_name_type_pair(
 
     token_pipe.require_in_line(TokenType::COLON);
 
-    if (token_pipe.consume_optional_in_line(TokenType::RECORD))
-    {
-        token_pipe.require_in_line(TokenType::EOL);
-        auto parsed_block = parse_name_type_block(member_indent + 1);
-        return {
-            name,
-            MAKE_RECURSIVE_TYPE(RecordTypeNode, std::move(parsed_block))
-        };
-    }
-
     auto type = parse_type();
     token_pipe.require_in_line(TokenType::EOL);
 
@@ -194,11 +181,6 @@ std::tuple<std::string, TypeAnnotationVector, StatementVector> Parser::
 
         token_pipe.expect_n_indents(body_indent);
 
-        if (token_pipe.consume_optional(TokenType::PASS))
-        {
-            return {std::move(name), std::move(traits), std::move(members)};
-        }
-
         if (token_pipe.consume_optional(TokenType::COMMENT))
         {
             token_pipe.advance_pointer();
@@ -265,7 +247,7 @@ Statement_ptr Parser::parse_function_definition(
     auto name = token_pipe.require_in_line(TokenType::IDENTIFIER).lexeme;
 
     token_pipe.require_in_line(TokenType::OPEN_PARENTHESIS);
-    std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters;
+    std::vector<Field> parameters;
 
     if (!token_pipe.consume_optional(TokenType::CLOSE_PARENTHESIS))
     {
@@ -274,7 +256,10 @@ Statement_ptr Parser::parse_function_definition(
             auto param_name = token_pipe.require_in_line(TokenType::IDENTIFIER)
                                   .lexeme;
             token_pipe.require_in_line(TokenType::COLON);
-            parameters.push_back({param_name, parse_type()});
+            auto param_type = parse_type();
+            // is_static flag only applies to class fields, not function
+            // parameters
+            parameters.emplace_back(param_name, param_type, false);
         }
         while (token_pipe.consume_optional_in_line(TokenType::COMMA));
 
@@ -298,7 +283,7 @@ Statement_ptr Parser::parse_function_definition(
             std::move(return_type),
             std::move(body),
             is_pure,
-            is_our
+            is_our // is_static = is_our
         ));
     }
 
@@ -321,7 +306,7 @@ Statement_ptr Parser::parse_operator_definition(
     token_pipe.advance_pointer();
 
     token_pipe.require_in_line(TokenType::OPEN_PARENTHESIS);
-    std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters;
+    std::vector<Field> parameters;
 
     if (!token_pipe.consume_optional(TokenType::CLOSE_PARENTHESIS))
     {
@@ -330,7 +315,8 @@ Statement_ptr Parser::parse_operator_definition(
             auto param_name = token_pipe.require_in_line(TokenType::IDENTIFIER)
                                   .lexeme;
             token_pipe.require_in_line(TokenType::COLON);
-            parameters.push_back({param_name, parse_type()});
+            auto param_type = parse_type();
+            parameters.emplace_back(param_name, param_type, false);
         }
         while (token_pipe.consume_optional_in_line(TokenType::COMMA));
 
@@ -393,27 +379,27 @@ Statement_ptr Parser::parse_template_definition(int indent_level)
         overloaded{
             [&](FunctionDefinition& def)
             {
-                def.template_params = std::move(generics);
+                def.template_params = generics;
             },
             [&](MethodDefinition& def)
             {
-                def.template_params = std::move(generics);
+                def.template_params = generics;
             },
             [&](OperatorDefinition& def)
             {
-                def.template_params = std::move(generics);
+                def.template_params = generics;
             },
             [&](ClassDefinition& def)
             {
-                def.template_params = std::move(generics);
+                def.template_params = generics;
             },
             [&](TraitDefinition& def)
             {
-                def.template_params = std::move(generics);
+                def.template_params = generics;
             },
             [&](TypeAliasDefinition& def)
             {
-                def.template_params = std::move(generics);
+                def.template_params = generics;
             },
             [&](auto&)
             {

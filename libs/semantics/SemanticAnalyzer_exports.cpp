@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <ctime>
 #include <memory>
-#include <string>
 #include <variant>
 
 template <class... Ts> struct overloaded : Ts...
@@ -23,18 +22,6 @@ StringVector SemanticAnalyzer::setup_ordered_export_names(Module_ptr mod)
 {
     StringVector ordered_export_names;
 
-    auto try_add_export = [&](const std::string& name)
-    {
-        if (std::find(
-                ordered_export_names.begin(),
-                ordered_export_names.end(),
-                name
-            ) == ordered_export_names.end())
-        {
-            ordered_export_names.push_back(name);
-        }
-    };
-
     for (auto& stmt_ptr : mod->stmts)
     {
         std::visit(
@@ -42,7 +29,14 @@ StringVector SemanticAnalyzer::setup_ordered_export_names(Module_ptr mod)
                        {
                            if constexpr (requires { def.name; })
                            {
-                               try_add_export(def.name);
+                               if (std::find(
+                                       ordered_export_names.begin(),
+                                       ordered_export_names.end(),
+                                       def.name
+                                   ) == ordered_export_names.end())
+                               {
+                                   ordered_export_names.push_back(def.name);
+                               }
                            }
                        }},
             stmt_ptr->data
@@ -74,12 +68,12 @@ void SemanticAnalyzer::setup_exports(
     }
 }
 
-void SemanticAnalyzer::extract_module_type(Module_ptr module)
+void SemanticAnalyzer::extract_module_type(Module_ptr mod)
 {
-    ObjectStringMap members;
+    ObjectStringMap member_types;
     StringVector ordered_keys;
 
-    for (const auto& symbol : module->exports)
+    for (const auto& symbol : mod->exports)
     {
         Doctor::get().fatal_if_nullptr(
             symbol->get_type(),
@@ -87,18 +81,15 @@ void SemanticAnalyzer::extract_module_type(Module_ptr module)
             "Symbol '" + symbol->name + "' has no type information"
         );
 
-        members[symbol->name] = symbol->get_type();
+        member_types[symbol->name] = symbol->get_type();
         ordered_keys.push_back(symbol->name);
     }
 
-    auto module_type = std::make_shared<ModuleType>(
-        module->get_name(),
-        module->absolute_filepath,
-        ordered_keys,
-        members
-    );
-
-    module->type = make_object(module_type);
+    mod->type = std::make_shared<Object>(std::make_shared<ModuleType>(
+        mod->get_name(),
+        member_types,
+        ordered_keys
+    ));
 }
 
 } // namespace Wasp

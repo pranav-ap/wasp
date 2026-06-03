@@ -3,13 +3,11 @@
 #include "Objects.h"
 #include "SemanticAnalyzer.h"
 #include "Statement.h"
-
 #include "SymbolScope.h"
 #include "Workspace.h"
 
 #include <ctime>
 #include <memory>
-#include <string>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -19,18 +17,29 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
+
 Object_ptr SemanticAnalyzer::visit(IfTernaryBranch& expr)
 {
     enter_scope(ScopeType::BRANCH);
 
     Object_ptr cond_type = visit(expr.test);
-    type_system->expect_condition_type(current_scope, cond_type);
+    cond_type = cond_type->unwrap_completely();
+
+    // Check condition is boolean (after Truthy trait would be desugared to
+    // is_truthy() call)
+    Doctor::get().assert(
+        type_system->is_boolean_type(cond_type),
+        WaspStage::Semantics,
+        "Condition type '" + cond_type->to_string() + "' is not boolean"
+    );
 
     Object_ptr then_type = visit(expr.true_expression);
+    then_type = then_type->unwrap_completely();
 
     if (expr.alternative)
     {
         Object_ptr else_type = visit(expr.alternative);
+        else_type = else_type->unwrap_completely();
 
         ObjectVector unique_types = type_system->remove_duplicates(
             current_scope,
@@ -44,10 +53,10 @@ Object_ptr SemanticAnalyzer::visit(IfTernaryBranch& expr)
             return unique_types[0];
         }
 
-        return make_object(VariantType(unique_types));
+        return make_object(std::make_shared<VariantType>(unique_types));
     }
 
-    Object_ptr none_type = make_object(NoneType());
+    Object_ptr none_type = workspace->pool->get_none_type();
 
     ObjectVector unique_types = type_system->remove_duplicates(
         current_scope,
@@ -61,13 +70,13 @@ Object_ptr SemanticAnalyzer::visit(IfTernaryBranch& expr)
         return unique_types[0];
     }
 
-    return make_object(VariantType(unique_types));
+    return make_object(std::make_shared<VariantType>(unique_types));
 }
 
 Object_ptr SemanticAnalyzer::visit(ElseTernaryBranch& expr)
 {
     Object_ptr type = visit(expr.expression);
-    return type;
+    return type->unwrap_completely();
 }
 
 void SemanticAnalyzer::visit(IfBranch& statement)
@@ -75,7 +84,13 @@ void SemanticAnalyzer::visit(IfBranch& statement)
     enter_scope(ScopeType::BRANCH);
 
     Object_ptr cond_type = visit(statement.test);
-    type_system->expect_condition_type(current_scope, cond_type);
+    cond_type = cond_type->unwrap_completely();
+
+    Doctor::get().assert(
+        type_system->is_boolean_type(cond_type),
+        WaspStage::Semantics,
+        "Condition type '" + cond_type->to_string() + "' is not boolean"
+    );
 
     visit(statement.body);
     leave_scope();
@@ -99,7 +114,17 @@ void SemanticAnalyzer::visit(ElseBranch& statement)
 
 void SemanticAnalyzer::visit(SimpleLoop& statement)
 {
-    visit(statement.condition);
+    // Visit condition first
+    Object_ptr cond_type = visit(statement.condition);
+    cond_type = cond_type->unwrap_completely();
+
+    // Condition should be boolean (after desugaring)
+    Doctor::get().assert(
+        type_system->is_boolean_type(cond_type),
+        WaspStage::Semantics,
+        "Loop condition type '" + cond_type->to_string() + "' is not boolean"
+    );
+
     enter_scope(ScopeType::LOOP);
     visit(statement.body);
     leave_scope();
@@ -108,15 +133,23 @@ void SemanticAnalyzer::visit(SimpleLoop& statement)
 void SemanticAnalyzer::visit(ForInLoop& loop_stmt)
 {
     Object_ptr iterable_type = visit(loop_stmt.iterable);
-    type_system->expect_iterable_type(current_scope, iterable_type);
+    iterable_type = iterable_type->unwrap_completely();
+
+    Doctor::get().assert(
+        type_system->is_iterable_type(current_scope, iterable_type),
+        WaspStage::Semantics,
+        "Type '" + iterable_type->to_string() + "' is not iterable"
+    );
 
     Object_ptr element_type = type_system->extract_iterable_element_type(
         current_scope,
         iterable_type
     );
+    element_type = element_type->unwrap_completely();
 
     enter_scope(ScopeType::LOOP);
 
+    // Create iterator symbol (hidden variable for desugared iteration)
     auto iterator_symbol = SymbolFactory::create_dummy(
         ".iter",
         iterable_type,
@@ -158,7 +191,8 @@ void SemanticAnalyzer::visit(LoopControl& statement)
     Doctor::get().assert(
         scope->enclosed_in(ScopeType::LOOP),
         WaspStage::Semantics,
-        "Loop control statement ('break', 'continue', 'redo') must be inside a loop."
+        "Loop control statement ('break', 'continue', 'redo') must be inside a "
+        "loop."
     );
 }
 

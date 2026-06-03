@@ -52,7 +52,7 @@ Object_ptr SemanticAnalyzer::define_variable(Assignment& assign)
     std::string symbol_name = assign.lhs->as<Identifier>().name;
 
     Object_ptr resolved_type = visit(assign.rhs);
-    resolved_type = unwrap_type_alias(resolved_type);
+    resolved_type = resolved_type->unwrap_type_alias();
 
     if (assign.declared_type.has_value())
     {
@@ -70,8 +70,8 @@ Object_ptr SemanticAnalyzer::define_variable(Assignment& assign)
 
     if (Symbol_ptr hoisted_symbol = current_scope->lookup_local(symbol_name))
     {
-        Doctor::get().assert(
-            hoisted_symbol->get_type() == nullptr,
+        Doctor::get().fatal_if_nullptr(
+            hoisted_symbol->get_type(),
             WaspStage::Semantics,
             "Variable '" + symbol_name + "' is hoisted but already has a type!"
         );
@@ -117,7 +117,7 @@ void SemanticAnalyzer::validate_purity_constraints(
             "Pure functions cannot mutate outer state variable '" + target_symbol->name + "'"
         );
 
-        scope = scope->get_enclosing();
+        scope = scope->get_enclosing_scope();
     }
 }
 
@@ -138,12 +138,12 @@ Object_ptr SemanticAnalyzer::mutate_variable(
     );
 
     Doctor::get().assert(
-        target_symbol->payload_is<VariableData>(),
+        target_symbol->is<VariableSymbol>(),
         WaspStage::Semantics,
         "Cannot assign to non-variable symbol '" + symbol_name + "'"
     );
 
-    auto& var_data = target_symbol->get_payload_as<VariableData>();
+    auto& var_data = target_symbol->as<VariableSymbol>();
 
     Doctor::get().assert(
         var_data.is_mutable,
@@ -180,10 +180,10 @@ Object_ptr SemanticAnalyzer::mutate_member(
     if (mac.member_index == -1)
     {
         auto symbol = mac.right->as<Identifier>().symbol;
-        if (symbol && symbol->payload_is<VariableData>())
+        if (symbol && symbol->is<VariableSymbol>())
         {
             Doctor::get().assert(
-                symbol->get_payload_as<VariableData>().is_mutable,
+                symbol->as<VariableSymbol>().is_mutable,
                 WaspStage::Semantics,
                 "Cannot reassign immutable shared member: " + symbol->name
             );

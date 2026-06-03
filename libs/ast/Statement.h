@@ -3,8 +3,8 @@
 #include "AST.h"
 #include "Resolvable.h"
 #include "Token.h"
+#include <cctype>
 #include <filesystem>
-#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -26,8 +26,6 @@ struct ExpressionStatement
     {
     }
 };
-
-// --- Core ---
 
 struct Definition : public Resolvable
 {
@@ -53,13 +51,15 @@ struct FieldDefinition : public Definition
     }
 };
 
+using FieldDefinitionVector = std::vector<FieldDefinition>;
+
 struct Templatable
 {
-    std::vector<FieldDefinition> template_params;
+    FieldDefinitionVector template_params;
 
     Templatable() = default;
 
-    explicit Templatable(std::vector<FieldDefinition> template_params)
+    explicit Templatable(FieldDefinitionVector template_params)
         : template_params(std::move(template_params))
     {
     }
@@ -67,25 +67,42 @@ struct Templatable
 
 // --- Callables ---
 
-struct AbstractCallable : public Definition, public Templatable
+struct Field
 {
-    std::vector<std::pair<std::string, TypeAnnotation_ptr>> parameters;
+    std::string name;
+    TypeAnnotation_ptr type;
+    bool is_static;
+
+    Field() = default;
+
+    Field(std::string name, TypeAnnotation_ptr type, bool is_static = false)
+        : name(std::move(name)), type(std::move(type)), is_static(is_static)
+    {
+    }
+};
+
+struct CallableDefinition : public Definition, public Templatable
+{
+    std::vector<Field> parameters;
     std::vector<std::shared_ptr<Symbol>> parameter_symbols;
-    std::shared_ptr<Symbol> context_symbol = nullptr;
     TypeAnnotation_ptr return_type;
+
     StatementVector body;
+
+    std::shared_ptr<Symbol> context_symbol = nullptr;
     std::shared_ptr<Symbol> group_symbol;
+
     bool is_pure = false;
 
-    AbstractCallable() = default;
+    CallableDefinition() = default;
 
-    AbstractCallable(
+    CallableDefinition(
         std::string name,
-        std::vector<std::pair<std::string, TypeAnnotation_ptr>> params,
+        std::vector<Field> params,
         TypeAnnotation_ptr ret,
         StatementVector body,
         bool is_pure = false,
-        std::vector<FieldDefinition> template_params = {}
+        FieldDefinitionVector template_params = {}
     )
         : Definition(std::move(name)), Templatable(std::move(template_params)),
           parameters(std::move(params)), return_type(std::move(ret)),
@@ -94,12 +111,12 @@ struct AbstractCallable : public Definition, public Templatable
     }
 };
 
-struct FunctionDefinition : public AbstractCallable
+struct FunctionDefinition : public CallableDefinition
 {
-    using AbstractCallable::AbstractCallable;
+    using CallableDefinition::CallableDefinition;
 };
 
-struct MethodDefinition : public AbstractCallable
+struct MethodDefinition : public CallableDefinition
 {
     bool is_static = false;
 
@@ -107,14 +124,14 @@ struct MethodDefinition : public AbstractCallable
 
     MethodDefinition(
         std::string name,
-        std::vector<std::pair<std::string, TypeAnnotation_ptr>> params,
+        std::vector<Field> params,
         TypeAnnotation_ptr ret,
         StatementVector body,
         bool is_pure = false,
         bool is_static = false,
-        std::vector<FieldDefinition> template_params = {}
+        FieldDefinitionVector template_params = {}
     )
-        : AbstractCallable(
+        : CallableDefinition(
               std::move(name),
               std::move(params),
               std::move(ret),
@@ -127,7 +144,7 @@ struct MethodDefinition : public AbstractCallable
     }
 };
 
-struct OperatorDefinition : public AbstractCallable
+struct OperatorDefinition : public CallableDefinition
 {
     TokenType op_type;
     TokenType fixity;
@@ -138,12 +155,12 @@ struct OperatorDefinition : public AbstractCallable
         TokenType fix,
         TokenType op,
         std::string mangled,
-        std::vector<std::pair<std::string, TypeAnnotation_ptr>> params,
+        std::vector<Field> params,
         TypeAnnotation_ptr ret,
         StatementVector body,
-        std::vector<FieldDefinition> template_params = {}
+        FieldDefinitionVector template_params = {}
     )
-        : AbstractCallable(
+        : CallableDefinition(
               std::move(mangled),
               std::move(params),
               std::move(ret),
@@ -162,6 +179,7 @@ struct AbstractOopsDefinition : public Definition, public Templatable
 {
     TypeAnnotationVector traits;
     StatementVector members;
+    bool is_native;
 
     AbstractOopsDefinition() = default;
 
@@ -169,10 +187,13 @@ struct AbstractOopsDefinition : public Definition, public Templatable
         std::string name,
         TypeAnnotationVector traits,
         StatementVector members,
-        std::vector<FieldDefinition> template_params = {}
+        FieldDefinitionVector template_params = {}
     )
         : Definition(std::move(name)), Templatable(std::move(template_params)),
-          traits(std::move(traits)), members(std::move(members))
+          traits(std::move(traits)), members(std::move(members)),
+          is_native(
+              !name.empty() && std::islower(static_cast<unsigned char>(name[0]))
+          )
     {
     }
 };
@@ -196,9 +217,10 @@ struct TypeAliasDefinition : public Definition, public Templatable
     TypeAliasDefinition(
         std::string name,
         TypeAnnotation_ptr ref,
-        std::vector<FieldDefinition> gen = {}
+        FieldDefinitionVector gen = {}
     )
-        : Definition(std::move(name)), Templatable(std::move(gen)), ref_type(std::move(ref))
+        : Definition(std::move(name)), Templatable(std::move(gen)),
+          ref_type(std::move(ref))
     {
     }
 };
@@ -290,7 +312,7 @@ struct ForInLoop : public Branch
 
 struct Placeholder
 {
-    // PASS, REQUIRED, or NATIVE
+    // REQUIRED, or NATIVE
     TokenType type;
 
     Placeholder() = default;
@@ -371,66 +393,63 @@ struct Import : public Resolvable
     }
 };
 
+// ============================================================================
+// Splitter
+// ============================================================================
+
+struct Splitter
+{
+    std::vector<Statement_ptr> statements;
+
+    Splitter() = default;
+
+    explicit Splitter(std::vector<Statement_ptr> statements)
+        : statements(std::move(statements))
+    {
+    }
+};
+
 // --- Variant & Utils ---
 
 using StatementVariant = std::variant<
     std::monostate,
+
     ExpressionStatement,
+
     TypeAliasDefinition,
     EnumDefinition,
+
     FunctionDefinition,
     MethodDefinition,
     OperatorDefinition,
+
     FieldDefinition,
+
     ClassDefinition,
     TraitDefinition,
+
     Import,
+
     IfBranch,
     ElseBranch,
+
     SimpleLoop,
     ForInLoop,
     LoopControl,
+
     Placeholder,
-    Return>;
+    Return,
+
+    Splitter>;
 
 struct Statement : public AstNode<StatementVariant>
 {
     using AstNode::AstNode;
-    Token start_token;
-    Token end_token;
 };
 
 template <typename T> inline Statement_ptr make_statement(T&& data)
 {
     return std::make_shared<Statement>(std::forward<T>(data));
-}
-
-template <typename T> inline Statement_ptr make_statement(T&& data, Token start, Token end)
-{
-    auto stmt = std::make_shared<Statement>(std::forward<T>(data));
-    stmt->start_token = start;
-    stmt->end_token = end;
-    return stmt;
-}
-
-inline std::string get_operator_name(TokenType fixity, TokenType op_type)
-{
-    std::string fix;
-
-    if (fixity == TokenType::INFIX)
-    {
-        fix = "infix_";
-    }
-    if (fixity == TokenType::PREFIX)
-    {
-        fix = "prefix_";
-    }
-    if (fixity == TokenType::POSTFIX)
-    {
-        fix = "postfix_";
-    }
-
-    return fix + to_string(op_type);
 }
 
 } // namespace Wasp

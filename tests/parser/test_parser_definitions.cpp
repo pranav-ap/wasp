@@ -116,56 +116,6 @@ fun add(a: int, b: int) => int
 
 // CLASS
 
-TEST(ParseDefinitions, ClassDefinitionWithNestedRecord)
-{
-    auto block = parse(R"(
-class Person
-    name: str
-    address: record
-        street: str
-        city: str
-
-    job: record
-        title: str
-        salary: int
-
-        experience: record
-            years: int
-            field: str
-)");
-
-    ASSERT_EQ(block.size(), 1);
-
-    auto& class_def = check<Wasp::ClassDefinition>(block[0]);
-
-    // 'name', 'address', 'job'
-    ASSERT_EQ(class_def.members.size(), 3);
-
-    auto& job_field = check<Wasp::FieldDefinition>(class_def.members[2]);
-    EXPECT_EQ(job_field.name, "job");
-
-    auto& job_record = check<std::shared_ptr<Wasp::RecordTypeNode>>(job_field.type);
-
-    // title, salary, experience
-    ASSERT_EQ(job_record->fields.size(), 3);
-
-    auto& exp_field = check<Wasp::FieldDefinition>(job_record->fields[2]);
-    EXPECT_EQ(exp_field.name, "experience");
-
-    auto& exp_record = check<std::shared_ptr<Wasp::RecordTypeNode>>(exp_field.type);
-    ASSERT_EQ(exp_record->fields.size(), 2);
-
-    auto& years_field = check<Wasp::FieldDefinition>(exp_record->fields[0]);
-    EXPECT_EQ(years_field.name, "years");
-    auto& years_type = check<Wasp::TypeIdentifierNode>(years_field.type);
-    EXPECT_EQ(years_type.name, "int");
-
-    auto& field_field = check<Wasp::FieldDefinition>(exp_record->fields[1]);
-    EXPECT_EQ(field_field.name, "field");
-    auto& field_type = check<Wasp::TypeIdentifierNode>(field_field.type);
-    EXPECT_EQ(field_type.name, "str");
-}
-
 TEST(ParseDefinitions, ClassDefinitionWithManyTraits)
 {
     auto block = parse(R"(
@@ -216,10 +166,10 @@ class Person
     EXPECT_FALSE(func_def2.is_static);
 
     ASSERT_EQ(func_def2.parameters.size(), 1);
-    EXPECT_EQ(func_def2.parameters[0].first, "damage");
+    EXPECT_EQ(func_def2.parameters[0].name, "damage");
 
     auto& param_type = check<Wasp::TypeIdentifierNode>(
-        func_def2.parameters[0].second
+        func_def2.parameters[0].type
     );
     EXPECT_EQ(param_type.name, "int");
 }

@@ -11,7 +11,6 @@
 #include <ctime>
 #include <memory>
 #include <string>
-#include <utility>
 #include <variant>
 #include <vector>
 
@@ -27,7 +26,7 @@ namespace Wasp
 void SemanticAnalyzer::hoist_statements(StatementVector& statements)
 {
     hoist_names(statements);
-    hoist_signatures(statements);
+    hoist_signatures_and_store_ast(statements);
 }
 
 void SemanticAnalyzer::hoist_names(StatementVector& statements)
@@ -41,7 +40,7 @@ void SemanticAnalyzer::hoist_names(StatementVector& statements)
             overloaded{
                 [&](Import& stmt)
                 {
-                    hoist_import(stmt);
+                    hoist(stmt);
                 },
                 [&](ClassDefinition& def)
                 {
@@ -111,93 +110,79 @@ void SemanticAnalyzer::hoist_names(StatementVector& statements)
     }
 }
 
-void SemanticAnalyzer::hoist_signatures(StatementVector& statements)
+void SemanticAnalyzer::hoist_signatures_and_store_ast(
+    StatementVector& statements
+)
 {
-    auto assign_generics = [&](auto& def, auto type_ptr)
-    {
-        auto [template_params, ordered_names] = evaluate_template_params(
-            def.template_params
-        );
-
-        type_ptr->template_parameter_types = std::move(template_params);
-        type_ptr->ordered_template_parameter_names = std::move(ordered_names);
-    };
-
     for (auto& stmt_ptr : statements)
     {
         std::visit(
             overloaded{
                 [&](TypeAliasDefinition& def)
                 {
-                    auto alias_type = def.symbol->get_type()->as<TypeAlias_ptr>();
-                    assign_generics(def, alias_type);
+                    auto alias_type = def.symbol->get_type()
+                                          ->as<TypeAlias_ptr>();
+
+                    alias_type->template_type = create_template_type(
+                        def.template_params
+                    );
 
                     enter_scope(ScopeType::CLASS);
 
-                    for (const auto& name : alias_type->ordered_template_parameter_names)
-                    {
-                        auto generic_type = alias_type->template_parameter_types.at(name);
-                        auto symbol = SymbolFactory::create_template_parameter(name, generic_type);
-                        current_scope->define(symbol);
-                    }
-
+                    define_template_parameters(alias_type->template_type);
                     alias_type->underlying_type = visit(def.ref_type);
+
                     leave_scope();
+
+                    ASTCloner cloner;
+                    auto clone = cloner.clone(make_statement(def));
+
+                    forest[def.symbol] = clone;
                 },
                 [&](ClassDefinition& def)
                 {
-                    assign_generics(
-                        def,
-                        def.symbol->get_type()->as<ClassType_ptr>()
+                    auto type = def.symbol->get_type()->as<ClassType_ptr>();
+
+                    type->template_type = create_template_type(
+                        def.template_params
                     );
 
-                    auto& class_data = def.symbol->get_payload_as<OopsData>();
-
                     ASTCloner cloner;
-                    class_data.definition = cloner.clone(make_statement(def));
-                    class_data.declaration_scope = current_scope;
+                    auto clone = cloner.clone(make_statement(def));
+                    forest[def.symbol] = make_statement(def);
                 },
                 [&](TraitDefinition& def)
                 {
-                    assign_generics(
-                        def,
-                        def.symbol->get_type()->as<TraitType_ptr>()
+                    auto type = def.symbol->get_type()->as<TraitType_ptr>();
+
+                    type->template_type = create_template_type(
+                        def.template_params
                     );
 
-                    auto& trait_data = def.symbol->get_payload_as<OopsData>();
-
                     ASTCloner cloner;
-                    trait_data.definition = cloner.clone(make_statement(def));
-                    trait_data.declaration_scope = current_scope;
+                    auto clone = cloner.clone(make_statement(def));
+                    forest[def.symbol] = make_statement(def);
                 },
                 [&](FunctionDefinition& def)
                 {
-                    hoist_function_definition(def);
+                    hoist(def);
 
-                    auto& function_data = def.symbol->get_payload_as<CallableData>();
-
-                    ASTCloner cloner;
-                    function_data.definition = cloner.clone(make_statement(def));
-                    function_data.declaration_scope = current_scope;
-                },
-                [&](OperatorDefinition& def)
-                {
-                    hoist_function_definition(def);
-
-                    auto& function_data = def.symbol->get_payload_as<CallableData>();
+                    auto signature = def.symbol->get_type()
+                                         ->as<Signature_ptr>();
 
                     ASTCloner cloner;
-                    function_data.definition = cloner.clone(make_statement(def));
-                    function_data.declaration_scope = current_scope;
+                    auto clone = cloner.clone(make_statement(def));
+                    forest[def.symbol] = make_statement(def);
                 },
-                [](auto&) { /* No signature hoisting needed for other statements */ }
+                [](auto&)
+                { /* No signature hoisting needed for other statements */ }
             },
             stmt_ptr->data
         );
     }
 }
 
-void SemanticAnalyzer::hoist_import(Import& stmt)
+void SemanticAnalyzer::hoist(Import& stmt)
 {
     auto mod = workspace->get_module(stmt.absolute_path);
     Doctor::get().fatal_if_nullptr(mod, WaspStage::Semantics);
@@ -239,7 +224,8 @@ void SemanticAnalyzer::hoist_import(Import& stmt)
         Doctor::get().fatal_if_nullptr(
             exported_symbol,
             WaspStage::Semantics,
-            "Module '" + mod->get_name() + "' does not export symbol: " + pair.name
+            "Module '" + mod->get_name() +
+                "' does not export symbol: " + pair.name
         );
 
         if (pair.alias.has_value())
@@ -277,45 +263,96 @@ void SemanticAnalyzer::hoist_import(Import& stmt)
     }
 }
 
-void SemanticAnalyzer::hoist_function_definition(AbstractCallable& def)
+void SemanticAnalyzer::hoist(CallableDefinition& def)
 {
     enter_scope(ScopeType::FUNCTION);
 
-    auto [generics, ordered_names] = evaluate_template_params(def.template_params);
-
-    for (const auto& [name, generic_type] : generics)
-    {
-        auto symbol = SymbolFactory::create_template_parameter(name, generic_type);
-        current_scope->define(symbol);
-    }
+    auto template_type = create_template_type(def.template_params);
+    define_template_parameters(template_type);
 
     Object_ptr return_type = def.return_type ? visit(def.return_type)
                                              : workspace->pool->get_none_type();
 
     ObjectVector param_types;
-    for (const auto& [name, type_node] : def.parameters)
+    for (const auto& param : def.parameters)
     {
-        param_types.push_back(visit(type_node));
+        param_types.push_back(visit(param.type));
     }
 
     leave_scope();
 
     auto signature = make_object(
-        std::make_shared<Signature>(param_types, return_type, generics, ordered_names)
+        std::make_shared<Signature>(param_types, return_type, template_type)
     );
 
-    auto symbol = SymbolFactory::create_function(
+    auto function_symbol = SymbolFactory::create_function(
         def.name,
         signature,
         current_scope->get_closure_depth(),
         current_scope->get_lexical_depth()
     );
 
-    type_system
-        ->validate_new_function_overload(current_scope, def.name, symbol);
+    define_or_add_to_overload_set(def.name, function_symbol);
 
-    def.symbol = symbol;
-    def.group_symbol = current_scope->define(symbol);
+    def.symbol = function_symbol;
+    def.group_symbol = current_scope->lookup(def.name);
+}
+
+void SemanticAnalyzer::define_or_add_to_overload_set(
+    const std::string& name,
+    Symbol_ptr new_function
+)
+{
+    auto existing = current_scope->lookup(name);
+
+    if (!existing)
+    {
+        auto overload_set = SymbolFactory::create_overloads(
+            name,
+            current_scope->get_closure_depth(),
+            current_scope->get_lexical_depth()
+        );
+
+        overload_set->add_overload(new_function);
+        current_scope->define(overload_set);
+
+        return;
+    }
+
+    Doctor::get().assert(
+        existing->is<OverloadsSymbol>(),
+        WaspStage::Semantics,
+        "'" + name + "' already exists and is not a function"
+    );
+
+    auto& overload_symbol = existing->as<OverloadsSymbol>();
+    auto new_signature = new_function->get_type()->as<Signature_ptr>();
+
+    validate_unique_signature(overload_symbol, new_signature, name);
+
+    overload_symbol.overloads.push_back(new_function);
+}
+
+void SemanticAnalyzer::validate_unique_signature(
+    const OverloadsSymbol& overload_symbol,
+    const Signature_ptr& new_signature,
+    const std::string& function_name
+)
+{
+    for (const auto& existing_func : overload_symbol.overloads)
+    {
+        auto existing_sig = existing_func->get_type()->as<Signature_ptr>();
+
+        Doctor::get().assert(
+            !type_system->equal(
+                current_scope,
+                existing_sig->parameter_types,
+                new_signature->parameter_types
+            ),
+            WaspStage::Semantics,
+            "Duplicate function signature for " + function_name
+        );
+    }
 }
 
 } // namespace Wasp

@@ -3,7 +3,6 @@
 #include "Objects.h"
 #include "OpCode.h"
 
-#include <cstddef>
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -107,15 +106,6 @@ void VM::run(FunctionBlueprintObject_ptr function_object)
             execute_scope_op(instruction, frame);
             break;
         }
-
-            // Members
-
-        case OpCode::GET_MEMBER:
-        case OpCode::SET_MEMBER: {
-            execute_member(instruction, frame);
-            break;
-        }
-
             // Control Flow
 
         case OpCode::JUMP:
@@ -156,6 +146,23 @@ void VM::run(FunctionBlueprintObject_ptr function_object)
             execute_unary_op(instruction);
             break;
         }
+
+            // Module
+
+        case OpCode::GET_IMPORTED_MEMBER: {
+            execute_GET_IMPORTED_MEMBER(frame);
+        }
+
+        case OpCode::SET_IMPORTED_MEMBER: {
+            execute_SET_IMPORTED_MEMBER(frame);
+            break;
+        }
+
+        case OpCode::UNPACK_MODULE_MEMBERS: {
+            execute_UNPACK_MODULE_MEMBERS(frame);
+            break;
+        }
+
             // FUNCTION
 
         case OpCode::BUILD_FUNCTION: {
@@ -173,15 +180,6 @@ void VM::run(FunctionBlueprintObject_ptr function_object)
             break;
         }
 
-        case OpCode::GET_CLASS_METHOD: {
-            execute_GET_CLASS_METHOD(frame);
-            break;
-        }
-
-        case OpCode::GET_TRAIT_METHOD: {
-            execute_GET_TRAIT_METHOD(frame);
-            break;
-        }
         case OpCode::CALL: {
             execute_CALL(frame);
             break;
@@ -198,6 +196,28 @@ void VM::run(FunctionBlueprintObject_ptr function_object)
             break;
         }
 
+            // OOPS
+
+        case OpCode::GET_FIELD: {
+            execute_GET_FIELD(frame);
+            break;
+        }
+
+        case OpCode::SET_FIELD: {
+            execute_SET_FIELD(frame);
+            break;
+        }
+
+        case OpCode::GET_CLASS_METHOD: {
+            execute_GET_CLASS_METHOD(frame);
+            break;
+        }
+
+        case OpCode::GET_TRAIT_METHOD: {
+            execute_GET_TRAIT_METHOD(frame);
+            break;
+        }
+
         case OpCode::BUILD_OVERLOAD_GROUP: {
             execute_BUILD_OVERLOAD_GROUP(frame);
             break;
@@ -205,14 +225,14 @@ void VM::run(FunctionBlueprintObject_ptr function_object)
 
         case OpCode::PUSH_EMPTY_OVERLOAD_GROUP: {
             push_to_stack(
-                make_object(std::make_shared<ObjectOverloadList>(ObjectVector{}))
+                make_object(std::make_shared<OverloadsSet>(ObjectVector{}))
             );
 
             break;
         }
 
         case OpCode::PUSH_EMPTY_CLASS_BLUEPRINT: {
-            push_to_stack(make_object(std::make_shared<ClassBlueprintObject>()));
+            push_to_stack(make_object(std::make_shared<ClassBlueprint>()));
             break;
         }
 
@@ -228,21 +248,6 @@ void VM::run(FunctionBlueprintObject_ptr function_object)
 
         case OpCode::BOX: {
             execute_BOX(frame);
-            break;
-        }
-
-        case OpCode::UNPACK_MODULE_MEMBERS: {
-            int module_slot = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
-            int count = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
-
-            Object_ptr module_obj = stack[frame->base_pointer + module_slot];
-
-            // Loop through the remaining bytes to fetch each member
-            for (int i = 0; i < count; i++)
-            {
-                int member_index = static_cast<int>(std::to_integer<int>(frame->consume_byte()));
-                push_to_stack(execute_GET_MEMBER(module_obj, member_index));
-            }
             break;
         }
 

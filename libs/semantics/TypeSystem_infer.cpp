@@ -1,8 +1,8 @@
 #include "Doctor.h"
 #include "Objects.h"
-#include "SymbolScope.h"
 #include "Token.h"
 #include "TypeSystem.h"
+#include "Workspace.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -18,6 +18,99 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
+
+Object_ptr TypeSystem::get_least_upper_bound(
+    SymbolScope_ptr scope,
+    ObjectVector types
+) const
+{
+    Doctor::get().assert(
+        !types.empty(),
+        WaspStage::Semantics,
+        "Cannot compute least upper bound of an empty set of types"
+    );
+
+    if (types.size() == 1)
+    {
+        return types[0];
+    }
+
+    Object_ptr unified_type = types[0];
+
+    for (size_t i = 1; i < types.size(); ++i)
+    {
+        if (equal(scope, unified_type, types[i]))
+        {
+            continue;
+        }
+
+        unified_type = get_least_upper_bound(scope, unified_type, types[i]);
+    }
+
+    return unified_type;
+}
+
+Object_ptr TypeSystem::get_least_upper_bound(
+    SymbolScope_ptr scope,
+    Object_ptr a,
+    Object_ptr b
+) const
+{
+    // If they're equal, return either
+    if (equal(scope, a, b))
+    {
+        return a;
+    }
+
+    // Check if one is a subtype of the other
+    if (assignable(scope, b, a))
+    {
+        return a; // a is supertype of b
+    }
+
+    if (assignable(scope, a, b))
+    {
+        return b; // b is supertype of a
+    }
+
+    // Create a variant type containing just these two distinct types
+    ObjectVector combined;
+
+    if (a->is<VariantType_ptr>())
+    {
+        auto variant_a = a->as<VariantType_ptr>();
+        for (const auto& t : variant_a->types)
+        {
+            combined.push_back(t);
+        }
+    }
+    else
+    {
+        combined.push_back(a);
+    }
+
+    if (b->is<VariantType_ptr>())
+    {
+        auto variant_b = b->as<VariantType_ptr>();
+        for (const auto& t : variant_b->types)
+        {
+            combined.push_back(t);
+        }
+    }
+    else
+    {
+        combined.push_back(b);
+    }
+
+    combined = remove_duplicates(scope, combined);
+
+    if (combined.size() == 1)
+    {
+        return combined[0];
+    }
+
+    return make_object(std::make_shared<VariantType>(combined));
+}
 
 // ============================================================================
 // Equality Checks
@@ -47,32 +140,32 @@ bool TypeSystem::equal(
         return true;
     }
 
-    if (t1->is<VariantType>() && t2->is<VariantType>())
+    if (t1->is<VariantType_ptr>() && t2->is<VariantType_ptr>())
     {
         return equal_unordered(
             scope,
-            t1->as<VariantType>().types,
-            t2->as<VariantType>().types
+            t1->as<VariantType_ptr>()->types,
+            t2->as<VariantType_ptr>()->types
         );
     }
 
-    if (t1->is<IntersectionType>() && t2->is<IntersectionType>())
+    if (t1->is<IntersectionType_ptr>() && t2->is<IntersectionType_ptr>())
     {
         return equal_unordered(
             scope,
-            t1->as<IntersectionType>().types,
-            t2->as<IntersectionType>().types
+            t1->as<IntersectionType_ptr>()->types,
+            t2->as<IntersectionType_ptr>()->types
         );
     }
 
-    if (t1->is<TemplateParameterType_ptr>() && t2->is<TemplateParameterType_ptr>())
+    if (t1->is<GenericType_ptr>() && t2->is<GenericType_ptr>())
     {
-        auto g1 = t1->as<TemplateParameterType_ptr>();
-        auto g2 = t2->as<TemplateParameterType_ptr>();
+        auto g1 = t1->as<GenericType_ptr>();
+        auto g2 = t2->as<GenericType_ptr>();
         return equal(scope, g1->constraint_type, g2->constraint_type);
     }
 
-    return are_equal_types(t1, t2);
+    return Object::are_equal_types(t1, t2);
 }
 
 bool TypeSystem::equal(
@@ -85,6 +178,7 @@ bool TypeSystem::equal(
     {
         return false;
     }
+
     return std::equal(
         type_vector_1.begin(),
         type_vector_1.end(),
@@ -106,6 +200,7 @@ bool TypeSystem::equal_unordered(
     {
         return false;
     }
+
     return std::all_of(
         left_vector.begin(),
         left_vector.end(),
@@ -147,30 +242,30 @@ bool TypeSystem::assignable(
     }
 
     // Generics
-    if (rhs->is<TemplateParameterType_ptr>())
+    if (rhs->is<GenericType_ptr>())
     {
         return assignable(
             scope,
             lhs,
-            rhs->as<TemplateParameterType_ptr>()->constraint_type
+            rhs->as<GenericType_ptr>()->constraint_type
         );
     }
-    if (lhs->is<TemplateParameterType_ptr>())
+    if (lhs->is<GenericType_ptr>())
     {
         return assignable(
             scope,
-            lhs->as<TemplateParameterType_ptr>()->constraint_type,
+            lhs->as<GenericType_ptr>()->constraint_type,
             rhs
         );
     }
 
     // Variants
-    if (rhs->is<VariantType>())
+    if (rhs->is<VariantType_ptr>())
     {
-        auto rhs_var = rhs->as<VariantType>();
+        auto rhs_var = rhs->as<VariantType_ptr>();
         return std::all_of(
-            rhs_var.types.begin(),
-            rhs_var.types.end(),
+            rhs_var->types.begin(),
+            rhs_var->types.end(),
             [&](Object_ptr t)
             {
                 return assignable(scope, lhs, t);
@@ -178,12 +273,12 @@ bool TypeSystem::assignable(
         );
     }
 
-    if (lhs->is<VariantType>())
+    if (lhs->is<VariantType_ptr>())
     {
-        auto lhs_var = lhs->as<VariantType>();
+        auto lhs_var = lhs->as<VariantType_ptr>();
         return std::any_of(
-            lhs_var.types.begin(),
-            lhs_var.types.end(),
+            lhs_var->types.begin(),
+            lhs_var->types.end(),
             [&](Object_ptr t)
             {
                 return assignable(scope, t, rhs);
@@ -192,13 +287,12 @@ bool TypeSystem::assignable(
     }
 
     // Intersection Types
-
-    if (lhs->is<IntersectionType>())
+    if (lhs->is<IntersectionType_ptr>())
     {
-        auto lhs_int = lhs->as<IntersectionType>();
+        auto lhs_int = lhs->as<IntersectionType_ptr>();
         return std::all_of(
-            lhs_int.types.begin(),
-            lhs_int.types.end(),
+            lhs_int->types.begin(),
+            lhs_int->types.end(),
             [&](Object_ptr t)
             {
                 return assignable(scope, t, rhs);
@@ -206,12 +300,12 @@ bool TypeSystem::assignable(
         );
     }
 
-    if (rhs->is<IntersectionType>())
+    if (rhs->is<IntersectionType_ptr>())
     {
-        auto rhs_int = rhs->as<IntersectionType>();
+        auto rhs_int = rhs->as<IntersectionType_ptr>();
         return std::any_of(
-            rhs_int.types.begin(),
-            rhs_int.types.end(),
+            rhs_int->types.begin(),
+            rhs_int->types.end(),
             [&](Object_ptr t)
             {
                 return assignable(scope, lhs, t);
@@ -221,63 +315,30 @@ bool TypeSystem::assignable(
 
     return std::visit(
         ::overloaded{
-            [](AnyType const&, const auto&)
+            [](AnyType_ptr, const auto&)
             {
                 return true;
             },
 
-            // Literals assigned to Primitives
-            [](IntType const&, LiteralType const& r)
-            {
-                return r.value->is<IntObject>();
-            },
-            [](FloatType const&, LiteralType const& r)
-            {
-                return r.value->is<FloatObject>();
-            },
-            [](BooleanType const&, LiteralType const& r)
-            {
-                return r.value->is<BooleanObject>();
-            },
-            [](StringType const&, LiteralType const& r)
-            {
-                return r.value->is<StringObject>();
-            },
-
-            [](LiteralType const& l, LiteralType const& r)
+            [](LiteralType_ptr l, LiteralType_ptr r)
             {
                 return false;
             },
 
-            // Collections
-            [&](ListType const& t1, ListType const& t2)
+            [&](TraitType_ptr lhs_trait, ClassType_ptr rhs_class)
             {
-                return assignable(scope, t1.element_type, t2.element_type);
-            },
-            [&](SetType const& t1, SetType const& t2)
-            {
-                return assignable(scope, t1.element_type, t2.element_type);
-            },
-            [&](TupleType const& t1, TupleType const& t2)
-            {
-                return assignable(scope, t1.element_types, t2.element_types);
-            },
-            [&](MapType const& t1, MapType const& t2)
-            {
-                return assignable(scope, t1.key_type, t2.key_type) &&
-                       assignable(scope, t1.value_type, t2.value_type);
-            },
+                int target_id = lhs_trait->type_id;
 
-            [&](TraitType_ptr const lhs_trait, ClassType_ptr const rhs_class)
-            {
                 for (const auto& trait_obj : rhs_class->traits)
                 {
-                    if (are_equal_types(make_object(lhs->value), trait_obj))
+                    if (auto trait_def = trait_obj->as<TraitType_ptr>())
                     {
-                        return true;
+                        if (trait_def->type_id == target_id)
+                        {
+                            return true;
+                        }
                     }
                 }
-
                 return false;
             },
 
@@ -301,6 +362,7 @@ bool TypeSystem::assignable(
     {
         return false;
     }
+
     return std::equal(
         type_vector_1.begin(),
         type_vector_1.end(),
@@ -316,27 +378,6 @@ bool TypeSystem::assignable(
 // Inference
 // ============================================================================
 
-ObjectStringMap TypeSystem::infer_template_arguments(
-    Signature_ptr signature,
-    const ObjectVector& argument_types
-)
-{
-    ObjectStringMap substitutions;
-
-    for (size_t i = 0; i < signature->parameter_types.size(); ++i)
-    {
-        auto param_type = signature->parameter_types[i];
-        param_type = resolve_type(param_type, false);
-
-        if (auto* generic_ptr = param_type->try_as<TemplateParameterType_ptr>())
-        {
-            substitutions[(*generic_ptr)->name] = argument_types[i];
-        }
-    }
-
-    return substitutions;
-}
-
 Object_ptr TypeSystem::infer(
     SymbolScope_ptr scope,
     Object_ptr left_type,
@@ -347,43 +388,48 @@ Object_ptr TypeSystem::infer(
     left_type = resolve_type(left_type, true);
     right_type = resolve_type(right_type, true);
 
-    if (left_type->is<VariantType>())
+    if (left_type->is<VariantType_ptr>())
     {
         ObjectVector result_types;
-        for (const auto& t : left_type->as<VariantType>().types)
+        auto variant = left_type->as<VariantType_ptr>();
+        for (const auto& t : variant->types)
         {
             result_types.push_back(infer(scope, t, op, right_type));
         }
-        return std::make_shared<Object>(VariantType{result_types});
+        return make_object(std::make_shared<VariantType>(result_types));
     }
-    if (left_type->is<IntersectionType>())
+
+    if (left_type->is<IntersectionType_ptr>())
     {
         ObjectVector result_types;
-        for (const auto& t : left_type->as<IntersectionType>().types)
+        auto intersection = left_type->as<IntersectionType_ptr>();
+        for (const auto& t : intersection->types)
         {
             result_types.push_back(infer(scope, t, op, right_type));
         }
-        return std::make_shared<Object>(IntersectionType{result_types});
+        return make_object(std::make_shared<IntersectionType>(result_types));
     }
 
-    if (right_type->is<VariantType>())
+    if (right_type->is<VariantType_ptr>())
     {
         ObjectVector result_types;
-        for (const auto& t : right_type->as<VariantType>().types)
+        auto variant = right_type->as<VariantType_ptr>();
+        for (const auto& t : variant->types)
         {
             result_types.push_back(infer(scope, left_type, op, t));
         }
-        return std::make_shared<Object>(VariantType{result_types});
+        return make_object(std::make_shared<VariantType>(result_types));
     }
 
-    if (right_type->is<IntersectionType>())
+    if (right_type->is<IntersectionType_ptr>())
     {
         ObjectVector result_types;
-        for (const auto& t : right_type->as<IntersectionType>().types)
+        auto intersection = right_type->as<IntersectionType_ptr>();
+        for (const auto& t : intersection->types)
         {
             result_types.push_back(infer(scope, left_type, op, t));
         }
-        return std::make_shared<Object>(IntersectionType{result_types});
+        return make_object(std::make_shared<IntersectionType>(result_types));
     }
 
     switch (op)
@@ -391,7 +437,8 @@ Object_ptr TypeSystem::infer(
     case TokenType::PLUS:
         if (is_string_type(left_type) || is_string_type(right_type))
         {
-            bool left_valid = is_string_type(left_type) || is_number_type(left_type);
+            bool left_valid = is_string_type(left_type) ||
+                              is_number_type(left_type);
             bool right_valid = is_string_type(right_type) ||
                                is_number_type(right_type);
             if (!left_valid)
@@ -399,7 +446,7 @@ Object_ptr TypeSystem::infer(
                 Doctor::get().fatal(
                     WaspStage::Semantics,
                     "Invalid concatenation: Left is '" +
-                        stringify_object(left_type) + "'"
+                        left_type->to_string() + "'"
                 );
             }
             if (!right_valid)
@@ -407,7 +454,7 @@ Object_ptr TypeSystem::infer(
                 Doctor::get().fatal(
                     WaspStage::Semantics,
                     "Invalid concatenation: Right is '" +
-                        stringify_object(right_type) + "'"
+                        right_type->to_string() + "'"
                 );
             }
             return pool->get_string_type();
@@ -418,8 +465,20 @@ Object_ptr TypeSystem::infer(
     case TokenType::MINUS:
     case TokenType::DIVISION:
     case TokenType::MOD:
-        expect_number_type(left_type);
-        expect_number_type(right_type);
+        Doctor::get().assert(
+            is_number_type(left_type),
+            WaspStage::Semantics,
+            "Left operand must be a number, got '" + left_type->to_string() +
+                "'"
+        );
+
+        Doctor::get().assert(
+            is_number_type(right_type),
+            WaspStage::Semantics,
+            "Right operand must be a number, got '" + right_type->to_string() +
+                "'"
+        );
+
         return (is_float_type(left_type) || is_float_type(right_type))
                    ? pool->get_float_type()
                    : pool->get_int_type();
@@ -428,27 +487,54 @@ Object_ptr TypeSystem::infer(
     case TokenType::LESSER_THAN_EQUAL:
     case TokenType::GREATER_THAN:
     case TokenType::GREATER_THAN_EQUAL:
-        expect_number_type(left_type);
-        expect_number_type(right_type);
+        Doctor::get().assert(
+            is_number_type(left_type),
+            WaspStage::Semantics,
+            "Left operand must be a number, got '" + left_type->to_string() +
+                "'"
+        );
+
+        Doctor::get().assert(
+            is_number_type(right_type),
+            WaspStage::Semantics,
+            "Right operand must be a number, got '" + right_type->to_string() +
+                "'"
+        );
+
         return pool->get_boolean_type();
 
     case TokenType::EQUAL_EQUAL:
     case TokenType::BANG_EQUAL:
-        if (left_type->is<NoneType>() || right_type->is<NoneType>())
+        if (left_type->is<NoneType_ptr>() || right_type->is<NoneType_ptr>())
         {
             return pool->get_boolean_type();
         }
         if (is_number_type(left_type))
         {
-            expect_number_type(right_type);
+            Doctor::get().assert(
+                is_number_type(right_type),
+                WaspStage::Semantics,
+                "Right operand must be a number, got '" +
+                    right_type->to_string() + "'"
+            );
         }
         else if (is_string_type(left_type))
         {
-            expect_string_type(right_type);
+            Doctor::get().assert(
+                is_string_type(right_type),
+                WaspStage::Semantics,
+                "Right operand must be a string, got '" +
+                    right_type->to_string() + "'"
+            );
         }
         else if (is_boolean_type(left_type))
         {
-            expect_boolean_type(right_type);
+            Doctor::get().assert(
+                is_boolean_type(right_type),
+                WaspStage::Semantics,
+                "Right operand must be a boolean, got '" +
+                    right_type->to_string() + "'"
+            );
         }
         else if (left_type->is<EnumType_ptr>())
         {
@@ -462,21 +548,37 @@ Object_ptr TypeSystem::infer(
         {
             Doctor::get().fatal(
                 WaspStage::Semantics,
-                "Cannot compare '" + stringify_object(left_type) + "' with '" +
-                    stringify_object(right_type) + "'"
+                "Cannot compare '" + left_type->to_string() + "' with '" +
+                    right_type->to_string() + "'"
             );
         }
         return pool->get_boolean_type();
 
     case TokenType::AND:
     case TokenType::OR:
-        expect_boolean_type(left_type);
-        expect_boolean_type(right_type);
+        Doctor::get().assert(
+            is_boolean_type(left_type),
+            WaspStage::Semantics,
+            "Left operand must be a boolean, got '" + left_type->to_string() +
+                "'"
+        );
+
+        Doctor::get().assert(
+            is_boolean_type(right_type),
+            WaspStage::Semantics,
+            "Right operand must be a boolean, got '" + right_type->to_string() +
+                "'"
+        );
+
         return pool->get_boolean_type();
 
     default:
-        Doctor::get().fatal(WaspStage::Semantics, "Unsupported binary operator");
+        Doctor::get().fatal(
+            WaspStage::Semantics,
+            "Unsupported binary operator"
+        );
     }
+
     return pool->get_none_type();
 }
 
@@ -488,40 +590,78 @@ Object_ptr TypeSystem::infer(
 {
     operand_type = resolve_type(operand_type, true);
 
-    if (operand_type->is<VariantType>())
+    if (operand_type->is<VariantType_ptr>())
     {
         ObjectVector result_types;
-        for (const auto& t : operand_type->as<VariantType>().types)
+        auto variant = operand_type->as<VariantType_ptr>();
+        for (const auto& t : variant->types)
         {
             result_types.push_back(infer(scope, t, op));
         }
-        return std::make_shared<Object>(VariantType{result_types});
+        return make_object(std::make_shared<VariantType>(result_types));
     }
 
-    if (operand_type->is<IntersectionType>())
+    if (operand_type->is<IntersectionType_ptr>())
     {
         ObjectVector result_types;
-        for (const auto& t : operand_type->as<IntersectionType>().types)
+        auto intersection = operand_type->as<IntersectionType_ptr>();
+        for (const auto& t : intersection->types)
         {
             result_types.push_back(infer(scope, t, op));
         }
-        return std::make_shared<Object>(IntersectionType{result_types});
+        return make_object(std::make_shared<IntersectionType>(result_types));
     }
 
-    switch (op)
+    if (operand_type->is<ClassType_ptr>())
     {
-    case TokenType::PLUS:
-    case TokenType::MINUS:
-        expect_number_type(operand_type);
-        return is_int_type(operand_type) ? pool->get_int_type()
-                                         : pool->get_float_type();
-    case TokenType::NOT:
-        expect_boolean_type(operand_type);
-        return pool->get_boolean_type();
-    default:
-        Doctor::get().fatal(WaspStage::Semantics, "Unknown unary operator");
+        auto class_type = operand_type->as<ClassType_ptr>();
+        if (op == TokenType::DOT)
+        {
+            // Handle member access
+        }
     }
+
     return pool->get_none_type();
+}
+
+// ============================================================================
+// Trait
+// =============================================================================
+
+bool TypeSystem::implements_trait(
+    SymbolScope_ptr scope,
+    Object_ptr candidate_type,
+    const std::string& trait_name
+)
+{
+    candidate_type = candidate_type->unwrap_completely();
+
+    if (!candidate_type->is<ClassType_ptr>() &&
+        !candidate_type->is<TraitType_ptr>())
+    {
+        return false;
+    }
+
+    OopsType_ptr oop_type = candidate_type->is<ClassType_ptr>()
+                                ? std::static_pointer_cast<OopsType>(
+                                      candidate_type->as<ClassType_ptr>()
+                                  )
+                                : std::static_pointer_cast<OopsType>(
+                                      candidate_type->as<TraitType_ptr>()
+                                  );
+
+    for (const auto& trait_obj : oop_type->traits)
+    {
+        if (trait_obj->is<TraitType_ptr>())
+        {
+            if (trait_obj->as<TraitType_ptr>()->name == trait_name)
+            {
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 } // namespace Wasp

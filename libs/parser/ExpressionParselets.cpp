@@ -50,7 +50,7 @@ Expression_ptr LiteralParselet::parse(Parser& parser, const Token& token)
         return make_expression(FloatLiteral(value));
     }
     case TokenType::NONE: {
-        return make_expression(NoneLiteral{});
+        return make_expression(NoneLiteral());
     }
     default:
         Doctor::get().fatal(WaspStage::Parser, "Expected a literal value");
@@ -213,18 +213,10 @@ Expression_ptr AssignmentParselet::parse(
             break;
         }
 
-        right = make_expression(
-            Infix(left, op_token, right),
-            left->start_token,
-            right->end_token
-        );
+        right = make_expression(Infix(left, op_token, right));
     }
 
-    return make_expression(
-        Assignment(left, right),
-        left->start_token,
-        right->end_token
-    );
+    return make_expression(Assignment(left, right));
 }
 
 Expression_ptr TernaryConditionParselet::parse(Parser& parser, const Token& token)
@@ -234,60 +226,6 @@ Expression_ptr TernaryConditionParselet::parse(Parser& parser, const Token& toke
     Expression_ptr condition = parser.parse_expression();
     parser.token_pipe.require(TokenType::THEN);
     return parser.parse_ternary_condition(TokenType::IF, condition);
-}
-
-Expression_ptr PrefixRangeParselet::parse(Parser& parser, const Token& token)
-{
-    parser.token_pipe.advance_pointer();
-
-    Expression_ptr end = nullptr;
-    Expression_ptr step = nullptr;
-
-    auto next = parser.token_pipe.current_in_line();
-
-    if (next && next->type != TokenType::EOL && next->type != TokenType::STEP &&
-        next->type != TokenType::CLOSE_PARENTHESIS &&
-        next->type != TokenType::CLOSE_SQUARE_BRACKET &&
-        next->type != TokenType::CLOSE_CURLY_BRACE && next->type != TokenType::COMMA)
-    {
-        end = parser.parse_expression(static_cast<int>(Precedence::RANGE));
-    }
-
-    if (parser.token_pipe.consume_optional_in_line(TokenType::STEP))
-    {
-        step = parser.parse_expression(static_cast<int>(Precedence::RANGE));
-    }
-
-    return make_expression(RangeLiteral(nullptr, end, step, this->is_inclusive));
-}
-
-Expression_ptr InfixRangeParselet::parse(Parser& parser, Expression_ptr left, const Token& token)
-{
-    Expression_ptr end = nullptr;
-    Expression_ptr step = nullptr;
-
-    auto next = parser.token_pipe.current_in_line();
-
-    if (next && next->type != TokenType::EOL && next->type != TokenType::STEP &&
-        next->type != TokenType::CLOSE_PARENTHESIS &&
-        next->type != TokenType::CLOSE_SQUARE_BRACKET &&
-        next->type != TokenType::CLOSE_CURLY_BRACE && next->type != TokenType::COMMA)
-    {
-        end = parser.parse_expression(static_cast<int>(Precedence::RANGE));
-    }
-
-    if (parser.token_pipe.consume_optional_in_line(TokenType::STEP))
-    {
-        step = parser.parse_expression(static_cast<int>(Precedence::RANGE));
-    }
-
-    return make_expression(RangeLiteral(left, end, step, this->is_inclusive));
-}
-
-Expression_ptr PlaceholderDotParselet::parse(Parser& parser, const Token& token)
-{
-    parser.token_pipe.advance_pointer();
-    return make_expression(DotLiteral{});
 }
 
 Expression_ptr MemberAccessParselet::parse(Parser& parser, Expression_ptr left, const Token& token)
@@ -442,11 +380,7 @@ Expression_ptr InterpolatedStringParselet::parse(
 
         if (current->type == TokenType::STRING_LITERAL)
         {
-            node.parts.push_back(make_expression(
-                StringLiteral{current->lexeme},
-                *current,
-                *current
-            ));
+            node.parts.push_back(make_expression(StringLiteral{current->lexeme}));
             parser.token_pipe.advance_pointer();
         }
         else if (current->type == TokenType::OPEN_CURLY_BRACE)
@@ -462,9 +396,7 @@ Expression_ptr InterpolatedStringParselet::parse(
                 close_brace &&
                     close_brace->type == TokenType::CLOSE_CURLY_BRACE,
                 WaspStage::Parser,
-                "Expected '}' to close the interpolated expression.",
-                current->line,
-                current->column
+                "Expected '}' at the end of an interpolation expression"
             );
 
             // Consume '}'
@@ -475,14 +407,12 @@ Expression_ptr InterpolatedStringParselet::parse(
             Doctor::get().fatal(
                 WaspStage::Parser,
                 "Unexpected token inside interpolated string : " +
-                    current->lexeme,
-                current->line,
-                current->column
+                    current->lexeme
             );
         }
     }
 
-    return make_expression(std::move(node), token, end_token);
+    return make_expression(std::move(node));
 }
 
 // ============================================================================
@@ -512,14 +442,6 @@ int TernaryConditionParselet::get_precedence() const
 int CallParselet::get_precedence() const
 {
     return static_cast<int>(Precedence::CALL);
-}
-int InfixRangeParselet::get_precedence() const
-{
-    return static_cast<int>(Precedence::RANGE);
-}
-int PrefixRangeParselet::get_precedence() const
-{
-    return static_cast<int>(Precedence::RANGE);
 }
 int LesserThanParselet::get_precedence() const
 {

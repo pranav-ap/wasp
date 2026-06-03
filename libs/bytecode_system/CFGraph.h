@@ -42,6 +42,13 @@ public:
     void emit(OpCode opcode, std::string comment = "");
     void emit(OpCode opcode, int operand, std::string comment = "");
     void emit(OpCode opcode, int operand_1, int operand_2, std::string comment = "");
+    void emit(
+        OpCode opcode,
+        int operand_1,
+        int operand_2,
+        int operand_3,
+        std::string comment = ""
+    );
 
     ByteVector instruction_at(std::size_t index) const;
     ByteVector operands_of_opcode_at(std::size_t opcode_index) const;

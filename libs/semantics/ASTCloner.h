@@ -5,6 +5,7 @@
 #include "Objects.h"
 #include "Statement.h"
 #include "TypeAnnotation.h"
+
 #include <utility>
 
 namespace Wasp
@@ -38,7 +39,7 @@ private:
 
     template <typename T> void wipe_resolvable(T& node)
     {
-        node.symbol = nullptr;
+        // node.symbol = nullptr;
     }
 
     template <typename T> void wipe_callable(T& node)

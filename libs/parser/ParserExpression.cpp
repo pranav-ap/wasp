@@ -28,50 +28,14 @@ Expression_ptr Parser::parse_expression(const int precedence)
 
     auto token_type = token->type;
 
-    if (token_type == TokenType::LET || token_type == TokenType::CONST_KEYWORD)
+    if (token_type == TokenType::LET)
     {
-        bool is_mutable = (token_type == TokenType::LET);
-        token_pipe.advance_pointer();
+        return parse_variable_definition(true);
+    }
 
-        auto id_token = token_pipe.current_in_line();
-        Doctor::get().assert(
-            id_token && id_token->type == TokenType::IDENTIFIER,
-            WaspStage::Parser,
-            "Expected an identifier after variable definition keyword."
-        );
-
-        Expression_ptr lhs = make_expression(
-            Identifier(id_token->lexeme),
-            *id_token,
-            *id_token
-        );
-
-        token_pipe.advance_pointer();
-
-        std::optional<TypeAnnotation_ptr> declared_type = std::nullopt;
-
-        if (auto colon_token = token_pipe.current_in_line();
-            colon_token && colon_token->type == TokenType::COLON)
-        {
-            token_pipe.advance_pointer();
-            declared_type = parse_type();
-        }
-
-        auto equal_token = token_pipe.current_in_line();
-        Doctor::get().assert(
-            equal_token && equal_token->type == TokenType::EQUAL,
-            WaspStage::Parser,
-            "Variable definition must be initialized with '='."
-        );
-
-        token_pipe.advance_pointer();
-        Expression_ptr rhs = parse_expression(0);
-
-        return make_expression(
-            Assignment(lhs, rhs, true, is_mutable, declared_type),
-            *token,
-            rhs->end_token
-        );
+    if (token_type == TokenType::CONST_KEYWORD)
+    {
+        return parse_variable_definition(false);
     }
 
     auto prefix_it = prefix_parselets.find(token_type);
@@ -79,21 +43,12 @@ Expression_ptr Parser::parse_expression(const int precedence)
     Doctor::get().assert(
         prefix_it != prefix_parselets.end(),
         WaspStage::Parser,
-        "Expected the start of an expression but found '" + token->lexeme +
-            "'.",
-        token->line,
-        token->column
+        "Expected the start of an expression but found : " + token->lexeme
     );
 
     Expression_ptr left = prefix_it->second->parse(*this, *token);
 
-    Doctor::get().fatal_if_nullptr(
-        left,
-        WaspStage::Parser,
-        "Failed to successfully parse the expression.",
-        token->line,
-        token->column
-    );
+    Doctor::get().fatal_if_nullptr(left, WaspStage::Parser);
 
     while (precedence < get_next_operator_precedence())
     {
@@ -107,16 +62,50 @@ Expression_ptr Parser::parse_expression(const int precedence)
         Doctor::get().assert(
             infix_it != infix_parselets.end(),
             WaspStage::Parser,
-            "No matching infix parselet found for token '" + token->lexeme +
-                "'.",
-            token->line,
-            token->column
+            "No matching infix parselet found for token : " + token->lexeme
         );
 
         left = infix_it->second->parse(*this, left, *token);
     }
 
     return left;
+}
+
+Expression_ptr Parser::parse_variable_definition(bool is_mutable)
+{
+    token_pipe.advance_pointer();
+
+    auto id_token = token_pipe.current_in_line();
+    Doctor::get().assert(
+        id_token && id_token->type == TokenType::IDENTIFIER,
+        WaspStage::Parser,
+        "Expected an identifier after variable definition keyword."
+    );
+
+    Expression_ptr lhs = make_expression(Identifier(id_token->lexeme));
+
+    token_pipe.advance_pointer();
+
+    std::optional<TypeAnnotation_ptr> declared_type = std::nullopt;
+
+    if (auto colon_token = token_pipe.current_in_line();
+        colon_token && colon_token->type == TokenType::COLON)
+    {
+        token_pipe.advance_pointer();
+        declared_type = parse_type();
+    }
+
+    auto equal_token = token_pipe.current_in_line();
+    Doctor::get().assert(
+        equal_token && equal_token->type == TokenType::EQUAL,
+        WaspStage::Parser,
+        "Variable definition must be initialized with '='."
+    );
+
+    token_pipe.advance_pointer();
+    Expression_ptr rhs = parse_expression(0);
+
+    return make_expression(Assignment(lhs, rhs, true, is_mutable, declared_type));
 }
 
 ExpressionVector Parser::parse_expressions()

@@ -112,6 +112,44 @@ void CodeObject::emit(OpCode opcode, int operand_1, int operand_2, std::string c
     comments.push_back("");
 }
 
+void CodeObject::emit(
+    OpCode opcode,
+    int operand_1,
+    int operand_2,
+    int operand_3,
+    std::string comment
+)
+{
+    Doctor::get().assert(
+        operand_1 >= 0 && operand_1 <= 255,
+        WaspStage::Compiler,
+        "Operand 1 out of range for 8-bit encoding"
+    );
+    Doctor::get().assert(
+        operand_2 >= 0 && operand_2 <= 255,
+        WaspStage::Compiler,
+        "Operand 2 out of range for 8-bit encoding"
+    );
+
+    Doctor::get().assert(
+        operand_3 >= 0 && operand_3 <= 255,
+        WaspStage::Compiler,
+        "Operand 3 out of range for 8-bit encoding"
+    );
+
+    instructions.push_back(static_cast<std::byte>(opcode));
+    comments.push_back(std::move(comment));
+
+    instructions.push_back(static_cast<std::byte>(operand_1));
+    comments.push_back("");
+
+    instructions.push_back(static_cast<std::byte>(operand_2));
+    comments.push_back("");
+
+    instructions.push_back(static_cast<std::byte>(operand_3));
+    comments.push_back("");
+}
+
 ByteVector CodeObject::instruction_at(std::size_t index) const
 {
     std::byte opcode = instructions.at(index);

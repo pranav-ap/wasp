@@ -1,6 +1,6 @@
-#include "Compiler.h"
 #include "AST.h"
 #include "CFGraph.h"
+#include "Compiler.h"
 #include "OpCode.h"
 #include "Statement.h"
 #include "Workspace.h"
@@ -31,6 +31,7 @@ void Compiler::visit(FunctionDefinition& def)
         emit(OpCode::SET_LOCAL, physical_index);
     }
 
+    // Skip code generation for template definitions (they are blueprints)
     if (!def.template_params.empty())
     {
         return;
@@ -38,13 +39,22 @@ void Compiler::visit(FunctionDefinition& def)
 
     if (def.symbol->is_native())
     {
-        std::string mangled = mangle_name(def.name, "", def.symbol->module_path);
+        std::string mangled = mangle_name(
+            def.name,
+            "",
+            def.symbol->module_path
+        );
         int registry_id = workspace->native_registry->get_native_index(mangled);
         emit(OpCode::GET_NATIVE, registry_id, mangled);
     }
     else
     {
-        compile_function_closure(def.name, def.parameter_symbols, def.body, nullptr);
+        compile_function_closure(
+            def.name,
+            def.parameter_symbols,
+            def.body,
+            nullptr
+        );
     }
 
     std::string label = (def.is_pure ? "pure fun " : "fun ") + def.name;
@@ -62,32 +72,42 @@ void Compiler::compile_function_closure(
 
     func_compiler.enter_scope();
 
+    // Push context (self/our) if present
     if (context_symbol)
     {
         func_compiler.stack.push_back(context_symbol);
     }
 
+    // Push all parameters
     for (const auto& param_symbol : parameters)
     {
         func_compiler.stack.push_back(param_symbol);
     }
 
+    // Compile the function body
     func_compiler.visit(body);
-    func_compiler.leave_scope();
 
+    // Ensure the function returns a value
     func_compiler.emit(OpCode::LOAD_NONE);
     func_compiler.emit(OpCode::RETURN);
 
+    // Get the compiled code
     CodeObject code = func_compiler.flatten();
 
+    // Store in constant pool
     int const_id = workspace->pool->allocate_function_definition(
         std::move(code),
         name
     );
 
+    // Emit the function construction instructions
     emit(OpCode::LOAD_CONSTANT, const_id, "fun " + name);
-    emit(OpCode::BUILD_FUNCTION, static_cast<int>(func_compiler.upvalues.size()));
+    emit(
+        OpCode::BUILD_FUNCTION,
+        static_cast<int>(func_compiler.upvalues.size())
+    );
 
+    // Emit upvalue metadata
     for (const auto& uv : func_compiler.upvalues)
     {
         emit_raw_byte(uv.is_local_to_parent ? std::byte{1} : std::byte{0});
@@ -97,15 +117,18 @@ void Compiler::compile_function_closure(
 
 void Compiler::visit(Return& statement)
 {
+    // Visit the return value expression if present
     if (statement.expression.has_value())
     {
         visit(statement.expression.value());
     }
     else
     {
+        // Return none by default
         emit(OpCode::LOAD_NONE);
     }
 
+    // Return from the current function
     emit(OpCode::RETURN);
 }
 
