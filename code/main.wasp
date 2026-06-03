@@ -12,9 +12,13 @@ class Foo is Printable & Truthy
     fun is_truthy() => bool
         return self.score > 10
 
+    our fun shout()
+        print("Ahhhh!")
+
 
 let f = Foo(1)
 print(f)
+# Foo.shout()
 
 fun lol(x: Printable)
     print(x)
@@ -36,4 +40,4 @@ let g = show()
 print(g)
 
 
-
+# print("sam".size())

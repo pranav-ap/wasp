@@ -281,6 +281,7 @@ struct Call
     Expression_ptr callable;
     ExpressionVector arguments;
 
+    bool is_native_method_call = false;
     bool is_method_call = false;
     bool is_trait_dispatch = false;
     int trait_type_id = -1;

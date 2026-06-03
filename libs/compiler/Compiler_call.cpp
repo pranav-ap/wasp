@@ -23,7 +23,15 @@ void Compiler::visit(Call& call)
 
         int overload_index = call.overload_index;
 
-        if (member_access.is_trait_dispatch)
+        if (call.is_native_method_call)
+        {
+            emit(
+                OpCode::GET_PRIMITIVE_METHOD,
+                member_access.member_index,
+                overload_index
+            );
+        }
+        else if (member_access.is_trait_dispatch)
         {
             emit(
                 OpCode::GET_TRAIT_METHOD,

@@ -325,16 +325,19 @@ Symbol_ptr SemanticAnalyzer::monomorphize_class_template(
     const std::string& specialized_name
 )
 {
-    auto& class_data = blueprint_symbol->as<OopsSymbol>();
+    auto ast = forest[blueprint_symbol];
+    Doctor::get().fatal_if_nullptr(
+        ast,
+        WaspStage::Semantics,
+        "AST not found for symbol: " + blueprint_symbol->name
+    );
 
     ASTCloner cloner(substitutions);
-    auto ast = forest[blueprint_symbol];
     Statement_ptr specialized_stmt = cloner.clone(ast);
 
     Symbol_ptr specialized_symbol = nullptr;
 
     SymbolScope_ptr previous_scope = current_scope;
-    // current_scope = class_data.declaration_scope;
 
     std::visit(
         overloaded{
@@ -357,6 +360,7 @@ Symbol_ptr SemanticAnalyzer::monomorphize_class_template(
                 class_type->template_type = std::make_shared<TemplateType>();
 
                 visit(def);
+                forest[def.symbol] = specialized_stmt;
 
                 specialized_symbol = def.symbol;
             },
@@ -364,7 +368,7 @@ Symbol_ptr SemanticAnalyzer::monomorphize_class_template(
             {
                 Doctor::get().fatal(
                     WaspStage::Semantics,
-                    "Expected a class definition"
+                    "Expected a class definition for monomorphization"
                 );
             }
         },
@@ -378,5 +382,4 @@ Symbol_ptr SemanticAnalyzer::monomorphize_class_template(
 
     return specialized_symbol;
 }
-
 } // namespace Wasp

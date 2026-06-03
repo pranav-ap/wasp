@@ -592,11 +592,14 @@ Object_ptr SemanticAnalyzer::call_native_method(
     std::string native_class_name
 )
 {
+    call.is_native_method_call = true;
+
     auto native_class = current_scope->lookup_required_and_resolve(
         native_class_name
     );
 
     auto native_class_type = native_class->get_type()->as<ClassType_ptr>();
+    native_class_type->is_native = true;
 
     return call_method(call, ma, argument_types, native_class_type);
 }

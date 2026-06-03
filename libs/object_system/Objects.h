@@ -327,6 +327,8 @@ struct OopsType
 
     TemplateType_ptr template_type;
 
+    bool is_native = false;
+
     explicit OopsType(
         std::string name,
         RecordType_ptr record_type = std::make_shared<RecordType>(),
@@ -672,6 +674,19 @@ struct ClassInstance
 };
 
 using ClassInstance_ptr = std::shared_ptr<ClassInstance>;
+
+struct StaticClassInstance
+{
+    BagObject_ptr bag;
+
+    StaticClassInstance() = default;
+
+    StaticClassInstance(BagObject_ptr bag) : bag(std::move(bag))
+    {
+    }
+};
+
+using StaticClassInstance_ptr = std::shared_ptr<StaticClassInstance>;
 
 struct TraitObject
 {
