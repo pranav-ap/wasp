@@ -92,6 +92,31 @@ TemplateType_ptr SemanticAnalyzer::create_template_type(
         Object_ptr constraint_type = visit(field.type);
         constraint_type = constraint_type->unwrap_type_alias();
 
+        if (constraint_type->is<IntersectionType_ptr>())
+        {
+            for (auto& inner_type :
+                 constraint_type->as<IntersectionType_ptr>()->types)
+            {
+                Doctor::get().assert(
+                    inner_type->is<TraitType_ptr>(),
+                    WaspStage::Semantics,
+                    "Only an interesection of traits is supported"
+                );
+            }
+        }
+        else if (constraint_type->is<VariantType_ptr>())
+        {
+            for (auto& inner_type :
+                 constraint_type->as<VariantType_ptr>()->types)
+            {
+                Doctor::get().assert(
+                    type_system->is_native_type(inner_type),
+                    WaspStage::Semantics,
+                    "Only an union of primitives is supported"
+                );
+            }
+        }
+
         auto generic_type_obj = make_object(
             std::make_shared<GenericType>(field.name, constraint_type)
         );
@@ -110,31 +135,6 @@ TemplateType_ptr SemanticAnalyzer::create_template_type(
         std::move(template_params_map),
         std::move(ordered_names)
     );
-}
-
-Statement_ptr SemanticAnalyzer::get_ast(Symbol_ptr symbol) const
-{
-    Doctor::get().fatal_if_nullptr(
-        symbol,
-        WaspStage::Semantics,
-        "Cannot get AST: symbol is null"
-    );
-
-    auto it = forest.find(symbol);
-
-    Doctor::get().assert(
-        it != forest.end(),
-        WaspStage::Semantics,
-        "AST not found for symbol: " + symbol->name
-    );
-
-    Doctor::get().fatal_if_nullptr(
-        it->second,
-        WaspStage::Semantics,
-        "AST is null for symbol: " + symbol->name
-    );
-
-    return it->second;
 }
 
 } // namespace Wasp

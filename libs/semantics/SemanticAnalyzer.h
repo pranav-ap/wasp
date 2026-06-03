@@ -50,8 +50,6 @@ private:
     StringVector setup_ordered_export_names(Module_ptr mod);
     void extract_module_type(Module_ptr mod);
 
-    Statement_ptr get_ast(Symbol_ptr symbol) const;
-
     // Main Visitors
     void visit(const Statement_ptr statement);
     void visit(StatementVector& statements);

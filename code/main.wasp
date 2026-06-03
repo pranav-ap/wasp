@@ -21,44 +21,46 @@ class Santa
     fun gift()
         print(self.a)
 
+
 let s = Santa("3")
 s.gift()
 
-# class Foo is Printable & Truthy
-#     score: int
 
-#     fun repr() => str
-#         return "Foo : {self.score}"
+class Foo is Printable & Truthy
+    score: int
 
-#     fun is_truthy() => bool
-#         return self.score > 10
+    fun repr() => str
+        return "Foo : {self.score}"
 
-#     our fun shout()
-#         print("Ahhhh!")
+    fun is_truthy() => bool
+        return self.score > 10
 
-
-# let f = Foo(1)
-# print(f)
-# # Foo.shout()
-
-# fun lol(x: Printable)
-#     print(x)
-
-# fun lol(x: Printable & Truthy)
-#     print(x)
-#     print("------")
-
-# lol(f)
-
-# fun show() => int
-#     let x = 1
-
-#     let z = x + 2
-#     return z
+    our fun shout()
+        print("Ahhhh!")
 
 
-# let g = show()
-# print(g)
+let f = Foo(1)
+print(f)
+# Foo.shout()
+
+fun lol(x: Printable)
+    print(x)
+
+fun lol(x: Printable & Truthy)
+    print(x)
+    print("------")
+
+lol(f)
+
+fun show() => int
+    let x = 1
+
+    let z = x + 2
+    return z
 
 
-# # print("sam".size())
+let g = show()
+print(g)
+
+
+# print("sam".size())
