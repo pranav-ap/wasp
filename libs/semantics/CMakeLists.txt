@@ -11,6 +11,7 @@ add_library(
     SemanticAnalyzer_resolvers.cpp
     SemanticAnalyzer_enum_resolver.cpp
     SemanticAnalyzer_call.cpp
+    SemanticAnalyzer_call_templates.cpp
     SemanticAnalyzer_control_flow.cpp
     SemanticAnalyzer_literals.cpp
     SemanticAnalyzer_definitions.cpp

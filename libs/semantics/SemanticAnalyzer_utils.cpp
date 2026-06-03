@@ -74,11 +74,7 @@ void SemanticAnalyzer::define_template_parameters(
             "Expected GenericType for template parameter: " + name
         );
 
-        auto generic_type = generic_type_obj->as<GenericType_ptr>();
-        auto symbol = SymbolFactory::create_template_parameter(
-            name,
-            generic_type->constraint_type
-        );
+        auto symbol = SymbolFactory::create_generic(name, generic_type_obj);
 
         current_scope->define(symbol);
     }

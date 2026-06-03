@@ -343,7 +343,7 @@ Symbol_ptr SymbolFactory::create_oops(
     return create_symbol(name, OopsSymbol{type}, closure_depth, lexical_depth);
 }
 
-Symbol_ptr SymbolFactory::create_template_parameter(
+Symbol_ptr SymbolFactory::create_generic(
     const std::string& name,
     Object_ptr type,
     int closure_depth,

@@ -224,7 +224,7 @@ public:
         int lexical_depth = 0
     );
 
-    static Symbol_ptr create_template_parameter(
+    static Symbol_ptr create_generic(
         const std::string& name,
         Object_ptr type = nullptr,
         int closure_depth = 0,
