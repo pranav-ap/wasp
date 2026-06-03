@@ -90,6 +90,24 @@ Object_ptr SemanticAnalyzer::handle_member_call(
             {
                 return call_method(call, ma, argument_types, class_type);
             },
+
+            [&](BooleanType_ptr type) -> Object_ptr
+            {
+                return call_native_method(call, ma, argument_types, "bool");
+            },
+            [&](IntType_ptr type) -> Object_ptr
+            {
+                return call_native_method(call, ma, argument_types, "int");
+            },
+            [&](FloatType_ptr type) -> Object_ptr
+            {
+                return call_native_method(call, ma, argument_types, "float");
+            },
+            [&](StringType_ptr type) -> Object_ptr
+            {
+                return call_native_method(call, ma, argument_types, "str");
+            },
+
             [&](TraitType_ptr trait_type) -> Object_ptr
             {
                 ma.is_trait_dispatch = true;
@@ -565,6 +583,22 @@ Object_ptr SemanticAnalyzer::call_possible_method(
     call.is_method_call = true;
 
     return best_signature_obj->as<Signature_ptr>()->return_type;
+}
+
+Object_ptr SemanticAnalyzer::call_native_method(
+    Call& call,
+    MemberAccess& ma,
+    const ObjectVector& argument_types,
+    std::string native_class_name
+)
+{
+    auto native_class = current_scope->lookup_required_and_resolve(
+        native_class_name
+    );
+
+    auto native_class_type = native_class->get_type()->as<ClassType_ptr>();
+
+    return call_method(call, ma, argument_types, native_class_type);
 }
 
 // ============================================================================

@@ -270,6 +270,13 @@ private:
         OopsType_ptr oops_type
     );
 
+    Object_ptr call_native_method(
+        Call& call,
+        MemberAccess& mac,
+        const ObjectVector& argument_types,
+        std::string native_class_name
+    );
+
     Object_ptr call_template_function(
         Call& call,
         TemplateAngular& concrete_template,

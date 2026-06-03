@@ -25,14 +25,14 @@ trait Sized
         return self.size() == 0
 
 
-# template
-#     T: any
-# trait Indexable
-#     fun get(index: int) => T
-#         required
+template
+    T: any
+trait Indexable
+    fun get(index: int) => T
+        required
 
-#     fun set(index: int, value: T)
-#         required
+    fun set(index: int, value: T)
+        required
 
 # --------------------------
 # The Core Four
@@ -73,7 +73,7 @@ class str is Printable & Truthy & Hashable & Sized
         return self
 
     fun is_truthy() => bool
-        return true
+        return self.size() > 0
 
     pure fun hash() => int
         native
@@ -98,23 +98,23 @@ type num = int | float
 # Composites
 # --------------------------
 
-# template
-#     T: any
-# class list is Printable & Truthy & Sized & Indexable<T>
-#     fun repr() => str
-#         return "list"
+template
+    T: any
+class list is Printable & Truthy & Sized & Indexable<T>
+    fun repr() => str
+        return "list"
 
-#     fun size() => int
-#         native
+    fun size() => int
+        native
 
-#     fun is_truthy() => bool
-#         return self.size() > 0
+    fun is_truthy() => bool
+        return self.size() > 0
 
-#     fun get(index: int) => T
-#         native
+    fun get(index: int) => T
+        native
 
-#     fun set(index: int, value: T)
-#         native
+    fun set(index: int, value: T)
+        native
 
 
 # template
