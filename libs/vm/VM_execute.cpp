@@ -213,6 +213,40 @@ void VM::execute_GET_TRAIT_METHOD(CallFrame* frame)
     push_to_stack(boxed_obj); // Push trait object as 'self'
 }
 
+void VM::execute_GET_PRIMITIVE_METHOD(CallFrame* frame)
+{
+    int member_index = static_cast<int>(frame->consume_byte());
+    int overload_index = static_cast<int>(frame->consume_byte());
+
+    Object_ptr obj = pop_from_stack();
+
+    Doctor::get().assert(
+        obj->is<OverloadsSet_ptr>(),
+        WaspStage::VM,
+        "GET_PRIMITIVE_METHOD expects an Overload Group on the stack!"
+    );
+
+    auto group = obj->as<OverloadsSet_ptr>();
+
+    Doctor::get().assert(
+        member_index >= 0 &&
+            member_index < static_cast<int>(group->overloads.size()),
+        WaspStage::VM,
+        "Member index out of bounds!"
+    );
+
+    auto overloads_set = group->overloads[member_index]->as<OverloadsSet_ptr>();
+
+    Doctor::get().assert(
+        overload_index >= 0 &&
+            overload_index < static_cast<int>(overloads_set->overloads.size()),
+        WaspStage::VM,
+        "Overload index out of bounds!"
+    );
+
+    push_to_stack(overloads_set->overloads[overload_index]);
+}
+
 void VM::execute_BUILD_FUNCTION(CallFrame* frame)
 {
     int upvalue_count = std::to_integer<int>(frame->consume_byte());

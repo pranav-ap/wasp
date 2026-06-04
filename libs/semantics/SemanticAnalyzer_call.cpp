@@ -374,6 +374,8 @@ Object_ptr SemanticAnalyzer::call_native_method(
 
     auto native_class_type = native_class->get_type()->as<ClassType_ptr>();
     native_class_type->is_native = true;
+    call.native_class_type_id = native_class_type->type_id;
+    call.native_class_symbol_id = native_class->id;
 
     return call_method(call, ma, argument_types, native_class_type);
 }

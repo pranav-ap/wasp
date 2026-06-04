@@ -17,6 +17,15 @@ namespace Wasp {
 Statement_ptr Parser::parse_statement(int expected_indent_level)
 {
     token_pipe.ignore_empty_lines();
+
+    if (token_pipe
+            .peek_type_at_indent(expected_indent_level, TokenType::COMMENT))
+    {
+        token_pipe.expect_n_indents(expected_indent_level);
+        token_pipe.advance_pointer();
+        return parse_statement(expected_indent_level);
+    }
+
     token_pipe.expect_n_indents(expected_indent_level);
 
     const auto token = token_pipe.current();
@@ -27,12 +36,6 @@ Statement_ptr Parser::parse_statement(int expected_indent_level)
     {
         token_pipe.advance_pointer();
         return nullptr;
-    }
-
-    if (token->type == TokenType::COMMENT)
-    {
-        token_pipe.advance_pointer();
-        return parse_statement(expected_indent_level);
     }
 
     switch (token->type)

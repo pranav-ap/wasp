@@ -38,15 +38,15 @@ trait Indexable
 # The Core Four
 # --------------------------
 
-class bool is Printable & Truthy & Hashable
-    fun repr() => str
-        return if self then "true" else "false"
+# class bool is Printable & Truthy & Hashable
+#     fun repr() => str
+#         return if self then "true" else "false"
 
-    fun is_truthy() => bool
-        return self
+#     fun is_truthy() => bool
+#         return self
 
-    pure fun hash() => int
-        return if self then 1 else 0
+#     pure fun hash() => int
+#         return if self then 1 else 0
 
 
 class int is Printable & Truthy & Hashable
@@ -60,31 +60,38 @@ class int is Printable & Truthy & Hashable
         return self
 
 
-class float is Printable & Truthy
-    fun repr() => str
-        return "{self}"
+# class float is Printable & Truthy
+#     fun repr() => str
+#         return "{self}"
 
-    fun is_truthy() => bool
-        return self > 0
+#     fun is_truthy() => bool
+#         return self > 0
 
 
-class str is Printable & Truthy & Hashable & Sized
-    fun repr() => str
-        return self
+# class str is Printable & Truthy & Hashable & Sized
+#     fun repr() => str
+#         return self
 
+#     fun is_truthy() => bool
+#         return self.size() > 0
+
+#     pure fun hash() => int
+#         native
+
+#     fun size() => int
+#         native
+
+#     fun slice(start: int, end: int) => str
+#         native
+
+#     fun trim() => str
+#         native
+
+class str is Truthy & Sized
     fun is_truthy() => bool
         return self.size() > 0
 
-    pure fun hash() => int
-        native
-
     fun size() => int
-        native
-
-    fun slice(start: int, end: int) => str
-        native
-
-    fun trim() => str
         native
 
 
@@ -98,69 +105,69 @@ type num = int | float
 # Composites
 # --------------------------
 
-template
-    T: any
-class list is Printable & Truthy & Sized & Indexable<T>
-    fun repr() => str
-        return "list"
+# template
+#     T: any
+# class list is Printable & Truthy & Sized & Indexable<T>
+#     fun repr() => str
+#         return "list"
 
-    fun size() => int
-        native
+#     fun size() => int
+#         native
 
-    fun is_truthy() => bool
-        return self.size() > 0
+#     fun is_truthy() => bool
+#         return self.size() > 0
 
-    fun get(index: int) => T
-        native
+#     fun get(index: int) => T
+#         native
 
-    fun set(index: int, value: T)
-        native
-
-
-template
-    T: any
-class set is Printable & Truthy & Sized
-    fun repr() => str
-        return "set"
-
-    fun size() => int
-        native
-
-    fun is_truthy() => bool
-        return self.size() > 0
-
-    fun contains(value: T) => bool
-        native
-
-    fun add(value: T)
-        native
-
-    fun remove(value: T)
-        native
+#     fun set(index: int, value: T)
+#         native
 
 
-template
-    K: Hashable
-    V: any
-class map is Printable & Truthy & Sized
-    fun repr() => str
-        return "map"
+# template
+#     T: any
+# class set is Printable & Truthy & Sized
+#     fun repr() => str
+#         return "set"
 
-    fun size() => int
-        native
+#     fun size() => int
+#         native
 
-    fun is_truthy() => bool
-        return self.size() > 0
+#     fun is_truthy() => bool
+#         return self.size() > 0
 
-    fun get(key: K) => V
-        native
+#     fun contains(value: T) => bool
+#         native
 
-    fun set(key: K, value: V)
-        native
+#     fun add(value: T)
+#         native
 
-    fun contains_key(key: K) => bool
-        native
+#     fun remove(value: T)
+#         native
 
-    fun remove(key: K)
-        native
+
+# template
+#     K: Hashable
+#     V: any
+# class map is Printable & Truthy & Sized
+#     fun repr() => str
+#         return "map"
+
+#     fun size() => int
+#         native
+
+#     fun is_truthy() => bool
+#         return self.size() > 0
+
+#     fun get(key: K) => V
+#         native
+
+#     fun set(key: K, value: V)
+#         native
+
+#     fun contains_key(key: K) => bool
+#         native
+
+#     fun remove(key: K)
+#         native
 

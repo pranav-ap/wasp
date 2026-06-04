@@ -25,6 +25,10 @@ void Compiler::visit(Call& call)
 
         if (call.is_native_method_call)
         {
+            int slot = resolve_local(call.native_class_symbol_id);
+
+            emit(OpCode::GET_LOCAL, slot, "load native class blueprint");
+
             emit(
                 OpCode::GET_PRIMITIVE_METHOD,
                 member_access.member_index,
