@@ -3,27 +3,29 @@ import core.types expose *
 import core.operators expose *
 
 
-template
-    T: int | float | str
-fun greet(value: T)
-    print(value)
 
 
-greet<int>(3)
-greet(3)
+# template
+#     T: int | float | str
+# fun greet(value: T)
+#     print(value)
 
 
-template
-    T: int | float | str
-class Santa
-    a: T
-
-    fun gift()
-        print(self.a)
+# greet<int>(3)
+# greet(3)
 
 
-let s = Santa("3")
-s.gift()
+# template
+#     T: int | float | str
+# class Santa
+#     a: T
+
+#     fun gift()
+#         print(self.a)
+
+
+# let s = Santa("3")
+# s.gift()
 
 
 class Foo is Printable & Truthy
@@ -41,26 +43,28 @@ class Foo is Printable & Truthy
 
 let f = Foo(1)
 print(f)
-# Foo.shout()
+# # Foo.shout()
 
-fun lol(x: Printable)
-    print(x)
+let flist : [Foo] = [f]
+flist.repr()
 
-fun lol(x: Printable & Truthy)
-    print(x)
-    print("------")
+# fun lol(x: Printable)
+#     print(x)
 
-lol(f)
+# fun lol(x: Printable & Truthy)
+#     print(x)
+#     print("------")
 
-fun show() => int
-    let x = 1
+# lol(f)
 
-    let z = x + 2
-    return z
+# fun show() => int
+#     let x = 1
 
-
-let g = show()
-print(g)
+#     let z = x + 2
+#     return z
 
 
-# print("sam".size())
+# let g = show()
+# print(g)
+
+

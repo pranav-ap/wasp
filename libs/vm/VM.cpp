@@ -218,6 +218,11 @@ void VM::run(FunctionBlueprintObject_ptr function_object)
             break;
         }
 
+        case OpCode::GET_PRIMITIVE_METHOD: {
+            execute_GET_PRIMITIVE_METHOD(frame);
+            break;
+        }
+
         case OpCode::BUILD_OVERLOAD_GROUP: {
             execute_BUILD_OVERLOAD_GROUP(frame);
             break;

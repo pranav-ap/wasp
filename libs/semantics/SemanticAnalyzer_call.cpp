@@ -101,6 +101,22 @@ Object_ptr SemanticAnalyzer::handle_member_call(
             {
                 return call_native_method(call, ma, argument_types, "str");
             },
+            [&](ListType_ptr type) -> Object_ptr
+            {
+                return call_native_method(call, ma, argument_types, "list");
+            },
+            [&](TupleType_ptr type) -> Object_ptr
+            {
+                return call_native_method(call, ma, argument_types, "tuple");
+            },
+            [&](SetType_ptr type) -> Object_ptr
+            {
+                return call_native_method(call, ma, argument_types, "set");
+            },
+            [&](MapType_ptr type) -> Object_ptr
+            {
+                return call_native_method(call, ma, argument_types, "map");
+            },
 
             [&](ClassType_ptr class_type) -> Object_ptr
             {
