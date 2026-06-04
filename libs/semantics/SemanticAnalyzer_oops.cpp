@@ -9,6 +9,7 @@
 #include "SemanticAnalyzer.h"
 #include "Statement.h"
 #include "SymbolScope.h"
+#include "Token.h"
 #include "Workspace.h"
 
 template <class... Ts> struct overloaded : Ts...
@@ -165,11 +166,30 @@ void SemanticAnalyzer::inherit_default_methods(
         auto trait_ast = ast->try_as<TraitDefinition>();
         Doctor::get().fatal_if_nullptr(trait_ast, WaspStage::Semantics);
 
-        def.members.insert(
-            def.members.end(),
-            trait_ast->members.begin(),
-            trait_ast->members.end()
-        );
+        if (trait_ast->members.empty())
+        {
+            continue;
+        }
+
+        for (auto& member : trait_ast->members)
+        {
+            auto func_def = member->try_as<FunctionDefinition>();
+
+            if (func_def->body.size() == 1)
+            {
+                auto only_stmt = func_def->body[0].get();
+                if (only_stmt->try_as<Placeholder>())
+                {
+                    auto& only_stmt_placeholder = only_stmt->as<Placeholder>();
+                    if (only_stmt_placeholder.type == TokenType::REQUIRED)
+                    {
+                        continue;
+                    }
+                }
+            }
+
+            def.members.push_back(member);
+        }
     }
 }
 

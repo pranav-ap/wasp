@@ -145,6 +145,8 @@ void NativeRegistry::add_native(const std::string& name, NativeFnType function)
 
 void NativeRegistry::load_stdlib()
 {
+    // IO
+
     add_native(
         "libs.core.io.print",
         [this](const std::vector<Object_ptr>& args)
@@ -160,6 +162,8 @@ void NativeRegistry::load_stdlib()
             return native_input(args);
         }
     );
+
+    // STR
 
     add_native(
         "libs.core.types.str.hash",
@@ -187,6 +191,108 @@ void NativeRegistry::load_stdlib()
 
     add_native(
         "libs.core.types.str.trim",
+        [this](const std::vector<Object_ptr>& args)
+        {
+            return pool->get_none_object();
+        }
+    );
+
+    // LIST
+
+    add_native(
+        "libs.core.types.list.size",
+        [this](const std::vector<Object_ptr>& args)
+        {
+            return pool->get_none_object();
+        }
+    );
+
+    add_native(
+        "libs.core.types.list.get",
+        [this](const std::vector<Object_ptr>& args)
+        {
+            return pool->get_none_object();
+        }
+    );
+
+    add_native(
+        "libs.core.types.list.set",
+        [this](const std::vector<Object_ptr>& args)
+        {
+            return pool->get_none_object();
+        }
+    );
+
+    // SET
+
+    add_native(
+        "libs.core.types.set.size",
+        [this](const std::vector<Object_ptr>& args)
+        {
+            return pool->get_none_object();
+        }
+    );
+
+    add_native(
+        "libs.core.types.set.contains",
+        [this](const std::vector<Object_ptr>& args)
+        {
+            return pool->get_none_object();
+        }
+    );
+
+    add_native(
+        "libs.core.types.set.add",
+        [this](const std::vector<Object_ptr>& args)
+        {
+            return pool->get_none_object();
+        }
+    );
+
+    add_native(
+        "libs.core.types.set.remove",
+        [this](const std::vector<Object_ptr>& args)
+        {
+            return pool->get_none_object();
+        }
+    );
+
+    // MAP
+
+    add_native(
+        "libs.core.types.map.size",
+        [this](const std::vector<Object_ptr>& args)
+        {
+            return pool->get_none_object();
+        }
+    );
+
+    add_native(
+        "libs.core.types.map.get",
+        [this](const std::vector<Object_ptr>& args)
+        {
+            return pool->get_none_object();
+        }
+    );
+
+    add_native(
+        "libs.core.types.map.set",
+        [this](const std::vector<Object_ptr>& args)
+        {
+            return pool->get_none_object();
+        }
+    );
+
+    add_native(
+        "libs.core.types.map.contains_key",
+        [this](const std::vector<Object_ptr>& args)
+        {
+            return pool->get_none_object();
+        }
+    );
+
+    add_native(
+        "libs.core.types.map.remove",
         [this](const std::vector<Object_ptr>& args)
         {
             return pool->get_none_object();

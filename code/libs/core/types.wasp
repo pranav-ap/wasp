@@ -117,88 +117,50 @@ class list is Printable & Truthy & Sized & Indexable<T>
         native
 
 
-# template
-#     T: any
-# class set is Printable & Truthy & Sized
-#     fun repr() => str
-#         return "set"
+template
+    T: any
+class set is Printable & Truthy & Sized
+    fun repr() => str
+        return "set"
 
-#     fun size() => int
-#         native
+    fun size() => int
+        native
 
-#     fun is_truthy() => bool
-#         return self.size() > 0
+    fun is_truthy() => bool
+        return self.size() > 0
 
-#     fun contains(value: T) => bool
-#         native
+    fun contains(value: T) => bool
+        native
 
-#     fun add(value: T)
-#         native
+    fun add(value: T)
+        native
 
-#     fun remove(value: T)
-#         native
-
-
-# template
-#     K: Hashable
-#     V: any
-# class map is Printable & Truthy & Sized
-#     fun repr() => str
-#         return "map"
-
-#     fun size() => int
-#         native
-
-#     fun is_truthy() => bool
-#         return self.size() > 0
-
-#     fun get(key: K) => V
-#         native
-
-#     fun set(key: K, value: V)
-#         native
-
-#     fun contains_key(key: K) => bool
-#         native
-
-#     fun remove(key: K)
-#         native
+    fun remove(value: T)
+        native
 
 
-# --------------------------
-# Option
-# --------------------------
+template
+    K: Hashable
+    V: any
+class map is Printable & Truthy & Sized
+    fun repr() => str
+        return "map"
 
-# template
-#     T: any
-# class option is Printable & Truthy
-#     fun repr() => str
-#         return if self.has_value() then "some" else "none"
+    fun size() => int
+        native
 
-#     fun is_truthy() => bool
-#         return self.has_value()
+    fun is_truthy() => bool
+        return self.size() > 0
 
-#     fun has_value() => bool
-#         native
+    fun get(key: K) => V
+        native
 
-#     # panics if no value
-#     fun get() => T
-#         native
+    fun set(key: K, value: V)
+        native
 
-#     # no panic
-#     fun get_or(default: T) => T
-#         native
+    fun contains_key(key: K) => bool
+        native
 
-
-# template
-#     T: any
-# pure fun some(value: T) => Option<T>
-#     native
-
-
-# let x = some(5)
-# x.has_value()
-# x?.repr()
-# x.get_or(0)
-
+    fun remove(key: K)
+        native
 

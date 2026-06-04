@@ -1,10 +1,8 @@
 #include "AST.h"
-#include "ASTCloner.h"
 #include "Doctor.h"
 #include "Expression.h"
 #include "Objects.h"
 #include "SemanticAnalyzer.h"
-#include "Statement.h"
 #include "Workspace.h"
 
 #include <cctype>
