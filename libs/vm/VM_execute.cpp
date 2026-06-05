@@ -164,6 +164,33 @@ void VM::execute_GET_CLASS_METHOD(CallFrame* frame)
     push_to_stack(obj);
 }
 
+void VM::execute_GET_CLASS_STATIC_METHOD(CallFrame* frame)
+{
+    int member_idx = static_cast<int>(frame->consume_byte());
+    int overload_idx = static_cast<int>(frame->consume_byte());
+
+    Object_ptr obj = pop_from_stack();
+
+    auto blueprint = obj->as<ClassBlueprint_ptr>();
+    Doctor::get().fatal_if_nullptr(
+        blueprint,
+        WaspStage::VM,
+        "GET_CLASS_STATIC_METHOD requires a ClassBlueprint"
+    );
+
+    auto overloads_set = blueprint->bag->get_overloads_set(member_idx);
+    Doctor::get().fatal_if_nullptr(
+        overloads_set,
+        WaspStage::VM,
+        "Method Overlaods Set not found"
+    );
+
+    auto method = overloads_set->get_overload(overload_idx);
+
+    push_to_stack(method);
+    push_to_stack(obj);
+}
+
 void VM::execute_GET_TRAIT_METHOD(CallFrame* frame)
 {
     int trait_type_id = static_cast<int>(frame->consume_byte());

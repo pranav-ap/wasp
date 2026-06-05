@@ -285,6 +285,8 @@ struct Call
     int native_class_type_id = -1;
     int native_class_symbol_id = -1;
 
+    bool is_static_method_call = false;
+
     bool is_method_call = false;
     bool is_trait_dispatch = false;
     int trait_type_id = -1;

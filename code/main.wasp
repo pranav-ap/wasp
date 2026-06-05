@@ -28,22 +28,23 @@ import core.operators expose *
 # s.gift()
 
 
-# class Foo is Printable & Truthy
-#     score: int
+class Foo is Printable & Truthy
+    score: int
 
-#     fun repr() => str
-#         return "Foo : {self.score}"
+    fun repr() => str
+        return "Foo : {self.score}"
 
-#     fun is_truthy() => bool
-#         return self.score > 10
+    fun is_truthy() => bool
+        return self.score > 10
 
-#     our fun shout()
-#         print("Ahhhh!")
+    our fun shout()
+        print("Ahhhh!")
 
 
-# let f = Foo(1)
+let f = Foo(1)
 # print(f)
-# # Foo.shout()
+print(f.repr())
+Foo.shout()
 
 # let flist : [Foo] = [f]
 # flist.repr()

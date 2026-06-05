@@ -260,12 +260,25 @@ int SemanticAnalyzer::compute_runtime_overload_index(
 
 Object_ptr SemanticAnalyzer::call_method(
     Call& call,
-    MemberAccess& access,
+    MemberAccess& ma,
     const ObjectVector& argument_types,
     OopsType_ptr oops_type
 )
 {
-    auto method_name = access.right->as<Identifier>().name;
+    if (ma.left->is<Identifier>())
+    {
+        auto left_id = ma.left->as<Identifier>();
+        auto left_symbol = current_scope->lookup_required_and_resolve(
+            left_id.name
+        );
+
+        if (left_symbol->is<OopsSymbol>())
+        {
+            call.is_static_method_call = true;
+        }
+    }
+
+    auto method_name = ma.right->as<Identifier>().name;
 
     Doctor::get().assert(
         oops_type->contains_member(method_name),
@@ -297,7 +310,7 @@ Object_ptr SemanticAnalyzer::call_method(
                                                         argument_types
                                                     );
 
-    access.member_index = oops_type->bag_type->get_index(method_name);
+    ma.member_index = oops_type->bag_type->get_index(method_name);
 
     call.overload_index = overload_index;
     call.is_method_call = true;

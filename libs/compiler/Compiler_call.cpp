@@ -44,6 +44,14 @@ void Compiler::visit(Call& call)
                 overload_index
             );
         }
+        else if (call.is_static_method_call)
+        {
+            emit(
+                OpCode::GET_CLASS_STATIC_METHOD,
+                member_access.member_index,
+                overload_index
+            );
+        }
         else
         {
             emit(

@@ -254,6 +254,7 @@ private:
     void bind_identifier(Identifier& id, Symbol_ptr symbol);
 
     // Call Execution Evaluators
+
     Object_ptr call_method(
         Call& call,
         MemberAccess& mac,
