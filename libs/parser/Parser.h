@@ -47,6 +47,11 @@ private:
     StatementVector parse_statements_block(int expected_indent_level);
     Statement_ptr parse_expression_statement();
 
+    bool skip_to_statement(int expected_indent_level);
+    void skip_comment_line();
+    void consume_indents(int expected_indent_level);
+    void skip_trailing_comment();
+
     // --- Definitions & Declarations ---
     Expression_ptr parse_variable_definition(bool is_mutable);
     Statement_ptr parse_function_definition(

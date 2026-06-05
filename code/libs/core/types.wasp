@@ -87,19 +87,11 @@ class int is Printable & Truthy & Hashable
 #     fun trim() => str
 #         native
 
-class str is Truthy & Sized
-    fun is_truthy() => bool
-        return self.size() > 0
-
-    fun size() => int
-        native
-
-
 # --------------------------
 # Aliases
 # --------------------------
 
-type num = int | float
+# type num = int | float
 
 # --------------------------
 # Composites
