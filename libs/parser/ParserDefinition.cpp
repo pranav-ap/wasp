@@ -200,7 +200,7 @@ std::tuple<std::string, TypeAnnotationVector, StatementVector> Parser::
                 parse_function_definition(body_indent, true, false, true)
             );
         }
-        else if (token_pipe.consume_optional(TokenType::OUR))
+        else if (token_pipe.consume_optional(TokenType::SHARE))
         {
             bool is_pure = token_pipe.consume_optional_in_line(TokenType::PURE)
                                .has_value();
@@ -240,7 +240,7 @@ Statement_ptr Parser::parse_trait_definition(int indent_level)
 Statement_ptr Parser::parse_function_definition(
     int indent_level,
     bool in_class_block,
-    bool is_our,
+    bool is_static,
     bool is_pure
 )
 {
@@ -283,7 +283,7 @@ Statement_ptr Parser::parse_function_definition(
             std::move(return_type),
             std::move(body),
             is_pure,
-            is_our // is_static = is_our
+            is_static
         ));
     }
 

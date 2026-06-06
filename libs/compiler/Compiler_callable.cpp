@@ -49,12 +49,7 @@ void Compiler::visit(FunctionDefinition& def)
     }
     else
     {
-        compile_function_closure(
-            def.name,
-            def.parameter_symbols,
-            def.body,
-            nullptr
-        );
+        compile_function_closure(def.name, def.parameter_symbols, def.body);
     }
 
     std::string label = (def.is_pure ? "pure fun " : "fun ") + def.name;
@@ -64,19 +59,12 @@ void Compiler::visit(FunctionDefinition& def)
 void Compiler::compile_function_closure(
     const std::string& name,
     const std::vector<Symbol_ptr>& parameters,
-    StatementVector body,
-    Symbol_ptr context_symbol
+    StatementVector body
 )
 {
     Compiler func_compiler(this);
 
     func_compiler.enter_scope();
-
-    // Push context (self/our) if present
-    if (context_symbol)
-    {
-        func_compiler.stack.push_back(context_symbol);
-    }
 
     // Push all parameters
     for (const auto& param_symbol : parameters)

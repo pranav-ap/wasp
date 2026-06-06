@@ -37,14 +37,17 @@ class Foo is Printable & Truthy
     fun is_truthy() => bool
         return self.score > 10
 
-    our fun shout()
+    share fun shout2(text2: str)
         print("Ahhhh!")
+
+    share fun shout(text: str)
+        our.shout2("hi")
 
 
 let f = Foo(1)
-# print(f)
+print(f)
 print(f.repr())
-Foo.shout()
+Foo.shout("hi")
 
 # let flist : [Foo] = [f]
 # flist.repr()

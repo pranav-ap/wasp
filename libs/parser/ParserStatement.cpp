@@ -86,6 +86,22 @@ Statement_ptr Parser::parse_statement(int expected_indent_level)
         );
         break;
     }
+
+    case TokenType::SHARE: {
+        token_pipe.advance_pointer();
+        bool is_pure = token_pipe.consume_optional_in_line(TokenType::PURE)
+                           .has_value();
+
+        token_pipe.require_in_line(TokenType::FUN);
+        result = parse_function_definition(
+            expected_indent_level,
+            false,
+            true,
+            is_pure
+        );
+        break;
+    }
+
     case TokenType::INFIX:
     case TokenType::PREFIX:
     case TokenType::POSTFIX: {

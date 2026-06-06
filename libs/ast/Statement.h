@@ -89,7 +89,6 @@ struct CallableDefinition : public Definition, public Templatable
 
     StatementVector body;
 
-    std::shared_ptr<Symbol> context_symbol = nullptr;
     std::shared_ptr<Symbol> group_symbol;
 
     bool is_pure = false;

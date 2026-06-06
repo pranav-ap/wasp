@@ -57,7 +57,7 @@ private:
     Statement_ptr parse_function_definition(
         int indent_level,
         bool in_class_block = false,
-        bool is_our = false,
+        bool is_static = false,
         bool is_pure = false
     );
     Statement_ptr parse_operator_definition(TokenType fixity, int indent_level);

@@ -95,6 +95,7 @@
     X(TEMPLATE, "template", true)                                              \
     X(PURE, "pure", true)                                                      \
     X(RECORD, "record", true)                                                  \
+    X(SHARE, "share", true)                                                    \
     X(MY, "my", true)                                                          \
     X(OUR, "our", true)                                                        \
     X(TOP, "top", true)                                                        \

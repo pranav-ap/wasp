@@ -272,7 +272,7 @@ Object_ptr SemanticAnalyzer::call_method(
             left_id.name
         );
 
-        if (left_symbol->is<OopsSymbol>())
+        if (left_symbol->is<OopsSymbol>() || left_id.name == "our")
         {
             call.is_static_method_call = true;
         }

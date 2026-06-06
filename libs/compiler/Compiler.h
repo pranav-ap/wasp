@@ -143,8 +143,7 @@ private:
     void compile_function_closure(
         const std::string& name,
         const std::vector<Symbol_ptr>& parameters,
-        StatementVector body,
-        Symbol_ptr context_symbol = nullptr
+        StatementVector body
     );
 
     // Expressions

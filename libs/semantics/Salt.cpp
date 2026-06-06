@@ -61,17 +61,30 @@ static Statement_ptr convert_method_to_function(
     const std::string& class_name
 )
 {
-    std::string indicator_name = method.is_static ? "our" : "self";
+    std::string indicator_name = "our";
 
     auto updated_params = method.parameters;
 
     auto indicator_field = ASTFactory::create_field(
         indicator_name,
         make_type_annotation(TypeIdentifierNode(class_name)),
-        method.is_static
+        true
     );
 
     updated_params.insert(updated_params.begin(), indicator_field);
+
+    if (!method.is_static)
+    {
+        indicator_name = "self";
+
+        auto indicator_field = ASTFactory::create_field(
+            indicator_name,
+            make_type_annotation(TypeIdentifierNode(class_name)),
+            false
+        );
+
+        updated_params.insert(updated_params.begin(), indicator_field);
+    }
 
     return ASTFactory::create_function_definition(
         method.name,

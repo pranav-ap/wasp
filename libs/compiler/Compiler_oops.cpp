@@ -3,7 +3,6 @@
 #include "Objects.h"
 #include "OpCode.h"
 #include "Statement.h"
-#include "Workspace.h"
 
 #include <memory>
 #include <string>
@@ -67,8 +66,7 @@ void Compiler::visit(ClassDefinition& def)
                 compile_function_closure(
                     func->name,
                     func->parameter_symbols,
-                    func->body,
-                    func->context_symbol
+                    func->body
                 );
             }
 
