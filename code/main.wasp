@@ -41,7 +41,7 @@ class Foo is Printable & Truthy
         print("Ahhhh!")
 
     share fun shout(text: str)
-        our.shout2("hi")
+        our.shout2(text)
 
 
 let f = Foo(1)

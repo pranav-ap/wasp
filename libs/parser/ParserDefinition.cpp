@@ -259,7 +259,7 @@ Statement_ptr Parser::parse_function_definition(
             auto param_type = parse_type();
             // is_static flag only applies to class fields, not function
             // parameters
-            parameters.emplace_back(param_name, param_type, false);
+            parameters.emplace_back(param_name, param_type);
         }
         while (token_pipe.consume_optional_in_line(TokenType::COMMA));
 
@@ -316,7 +316,7 @@ Statement_ptr Parser::parse_operator_definition(
                                   .lexeme;
             token_pipe.require_in_line(TokenType::COLON);
             auto param_type = parse_type();
-            parameters.emplace_back(param_name, param_type, false);
+            parameters.emplace_back(param_name, param_type);
         }
         while (token_pipe.consume_optional_in_line(TokenType::COMMA));
 

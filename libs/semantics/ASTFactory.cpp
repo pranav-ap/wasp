@@ -64,13 +64,9 @@ Statement_ptr ASTFactory::create_function_definition(
     );
 }
 
-Field ASTFactory::create_field(
-    const std::string& name,
-    TypeAnnotation_ptr type,
-    bool is_static
-)
+Field ASTFactory::create_field(const std::string& name, TypeAnnotation_ptr type)
 {
-    return Field(name, std::move(type), is_static);
+    return Field(name, std::move(type));
 }
 
 Expression_ptr ASTFactory::create_identifier(const std::string& name)

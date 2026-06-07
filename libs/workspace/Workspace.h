@@ -43,6 +43,7 @@ struct FunctionSymbol
     Object_ptr type;
     bool is_native;
     bool required_in_class = false;
+    bool is_static_method = false;
 
     FunctionSymbol(Object_ptr type, bool is_native);
 };
