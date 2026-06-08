@@ -15,8 +15,16 @@ namespace Wasp {
         explicit TokenPipe() : tokens({}), index(0) {
         };
 
-        explicit TokenPipe(const std::vector<Token> &tokens) : tokens(tokens), index(0) {
-        };
+        explicit TokenPipe(const std::vector<Token>& tokens) : index(0)
+        {
+            for (const auto& token : tokens)
+            {
+                if (token.type != TokenType::COMMENT)
+                {
+                    this->tokens.push_back(token);
+                }
+            }
+        }
 
         std::optional<Token> current() const;
         std::optional<Token> current_in_line();

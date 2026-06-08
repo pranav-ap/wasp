@@ -153,6 +153,7 @@ std::tuple<Object_ptr, int> TypeSystem::get_best_function_object(
     for (size_t i = 0; i < candidates.size(); ++i)
     {
         auto signature = candidates[i]->as<Signature_ptr>();
+
         if (assignable(scope, signature->parameter_types, argument_types))
         {
             Doctor::get().assert(index == -1, WaspStage::Semantics, "Ambiguous call");

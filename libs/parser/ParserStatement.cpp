@@ -16,15 +16,17 @@ namespace Wasp {
 
 Statement_ptr Parser::parse_statement(int expected_indent_level)
 {
-    if (!skip_to_statement(expected_indent_level))
+    token_pipe.ignore_empty_lines();
+    token_pipe.expect_n_indents(expected_indent_level);
+
+    const auto token = token_pipe.current();
+
+    if (!token)
     {
         return nullptr;
     }
 
-    consume_indents(expected_indent_level);
-
-    const auto token = token_pipe.current();
-    if (!token || token->type == TokenType::END_OF_FILE)
+    if (token->type == TokenType::END_OF_FILE)
     {
         token_pipe.advance_pointer();
         return nullptr;
@@ -136,12 +138,11 @@ Statement_ptr Parser::parse_statement(int expected_indent_level)
         break;
     }
 
-    skip_trailing_comment();
-
     return result;
 }
 
-StatementVector Parser::parse_statements_block(int expected_indent_level) {
+StatementVector Parser::parse_statements_block(int expected_indent_level)
+{
     token_pipe.ignore_empty_lines();
 
     auto s = parse_statement(expected_indent_level);
@@ -332,49 +333,6 @@ Statement_ptr Parser::parse_import()
 
 // Comments
 
-bool Parser::skip_to_statement(int expected_indent_level)
-{
-    while (true)
-    {
-        // Skip empty lines
-        token_pipe.ignore_empty_lines();
-
-        // Check if we have the expected indentation level without consuming
-        if (token_pipe.lookahead_indents() != expected_indent_level)
-        {
-            return false;
-        }
-
-        // Check if we're at a comment (after indentation)
-        if (token_pipe.current() &&
-            token_pipe.current()->type == TokenType::COMMENT)
-        {
-            skip_comment_line();
-            continue;
-        }
-        break;
-    }
-    return true;
-}
-
-void Parser::skip_comment_line()
-{
-    // Skip the comment token
-    token_pipe.advance_pointer();
-
-    // Skip the rest of the line after the comment
-    while (token_pipe.current() && token_pipe.current()->type != TokenType::EOL)
-    {
-        token_pipe.advance_pointer();
-    }
-
-    // Skip the EOL
-    if (token_pipe.current() && token_pipe.current()->type == TokenType::EOL)
-    {
-        token_pipe.advance_pointer();
-    }
-}
-
 void Parser::consume_indents(int expected_indent_level)
 {
     int consumed = 0;
@@ -416,22 +374,6 @@ void Parser::consume_indents(int expected_indent_level)
         "Expected " + std::to_string(expected_indent_level) +
             " indents but consumed " + std::to_string(consumed)
     );
-}
-
-void Parser::skip_trailing_comment()
-{
-    token_pipe.ignore_spaces_tabs();
-    if (token_pipe.current() &&
-        token_pipe.current()->type == TokenType::COMMENT)
-    {
-        token_pipe.advance_pointer(); // Skip the comment
-        // Consume until EOL
-        while (token_pipe.current() &&
-               token_pipe.current()->type != TokenType::EOL)
-        {
-            token_pipe.advance_pointer();
-        }
-    }
 }
 
 } // namespace Wasp

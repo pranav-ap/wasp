@@ -23,9 +23,9 @@ void Compiler::visit(Call& call)
 
         int overload_index = call.overload_index;
 
-        if (call.is_native_method_call)
+        if (call.is_primitive_method_call)
         {
-            int slot = resolve_local(call.native_class_symbol_id);
+            int slot = resolve_local(call.primitive_class_symbol_id);
 
             emit(OpCode::GET_LOCAL, slot, "load native class blueprint");
 
@@ -35,19 +35,19 @@ void Compiler::visit(Call& call)
                 overload_index
             );
         }
+        else if (call.is_static_method_call)
+        {
+            emit(
+                OpCode::GET_CLASS_STATIC_METHOD,
+                member_access.member_index,
+                overload_index
+            );
+        }
         else if (member_access.is_trait_dispatch)
         {
             emit(
                 OpCode::GET_TRAIT_METHOD,
                 call.trait_type_id,
-                member_access.member_index,
-                overload_index
-            );
-        }
-        else if (call.is_static_method_call)
-        {
-            emit(
-                OpCode::GET_CLASS_STATIC_METHOD,
                 member_access.member_index,
                 overload_index
             );

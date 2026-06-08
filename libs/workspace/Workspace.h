@@ -162,6 +162,7 @@ struct Symbol : public std::enable_shared_from_this<Symbol>
     bool is_native() const;
     void mark_as_native();
     void mark_as_required();
+    void mark_as_static();
 
     void add_overload(Symbol_ptr overload);
     SymbolVector get_overloads() const;

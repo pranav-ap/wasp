@@ -24,7 +24,18 @@ namespace Wasp
 
 void SemanticAnalyzer::visit(FunctionDefinition& def)
 {
-    analyze_callable(def, ScopeType::FUNCTION);
+    ScopeType scope_type = def.is_pure ? ScopeType::PURE_FUNCTION
+                                       : ScopeType::FUNCTION;
+
+    analyze_callable(def, scope_type);
+}
+
+void SemanticAnalyzer::visit(MethodDefinition& def)
+{
+    ScopeType scope_type = def.is_pure ? ScopeType::PURE_METHOD
+                                       : ScopeType::METHOD;
+
+    analyze_callable(def, scope_type);
 }
 
 void SemanticAnalyzer::analyze_callable(
@@ -173,7 +184,8 @@ void SemanticAnalyzer::visit(Return& statement)
 
     if (statement.expression)
     {
-        actual = visit(statement.expression.value())->unwrap_completely();
+        actual = visit(statement.expression.value());
+        actual = actual->unwrap_completely();
     }
 
     Doctor::get().assert(

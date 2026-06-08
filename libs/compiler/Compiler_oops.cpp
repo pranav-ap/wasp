@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -15,6 +16,27 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
+
+std::vector<MethodDefinition*> get_methods_by_name(
+    const ClassDefinition& def,
+    const std::string& method_name
+)
+{
+    std::vector<MethodDefinition*> methods;
+
+    for (auto& stmt : def.members)
+    {
+        if (auto* method = stmt->try_as<MethodDefinition>())
+        {
+            if (method->name == method_name)
+            {
+                methods.push_back(method);
+            }
+        }
+    }
+
+    return methods;
+}
 
 void Compiler::visit(ClassDefinition& def)
 {
@@ -32,27 +54,21 @@ void Compiler::visit(ClassDefinition& def)
     // Allocate class type in constant pool
     int class_type_pool_id = workspace->pool->allocate_type(class_type_obj);
 
-    // Compile each method
+    // Compile user methods
+
     for (const std::string& method_name : method_names)
     {
-        int overload_count = 0;
+        auto methods = get_methods_by_name(def, method_name);
+        int overload_count = static_cast<int>(methods.size());
 
-        // Find all methods with this name in the class members
-        for (auto& stmt : def.members)
+        for (auto& method : methods)
         {
-            auto* func = stmt->try_as<FunctionDefinition>();
-
-            if (!func || func->name != method_name)
-            {
-                continue;
-            }
-
-            if (func->symbol->is_native())
+            if (method->symbol->is_native())
             {
                 std::string mangled = mangle_name(
-                    func->name,
+                    method->name,
                     def.name,
-                    func->symbol->module_path
+                    method->symbol->module_path
                 );
 
                 int registry_id = workspace->native_registry->get_native_index(
@@ -61,16 +77,15 @@ void Compiler::visit(ClassDefinition& def)
 
                 emit(OpCode::GET_NATIVE, registry_id, "load native " + mangled);
             }
+
             else
             {
                 compile_function_closure(
-                    func->name,
-                    func->parameter_symbols,
-                    func->body
+                    method->name,
+                    method->parameter_symbols,
+                    method->body
                 );
             }
-
-            overload_count++;
         }
 
         emit(

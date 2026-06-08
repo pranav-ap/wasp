@@ -98,7 +98,6 @@ void SemanticAnalyzer::visit(const Statement_ptr statement)
 
                 if constexpr (
                     std::is_same_v<T, Import> ||
-                    std::is_same_v<T, MethodDefinition> ||
                     std::is_same_v<T, FieldDefinition> ||
                     std::is_same_v<T, OperatorDefinition> ||
                     std::is_same_v<T, Splitter>

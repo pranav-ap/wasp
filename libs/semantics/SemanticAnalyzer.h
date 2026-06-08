@@ -56,6 +56,7 @@ private:
 
     void visit(ExpressionStatement& statement);
     void visit(FunctionDefinition& statement);
+    void visit(MethodDefinition& statement);
     void visit(ClassDefinition& statement);
     void visit(TraitDefinition& statement);
     void visit(EnumDefinition& statement);

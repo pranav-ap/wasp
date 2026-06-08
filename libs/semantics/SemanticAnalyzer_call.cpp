@@ -68,7 +68,9 @@ Object_ptr SemanticAnalyzer::handle_member_call(
     ObjectVector& argument_types
 )
 {
-    Object_ptr left_type = visit(ma.left)->unwrap_completely();
+    Object_ptr left_type = visit(ma.left);
+    left_type = left_type->unwrap_completely();
+
     argument_types.insert(argument_types.begin(), left_type);
 
     return std::visit(
@@ -379,16 +381,16 @@ Object_ptr SemanticAnalyzer::call_native_method(
     std::string native_class_name
 )
 {
-    call.is_native_method_call = true;
+    call.is_primitive_method_call = true;
 
     auto native_class = current_scope->lookup_required_and_resolve(
         native_class_name
     );
 
     auto native_class_type = native_class->get_type()->as<ClassType_ptr>();
-    native_class_type->is_native = true;
-    call.native_class_type_id = native_class_type->type_id;
-    call.native_class_symbol_id = native_class->id;
+    native_class_type->is_primitive = true;
+    call.primitive_class_type_id = native_class_type->type_id;
+    call.primitive_class_symbol_id = native_class->id;
 
     return call_method(call, ma, argument_types, native_class_type);
 }

@@ -372,6 +372,22 @@ StatementVariant ASTCloner::clone_stmt_data(const StatementVariant& data)
                 return c;
             },
 
+            [&](const MethodDefinition& n) -> StatementVariant
+            {
+                MethodDefinition c = n;
+                c.return_type = clone(n.return_type);
+                c.body = clone(n.body);
+                for (auto& param : c.parameters)
+                {
+                    param.type = clone(param.type);
+                }
+
+                // wipe_callable(c);
+                c.symbol = n.symbol;
+
+                return c;
+            },
+
             [&](const FieldDefinition& n) -> StatementVariant
             {
                 FieldDefinition c(n.name, clone(n.type));

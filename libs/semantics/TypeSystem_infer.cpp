@@ -399,7 +399,7 @@ bool TypeSystem::assignable(
             // List type to list class
             [&](ClassType_ptr lhs_class, ListType_ptr rhs_list) -> bool
             {
-                if (!lhs_class->is_native || lhs_class->name != "list")
+                if (!lhs_class->is_primitive || lhs_class->name != "list")
                 {
                     return false;
                 }
@@ -428,7 +428,7 @@ bool TypeSystem::assignable(
 
             [&](ListType_ptr lhs_list, ClassType_ptr rhs_class) -> bool
             {
-                if (!rhs_class->is_native || rhs_class->name != "list")
+                if (!rhs_class->is_primitive || rhs_class->name != "list")
                 {
                     return false;
                 }
@@ -457,7 +457,7 @@ bool TypeSystem::assignable(
             // Set type to set class
             [&](ClassType_ptr lhs_class, SetType_ptr rhs_set) -> bool
             {
-                if (!lhs_class->is_native || lhs_class->name != "set")
+                if (!lhs_class->is_primitive || lhs_class->name != "set")
                 {
                     return false;
                 }
@@ -485,7 +485,7 @@ bool TypeSystem::assignable(
 
             [&](SetType_ptr lhs_set, ClassType_ptr rhs_class) -> bool
             {
-                if (!rhs_class->is_native || rhs_class->name != "set")
+                if (!rhs_class->is_primitive || rhs_class->name != "set")
                 {
                     return false;
                 }
@@ -514,7 +514,7 @@ bool TypeSystem::assignable(
             // Map type to map class
             [&](ClassType_ptr lhs_class, MapType_ptr rhs_map) -> bool
             {
-                if (!lhs_class->is_native || lhs_class->name != "map")
+                if (!lhs_class->is_primitive || lhs_class->name != "map")
                 {
                     return false;
                 }
@@ -553,7 +553,7 @@ bool TypeSystem::assignable(
 
             [&](MapType_ptr lhs_map, ClassType_ptr rhs_class) -> bool
             {
-                if (!rhs_class->is_native || rhs_class->name != "map")
+                if (!rhs_class->is_primitive || rhs_class->name != "map")
                 {
                     return false;
                 }
@@ -593,38 +593,38 @@ bool TypeSystem::assignable(
             // Primitive type to native class
             [&](ClassType_ptr lhs_class, IntType_ptr) -> bool
             {
-                return lhs_class->is_native && lhs_class->name == "int";
+                return lhs_class->is_primitive && lhs_class->name == "int";
             },
             [&](IntType_ptr, ClassType_ptr rhs_class) -> bool
             {
-                return rhs_class->is_native && rhs_class->name == "int";
+                return rhs_class->is_primitive && rhs_class->name == "int";
             },
 
             [&](ClassType_ptr lhs_class, FloatType_ptr) -> bool
             {
-                return lhs_class->is_native && lhs_class->name == "float";
+                return lhs_class->is_primitive && lhs_class->name == "float";
             },
             [&](FloatType_ptr, ClassType_ptr rhs_class) -> bool
             {
-                return rhs_class->is_native && rhs_class->name == "float";
+                return rhs_class->is_primitive && rhs_class->name == "float";
             },
 
             [&](ClassType_ptr lhs_class, StringType_ptr) -> bool
             {
-                return lhs_class->is_native && lhs_class->name == "str";
+                return lhs_class->is_primitive && lhs_class->name == "str";
             },
             [&](StringType_ptr, ClassType_ptr rhs_class) -> bool
             {
-                return rhs_class->is_native && rhs_class->name == "str";
+                return rhs_class->is_primitive && rhs_class->name == "str";
             },
 
             [&](ClassType_ptr lhs_class, BooleanType_ptr) -> bool
             {
-                return lhs_class->is_native && lhs_class->name == "bool";
+                return lhs_class->is_primitive && lhs_class->name == "bool";
             },
             [&](BooleanType_ptr, ClassType_ptr rhs_class) -> bool
             {
-                return rhs_class->is_native && rhs_class->name == "bool";
+                return rhs_class->is_primitive && rhs_class->name == "bool";
             },
 
             [](const auto&, const auto&)

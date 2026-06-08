@@ -56,88 +56,45 @@ Statement_ptr Salt::visit(const Statement_ptr statement)
     );
 }
 
-static Statement_ptr convert_method_to_function(
-    const MethodDefinition& method,
+static void add_context_params_to_method(
+    MethodDefinition& method,
     const std::string& class_name
 )
 {
-    auto updated_params = method.parameters;
+    std::string context_name = method.is_static ? "our" : "self";
 
-    auto indicator_field = ASTFactory::create_field(
-        "our",
+    auto context_field = ASTFactory::create_field(
+        context_name,
         make_type_annotation(TypeIdentifierNode(class_name))
     );
 
-    updated_params.insert(updated_params.begin(), indicator_field);
-
-    if (!method.is_static)
-    {
-        auto indicator_field = ASTFactory::create_field(
-            "self",
-            make_type_annotation(TypeIdentifierNode(class_name))
-        );
-
-        updated_params.insert(updated_params.begin(), indicator_field);
-    }
-
-    return ASTFactory::create_function_definition(
-        method.name,
-        updated_params,
-        method.return_type,
-        method.body,
-        method.is_pure,
-        method.template_params
-    );
+    method.parameters.insert(method.parameters.begin(), context_field);
 }
 
 Statement_ptr Salt::visit(ClassDefinition& statement)
 {
-    StatementVector updated_members;
-
     for (auto& member : statement.members)
     {
         if (auto* method = member->try_as<MethodDefinition>())
         {
-            auto stmt = convert_method_to_function(*method, statement.name);
-            updated_members.push_back(stmt);
-        }
-        else
-        {
-            updated_members.push_back(member);
+            add_context_params_to_method(*method, statement.name);
         }
     }
 
-    return ASTFactory::create_class_definition(
-        statement.name,
-        statement.traits,
-        updated_members,
-        statement.template_params
-    );
+    return make_statement(statement);
 }
 
 Statement_ptr Salt::visit(TraitDefinition& statement)
 {
-    StatementVector updated_members;
-
     for (auto& member : statement.members)
     {
         if (auto* method = member->try_as<MethodDefinition>())
         {
-            auto stmt = convert_method_to_function(*method, statement.name);
-            updated_members.push_back(stmt);
-        }
-        else
-        {
-            updated_members.push_back(member);
+            add_context_params_to_method(*method, statement.name);
         }
     }
 
-    return ASTFactory::create_trait_definition(
-        statement.name,
-        statement.traits,
-        updated_members,
-        statement.template_params
-    );
+    return make_statement(statement);
 }
 
 Statement_ptr Salt::visit(OperatorDefinition& def)

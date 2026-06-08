@@ -152,6 +152,11 @@ int Compiler::resolve_local(int symbol_id)
         }
     }
 
+    if (parent != nullptr)
+    {
+        return parent->resolve_local(symbol_id);
+    }
+
     // Not a variable on stack
     return -1;
 }

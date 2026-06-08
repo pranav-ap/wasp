@@ -5,27 +5,38 @@ import core.operators expose *
 
 
 
-# template
-#     T: int | float | str
-# fun greet(value: T)
-#     print(value)
+template
+    T: int | float | str
+fun greet(value: T)
+    print(value)
 
 
-# greet<int>(3)
-# greet(3)
+greet<int>(3)
+greet(3)
 
 
-# template
-#     T: int | float | str
-# class Santa
-#     a: T
+template
+    T: int | float | str
+class Santa
+    a: T
 
-#     fun gift()
-#         print(self.a)
+    fun gift()
+        print(self.a)
 
 
-# let s = Santa("3")
-# s.gift()
+let s = Santa("3")
+s.gift()
+
+
+fun show() => int
+    let x = 1
+
+    let z = x + 2
+    return z
+
+
+let g = show()
+print(g)
 
 
 class Foo is Printable & Truthy
@@ -38,10 +49,12 @@ class Foo is Printable & Truthy
         return self.score > 10
 
     share fun shout2(text2: str)
-        print("Ahhhh!")
+        print(text2)
 
     share fun shout(text: str)
         our.shout2(text)
+        our.shout2(" ghost")
+
 
 
 let f = Foo(1)
@@ -53,24 +66,14 @@ Foo.shout("hi")
 # flist.repr()
 
 
-# fun lol(x: Printable)
-#     print(x)
-
-# fun lol(x: Printable & Truthy)
-#     print(x)
-#     print("------")
-
-# lol(f)
 
 
-# fun show() => int
-#     let x = 1
+fun lol(x: Printable)
+    print(x)
 
-#     let z = x + 2
-#     return z
+fun lol(x: Printable & Truthy)
+    print(x)
+    print("------")
 
-
-# let g = show()
-# print(g)
-
+lol(f)
 
