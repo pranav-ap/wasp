@@ -152,10 +152,10 @@ int Compiler::resolve_local(int symbol_id)
         }
     }
 
-    if (parent != nullptr)
-    {
-        return parent->resolve_local(symbol_id);
-    }
+    // if (parent != nullptr)
+    // {
+    //     return parent->resolve_local(symbol_id);
+    // }
 
     // Not a variable on stack
     return -1;
@@ -170,6 +170,11 @@ int Compiler::resolve_local(const std::string& name)
             return i;
         }
     }
+
+    // if (parent != nullptr)
+    // {
+    //     return parent->resolve_local(name);
+    // }
 
     return -1;
 }

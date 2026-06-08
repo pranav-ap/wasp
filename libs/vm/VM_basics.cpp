@@ -80,6 +80,7 @@ void VM::execute_variable(OpCode op, CallFrame* frame)
         );
 
         push_to_stack(stack[frame->base_pointer + slot_index]);
+
         break;
     }
 

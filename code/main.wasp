@@ -58,14 +58,10 @@ class Foo is Printable & Truthy
 
 
 let f = Foo(1)
+
 print(f)
 print(f.repr())
 Foo.shout("hi")
-
-# let flist : [Foo] = [f]
-# flist.repr()
-
-
 
 
 fun lol(x: Printable)
@@ -76,4 +72,10 @@ fun lol(x: Printable & Truthy)
     print("------")
 
 lol(f)
+
+
+# let flist : [Foo] = [f]
+# flist.repr()
+
+
 
