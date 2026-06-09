@@ -42,11 +42,17 @@ struct Definition : public Resolvable
 struct FieldDefinition : public Definition
 {
     TypeAnnotation_ptr type;
+    bool is_variadic;
 
     FieldDefinition() = default;
 
-    FieldDefinition(std::string name, TypeAnnotation_ptr type)
-        : Definition(std::move(name)), type(std::move(type))
+    FieldDefinition(
+        std::string name,
+        TypeAnnotation_ptr type,
+        bool is_variadic = false
+    )
+        : Definition(std::move(name)), type(std::move(type)),
+          is_variadic(is_variadic)
     {
     }
 };

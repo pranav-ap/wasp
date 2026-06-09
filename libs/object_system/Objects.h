@@ -108,11 +108,17 @@ struct GenericType
 {
     std::string name;
     Object_ptr constraint_type;
+    bool is_variadic;
 
     GenericType() = default;
 
-    GenericType(std::string name, Object_ptr constraint_type)
-        : name(std::move(name)), constraint_type(std::move(constraint_type))
+    GenericType(
+        std::string name,
+        Object_ptr constraint_type,
+        bool is_variadic = false
+    )
+        : name(std::move(name)), constraint_type(std::move(constraint_type)),
+          is_variadic(is_variadic)
     {
     }
 };
@@ -123,15 +129,18 @@ struct TemplateType
 {
     ObjectStringMap template_parameters;
     StringVector ordered_parameter_names;
+    std::optional<std::string> variadic_name;
 
     TemplateType() = default;
 
     TemplateType(
         ObjectStringMap template_parameters,
-        StringVector ordered_parameter_names
+        StringVector ordered_parameter_names,
+        std::optional<std::string> variadic_name = std::nullopt
     )
         : template_parameters(std::move(template_parameters)),
-          ordered_parameter_names(std::move(ordered_parameter_names))
+          ordered_parameter_names(std::move(ordered_parameter_names)),
+          variadic_name(std::move(variadic_name))
     {
     }
 

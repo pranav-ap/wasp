@@ -81,3 +81,5 @@ print(flist.size())
 print("jack  ".trim() + "son")
 
 
+# let x: (int, int, int) = (1, 2, 3)
+

@@ -27,6 +27,7 @@
     X(AT_SIGN, "@", false)                                                     \
     X(DOT, ".", false)                                                         \
     X(DOT_DOT, "..", false)                                                    \
+    X(DOT_DOT_DOT, "...", false)                                               \
     X(DOT_DOT_LESS, "..<", false)                                              \
     X(DOT_DOT_EQUAL, "..=", false)                                             \
     X(QUESTION, "?", false)                                                    \

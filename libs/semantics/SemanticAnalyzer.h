@@ -39,6 +39,7 @@ private:
     ObjectVector return_type_stack;
 
     std::map<Symbol_ptr, Statement_ptr> forest;
+    std::map<Symbol_ptr, SymbolScope_ptr> scope_forest;
 
     StatementVector pending_templates;
 

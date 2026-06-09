@@ -362,7 +362,11 @@ Statement_ptr Parser::parse_template_definition(int indent_level)
         {
             break;
         }
+
         token_pipe.expect_n_indents(body_indent);
+
+        bool is_variadic = token_pipe.consume_optional(TokenType::DOT_DOT_DOT)
+                               .has_value();
 
         auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
         token_pipe.require_in_line(TokenType::COLON);
@@ -370,7 +374,7 @@ Statement_ptr Parser::parse_template_definition(int indent_level)
         auto param_type = parse_type();
         token_pipe.require_in_line(TokenType::EOL);
 
-        generics.emplace_back(name_token.lexeme, param_type);
+        generics.emplace_back(name_token.lexeme, param_type, is_variadic);
     }
 
     Statement_ptr target = parse_statement(indent_level);
