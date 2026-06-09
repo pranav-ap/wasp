@@ -74,8 +74,8 @@ fun lol(x: Printable & Truthy)
 lol(f)
 
 
-# let flist : [Foo] = [f]
-# flist.repr()
+let flist : [Foo] = [f, f]
+print(flist.size())
 
 
-
+print("jack  ".trim() + "son")
