@@ -345,6 +345,12 @@ static Object_ptr native_tuple_get(const std::vector<Object_ptr>& args)
     return self->values[idx];
 }
 
+static Object_ptr native_tuple_size(const std::vector<Object_ptr>& args)
+{
+    auto self = args[0]->as<TupleObject_ptr>();
+    return make_object(std::make_shared<IntObject>(self->values.size()));
+}
+
 } // namespace
 
 Object_ptr NativeRegistry::get_native_object(int index) const
@@ -428,6 +434,7 @@ void NativeRegistry::load_stdlib()
 
     // TUPLE
     add_native("libs.core.types.tuple.get", native_tuple_get);
+    add_native("libs.core.types.tuple.size", native_tuple_size);
 }
 
 } // namespace Wasp

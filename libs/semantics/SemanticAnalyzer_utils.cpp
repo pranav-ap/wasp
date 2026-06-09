@@ -128,6 +128,13 @@ TemplateType_ptr SemanticAnalyzer::create_template_type(
                 "Multiple variadic template parameters are not allowed"
             );
 
+            Doctor::get().assert(
+                template_params_map.empty() ||
+                    variadic_name.has_value() == false,
+                WaspStage::Semantics,
+                "Variadic template parameter must be the last parameter"
+            );
+
             variadic_name = field.name;
         }
 
@@ -152,7 +159,7 @@ TemplateType_ptr SemanticAnalyzer::create_template_type(
     return std::make_shared<TemplateType>(
         std::move(template_params_map),
         std::move(ordered_names),
-        std::move(variadic_name)
+        variadic_name
     );
 }
 

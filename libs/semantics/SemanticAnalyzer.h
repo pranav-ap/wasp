@@ -314,7 +314,7 @@ private:
         const std::string& specialized_name
     );
 
-    Symbol_ptr monomorphize_class_template(
+    Symbol_ptr monomorphize_oops_template(
         Symbol_ptr blueprint_symbol,
         const ObjectStringMap& substitutions,
         const std::string& specialized_name

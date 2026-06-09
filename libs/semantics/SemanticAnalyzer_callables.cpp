@@ -198,6 +198,18 @@ void SemanticAnalyzer::visit(Return& statement)
 
 void SemanticAnalyzer::visit(Placeholder& statement)
 {
+    if (current_scope->type == ScopeType::LOOP ||
+        current_scope->type == ScopeType::BRANCH)
+    {
+        Doctor::get().assert(
+            statement.type == TokenType::PASS,
+            WaspStage::Semantics,
+            "'pass' is allowed as a placeholder only in loops and branches"
+        );
+
+        return;
+    }
+
     Doctor::get().assert(
         statement.type == TokenType::NATIVE ||
             statement.type == TokenType::REQUIRED,

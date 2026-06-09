@@ -272,7 +272,7 @@ Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
             return node.symbol->get_type();
         }
 
-        Symbol_ptr specialized_class = monomorphize_class_template(
+        Symbol_ptr specialized_class = monomorphize_oops_template(
             target_symbol,
             substitutions,
             specialized_name
@@ -319,7 +319,7 @@ Object_ptr SemanticAnalyzer::visit(TemplateAngular& node)
     );
 }
 
-Symbol_ptr SemanticAnalyzer::monomorphize_class_template(
+Symbol_ptr SemanticAnalyzer::monomorphize_oops_template(
     Symbol_ptr blueprint_symbol,
     const ObjectStringMap& substitutions,
     const std::string& specialized_name
@@ -343,6 +343,8 @@ Symbol_ptr SemanticAnalyzer::monomorphize_class_template(
         overloaded{
             [&](ClassDefinition& def)
             {
+                current_scope = scope_forest[def.symbol];
+
                 def.name = specialized_name;
                 def.template_params.clear();
 
@@ -366,6 +368,8 @@ Symbol_ptr SemanticAnalyzer::monomorphize_class_template(
             },
             [&](TraitDefinition& def)
             {
+                current_scope = scope_forest[def.symbol];
+
                 def.name = specialized_name;
                 def.template_params.clear();
 

@@ -61,7 +61,7 @@ TEST(ParseLiterals, EmptyList)
 }
 
 TEST(ParseLiterals, MapLiteral) {
-    auto block = parse("{1 => 1, 2 => '2', 3 => 3.0}");
+    auto block = parse("{1 => 1, 2 => \"2\", 3 => 3.0}");
     ASSERT_EQ(block.size(), 1);
 
     auto& stmt = check<Wasp::ExpressionStatement>(block[0]);

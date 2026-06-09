@@ -316,7 +316,7 @@ struct ForInLoop : public Branch
 
 struct Placeholder
 {
-    // REQUIRED, or NATIVE
+    // REQUIRED, NATIVE or PASS
     TokenType type;
 
     Placeholder() = default;

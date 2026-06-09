@@ -138,6 +138,7 @@ void SemanticAnalyzer::hoist_signatures_and_store_ast(
                     auto clone = cloner.clone(make_statement(def));
 
                     forest[def.symbol] = clone;
+                    scope_forest[def.symbol] = current_scope;
                 },
                 [&](ClassDefinition& def)
                 {
@@ -150,6 +151,7 @@ void SemanticAnalyzer::hoist_signatures_and_store_ast(
                     ASTCloner cloner;
                     auto clone = cloner.clone(make_statement(def));
                     forest[def.symbol] = make_statement(def);
+                    scope_forest[def.symbol] = current_scope;
                 },
                 [&](TraitDefinition& def)
                 {
@@ -162,6 +164,7 @@ void SemanticAnalyzer::hoist_signatures_and_store_ast(
                     ASTCloner cloner;
                     auto clone = cloner.clone(make_statement(def));
                     forest[def.symbol] = make_statement(def);
+                    scope_forest[def.symbol] = current_scope;
                 },
                 [&](FunctionDefinition& def)
                 {
@@ -173,6 +176,7 @@ void SemanticAnalyzer::hoist_signatures_and_store_ast(
                     ASTCloner cloner;
                     auto clone = cloner.clone(make_statement(def));
                     forest[def.symbol] = make_statement(def);
+                    scope_forest[def.symbol] = current_scope;
                 },
                 [](auto&)
                 { /* No signature hoisting needed for other statements */ }

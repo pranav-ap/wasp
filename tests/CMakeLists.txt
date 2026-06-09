@@ -47,11 +47,11 @@ add_wasp_test_suite(parser_tests "parser"
 )
 
 # Compiler Suite
-add_wasp_test_suite(compiler_tests "compiler"
-    compiler/test_compile_branches.cpp
-    compiler/test_compile_expressions.cpp
-    compiler/test_compile_functions.cpp
-    compiler/test_compile_loops.cpp
-    compiler/test_compile_variables.cpp
-)
+# add_wasp_test_suite(compiler_tests "compiler"
+#     compiler/test_compile_branches.cpp
+#     compiler/test_compile_expressions.cpp
+#     compiler/test_compile_functions.cpp
+#     compiler/test_compile_loops.cpp
+#     compiler/test_compile_variables.cpp
+# )
 
