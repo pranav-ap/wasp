@@ -17,6 +17,9 @@ jobs:
 
   say-hello-action:
     runs-on: ubuntu-24.04
+    needs:
+    - say-hello-bash
+    - say-hello-python
     steps:
       - uses: actions/hello-world-javascript-action@e76147da8e5c81eaf017dede5645551d4b94427b
         with:
