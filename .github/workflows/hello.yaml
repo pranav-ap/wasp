@@ -3,11 +3,28 @@ name: Hello
 on:
   workflow_dispatch:
 
+  push:
+    branches:
+      - "actions-fruits"
+
+env:
+  NAME: JON
+
 jobs:
   say-hello-bash:
     runs-on: ubuntu-24.04
+    env:
+      GAME: Football
     steps:
-      - run: echo "Hello world!"
+      - name: Tell me about yourself
+        env:
+          FOOD: Ice Cream
+        run: |
+          echo "Hello world!"
+          echo "NAME : $NAME"
+          echo "GAME : $GAME"
+          echo "FOOD : $FOOD"
+
 
   say-hello-python:
     runs-on: ubuntu-24.04
