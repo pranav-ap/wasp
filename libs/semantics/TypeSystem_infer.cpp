@@ -454,6 +454,117 @@ bool TypeSystem::assignable(
                 );
             },
 
+            [&](TupleType_ptr lhs_tuple, ClassType_ptr rhs_class) -> bool
+            {
+                if (!rhs_class->is_primitive || rhs_class->name != "tuple")
+                {
+                    return false;
+                }
+                if (!rhs_class->template_type ||
+                    rhs_class->template_type->ordered_parameter_names.empty())
+                {
+                    return false;
+                }
+                const auto& param_name = rhs_class->template_type
+                                             ->ordered_parameter_names[0];
+                auto it = rhs_class->template_type->template_parameters.find(
+                    param_name
+                );
+                if (it == rhs_class->template_type->template_parameters.end())
+                {
+                    return false;
+                }
+                auto rhs_element_types = it->second;
+
+                // Resolve generic to its constraint
+                if (rhs_element_types->is<GenericType_ptr>())
+                {
+                    rhs_element_types = rhs_element_types->as<GenericType_ptr>()
+                                            ->constraint_type;
+                }
+
+                if (!rhs_element_types->is<TupleType_ptr>())
+                {
+                    return false;
+                }
+
+                auto rhs_tuple = rhs_element_types->as<TupleType_ptr>();
+
+                if (lhs_tuple->element_types.size() !=
+                    rhs_tuple->element_types.size())
+                {
+                    return false;
+                }
+
+                for (size_t i = 0; i < lhs_tuple->element_types.size(); i++)
+                {
+                    if (!assignable(
+                            scope,
+                            lhs_tuple->element_types[i],
+                            rhs_tuple->element_types[i]
+                        ))
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            },
+
+            [&](ClassType_ptr lhs_class, TupleType_ptr rhs_tuple) -> bool
+            {
+                if (!lhs_class->is_primitive || lhs_class->name != "tuple")
+                {
+                    return false;
+                }
+                if (lhs_class->template_type->ordered_parameter_names.empty())
+                {
+                    return false;
+                }
+                const auto& param_name = lhs_class->template_type
+                                             ->ordered_parameter_names[0];
+                auto it = lhs_class->template_type->template_parameters.find(
+                    param_name
+                );
+                if (it == lhs_class->template_type->template_parameters.end())
+                {
+                    return false;
+                }
+                auto lhs_element_types = it->second;
+
+                // Resolve generic to its constraint
+                if (lhs_element_types->is<GenericType_ptr>())
+                {
+                    lhs_element_types = lhs_element_types->as<GenericType_ptr>()
+                                            ->constraint_type;
+                }
+
+                if (!lhs_element_types->is<TupleType_ptr>())
+                {
+                    return false;
+                }
+
+                auto lhs_tuple = lhs_element_types->as<TupleType_ptr>();
+
+                if (lhs_tuple->element_types.size() !=
+                    rhs_tuple->element_types.size())
+                {
+                    return false;
+                }
+
+                for (size_t i = 0; i < lhs_tuple->element_types.size(); i++)
+                {
+                    if (!assignable(
+                            scope,
+                            lhs_tuple->element_types[i],
+                            rhs_tuple->element_types[i]
+                        ))
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            },
+
             // Set type to set class
             [&](ClassType_ptr lhs_class, SetType_ptr rhs_set) -> bool
             {

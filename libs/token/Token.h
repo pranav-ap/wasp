@@ -27,6 +27,7 @@
     X(AT_SIGN, "@", false)                                                     \
     X(DOT, ".", false)                                                         \
     X(DOT_DOT, "..", false)                                                    \
+    X(DOT_DOT_DOT, "...", false)                                               \
     X(DOT_DOT_LESS, "..<", false)                                              \
     X(DOT_DOT_EQUAL, "..=", false)                                             \
     X(QUESTION, "?", false)                                                    \
@@ -68,6 +69,7 @@
     X(ELSE, "else", true)                                                      \
     X(THEN, "then", true)                                                      \
     X(REQUIRED, "required", true)                                              \
+    X(PASS, "pass", true)                                                      \
     X(NONE, "none", true)                                                      \
     X(NOT, "not", true)                                                        \
     X(AND, "and", true)                                                        \

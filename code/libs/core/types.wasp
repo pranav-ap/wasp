@@ -164,17 +164,18 @@ class map is Printable & Truthy & Sized
         native
 
 
-# template
-#     ...T: any
-# class tuple is Printable
-#     fun repr() => str
-#         return "tuple"
 
-#     fun get(index: int) => T
-#         native
+template
+    ...T: any
+class tuple is Printable & Sized
+    fun repr() => str
+        return "tuple"
 
-#     fun to_list() => list<T>
-#         native
+    fun size() => int
+        native
+
+    fun get(index: int) => T
+        native
 
 
-# let x: (int, int, int) = (1, 2, 3)
+

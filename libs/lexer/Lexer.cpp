@@ -385,6 +385,11 @@ Token Lexer::consume_colon() {
 Token Lexer::consume_dot() {
     next();
     if (expect_current_char('.')) {
+        if (expect_current_char('.'))
+        {
+            return Token(TokenType::DOT_DOT_DOT, "...");
+        }
+
         if (expect_current_char('=')) {
             return Token(TokenType::DOT_DOT_EQUAL, "..=");
         }

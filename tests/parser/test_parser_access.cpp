@@ -39,7 +39,7 @@ TEST(ParseExpressions, FunctionCallWithoutArguments) {
 }
 
 TEST(ParseExpressions, FunctionCallWithMultipleArguments) {
-    auto block = parse("get_worker(1, 'John', true)");
+    auto block = parse("get_worker(1, \"John\", true)");
     ASSERT_EQ(block.size(), 1);
 
     auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
@@ -50,7 +50,7 @@ TEST(ParseExpressions, FunctionCallWithMultipleArguments) {
 }
 
 TEST(ParseExpressions, MethodCallWithArguments) {
-    auto block = parse("company.get_worker(1, 'John', true)");
+    auto block = parse("company.get_worker(1, \"John\", true)");
     ASSERT_EQ(block.size(), 1);
 
     auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
@@ -70,7 +70,7 @@ TEST(ParseExpressions, MethodCallWithArguments) {
 }
 
 TEST(ParseExpressions, MethodCallWithArgumentsThenMemberAccess) {
-    auto block = parse("company.get_worker(1, 'John', true).name");
+    auto block = parse("company.get_worker(1, \"John\", true).name");
     ASSERT_EQ(block.size(), 1);
 
     auto& stmt = check<Wasp::ExpressionStatement>(block[0]);

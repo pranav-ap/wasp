@@ -58,6 +58,7 @@ Statement_ptr Parser::parse_statement(int expected_indent_level)
 
     case TokenType::NATIVE:
     case TokenType::REQUIRED:
+    case TokenType::PASS:
         result = parse_placeholder(token->type);
         break;
 

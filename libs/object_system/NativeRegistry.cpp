@@ -320,6 +320,37 @@ static Object_ptr native_map_remove(const std::vector<Object_ptr>& args)
     return value ? value : make_object(std::make_shared<NoneObject>());
 }
 
+// Tuple native methods
+static Object_ptr native_tuple_get(const std::vector<Object_ptr>& args)
+{
+    auto self = args[0]->as<TupleObject_ptr>();
+    auto index = args[1]->as<IntObject_ptr>();
+
+    int idx = index->value;
+    int len = static_cast<int>(self->values.size());
+
+    // Handle negative indexing
+    if (idx < 0)
+    {
+        idx = len + idx;
+    }
+
+    Doctor::get().assert(
+        idx >= 0 && idx < len,
+        WaspStage::VM,
+        "Tuple index out of bounds: index " + std::to_string(index->value) +
+            ", size " + std::to_string(len)
+    );
+
+    return self->values[idx];
+}
+
+static Object_ptr native_tuple_size(const std::vector<Object_ptr>& args)
+{
+    auto self = args[0]->as<TupleObject_ptr>();
+    return make_object(std::make_shared<IntObject>(self->values.size()));
+}
+
 } // namespace
 
 Object_ptr NativeRegistry::get_native_object(int index) const
@@ -379,39 +410,31 @@ void NativeRegistry::load_stdlib()
 
     // STR
     add_native("libs.core.types.str.hash", native_str_hash);
-
     add_native("libs.core.types.str.size", native_str_size);
-
     add_native("libs.core.types.str.slice", native_str_slice);
-
     add_native("libs.core.types.str.trim", native_str_trim);
 
     // LIST
     add_native("libs.core.types.list.size", native_list_size);
-
     add_native("libs.core.types.list.get", native_list_get);
-
     add_native("libs.core.types.list.set", native_list_set);
 
     // SET
     add_native("libs.core.types.set.size", native_set_size);
-
     add_native("libs.core.types.set.contains", native_set_contains);
-
     add_native("libs.core.types.set.add", native_set_add);
-
     add_native("libs.core.types.set.remove", native_set_remove);
 
     // MAP
     add_native("libs.core.types.map.size", native_map_size);
-
     add_native("libs.core.types.map.get", native_map_get);
-
     add_native("libs.core.types.map.set", native_map_set);
-
     add_native("libs.core.types.map.contains_key", native_map_contains_key);
-
     add_native("libs.core.types.map.remove", native_map_remove);
+
+    // TUPLE
+    add_native("libs.core.types.tuple.get", native_tuple_get);
+    add_native("libs.core.types.tuple.size", native_tuple_size);
 }
 
 } // namespace Wasp

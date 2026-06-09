@@ -124,8 +124,6 @@ Object_ptr SemanticAnalyzer::visit(Constructor& constructor)
         "Invalid constructor target: '" + target_type->to_string() +
             "' is not a constructible type."
     );
-
-    return nullptr;
 }
 
 } // namespace Wasp

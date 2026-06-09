@@ -81,3 +81,12 @@ print(flist.size())
 print("jack  ".trim() + "son")
 
 
+# let x: (Foo) = (f)
+# x.repr()
+
+if 1 == 25 then
+    pass
+elif 1 == 30 then
+    pass
+else
+    pass

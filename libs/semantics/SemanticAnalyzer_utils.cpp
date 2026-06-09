@@ -9,6 +9,8 @@
 
 #include <ctime>
 #include <memory>
+#include <optional>
+#include <string>
 #include <utility>
 
 template <class... Ts> struct overloaded : Ts...
@@ -86,6 +88,7 @@ TemplateType_ptr SemanticAnalyzer::create_template_type(
 {
     ObjectStringMap template_params_map;
     StringVector ordered_names;
+    std::optional<std::string> variadic_name = std::nullopt;
 
     for (const auto& field : template_params)
     {
@@ -117,8 +120,30 @@ TemplateType_ptr SemanticAnalyzer::create_template_type(
             }
         }
 
+        if (field.is_variadic)
+        {
+            Doctor::get().assert(
+                !variadic_name.has_value(),
+                WaspStage::Semantics,
+                "Multiple variadic template parameters are not allowed"
+            );
+
+            Doctor::get().assert(
+                template_params_map.empty() ||
+                    variadic_name.has_value() == false,
+                WaspStage::Semantics,
+                "Variadic template parameter must be the last parameter"
+            );
+
+            variadic_name = field.name;
+        }
+
         auto generic_type_obj = make_object(
-            std::make_shared<GenericType>(field.name, constraint_type)
+            std::make_shared<GenericType>(
+                field.name,
+                constraint_type,
+                field.is_variadic
+            )
         );
 
         Doctor::get().assert(
@@ -133,7 +158,8 @@ TemplateType_ptr SemanticAnalyzer::create_template_type(
 
     return std::make_shared<TemplateType>(
         std::move(template_params_map),
-        std::move(ordered_names)
+        std::move(ordered_names),
+        variadic_name
     );
 }
 

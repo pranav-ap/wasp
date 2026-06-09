@@ -39,6 +39,7 @@ private:
     ObjectVector return_type_stack;
 
     std::map<Symbol_ptr, Statement_ptr> forest;
+    std::map<Symbol_ptr, SymbolScope_ptr> scope_forest;
 
     StatementVector pending_templates;
 
@@ -313,7 +314,7 @@ private:
         const std::string& specialized_name
     );
 
-    Symbol_ptr monomorphize_class_template(
+    Symbol_ptr monomorphize_oops_template(
         Symbol_ptr blueprint_symbol,
         const ObjectStringMap& substitutions,
         const std::string& specialized_name
