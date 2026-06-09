@@ -108,7 +108,6 @@ Object_ptr SemanticAnalyzer::visit(LiteralTypeNode& expr)
                     WaspStage::Semantics,
                     "Expression inside LiteralTypeNode is not a valid literal."
                 );
-                return nullptr;
             }
         },
         expr.literal->data

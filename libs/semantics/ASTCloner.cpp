@@ -32,39 +32,39 @@ std::string get_raw_type_name(Object_ptr obj)
 
     return std::visit(
         overloaded{
-            [](const ClassType_ptr& c)
+            [](const ClassType_ptr c)
             {
                 return c->name;
             },
-            [](const TraitType_ptr& t)
+            [](const TraitType_ptr t)
             {
                 return t->name;
             },
-            [](const TypeAlias_ptr& a)
+            [](const TypeAlias_ptr a)
             {
                 return get_raw_type_name(a->underlying_type);
             },
-            [](const GenericType_ptr& g)
+            [](const GenericType_ptr g)
             {
                 return g->name;
             },
-            [](const IntType&)
+            [](const IntType_ptr)
             {
                 return std::string("int");
             },
-            [](const FloatType&)
+            [](const FloatType_ptr)
             {
                 return std::string("float");
             },
-            [](const StringType&)
+            [](const StringType_ptr)
             {
                 return std::string("str");
             },
-            [](const BooleanType&)
+            [](const BooleanType_ptr)
             {
                 return std::string("bool");
             },
-            [](const AnyType&)
+            [](const AnyType_ptr)
             {
                 return std::string("any");
             },
@@ -359,6 +359,22 @@ StatementVariant ASTCloner::clone_stmt_data(const StatementVariant& data)
             [&](const FunctionDefinition& n) -> StatementVariant
             {
                 FunctionDefinition c = n;
+                c.return_type = clone(n.return_type);
+                c.body = clone(n.body);
+                for (auto& param : c.parameters)
+                {
+                    param.type = clone(param.type);
+                }
+
+                // wipe_callable(c);
+                c.symbol = n.symbol;
+
+                return c;
+            },
+
+            [&](const MethodDefinition& n) -> StatementVariant
+            {
+                MethodDefinition c = n;
                 c.return_type = clone(n.return_type);
                 c.body = clone(n.body);
                 for (auto& param : c.parameters)

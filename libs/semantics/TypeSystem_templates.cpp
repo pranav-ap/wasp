@@ -30,7 +30,6 @@ ObjectStringMap TypeSystem::infer_template_arguments(
     for (size_t i = 0; i < signature->parameter_types.size(); ++i)
     {
         auto param_type = signature->parameter_types[i];
-        param_type = resolve_type(param_type, false);
 
         if (param_type->is<GenericType_ptr>())
         {

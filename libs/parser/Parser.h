@@ -47,12 +47,14 @@ private:
     StatementVector parse_statements_block(int expected_indent_level);
     Statement_ptr parse_expression_statement();
 
+    void consume_indents(int expected_indent_level);
+
     // --- Definitions & Declarations ---
     Expression_ptr parse_variable_definition(bool is_mutable);
     Statement_ptr parse_function_definition(
         int indent_level,
         bool in_class_block = false,
-        bool is_our = false,
+        bool is_static = false,
         bool is_pure = false
     );
     Statement_ptr parse_operator_definition(TokenType fixity, int indent_level);

@@ -313,6 +313,58 @@ bool TypeSystem::assignable(
         );
     }
 
+    // Composite Types
+    if (lhs->is<ListType_ptr>() && rhs->is<ListType_ptr>())
+    {
+        auto lhs_list = lhs->as<ListType_ptr>();
+        auto rhs_list = rhs->as<ListType_ptr>();
+        return assignable(
+            scope,
+            lhs_list->element_type,
+            rhs_list->element_type
+        );
+    }
+
+    if (lhs->is<SetType_ptr>() && rhs->is<SetType_ptr>())
+    {
+        auto lhs_set = lhs->as<SetType_ptr>();
+        auto rhs_set = rhs->as<SetType_ptr>();
+        return assignable(scope, lhs_set->element_type, rhs_set->element_type);
+    }
+
+    if (lhs->is<TupleType_ptr>() && rhs->is<TupleType_ptr>())
+    {
+        auto lhs_tuple = lhs->as<TupleType_ptr>();
+        auto rhs_tuple = rhs->as<TupleType_ptr>();
+
+        if (lhs_tuple->element_types.size() != rhs_tuple->element_types.size())
+        {
+            return false;
+        }
+
+        for (size_t i = 0; i < lhs_tuple->element_types.size(); i++)
+        {
+            if (!assignable(
+                    scope,
+                    lhs_tuple->element_types[i],
+                    rhs_tuple->element_types[i]
+                ))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    if (lhs->is<MapType_ptr>() && rhs->is<MapType_ptr>())
+    {
+        auto lhs_map = lhs->as<MapType_ptr>();
+        auto rhs_map = rhs->as<MapType_ptr>();
+
+        return assignable(scope, lhs_map->key_type, rhs_map->key_type) &&
+               assignable(scope, lhs_map->value_type, rhs_map->value_type);
+    }
+
     return std::visit(
         ::overloaded{
             [](AnyType_ptr, const auto&)
@@ -340,6 +392,239 @@ bool TypeSystem::assignable(
                     }
                 }
                 return false;
+            },
+
+            // Mixes
+
+            // List type to list class
+            [&](ClassType_ptr lhs_class, ListType_ptr rhs_list) -> bool
+            {
+                if (!lhs_class->is_primitive || lhs_class->name != "list")
+                {
+                    return false;
+                }
+                // Get the first template parameter from the class
+                if (!lhs_class->template_type ||
+                    lhs_class->template_type->ordered_parameter_names.empty())
+                {
+                    return false;
+                }
+                const auto& param_name = lhs_class->template_type
+                                             ->ordered_parameter_names[0];
+                auto it = lhs_class->template_type->template_parameters.find(
+                    param_name
+                );
+                if (it == lhs_class->template_type->template_parameters.end())
+                {
+                    return false;
+                }
+                auto lhs_element_type = it->second;
+                return assignable(
+                    scope,
+                    lhs_element_type,
+                    rhs_list->element_type
+                );
+            },
+
+            [&](ListType_ptr lhs_list, ClassType_ptr rhs_class) -> bool
+            {
+                if (!rhs_class->is_primitive || rhs_class->name != "list")
+                {
+                    return false;
+                }
+                if (!rhs_class->template_type ||
+                    rhs_class->template_type->ordered_parameter_names.empty())
+                {
+                    return false;
+                }
+                const auto& param_name = rhs_class->template_type
+                                             ->ordered_parameter_names[0];
+                auto it = rhs_class->template_type->template_parameters.find(
+                    param_name
+                );
+                if (it == rhs_class->template_type->template_parameters.end())
+                {
+                    return false;
+                }
+                auto rhs_element_type = it->second;
+                return assignable(
+                    scope,
+                    lhs_list->element_type,
+                    rhs_element_type
+                );
+            },
+
+            // Set type to set class
+            [&](ClassType_ptr lhs_class, SetType_ptr rhs_set) -> bool
+            {
+                if (!lhs_class->is_primitive || lhs_class->name != "set")
+                {
+                    return false;
+                }
+                if (!lhs_class->template_type ||
+                    lhs_class->template_type->ordered_parameter_names.empty())
+                {
+                    return false;
+                }
+                const auto& param_name = lhs_class->template_type
+                                             ->ordered_parameter_names[0];
+                auto it = lhs_class->template_type->template_parameters.find(
+                    param_name
+                );
+                if (it == lhs_class->template_type->template_parameters.end())
+                {
+                    return false;
+                }
+                auto lhs_element_type = it->second;
+                return assignable(
+                    scope,
+                    lhs_element_type,
+                    rhs_set->element_type
+                );
+            },
+
+            [&](SetType_ptr lhs_set, ClassType_ptr rhs_class) -> bool
+            {
+                if (!rhs_class->is_primitive || rhs_class->name != "set")
+                {
+                    return false;
+                }
+                if (!rhs_class->template_type ||
+                    rhs_class->template_type->ordered_parameter_names.empty())
+                {
+                    return false;
+                }
+                const auto& param_name = rhs_class->template_type
+                                             ->ordered_parameter_names[0];
+                auto it = rhs_class->template_type->template_parameters.find(
+                    param_name
+                );
+                if (it == rhs_class->template_type->template_parameters.end())
+                {
+                    return false;
+                }
+                auto rhs_element_type = it->second;
+                return assignable(
+                    scope,
+                    lhs_set->element_type,
+                    rhs_element_type
+                );
+            },
+
+            // Map type to map class
+            [&](ClassType_ptr lhs_class, MapType_ptr rhs_map) -> bool
+            {
+                if (!lhs_class->is_primitive || lhs_class->name != "map")
+                {
+                    return false;
+                }
+                if (!lhs_class->template_type ||
+                    lhs_class->template_type->ordered_parameter_names.size() <
+                        2)
+                {
+                    return false;
+                }
+
+                // Get key type
+                const auto& key_param_name = lhs_class->template_type
+                                                 ->ordered_parameter_names[0];
+                auto key_it = lhs_class->template_type->template_parameters
+                                  .find(key_param_name);
+                if (key_it ==
+                    lhs_class->template_type->template_parameters.end())
+                {
+                    return false;
+                }
+
+                // Get value type
+                const auto& value_param_name = lhs_class->template_type
+                                                   ->ordered_parameter_names[1];
+                auto value_it = lhs_class->template_type->template_parameters
+                                    .find(value_param_name);
+                if (value_it ==
+                    lhs_class->template_type->template_parameters.end())
+                {
+                    return false;
+                }
+
+                return assignable(scope, key_it->second, rhs_map->key_type) &&
+                       assignable(scope, value_it->second, rhs_map->value_type);
+            },
+
+            [&](MapType_ptr lhs_map, ClassType_ptr rhs_class) -> bool
+            {
+                if (!rhs_class->is_primitive || rhs_class->name != "map")
+                {
+                    return false;
+                }
+                if (!rhs_class->template_type ||
+                    rhs_class->template_type->ordered_parameter_names.size() <
+                        2)
+                {
+                    return false;
+                }
+
+                // Get key type
+                const auto& key_param_name = rhs_class->template_type
+                                                 ->ordered_parameter_names[0];
+                auto key_it = rhs_class->template_type->template_parameters
+                                  .find(key_param_name);
+                if (key_it ==
+                    rhs_class->template_type->template_parameters.end())
+                {
+                    return false;
+                }
+
+                // Get value type
+                const auto& value_param_name = rhs_class->template_type
+                                                   ->ordered_parameter_names[1];
+                auto value_it = rhs_class->template_type->template_parameters
+                                    .find(value_param_name);
+                if (value_it ==
+                    rhs_class->template_type->template_parameters.end())
+                {
+                    return false;
+                }
+
+                return assignable(scope, lhs_map->key_type, key_it->second) &&
+                       assignable(scope, lhs_map->value_type, value_it->second);
+            },
+
+            // Primitive type to native class
+            [&](ClassType_ptr lhs_class, IntType_ptr) -> bool
+            {
+                return lhs_class->is_primitive && lhs_class->name == "int";
+            },
+            [&](IntType_ptr, ClassType_ptr rhs_class) -> bool
+            {
+                return rhs_class->is_primitive && rhs_class->name == "int";
+            },
+
+            [&](ClassType_ptr lhs_class, FloatType_ptr) -> bool
+            {
+                return lhs_class->is_primitive && lhs_class->name == "float";
+            },
+            [&](FloatType_ptr, ClassType_ptr rhs_class) -> bool
+            {
+                return rhs_class->is_primitive && rhs_class->name == "float";
+            },
+
+            [&](ClassType_ptr lhs_class, StringType_ptr) -> bool
+            {
+                return lhs_class->is_primitive && lhs_class->name == "str";
+            },
+            [&](StringType_ptr, ClassType_ptr rhs_class) -> bool
+            {
+                return rhs_class->is_primitive && rhs_class->name == "str";
+            },
+
+            [&](ClassType_ptr lhs_class, BooleanType_ptr) -> bool
+            {
+                return lhs_class->is_primitive && lhs_class->name == "bool";
+            },
+            [&](BooleanType_ptr, ClassType_ptr rhs_class) -> bool
+            {
+                return rhs_class->is_primitive && rhs_class->name == "bool";
             },
 
             [](const auto&, const auto&)

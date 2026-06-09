@@ -9,6 +9,7 @@
 #include "SemanticAnalyzer.h"
 #include "Statement.h"
 #include "SymbolScope.h"
+#include "Token.h"
 #include "Workspace.h"
 
 template <class... Ts> struct overloaded : Ts...
@@ -120,7 +121,7 @@ void SemanticAnalyzer::fill_oops_member_names(
                     oop_type->record_type->types[f.name] = field_type;
                     oop_type->record_type->ordered_keys.push_back(f.name);
                 },
-                [&](const FunctionDefinition& m)
+                [&](const MethodDefinition& m)
                 {
                     if (!oop_type->bag_type->types.contains(m.name))
                     {
@@ -165,11 +166,30 @@ void SemanticAnalyzer::inherit_default_methods(
         auto trait_ast = ast->try_as<TraitDefinition>();
         Doctor::get().fatal_if_nullptr(trait_ast, WaspStage::Semantics);
 
-        def.members.insert(
-            def.members.end(),
-            trait_ast->members.begin(),
-            trait_ast->members.end()
-        );
+        if (trait_ast->members.empty())
+        {
+            continue;
+        }
+
+        for (auto& member : trait_ast->members)
+        {
+            auto func_def = member->try_as<MethodDefinition>();
+
+            if (func_def->body.size() == 1)
+            {
+                auto only_stmt = func_def->body[0].get();
+                if (only_stmt->try_as<Placeholder>())
+                {
+                    auto& only_stmt_placeholder = only_stmt->as<Placeholder>();
+                    if (only_stmt_placeholder.type == TokenType::REQUIRED)
+                    {
+                        continue;
+                    }
+                }
+            }
+
+            def.members.push_back(member);
+        }
     }
 }
 
@@ -180,7 +200,7 @@ void SemanticAnalyzer::hoist_methods(
 {
     for (auto& stmt : def.members)
     {
-        if (auto* method = stmt->try_as<FunctionDefinition>())
+        if (auto* method = stmt->try_as<MethodDefinition>())
         {
             ObjectVector param_types;
             for (const auto& param : method->parameters)
@@ -192,13 +212,13 @@ void SemanticAnalyzer::hoist_methods(
                                    ? visit(method->return_type)
                                    : workspace->pool->get_none_type();
 
-            auto new_signature = make_object(
-                std::make_shared<Signature>(
-                    param_types,
-                    return_type,
-                    oop_type->template_type
-                )
+            auto new_sig = std::make_shared<Signature>(
+                param_types,
+                return_type,
+                oop_type->template_type
             );
+
+            auto new_signature = make_object(new_sig);
 
             if (method->symbol)
             {
@@ -212,6 +232,12 @@ void SemanticAnalyzer::hoist_methods(
                     current_scope->get_closure_depth(),
                     current_scope->get_lexical_depth()
                 );
+            }
+
+            if (method->is_static)
+            {
+                method->symbol->mark_as_static();
+                new_sig->is_static_method = true;
             }
 
             Doctor::get().assert(
@@ -279,13 +305,18 @@ void SemanticAnalyzer::analyze_methods(AbstractOopsDefinition& def)
 {
     for (auto& stmt : def.members)
     {
-        if (auto* method = stmt->try_as<FunctionDefinition>())
-        {
-            ScopeType scope_type = method->is_pure ? ScopeType::PURE_METHOD
-                                                   : ScopeType::METHOD;
-
-            analyze_callable(*method, scope_type);
-        }
+        std::visit(
+            overloaded{
+                [&](MethodDefinition& method)
+                {
+                    visit(method);
+                },
+                [](auto&)
+                {
+                }
+            },
+            stmt->data
+        );
     }
 }
 
@@ -343,38 +374,33 @@ void SemanticAnalyzer::check_trait_conformance(OopsType_ptr oop_type)
                     auto class_sig = class_set->types[c_idx]
                                          ->as<Signature_ptr>();
 
-                    // Skip the 'self' parameter (first parameter) for both
-                    size_t trait_param_start = trait_sig->parameter_types
-                                                       .empty()
-                                                   ? 0
-                                                   : 1;
-                    size_t class_param_start = class_sig->parameter_types
-                                                       .empty()
-                                                   ? 0
-                                                   : 1;
+                    // First check: both must be static OR both must be instance
+                    if (trait_sig->is_static_method !=
+                        class_sig->is_static_method)
+                    {
+                        continue; // Cannot match static with instance
+                    }
 
                     size_t trait_param_count = trait_sig->parameter_types
                                                    .size() -
-                                               trait_param_start;
+                                               1;
                     size_t class_param_count = class_sig->parameter_types
                                                    .size() -
-                                               class_param_start;
+                                               1;
 
                     if (trait_param_count != class_param_count)
                     {
                         continue;
                     }
 
-                    // Compare parameter types (excluding self)
+                    // Compare parameter types (excluding self if applicable)
                     bool params_match = true;
                     for (size_t p_idx = 0; p_idx < trait_param_count; ++p_idx)
                     {
                         if (!type_system->equal(
                                 current_scope,
-                                trait_sig->parameter_types
-                                    [trait_param_start + p_idx],
-                                class_sig
-                                    ->parameter_types[class_param_start + p_idx]
+                                trait_sig->parameter_types[1 + p_idx],
+                                class_sig->parameter_types[1 + p_idx]
                             ))
                         {
                             params_match = false;

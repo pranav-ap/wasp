@@ -67,7 +67,6 @@ private:
     int resolve_upvalue(Compiler* current_compiler, Symbol_ptr symbol);
 
     int resolve_local(int symbol_id);
-    int resolve_local(const std::string& name);
 
     // ------------------------------------------------------------------------
     // Control Flow Graph
@@ -143,8 +142,7 @@ private:
     void compile_function_closure(
         const std::string& name,
         const std::vector<Symbol_ptr>& parameters,
-        StatementVector body,
-        Symbol_ptr context_symbol = nullptr
+        StatementVector body
     );
 
     // Expressions

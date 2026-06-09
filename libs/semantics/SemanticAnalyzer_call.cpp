@@ -1,10 +1,8 @@
 #include "AST.h"
-#include "ASTCloner.h"
 #include "Doctor.h"
 #include "Expression.h"
 #include "Objects.h"
 #include "SemanticAnalyzer.h"
-#include "Statement.h"
 #include "Workspace.h"
 
 #include <cctype>
@@ -70,7 +68,9 @@ Object_ptr SemanticAnalyzer::handle_member_call(
     ObjectVector& argument_types
 )
 {
-    Object_ptr left_type = visit(ma.left)->unwrap_completely();
+    Object_ptr left_type = visit(ma.left);
+    left_type = left_type->unwrap_completely();
+
     argument_types.insert(argument_types.begin(), left_type);
 
     return std::visit(
@@ -102,6 +102,22 @@ Object_ptr SemanticAnalyzer::handle_member_call(
             [&](StringType_ptr type) -> Object_ptr
             {
                 return call_native_method(call, ma, argument_types, "str");
+            },
+            [&](ListType_ptr type) -> Object_ptr
+            {
+                return call_native_method(call, ma, argument_types, "list");
+            },
+            [&](TupleType_ptr type) -> Object_ptr
+            {
+                return call_native_method(call, ma, argument_types, "tuple");
+            },
+            [&](SetType_ptr type) -> Object_ptr
+            {
+                return call_native_method(call, ma, argument_types, "set");
+            },
+            [&](MapType_ptr type) -> Object_ptr
+            {
+                return call_native_method(call, ma, argument_types, "map");
             },
 
             [&](ClassType_ptr class_type) -> Object_ptr
@@ -241,258 +257,30 @@ int SemanticAnalyzer::compute_runtime_overload_index(
 }
 
 // ============================================================================
-// Implicit Template Resolution
-// ============================================================================
-
-Object_ptr SemanticAnalyzer::resolve_implicit_template(
-    Call& call,
-    Symbol_ptr function_symbol,
-    Signature_ptr signature,
-    const ObjectVector& argument_types
-)
-{
-    auto substitutions = type_system->infer_template_arguments(
-        signature,
-        argument_types
-    );
-    auto deduced_args = validate_and_collect_deduced_args(
-        signature,
-        substitutions
-    );
-
-    std::string specialized_name = function_symbol->name + "_" +
-                                   Object::mangle_object(deduced_args);
-
-    auto specialized_group = monomorphize_callable_template(
-        function_symbol,
-        substitutions,
-        specialized_name
-    );
-
-    call.overload_index = 0;
-    replace_callable_with_specialized(
-        call,
-        specialized_name,
-        specialized_group
-    );
-
-    auto overloads = specialized_group->get_overloads();
-    return overloads[0]
-        ->get_type()
-        ->as<Signature_ptr>()
-        ->return_type->unwrap_completely();
-}
-
-ObjectVector SemanticAnalyzer::validate_and_collect_deduced_args(
-    const Signature_ptr& signature,
-    const ObjectStringMap& substitutions
-)
-{
-    ObjectVector deduced_args;
-    for (const auto& param : signature->template_type->ordered_parameter_names)
-    {
-        if (!substitutions.contains(param))
-        {
-            Doctor::get().fatal(
-                WaspStage::Semantics,
-                "Could not deduce template parameter '" + param +
-                    "'. Explicit template arguments are required."
-            );
-        }
-        deduced_args.push_back(substitutions.at(param));
-    }
-    return deduced_args;
-}
-
-void SemanticAnalyzer::replace_callable_with_specialized(
-    Call& call,
-    const std::string& specialized_name,
-    Symbol_ptr specialized_group
-)
-{
-    Identifier specialized_id(specialized_name);
-    specialized_id.symbol = specialized_group;
-    call.callable->data = specialized_id;
-}
-
-// ============================================================================
-// Template Function Call with Explicit Angular Arguments
-// ============================================================================
-
-Object_ptr SemanticAnalyzer::call_template_function(
-    Call& call,
-    TemplateAngular& template_angular,
-    const ObjectVector& argument_types
-)
-{
-    auto angular_args = resolve_angular_arguments(template_angular);
-    auto target_symbol = resolve_template_target(template_angular);
-
-    auto candidates = target_symbol->get_overloads();
-    auto generic_candidates = type_system->filter_by_generic_arity(
-        candidates,
-        angular_args.size()
-    );
-
-    auto
-        [specialized_candidates,
-         original_indices] = type_system
-                                 ->specialize_candidates(
-                                     generic_candidates,
-                                     angular_args
-                                 );
-
-    auto [best_signature, subset_index] = type_system->get_best_function_object(
-        current_scope,
-        specialized_candidates,
-        argument_types
-    );
-
-    auto blueprint_symbol = candidates[original_indices[subset_index]];
-    auto substitutions = build_substitutions_from_angular_args(
-        blueprint_symbol,
-        angular_args
-    );
-
-    std::string specialized_name = blueprint_symbol->name + "_" +
-                                   Object::mangle_object(angular_args);
-
-    auto specialized_group = monomorphize_callable_template(
-        blueprint_symbol,
-        substitutions,
-        specialized_name
-    );
-
-    template_angular.symbol = specialized_group;
-    call.overload_index = 0;
-
-    replace_callable_with_specialized(
-        call,
-        specialized_name,
-        specialized_group
-    );
-
-    auto overloads = specialized_group->get_overloads();
-    return overloads[0]
-        ->get_type()
-        ->as<Signature_ptr>()
-        ->return_type->unwrap_completely();
-}
-
-ObjectVector SemanticAnalyzer::resolve_angular_arguments(
-    TemplateAngular& template_angular
-)
-{
-    ObjectVector args;
-    for (auto& node : template_angular.angular_nodes)
-    {
-        args.push_back(visit(node));
-    }
-    return args;
-}
-
-Symbol_ptr SemanticAnalyzer::resolve_template_target(
-    TemplateAngular& template_angular
-)
-{
-    auto symbol = resolve_target_symbol(template_angular.target);
-    template_angular.symbol = symbol;
-
-    Doctor::get().assert(
-        template_angular.target->is<Identifier>(),
-        WaspStage::Semantics,
-        "Expected template target to be an identifier."
-    );
-
-    bind_identifier(template_angular.target->as<Identifier>(), symbol);
-    return symbol;
-}
-
-ObjectStringMap SemanticAnalyzer::build_substitutions_from_angular_args(
-    Symbol_ptr blueprint_symbol,
-    const ObjectVector& angular_args
-)
-{
-    auto signature = blueprint_symbol->get_type()->as<Signature_ptr>();
-    Doctor::get().fatal_if_nullptr(
-        signature->template_type,
-        WaspStage::Semantics,
-        "Expected template_type on function signature"
-    );
-
-    ObjectStringMap substitutions;
-    const auto& param_names = signature->template_type->ordered_parameter_names;
-    for (size_t i = 0; i < param_names.size(); ++i)
-    {
-        substitutions[param_names[i]] = angular_args[i];
-    }
-    return substitutions;
-}
-
-// ============================================================================
-// Monomorphization
-// ============================================================================
-
-Symbol_ptr SemanticAnalyzer::monomorphize_callable_template(
-    Symbol_ptr blueprint_symbol,
-    const ObjectStringMap& substitutions,
-    const std::string& specialized_name
-)
-{
-    auto ast = forest[blueprint_symbol];
-    Doctor::get().fatal_if_nullptr(ast, WaspStage::Semantics);
-
-    ASTCloner cloner(substitutions);
-    Statement_ptr specialized_stmt = cloner.clone(ast);
-
-    Symbol_ptr specialized_group_symbol = nullptr;
-    // SymbolScope_ptr previous_scope = current_scope;
-    // current_scope = function_data.declaration_scope;
-
-    std::visit(
-        overloaded{
-            [&](FunctionDefinition& def)
-            {
-                def.name = specialized_name;
-                def.template_params.clear();
-                hoist(def);
-                visit(def);
-                specialized_group_symbol = def.group_symbol;
-            },
-            [&](auto&)
-            {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "Expected a function or operator definition"
-                );
-            }
-        },
-        specialized_stmt->data
-    );
-
-    Doctor::get().fatal_if_nullptr(
-        specialized_group_symbol,
-        WaspStage::Semantics
-    );
-
-    // current_scope = previous_scope;
-    pending_templates.push_back(specialized_stmt);
-
-    return specialized_group_symbol;
-}
-
-// ============================================================================
 // Method Call
 // ============================================================================
 
 Object_ptr SemanticAnalyzer::call_method(
     Call& call,
-    MemberAccess& access,
+    MemberAccess& ma,
     const ObjectVector& argument_types,
     OopsType_ptr oops_type
 )
 {
-    auto method_name = access.right->as<Identifier>().name;
+    if (ma.left->is<Identifier>())
+    {
+        auto left_id = ma.left->as<Identifier>();
+        auto left_symbol = current_scope->lookup_required_and_resolve(
+            left_id.name
+        );
+
+        if (left_symbol->is<OopsSymbol>() || left_id.name == "our")
+        {
+            call.is_static_method_call = true;
+        }
+    }
+
+    auto method_name = ma.right->as<Identifier>().name;
 
     Doctor::get().assert(
         oops_type->contains_member(method_name),
@@ -524,7 +312,7 @@ Object_ptr SemanticAnalyzer::call_method(
                                                         argument_types
                                                     );
 
-    access.member_index = oops_type->bag_type->get_index(method_name);
+    ma.member_index = oops_type->bag_type->get_index(method_name);
 
     call.overload_index = overload_index;
     call.is_method_call = true;
@@ -593,14 +381,16 @@ Object_ptr SemanticAnalyzer::call_native_method(
     std::string native_class_name
 )
 {
-    call.is_native_method_call = true;
+    call.is_primitive_method_call = true;
 
     auto native_class = current_scope->lookup_required_and_resolve(
         native_class_name
     );
 
     auto native_class_type = native_class->get_type()->as<ClassType_ptr>();
-    native_class_type->is_native = true;
+    native_class_type->is_primitive = true;
+    call.primitive_class_type_id = native_class_type->type_id;
+    call.primitive_class_symbol_id = native_class->id;
 
     return call_method(call, ma, argument_types, native_class_type);
 }

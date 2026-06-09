@@ -179,10 +179,21 @@ void Symbol::mark_as_required()
     Doctor::get().assert(
         is<FunctionSymbol>(),
         WaspStage::Semantics,
-        "Only function symbols can be marked as native."
+        "Only function symbols can be marked as required."
     );
 
     as<FunctionSymbol>().required_in_class = true;
+}
+
+void Symbol::mark_as_static()
+{
+    Doctor::get().assert(
+        is<FunctionSymbol>(),
+        WaspStage::Semantics,
+        "Only function symbols can be marked as static."
+    );
+
+    as<FunctionSymbol>().is_static_method = true;
 }
 
 // ============================================================================
@@ -343,7 +354,7 @@ Symbol_ptr SymbolFactory::create_oops(
     return create_symbol(name, OopsSymbol{type}, closure_depth, lexical_depth);
 }
 
-Symbol_ptr SymbolFactory::create_template_parameter(
+Symbol_ptr SymbolFactory::create_generic(
     const std::string& name,
     Object_ptr type,
     int closure_depth,

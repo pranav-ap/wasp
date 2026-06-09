@@ -334,11 +334,6 @@ bool TypeSystem::is_condition_type(
                 );
             },
 
-            [&](ClassType_ptr ct)
-            {
-                return ct->name == "Boolean";
-            },
-
             [](const auto&)
             {
                 return false;

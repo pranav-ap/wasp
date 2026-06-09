@@ -58,13 +58,14 @@ using ByteVector = std::vector<std::byte>;
     X(SET_LOCAL, 1)                                                            \
     X(GET_LOCAL, 1)                                                            \
     X(GET_NATIVE, 1)                                                           \
-    X(GET_IMPORTED_MEMBER, 1)  /* <member index> */                            \
-    X(SET_IMPORTED_MEMBER, 1)  /* <member index> */                            \
-    X(SET_FIELD, 1)            /* <member index> */                            \
-    X(GET_FIELD, 1)            /* <member index> */                            \
-    X(GET_FUNCTION, 1)         /* <overload index> */                          \
-    X(GET_PRIMITIVE_METHOD, 2) /* <member index, overload_index> */            \
-    X(GET_CLASS_METHOD, 2)     /* <member index, overload_index> */            \
+    X(GET_IMPORTED_MEMBER, 1)     /* <member index> */                         \
+    X(SET_IMPORTED_MEMBER, 1)     /* <member index> */                         \
+    X(SET_FIELD, 1)               /* <member index> */                         \
+    X(GET_FIELD, 1)               /* <member index> */                         \
+    X(GET_FUNCTION, 1)            /* <overload index> */                       \
+    X(GET_PRIMITIVE_METHOD, 2)    /* <member index, overload_index> */         \
+    X(GET_CLASS_METHOD, 2)        /* <member index, overload_index> */         \
+    X(GET_CLASS_STATIC_METHOD, 2) /* <member index, overload_index> */         \
     X(GET_TRAIT_METHOD, 3) /* <trait type id, member index, overload_index> */ \
     /* --- Scopes --- */                                                       \
     X(PUSH_SCOPE, 0)                                                           \

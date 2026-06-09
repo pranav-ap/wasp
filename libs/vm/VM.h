@@ -82,7 +82,9 @@ private:
     void execute_SET_FIELD(CallFrame* frame);
 
     void execute_GET_CLASS_METHOD(CallFrame* frame);
+    void execute_GET_CLASS_STATIC_METHOD(CallFrame* frame);
     void execute_GET_TRAIT_METHOD(CallFrame* frame);
+    void execute_GET_PRIMITIVE_METHOD(CallFrame* frame);
 
     // --- Math & Logic ---
     void execute_binary_op(OpCode op);

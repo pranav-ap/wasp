@@ -164,6 +164,33 @@ void VM::execute_GET_CLASS_METHOD(CallFrame* frame)
     push_to_stack(obj);
 }
 
+void VM::execute_GET_CLASS_STATIC_METHOD(CallFrame* frame)
+{
+    int member_idx = static_cast<int>(frame->consume_byte());
+    int overload_idx = static_cast<int>(frame->consume_byte());
+
+    Object_ptr obj = pop_from_stack();
+
+    auto blueprint = obj->as<ClassBlueprint_ptr>();
+    Doctor::get().fatal_if_nullptr(
+        blueprint,
+        WaspStage::VM,
+        "GET_CLASS_STATIC_METHOD requires a ClassBlueprint"
+    );
+
+    auto overloads_set = blueprint->bag->get_overloads_set(member_idx);
+    Doctor::get().fatal_if_nullptr(
+        overloads_set,
+        WaspStage::VM,
+        "Method Overlaods Set not found"
+    );
+
+    auto method = overloads_set->get_overload(overload_idx);
+
+    push_to_stack(method);
+    push_to_stack(obj);
+}
+
 void VM::execute_GET_TRAIT_METHOD(CallFrame* frame)
 {
     int trait_type_id = static_cast<int>(frame->consume_byte());
@@ -211,6 +238,35 @@ void VM::execute_GET_TRAIT_METHOD(CallFrame* frame)
 
     push_to_stack(method);
     push_to_stack(boxed_obj); // Push trait object as 'self'
+}
+
+void VM::execute_GET_PRIMITIVE_METHOD(CallFrame* frame)
+{
+    int member_index = static_cast<int>(frame->consume_byte());
+    int overload_index = static_cast<int>(frame->consume_byte());
+
+    Object_ptr class_blueprint_obj = pop_from_stack();
+    Object_ptr primitive_obj = pop_from_stack();
+
+    Doctor::get().assert(
+        class_blueprint_obj->is<ClassBlueprint_ptr>(),
+        WaspStage::VM,
+        "GET_PRIMITIVE_METHOD expects a Class Blueprint on the stack!"
+    );
+
+    auto class_blueprint = class_blueprint_obj->as<ClassBlueprint_ptr>();
+    auto overloads_set = class_blueprint->bag->get_overloads_set(member_index);
+
+    Doctor::get().fatal_if_nullptr(
+        overloads_set,
+        WaspStage::VM,
+        "Method not found at index: " + std::to_string(member_index)
+    );
+
+    auto method = overloads_set->get_overload(overload_index);
+
+    push_to_stack(method);
+    push_to_stack(primitive_obj);
 }
 
 void VM::execute_BUILD_FUNCTION(CallFrame* frame)

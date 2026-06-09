@@ -15,8 +15,8 @@
         "markdown": false,
         "scminput": false,
         "python": false,
-        "cpp": false,
-        "c": true
+        "c": true,
+        "cpp": true
     },
     // -----------------------------------------------------------------
     // Build System (CMake)

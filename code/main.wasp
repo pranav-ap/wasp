@@ -3,31 +3,30 @@ import core.types expose *
 import core.operators expose *
 
 
-class Foo is Printable & Truthy
-    score: int
-
-    fun repr() => str
-        return "Foo : {self.score}"
-
-    fun is_truthy() => bool
-        return self.score > 10
-
-    our fun shout()
-        print("Ahhhh!")
 
 
-let f = Foo(1)
-print(f)
-# Foo.shout()
+template
+    T: int | float | str
+fun greet(value: T)
+    print(value)
 
-fun lol(x: Printable)
-    print(x)
 
-fun lol(x: Printable & Truthy)
-    print(x)
-    print("------")
+greet<int>(3)
+greet(3)
 
-lol(f)
+
+template
+    T: int | float | str
+class Santa
+    a: T
+
+    fun gift()
+        print(self.a)
+
+
+let s = Santa("3")
+s.gift()
+
 
 fun show() => int
     let x = 1
@@ -40,4 +39,43 @@ let g = show()
 print(g)
 
 
-# print("sam".size())
+class Foo is Printable & Truthy
+    score: int
+
+    fun repr() => str
+        return "Foo : {self.score}"
+
+    fun is_truthy() => bool
+        return self.score > 10
+
+    share fun shout2(text2: str)
+        print(text2)
+
+    share fun shout(text: str)
+        our.shout2(text)
+        our.shout2(" ghost")
+
+
+
+let f = Foo(1)
+
+print(f)
+print(f.repr())
+Foo.shout("hi")
+
+
+fun lol(x: Printable)
+    print(x)
+
+fun lol(x: Printable & Truthy)
+    print(x)
+    print("------")
+
+lol(f)
+
+
+let flist : [Foo] = [f, f]
+print(flist.size())
+
+
+print("jack  ".trim() + "son")

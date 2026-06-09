@@ -52,11 +52,7 @@ public:
         FieldDefinitionVector template_params = {}
     );
 
-    static Field create_field(
-        const std::string& name,
-        TypeAnnotation_ptr type,
-        bool is_static = false
-    );
+    static Field create_field(const std::string& name, TypeAnnotation_ptr type);
 };
 
 } // namespace Wasp

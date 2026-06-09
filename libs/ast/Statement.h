@@ -71,12 +71,11 @@ struct Field
 {
     std::string name;
     TypeAnnotation_ptr type;
-    bool is_static;
 
     Field() = default;
 
-    Field(std::string name, TypeAnnotation_ptr type, bool is_static = false)
-        : name(std::move(name)), type(std::move(type)), is_static(is_static)
+    Field(std::string name, TypeAnnotation_ptr type)
+        : name(std::move(name)), type(std::move(type))
     {
     }
 };
@@ -89,7 +88,6 @@ struct CallableDefinition : public Definition, public Templatable
 
     StatementVector body;
 
-    std::shared_ptr<Symbol> context_symbol = nullptr;
     std::shared_ptr<Symbol> group_symbol;
 
     bool is_pure = false;

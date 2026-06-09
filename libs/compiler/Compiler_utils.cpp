@@ -152,20 +152,12 @@ int Compiler::resolve_local(int symbol_id)
         }
     }
 
-    // Not a variable on stack
-    return -1;
-}
-
-int Compiler::resolve_local(const std::string& name)
-{
-    for (int i = static_cast<int>(stack.size()) - 1; i >= 0; --i)
+    if (parent != nullptr)
     {
-        if (stack[i]->name == name)
-        {
-            return i;
-        }
+        return parent->resolve_local(symbol_id);
     }
 
+    // Not a variable on stack
     return -1;
 }
 

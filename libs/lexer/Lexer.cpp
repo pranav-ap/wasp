@@ -98,6 +98,24 @@ Token Lexer::next_token() {
         return consume_string_literal();
     }
 
+    if (current_char == '#')
+    {
+        next();
+
+        // Consume the rest of the line as a comment
+        std::string comment;
+
+        char current_char = get_current_char();
+        while (current_char != '\n' && current_char != '\0')
+        {
+            comment += current_char;
+            next();
+            current_char = get_current_char();
+        }
+
+        return Token(TokenType::COMMENT, comment);
+    }
+
     return consume_operators();
 }
 
@@ -467,21 +485,6 @@ Token Lexer::consume_single_char_punctuation(char ch) {
     case '@':
         next();
         return Token(TokenType::AT_SIGN, "@");
-    case '#': {
-        next();
-
-        // Consume the rest of the line as a comment
-        std::string comment;
-
-        char current_char = get_current_char();
-        while (current_char != '\n' && current_char != '\0') {
-            comment += current_char;
-            next();
-            current_char = get_current_char();
-        }
-
-        return Token(TokenType::COMMENT, comment);
-    }
     default:
         return consume_unknown_token();
     }

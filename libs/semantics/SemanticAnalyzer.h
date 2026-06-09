@@ -50,14 +50,13 @@ private:
     StringVector setup_ordered_export_names(Module_ptr mod);
     void extract_module_type(Module_ptr mod);
 
-    Statement_ptr get_ast(Symbol_ptr symbol) const;
-
     // Main Visitors
     void visit(const Statement_ptr statement);
     void visit(StatementVector& statements);
 
     void visit(ExpressionStatement& statement);
     void visit(FunctionDefinition& statement);
+    void visit(MethodDefinition& statement);
     void visit(ClassDefinition& statement);
     void visit(TraitDefinition& statement);
     void visit(EnumDefinition& statement);
@@ -256,6 +255,7 @@ private:
     void bind_identifier(Identifier& id, Symbol_ptr symbol);
 
     // Call Execution Evaluators
+
     Object_ptr call_method(
         Call& call,
         MemberAccess& mac,

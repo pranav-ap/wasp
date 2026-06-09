@@ -229,6 +229,8 @@ struct Signature
     Object_ptr return_type;
     TemplateType_ptr template_type;
 
+    bool is_static_method = false;
+
     Signature(
         ObjectVector parameter_types,
         Object_ptr return_type,
@@ -327,7 +329,7 @@ struct OopsType
 
     TemplateType_ptr template_type;
 
-    bool is_native = false;
+    bool is_primitive = false;
 
     explicit OopsType(
         std::string name,

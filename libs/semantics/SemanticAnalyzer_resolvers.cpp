@@ -364,11 +364,34 @@ Symbol_ptr SemanticAnalyzer::monomorphize_class_template(
 
                 specialized_symbol = def.symbol;
             },
+            [&](TraitDefinition& def)
+            {
+                def.name = specialized_name;
+                def.template_params.clear();
+
+                auto type = make_object(std::make_shared<TraitType>(def.name));
+                def.symbol = current_scope->define(
+                    SymbolFactory::create_oops(
+                        def.name,
+                        type,
+                        current_scope->get_closure_depth(),
+                        current_scope->get_lexical_depth()
+                    )
+                );
+
+                auto trait_type = type->as<TraitType_ptr>();
+                trait_type->template_type = std::make_shared<TemplateType>();
+
+                visit(def);
+                forest[def.symbol] = specialized_stmt;
+
+                specialized_symbol = def.symbol;
+            },
             [&](auto&)
             {
                 Doctor::get().fatal(
                     WaspStage::Semantics,
-                    "Expected a class definition for monomorphization"
+                    "Expected a class or trait definition for monomorphization"
                 );
             }
         },

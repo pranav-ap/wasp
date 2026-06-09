@@ -43,6 +43,7 @@ struct FunctionSymbol
     Object_ptr type;
     bool is_native;
     bool required_in_class = false;
+    bool is_static_method = false;
 
     FunctionSymbol(Object_ptr type, bool is_native);
 };
@@ -161,6 +162,7 @@ struct Symbol : public std::enable_shared_from_this<Symbol>
     bool is_native() const;
     void mark_as_native();
     void mark_as_required();
+    void mark_as_static();
 
     void add_overload(Symbol_ptr overload);
     SymbolVector get_overloads() const;
@@ -224,7 +226,7 @@ public:
         int lexical_depth = 0
     );
 
-    static Symbol_ptr create_template_parameter(
+    static Symbol_ptr create_generic(
         const std::string& name,
         Object_ptr type = nullptr,
         int closure_depth = 0,

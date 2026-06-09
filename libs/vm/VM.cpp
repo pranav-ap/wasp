@@ -213,8 +213,18 @@ void VM::run(FunctionBlueprintObject_ptr function_object)
             break;
         }
 
+        case OpCode::GET_CLASS_STATIC_METHOD: {
+            execute_GET_CLASS_STATIC_METHOD(frame);
+            break;
+        }
+
         case OpCode::GET_TRAIT_METHOD: {
             execute_GET_TRAIT_METHOD(frame);
+            break;
+        }
+
+        case OpCode::GET_PRIMITIVE_METHOD: {
+            execute_GET_PRIMITIVE_METHOD(frame);
             break;
         }
 
