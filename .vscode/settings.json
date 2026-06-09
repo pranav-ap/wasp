@@ -6,6 +6,10 @@
         ".devcontainer": true,
         "assets": true
     },
+    "files.associations": {
+        "**/.github/workflows/*.{yml,yaml}": "yaml",
+        "**/Taskfile.{yml,yaml}": "yaml",
+    },
     // -----------------------------------------------------------------
     // AI & Copilot
     // -----------------------------------------------------------------
