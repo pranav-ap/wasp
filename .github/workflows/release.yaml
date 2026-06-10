@@ -1,0 +1,120 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release'
+        required: true
+        default: '0.1.0'
+        type: string
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Update version in CMakeLists.txt
+      run: |
+        sed -i 's/project(wasp VERSION .*/project(wasp VERSION ${{ github.event.inputs.version }} DESCRIPTION "Wasp Programming Language Compiler")/' CMakeLists.txt
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ninja-build lld
+
+    - name: Configure CMake
+      run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+    - name: Build
+      run: cmake --build build --parallel $(nproc)
+
+    - name: Run tests
+      run: ctest --test-dir build -L "unit" --output-on-failure
+
+    - name: Create packages
+      run: cmake --build build --target package
+
+    - name: Upload Linux artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: wasp-linux
+        path: |
+          build/wasp-*.tar.gz
+          build/wasp-*.deb
+        retention-days: 7
+
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Update version in CMakeLists.txt
+      run: |
+        # PowerShell command to update version
+        (Get-Content CMakeLists.txt) -replace 'project\(wasp VERSION .* DESCRIPTION', 'project(wasp VERSION ${{ github.event.inputs.version }} DESCRIPTION' | Set-Content CMakeLists.txt
+
+    - name: Install Ninja
+      run: choco install ninja
+
+    - name: Configure CMake
+      run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+    - name: Build
+      run: cmake --build build --parallel
+
+    - name: Run tests
+      run: ctest --test-dir build -L "unit" --output-on-failure
+
+    - name: Create packages
+      run: cmake --build build --target package
+
+    - name: Upload Windows artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: wasp-windows
+        path: |
+          build/wasp-*.zip
+        retention-days: 7
+
+  create-release:
+    needs: [build-linux, build-windows]
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Download Linux artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: wasp-linux
+        path: linux
+
+    - name: Download Windows artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: wasp-windows
+        path: windows
+
+    - name: List artifacts
+      run: |
+        echo "Linux packages:"
+        ls -la linux/
+        echo "Windows packages:"
+        ls -la windows/
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ github.event.inputs.version }}
+        name: "Wasp v${{ github.event.inputs.version }}"
+        body: |
+          ## Wasp v${{ github.event.inputs.version }}
+
+          ### Installation
+
+          **Ubuntu/Debian:**
+          ```bash
+          sudo dpkg -i wasp-${{ github.event.inputs.version }}-Linux.deb
+
