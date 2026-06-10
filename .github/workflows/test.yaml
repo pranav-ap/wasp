@@ -29,5 +29,4 @@ jobs:
 
     - name: Run main
       run: |
-        sudo ln -s $(pwd)/build/src/wasp /usr/local/bin/wasp
-        wasp run ./code/main.wasp
+        ./build/src/wasp run ./code/main.wasp
