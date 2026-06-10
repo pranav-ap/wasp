@@ -26,7 +26,7 @@ jobs:
         sudo apt-get install -y ninja-build lld
 
     - name: Configure CMake
-      run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+      run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release  -DBUILD_TESTING=OFF
 
     - name: Build
       run: cmake --build build --parallel $(nproc)
@@ -57,7 +57,7 @@ jobs:
       run: choco install ninja
 
     - name: Configure CMake
-      run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+      run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release  -DBUILD_TESTING=OFF
 
     - name: Build
       run: cmake --build build --parallel
