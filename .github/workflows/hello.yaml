@@ -2,7 +2,6 @@ name: Hello
 
 on:
   workflow_dispatch:
-
   push:
     branches:
       - "actions-fruits"
@@ -13,10 +12,16 @@ env:
 jobs:
   say-hello-bash:
     runs-on: ubuntu-24.04
+
     env:
       GAME: Football
+
+    outputs:
+      drink: ${{steps.tell-me.outputs.drink}}
+
     steps:
       - name: Tell me about yourself
+        id: tell-me
         env:
           FOOD: Ice Cream
         run: |
@@ -24,20 +29,27 @@ jobs:
           echo "NAME : $NAME"
           echo "GAME : $GAME"
           echo "FOOD : $FOOD"
+          echo "drink=wine" >> "$GITHUB_OUTPUT"
 
 
   say-hello-python:
     runs-on: ubuntu-24.04
+
     steps:
       - run: print("Hello world!")
         shell: python
 
+
   say-hello-action:
     runs-on: ubuntu-24.04
+
     needs:
     - say-hello-bash
     - say-hello-python
+
     steps:
       - uses: actions/hello-world-javascript-action@e76147da8e5c81eaf017dede5645551d4b94427b
         with:
           who-to-greet: "world"
+      - run: echo "I got ${{needs.say-hello-bash.outputs.drink}}"
+
