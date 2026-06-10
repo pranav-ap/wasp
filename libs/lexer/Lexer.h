@@ -7,59 +7,45 @@
 
 namespace Wasp {
 
-
-class SourceCodePointer
+struct SourceCodePointer
 {
-	int index;
-public:
-	SourceCodePointer() : index(0) {};
+    int index;
 
-	void advance() {
+    int line_num;
+    int column_num;
+
+    SourceCodePointer() : index(0), line_num(1), column_num(1) {};
+
+    void advance()
+    {
         index++;
     }
 
-	void retreat() {
+    void retreat()
+    {
         index--;
     }
 
-	int get_index() const {
-        return index;
-    }
-};
-
-class TokenPosition
-{
-	int line_num;
-	int column_num;
-
-public:
-	TokenPosition() : line_num(1), column_num(1) {};
-
-	void increment_line_number() {
+    void increment_line_number()
+    {
         line_num++;
     }
 
-	void increment_column_number() {
+    void increment_column_number()
+    {
         column_num++;
     }
 
-	void decrement_column_number() {
+    void decrement_column_number()
+    {
         column_num--;
     }
 
-	void reset_column_number() {
+    void reset_column_number()
+    {
         column_num = 1;
     }
-
-	int get_line_num() const {
-        return line_num;
-    }
-
-	int get_column_num() const {
-        return column_num;
-    }
 };
-
 
 class Lexer {
 public:
@@ -67,8 +53,7 @@ public:
 
 private:
     std::string source;
-	SourceCodePointer source_code_pointer;
-	TokenPosition token_position;
+    SourceCodePointer source_code_pointer;
     std::queue<Token> pending_tokens;
 
     Token next_token();

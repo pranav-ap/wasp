@@ -63,12 +63,12 @@ while x < 10 do
 
     {
         auto& exprStmt = check<Wasp::ExpressionStatement>(body[0]);
-        auto& assign = check<Wasp::Assignment>(exprStmt.expression);
+        check<Wasp::Assignment>(exprStmt.expression);
     }
 
     {
         auto& exprStmt = check<Wasp::ExpressionStatement>(body[1]);
-        auto& assign = check<Wasp::Assignment>(exprStmt.expression);
+        check<Wasp::Assignment>(exprStmt.expression);
     }
 }
 
@@ -85,7 +85,7 @@ while x < 10 do
     ASSERT_EQ(body.size(), 2);
 
     auto& exprStmt = check<Wasp::ExpressionStatement>(body[0]);
-    auto& assign = check<Wasp::Assignment>(exprStmt.expression);
+    check<Wasp::Assignment>(exprStmt.expression);
 
     auto& ctrlStmt = check<Wasp::LoopControl>(body[1]);
     EXPECT_EQ(ctrlStmt.type, Wasp::TokenType::CONTINUE);
@@ -104,7 +104,7 @@ while x < 10 do
     ASSERT_EQ(body.size(), 2);
 
     auto& exprStmt = check<Wasp::ExpressionStatement>(body[0]);
-    auto& assign = check<Wasp::Assignment>(exprStmt.expression);
+    check<Wasp::Assignment>(exprStmt.expression);
 
     auto& ctrlStmt = check<Wasp::LoopControl>(body[1]);
     EXPECT_EQ(ctrlStmt.type, Wasp::TokenType::CONTINUE);

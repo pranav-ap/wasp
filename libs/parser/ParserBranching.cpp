@@ -23,10 +23,7 @@ Statement_ptr Parser::parse_branching(
     if (token_type == TokenType::IF &&
         !token_pipe.consume_optional_in_line(TokenType::EOL).has_value())
     {
-        Expression_ptr ternary = parse_ternary_condition(
-            TokenType::IF,
-            condition
-        );
+        Expression_ptr ternary = parse_ternary_condition(condition);
         token_pipe.require_in_line(TokenType::EOL);
 
         return make_statement(ExpressionStatement(std::move(ternary)));
@@ -62,10 +59,7 @@ Statement_ptr Parser::parse_branching(
     return make_statement(IfBranch(condition, body));
 }
 
-Expression_ptr Parser::parse_ternary_condition(
-    TokenType token_type,
-    Expression_ptr prev_condition
-)
+Expression_ptr Parser::parse_ternary_condition(Expression_ptr prev_condition)
 {
     Expression_ptr then_arm = parse_expression();
 
@@ -74,10 +68,8 @@ Expression_ptr Parser::parse_ternary_condition(
         auto elif_condition = parse_expression();
         token_pipe.require_in_line(TokenType::THEN);
 
-        auto elif_arm = parse_ternary_condition(
-            TokenType::ELIF,
-            elif_condition
-        );
+        auto elif_arm = parse_ternary_condition(elif_condition);
+
         return make_expression(
             IfTernaryBranch(prev_condition, then_arm, elif_arm)
         );

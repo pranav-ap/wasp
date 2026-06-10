@@ -74,7 +74,7 @@ Expression_ptr InfixOperatorParselet::parse(
     return make_expression(Infix{left, token, right});
 }
 
-Expression_ptr SquareBracketParselet::parse(Parser& parser, const Token& token)
+Expression_ptr SquareBracketParselet::parse(Parser& parser, const Token&)
 {
     parser.token_pipe.advance_pointer();
     parser.token_pipe.ignore_spaces();
@@ -89,7 +89,7 @@ Expression_ptr SquareBracketParselet::parse(Parser& parser, const Token& token)
     return make_expression(ListLiteral(expressions));
 }
 
-Expression_ptr ParenthesisParselet::parse(Parser& parser, const Token& token)
+Expression_ptr ParenthesisParselet::parse(Parser& parser, const Token&)
 {
     parser.token_pipe.advance_pointer();
     parser.token_pipe.ignore_spaces();
@@ -104,7 +104,7 @@ Expression_ptr ParenthesisParselet::parse(Parser& parser, const Token& token)
     return make_expression(TupleLiteral(expressions));
 }
 
-Expression_ptr CurlyBraceParselet::parse(Parser& parser, const Token& token)
+Expression_ptr CurlyBraceParselet::parse(Parser& parser, const Token&)
 {
     parser.token_pipe.advance_pointer();
     parser.token_pipe.ignore_spaces();
@@ -219,16 +219,20 @@ Expression_ptr AssignmentParselet::parse(
     return make_expression(Assignment(left, right));
 }
 
-Expression_ptr TernaryConditionParselet::parse(Parser& parser, const Token& token)
+Expression_ptr TernaryConditionParselet::parse(Parser& parser, const Token&)
 {
     parser.token_pipe.advance_pointer();
 
     Expression_ptr condition = parser.parse_expression();
     parser.token_pipe.require(TokenType::THEN);
-    return parser.parse_ternary_condition(TokenType::IF, condition);
+    return parser.parse_ternary_condition(condition);
 }
 
-Expression_ptr MemberAccessParselet::parse(Parser& parser, Expression_ptr left, const Token& token)
+Expression_ptr MemberAccessParselet::parse(
+    Parser& parser,
+    Expression_ptr left,
+    const Token&
+)
 {
     Expression_ptr right = parser.parse_expression(get_precedence());
     Doctor::get().fatal_if_nullptr(right, WaspStage::Parser);
@@ -331,7 +335,11 @@ static bool is_target_capitalized(const Expression_ptr& expr)
     return false;
 }
 
-Expression_ptr CallParselet::parse(Parser& parser, const Expression_ptr left, const Token& token)
+Expression_ptr CallParselet::parse(
+    Parser& parser,
+    const Expression_ptr left,
+    const Token&
+)
 {
     Doctor::get().assert(
         left->is<Identifier>() || left->is<MemberAccess>() || left->is<Call>() ||

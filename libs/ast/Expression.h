@@ -1,7 +1,6 @@
 #pragma once
 
 #include "AST.h"
-#include "Resolvable.h"
 #include "Token.h"
 
 #include <map>
@@ -10,7 +9,6 @@
 #include <string>
 #include <utility>
 #include <variant>
-#include <vector>
 
 namespace Wasp
 {
@@ -71,17 +69,15 @@ struct InterpolatedString
 struct Box
 {
     Expression_ptr expr;
-    std::vector<int> trait_type_ids;
 
     Box() = default;
 
-    Box(Expression_ptr expr, std::vector<int> trait_type_ids)
-        : expr(std::move(expr)), trait_type_ids(std::move(trait_type_ids))
+    Box(Expression_ptr expr) : expr(std::move(expr))
     {
     }
 };
 
-struct OperatorExpression : public Resolvable
+struct OperatorExpression
 {
     OperatorExpression() = default;
 };
@@ -109,19 +105,6 @@ struct Infix : public OperatorExpression
 
     Infix(Expression_ptr left, Token op, Expression_ptr right)
         : left(std::move(left)), op(std::move(op)), right(std::move(right))
-    {
-    }
-};
-
-struct Postfix : public OperatorExpression
-{
-    Expression_ptr operand;
-    Token op;
-
-    Postfix() = default;
-
-    Postfix(Expression_ptr operand, Token op)
-        : operand(std::move(operand)), op(std::move(op))
     {
     }
 };
@@ -159,7 +142,7 @@ struct MapLiteral
         : pairs(std::move(pairs)) {};
 };
 
-struct Assignment : public Resolvable
+struct Assignment
 {
     Expression_ptr lhs;
     Expression_ptr rhs;
@@ -212,7 +195,7 @@ struct IfTernaryBranch : public TernaryBranch
         Expression_ptr true_expression,
         Expression_ptr alternative
     )
-        : true_expression(true_expression), test(test),
+        : test(test), true_expression(true_expression),
           alternative(alternative) {};
 };
 
@@ -227,7 +210,7 @@ struct ElseTernaryBranch : public TernaryBranch
 
 // Identifiers & Access
 
-struct Identifier : public Resolvable
+struct Identifier
 {
     std::string name;
 
@@ -243,18 +226,6 @@ struct MemberAccess
     Expression_ptr left;
     Expression_ptr right;
 
-    int member_index = -1;
-
-    bool is_module_access = false;
-
-    bool is_field = false;
-
-    bool is_trait_dispatch = false;
-
-    bool is_enum_value = false;
-    int enum_member_value = -1;
-    int enum_type_id = -1;
-
     MemberAccess() = default;
 
     MemberAccess(Expression_ptr left, Expression_ptr right)
@@ -263,33 +234,10 @@ struct MemberAccess
     }
 };
 
-struct EnumMember
-{
-    int enum_type_id = -1;
-    int enum_member_value = -1;
-
-    EnumMember() = default;
-
-    EnumMember(int enum_type_id, int enum_member_value)
-        : enum_type_id(enum_type_id), enum_member_value(enum_member_value)
-    {
-    }
-};
-
 struct Call
 {
     Expression_ptr callable;
     ExpressionVector arguments;
-
-    bool is_primitive_method_call = false;
-    int primitive_class_type_id = -1;
-    int primitive_class_symbol_id = -1;
-
-    bool is_static_method_call = false;
-    bool is_method_call = false;
-    bool is_trait_dispatch = false;
-    int trait_type_id = -1;
-    int overload_index = -1;
 
     Call() = default;
 
@@ -312,16 +260,11 @@ struct Constructor
     }
 };
 
-struct Symbol;
-
 // Foo<int>
-struct TemplateAngular : public Resolvable
+struct TemplateAngular
 {
     Expression_ptr target;
     TypeAnnotationVector angular_nodes;
-
-    std::shared_ptr<Symbol> group_symbol = nullptr;
-    int overload_index = -1;
 
     TemplateAngular(Expression_ptr target, TypeAnnotationVector angular_nodes)
         : target(std::move(target)), angular_nodes(std::move(angular_nodes))
@@ -348,7 +291,6 @@ using ExpressionVariant = std::variant<
     Identifier,
 
     MemberAccess,
-    EnumMember,
 
     Call,
 
@@ -357,7 +299,6 @@ using ExpressionVariant = std::variant<
 
     Prefix,
     Infix,
-    Postfix,
 
     ListLiteral,
     TupleLiteral,
@@ -393,10 +334,6 @@ inline std::string get_operator_name(TokenType fixity, TokenType op_type)
     if (fixity == TokenType::PREFIX)
     {
         fix = "prefix_";
-    }
-    if (fixity == TokenType::POSTFIX)
-    {
-        fix = "postfix_";
     }
 
     return fix + to_string(op_type);

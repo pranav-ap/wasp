@@ -1,11 +1,8 @@
 #include "Captain.h"
-#include "Compiler.h"
 #include "DependencyCrawler.h"
 #include "Doctor.h"
 #include "Lexer.h"
 #include "Parser.h"
-#include "SemanticAnalyzer.h"
-#include "VM.h"
 #include "Workspace.h"
 
 
@@ -95,23 +92,6 @@ Workspace_ptr Captain::build()
 {
     parse_modules();
 
-    auto build_order = calculate_build_order();
-
-    SemanticAnalyzer sa(workspace);
-    sa.run(build_order);
-
-    for (const auto& module : build_order)
-    {
-        bool is_main = (module->absolute_filepath == entry_file);
-        auto module_name = module->get_name();
-        std::string filepath = module->absolute_filepath.generic_string();
-
-        Compiler compiler(workspace);
-        module->blueprint = compiler.run(module->stmts, filepath, is_main);
-
-        dump_build_artifacts(workspace, module->absolute_filepath, module->blueprint);
-    }
-
     return workspace;
 }
 
@@ -119,9 +99,6 @@ void Captain::execute()
 {
     auto main_module = workspace->get_module(entry_file);
     Doctor::get().fatal_if_nullptr(main_module, WaspStage::Captain);
-
-    VM vm(workspace);
-    vm.run(main_module->blueprint);
 }
 
 } // namespace Wasp

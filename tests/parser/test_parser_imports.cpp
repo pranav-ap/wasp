@@ -21,7 +21,7 @@ TEST(ParseImports, SimpleImportLibrary)
 
     EXPECT_FALSE(stmt.module_alias.has_value());
     EXPECT_FALSE(stmt.expose_all);
-    EXPECT_TRUE(stmt.exposed_symbols.empty());
+    EXPECT_TRUE(stmt.exposed_names.empty());
 }
 
 TEST(ParseImports, SimpleMyImportLibrary)
@@ -74,9 +74,9 @@ TEST(ParseImports, ExposeSingleSymbol)
     ASSERT_EQ(stmt.path.size(), 1);
     EXPECT_EQ(stmt.path[0], "fuel");
 
-    ASSERT_EQ(stmt.exposed_symbols.size(), 1);
-    EXPECT_EQ(stmt.exposed_symbols[0].name, "Tank");
-    EXPECT_FALSE(stmt.exposed_symbols[0].alias.has_value());
+    ASSERT_EQ(stmt.exposed_names.size(), 1);
+    EXPECT_EQ(stmt.exposed_names[0].name, "Tank");
+    EXPECT_FALSE(stmt.exposed_names[0].alias.has_value());
 }
 
 TEST(ParseImports, ExposeGroupedSymbols)
@@ -92,16 +92,16 @@ TEST(ParseImports, ExposeGroupedSymbols)
     ASSERT_EQ(stmt.path.size(), 1);
     EXPECT_EQ(stmt.path[0], "engine");
 
-    ASSERT_EQ(stmt.exposed_symbols.size(), 2);
+    ASSERT_EQ(stmt.exposed_names.size(), 2);
 
     // First symbol
-    EXPECT_EQ(stmt.exposed_symbols[0].name, "Tank");
-    ASSERT_TRUE(stmt.exposed_symbols[0].alias.has_value());
-    EXPECT_EQ(stmt.exposed_symbols[0].alias.value(), "FuelTank");
+    EXPECT_EQ(stmt.exposed_names[0].name, "Tank");
+    ASSERT_TRUE(stmt.exposed_names[0].alias.has_value());
+    EXPECT_EQ(stmt.exposed_names[0].alias.value(), "FuelTank");
 
     // Second symbol
-    EXPECT_EQ(stmt.exposed_symbols[1].name, "Pump");
-    EXPECT_FALSE(stmt.exposed_symbols[1].alias.has_value());
+    EXPECT_EQ(stmt.exposed_names[1].name, "Pump");
+    EXPECT_FALSE(stmt.exposed_names[1].alias.has_value());
 }
 
 // -----------------------------------------------------------------------------
@@ -118,8 +118,8 @@ TEST(ParseImports, ExposeWildcard)
     EXPECT_EQ(stmt.path[0], "math3d");
 
     EXPECT_TRUE(stmt.expose_all);
-    EXPECT_TRUE(stmt.excluded_symbols.empty());
-    EXPECT_TRUE(stmt.exposed_symbols.empty());
+    EXPECT_TRUE(stmt.excluded_names.empty());
+    EXPECT_TRUE(stmt.exposed_names.empty());
 }
 
 TEST(ParseImports, ExposeWildcardWithExceptions)
@@ -132,9 +132,9 @@ TEST(ParseImports, ExposeWildcardWithExceptions)
     EXPECT_EQ(stmt.path[0], "math3d");
 
     EXPECT_TRUE(stmt.expose_all);
-    EXPECT_TRUE(stmt.exposed_symbols.empty());
+    EXPECT_TRUE(stmt.exposed_names.empty());
 
-    ASSERT_EQ(stmt.excluded_symbols.size(), 2);
-    EXPECT_EQ(stmt.excluded_symbols[0], "tan");
-    EXPECT_EQ(stmt.excluded_symbols[1], "cos");
+    ASSERT_EQ(stmt.excluded_names.size(), 2);
+    EXPECT_EQ(stmt.excluded_names[0], "tan");
+    EXPECT_EQ(stmt.excluded_names[1], "cos");
 }

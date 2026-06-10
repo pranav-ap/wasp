@@ -8,12 +8,12 @@
 #include <string>
 #include <vector>
 
-#define LINE_NUM token_position.get_line_num()
-#define COL_NUM token_position.get_column_num()
-
-namespace Wasp {
-std::string convert_spaces_to_tabs(const std::string& input) {
+namespace Wasp
+{
+std::string convert_spaces_to_tabs(const std::string& input)
+{
     std::string result;
+    result.reserve(input.size());
 
     bool inside_string = false;
     size_t i = 0;
@@ -103,17 +103,14 @@ Token Lexer::next_token() {
         next();
 
         // Consume the rest of the line as a comment
-        std::string comment;
-
         char current_char = get_current_char();
         while (current_char != '\n' && current_char != '\0')
         {
-            comment += current_char;
             next();
             current_char = get_current_char();
         }
 
-        return Token(TokenType::COMMENT, comment);
+        return Token(TokenType::COMMENT, "#");
     }
 
     return consume_operators();
@@ -173,8 +170,6 @@ Token Lexer::consume_number_literal() {
 
 Token Lexer::consume_string_literal()
 {
-    int start_line = token_position.get_line_num();
-    int start_col = token_position.get_column_num();
     next(); // Skip opening quote
 
     std::string current_chars;
@@ -220,8 +215,6 @@ Token Lexer::consume_string_literal()
             }
 
             // Reset position trackers for the next string segment
-            start_line = token_position.get_line_num();
-            start_col = token_position.get_column_num();
             continue;
         }
 
@@ -536,22 +529,22 @@ char Lexer::get_char_at(int index) const {
 }
 
 char Lexer::get_current_char() const {
-    const int index = source_code_pointer.get_index();
+    const int index = source_code_pointer.index;
     return get_char_at(index);
 }
 
 char Lexer::get_right_char() const {
-    const int index = source_code_pointer.get_index();
+    const int index = source_code_pointer.index;
     return get_char_at(index + 1);
 }
 
 void Lexer::next() {
     source_code_pointer.advance();
-    token_position.increment_column_number();
+    source_code_pointer.increment_column_number();
 }
 
 void Lexer::previous() {
     source_code_pointer.retreat();
-    token_position.decrement_column_number();
+    source_code_pointer.decrement_column_number();
 }
 } // namespace Wasp

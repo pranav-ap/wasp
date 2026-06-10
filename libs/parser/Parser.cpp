@@ -6,14 +6,16 @@
 #include <utility>
 #include <vector>
 
-namespace Wasp {
+namespace Wasp
+{
+
 Parser::Parser() { register_all_parselets(); }
 
 StatementVector Parser::run(const std::vector<Token>& tokens) {
     token_pipe = TokenPipe(tokens);
     StatementVector block;
 
-    const auto tokens_count = token_pipe.get_size();
+    const int tokens_count = token_pipe.get_size();
     auto current_index = token_pipe.get_current_index();
 
     while (current_index < tokens_count) {

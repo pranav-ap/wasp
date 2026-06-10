@@ -1,8 +1,8 @@
 #pragma once
 
 #include "AST.h"
-#include "Resolvable.h"
 #include "Token.h"
+
 #include <cctype>
 #include <filesystem>
 #include <memory>
@@ -27,7 +27,7 @@ struct ExpressionStatement
     }
 };
 
-struct Definition : public Resolvable
+struct Definition
 {
     std::string name;
 
@@ -39,62 +39,47 @@ struct Definition : public Resolvable
     }
 };
 
-struct FieldDefinition : public Definition
+struct Field
 {
+    std::string name;
     TypeAnnotation_ptr type;
     bool is_variadic;
 
-    FieldDefinition() = default;
+    Field() = default;
 
-    FieldDefinition(
-        std::string name,
-        TypeAnnotation_ptr type,
-        bool is_variadic = false
-    )
-        : Definition(std::move(name)), type(std::move(type)),
-          is_variadic(is_variadic)
+    Field(std::string name, TypeAnnotation_ptr type, bool is_variadic = false)
+        : name(std::move(name)), type(std::move(type)), is_variadic(is_variadic)
     {
     }
 };
 
-using FieldDefinitionVector = std::vector<FieldDefinition>;
+using FieldVector = std::vector<Field>;
 
 struct Templatable
 {
-    FieldDefinitionVector template_params;
+    FieldVector template_params;
 
     Templatable() = default;
 
-    explicit Templatable(FieldDefinitionVector template_params)
+    explicit Templatable(FieldVector template_params)
         : template_params(std::move(template_params))
     {
     }
 };
 
-// --- Callables ---
-
-struct Field
+struct Block
 {
-    std::string name;
-    TypeAnnotation_ptr type;
-
-    Field() = default;
-
-    Field(std::string name, TypeAnnotation_ptr type)
-        : name(std::move(name)), type(std::move(type))
-    {
-    }
+    StatementVector statements;
 };
+
+// --- Callables ---
 
 struct CallableDefinition : public Definition, public Templatable
 {
-    std::vector<Field> parameters;
-    std::vector<std::shared_ptr<Symbol>> parameter_symbols;
+    FieldVector parameters;
     TypeAnnotation_ptr return_type;
 
     StatementVector body;
-
-    std::shared_ptr<Symbol> group_symbol;
 
     bool is_pure = false;
 
@@ -102,11 +87,11 @@ struct CallableDefinition : public Definition, public Templatable
 
     CallableDefinition(
         std::string name,
-        std::vector<Field> params,
+        FieldVector params,
         TypeAnnotation_ptr ret,
         StatementVector body,
         bool is_pure = false,
-        FieldDefinitionVector template_params = {}
+        FieldVector template_params = {}
     )
         : Definition(std::move(name)), Templatable(std::move(template_params)),
           parameters(std::move(params)), return_type(std::move(ret)),
@@ -128,12 +113,12 @@ struct MethodDefinition : public CallableDefinition
 
     MethodDefinition(
         std::string name,
-        std::vector<Field> params,
+        FieldVector params,
         TypeAnnotation_ptr ret,
         StatementVector body,
         bool is_pure = false,
         bool is_static = false,
-        FieldDefinitionVector template_params = {}
+        FieldVector template_params = {}
     )
         : CallableDefinition(
               std::move(name),
@@ -159,10 +144,10 @@ struct OperatorDefinition : public CallableDefinition
         TokenType fix,
         TokenType op,
         std::string mangled,
-        std::vector<Field> params,
+        FieldVector params,
         TypeAnnotation_ptr ret,
         StatementVector body,
-        FieldDefinitionVector template_params = {}
+        FieldVector template_params = {}
     )
         : CallableDefinition(
               std::move(mangled),
@@ -183,7 +168,7 @@ struct AbstractOopsDefinition : public Definition, public Templatable
 {
     TypeAnnotationVector traits;
     StatementVector members;
-    bool is_native;
+    bool is_primitive;
 
     AbstractOopsDefinition() = default;
 
@@ -191,11 +176,11 @@ struct AbstractOopsDefinition : public Definition, public Templatable
         std::string name,
         TypeAnnotationVector traits,
         StatementVector members,
-        FieldDefinitionVector template_params = {}
+        FieldVector template_params = {}
     )
         : Definition(std::move(name)), Templatable(std::move(template_params)),
           traits(std::move(traits)), members(std::move(members)),
-          is_native(
+          is_primitive(
               !name.empty() && std::islower(static_cast<unsigned char>(name[0]))
           )
     {
@@ -221,7 +206,7 @@ struct TypeAliasDefinition : public Definition, public Templatable
     TypeAliasDefinition(
         std::string name,
         TypeAnnotation_ptr ref,
-        FieldDefinitionVector gen = {}
+        FieldVector gen = {}
     )
         : Definition(std::move(name)), Templatable(std::move(gen)),
           ref_type(std::move(ref))
@@ -258,17 +243,17 @@ struct Branch
 struct IfBranch : Branch
 {
     Expression_ptr test;
-    std::optional<Statement_ptr> alternative;
+    Statement_ptr alternative;
 
     IfBranch() = default;
 
     IfBranch(
         Expression_ptr test,
         StatementVector body,
-        Statement_ptr alt = nullptr
+        Statement_ptr alternative = nullptr
     )
-        : Branch{std::move(body)}, test(std::move(test)),
-          alternative(alt ? std::make_optional(alt) : std::nullopt)
+        : Branch(std::move(body)), test(std::move(test)),
+          alternative(alternative)
     {
     }
 };
@@ -296,7 +281,6 @@ struct ForInLoop : public Branch
     bool lhs_is_mutable = false;
     Expression_ptr lhs;
     Expression_ptr iterable;
-    std::shared_ptr<Symbol> iterator_symbol;
 
     ForInLoop() = default;
 
@@ -352,7 +336,7 @@ struct LoopControl
 
 // --- Imports ---
 
-struct ImportAsPair : public Resolvable
+struct ImportAsPair
 {
     std::string name;
     std::optional<std::string> alias;
@@ -368,7 +352,7 @@ struct ImportAsPair : public Resolvable
     }
 };
 
-struct Import : public Resolvable
+struct Import
 {
     std::optional<TokenType> access_modifier;
     int access_argument = 1;
@@ -376,39 +360,24 @@ struct Import : public Resolvable
     std::filesystem::path absolute_path;
     std::optional<std::string> module_alias;
     bool expose_all = false;
-    std::vector<ImportAsPair> exposed_symbols;
-    StringVector excluded_symbols;
+    std::vector<ImportAsPair> exposed_names;
+    StringVector excluded_names;
 
     Import() = default;
 
     Import(
-        std::optional<TokenType> mod,
-        int arg,
-        StringVector p,
-        std::optional<std::string> alias = std::nullopt,
+        std::optional<TokenType> access_modifier,
+        int access_argument,
+        StringVector path,
+        std::optional<std::string> module_alias = std::nullopt,
         bool all = false,
-        std::vector<ImportAsPair> syms = {},
-        StringVector ex = {}
+        std::vector<ImportAsPair> exposed_names = {},
+        StringVector excluded_names = {}
     )
-        : access_modifier(mod), access_argument(arg), path(std::move(p)),
-          module_alias(std::move(alias)), expose_all(all),
-          exposed_symbols(std::move(syms)), excluded_symbols(std::move(ex))
-    {
-    }
-};
-
-// ============================================================================
-// Splitter
-// ============================================================================
-
-struct Splitter
-{
-    std::vector<Statement_ptr> statements;
-
-    Splitter() = default;
-
-    explicit Splitter(std::vector<Statement_ptr> statements)
-        : statements(std::move(statements))
+        : access_modifier(access_modifier), access_argument(access_argument),
+          path(std::move(path)), module_alias(std::move(module_alias)),
+          expose_all(all), exposed_names(std::move(exposed_names)),
+          excluded_names(std::move(excluded_names))
     {
     }
 };
@@ -427,7 +396,8 @@ using StatementVariant = std::variant<
     MethodDefinition,
     OperatorDefinition,
 
-    FieldDefinition,
+    Field,
+    Block,
 
     ClassDefinition,
     TraitDefinition,
@@ -442,9 +412,7 @@ using StatementVariant = std::variant<
     LoopControl,
 
     Placeholder,
-    Return,
-
-    Splitter>;
+    Return>;
 
 struct Statement : public AstNode<StatementVariant>
 {

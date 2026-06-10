@@ -102,12 +102,12 @@ else
 
     {
         ASSERT_EQ(stmt.body.size(), 1);
-        auto& placeholder = check<Wasp::Placeholder>(stmt.body[0]);
+        check<Wasp::Placeholder>(stmt.body[0]);
     }
 
     // 2. Check the 'elif' branch (nested in the first 'if' alternative)
-    ASSERT_TRUE(stmt.alternative.has_value());
-    auto& elif_stmt = check<Wasp::IfBranch>(stmt.alternative.value());
+    ASSERT_TRUE(stmt.alternative);
+    auto& elif_stmt = check<Wasp::IfBranch>(stmt.alternative);
 
     {
         auto& elif_test = check<Wasp::Infix>(elif_stmt.test);
@@ -123,15 +123,15 @@ else
 
     {
         ASSERT_EQ(elif_stmt.body.size(), 1);
-        auto& placeholder = check<Wasp::Placeholder>(elif_stmt.body[0]);
+        check<Wasp::Placeholder>(elif_stmt.body[0]);
     }
 
     // 3. Check the 'else' branch (nested in the 'elif' alternative)
-    ASSERT_TRUE(elif_stmt.alternative.has_value());
-    auto& else_stmt = check<Wasp::ElseBranch>(elif_stmt.alternative.value());
+    ASSERT_TRUE(elif_stmt.alternative);
+    auto& else_stmt = check<Wasp::ElseBranch>(elif_stmt.alternative);
 
     {
         ASSERT_EQ(else_stmt.body.size(), 1);
-        auto& placeholder = check<Wasp::Placeholder>(else_stmt.body[0]);
+        check<Wasp::Placeholder>(else_stmt.body[0]);
     }
 }

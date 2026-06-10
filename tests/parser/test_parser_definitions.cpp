@@ -77,12 +77,12 @@ fun add(a: int, b: int) => int
 
     {
         auto& if_branch = check<Wasp::IfBranch>(func_def.body[0]);
-        ASSERT_TRUE(if_branch.alternative.has_value());
+        ASSERT_TRUE(if_branch.alternative);
 
-        auto& elif_branch = check<Wasp::IfBranch>(if_branch.alternative.value());
-        ASSERT_TRUE(elif_branch.alternative.has_value());
+        auto& elif_branch = check<Wasp::IfBranch>(if_branch.alternative);
+        ASSERT_TRUE(elif_branch.alternative);
 
-        check<Wasp::ElseBranch>(elif_branch.alternative.value());
+        check<Wasp::ElseBranch>(elif_branch.alternative);
     }
 
     // RETURN STATEMENT

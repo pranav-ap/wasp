@@ -1,7 +1,7 @@
 {
     "files.exclude": {
         ".cache": true,
-        "build": false,
+        "build": true,
         "include": true,
         ".devcontainer": true,
         "assets": true

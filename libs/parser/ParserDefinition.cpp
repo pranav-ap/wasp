@@ -98,9 +98,7 @@ EnumDefinition Parser::parse_enum_body(std::string name, int indent_level)
 // Helpers
 // ============================================================================
 
-std::pair<std::string, TypeAnnotation_ptr> Parser::parse_name_type_pair(
-    int member_indent
-)
+std::pair<std::string, TypeAnnotation_ptr> Parser::parse_name_type_pair()
 {
     auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
     std::string name = name_token.lexeme;
@@ -127,10 +125,8 @@ StatementVector Parser::parse_name_type_block(int expected_indent)
         }
 
         token_pipe.expect_n_indents(expected_indent);
-        auto [member_name, member_type] = parse_name_type_pair(expected_indent);
-        members.push_back(
-            make_statement(FieldDefinition(member_name, member_type))
-        );
+        auto [member_name, member_type] = parse_name_type_pair();
+        members.push_back(make_statement(Field(member_name, member_type)));
     }
 
     return members;
@@ -211,10 +207,8 @@ std::tuple<std::string, TypeAnnotationVector, StatementVector> Parser::
         }
         else
         {
-            auto [member_name, member_type] = parse_name_type_pair(body_indent);
-            members.push_back(
-                make_statement(FieldDefinition(member_name, member_type))
-            );
+            auto [member_name, member_type] = parse_name_type_pair();
+            members.push_back(make_statement(Field(member_name, member_type)));
         }
     }
 
@@ -351,7 +345,7 @@ Statement_ptr Parser::parse_template_definition(int indent_level)
     token_pipe.advance_pointer(); // Consume 'template'
     token_pipe.require_in_line(TokenType::EOL);
 
-    std::vector<FieldDefinition> generics;
+    std::vector<Field> generics;
     const int body_indent = indent_level + 1;
 
     while (true)

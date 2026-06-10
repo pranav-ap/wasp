@@ -8,8 +8,5 @@ target_link_libraries(wasp
         DoctorLib
         LexerLib
         ParserLib
-        SemanticAnalyzerLib
-        CompilerLib 
         CaptainLib
-        VMLib
 )

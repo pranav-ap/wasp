@@ -14,9 +14,9 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 # Enable strict warnings to catch bugs early!
-# add_compile_options(-Wall -Wextra -Wpedantic)
+add_compile_options(-Wall -Wextra -Wpedantic)
 
-# Use the lightning-fast LLD linker if available
+# Use the LLD linker if available
 add_link_options(-fuse-ld=lld)
 
 # ==========================================
@@ -72,12 +72,7 @@ add_subdirectory(libs/token)
 add_subdirectory(libs/lexer)
 add_subdirectory(libs/ast)
 add_subdirectory(libs/parser)
-add_subdirectory(libs/object_system)
-add_subdirectory(libs/semantics)
 add_subdirectory(libs/captain)
-add_subdirectory(libs/bytecode_system)
-add_subdirectory(libs/compiler)
-add_subdirectory(libs/vm)
 
 add_subdirectory(src)
 

@@ -60,7 +60,7 @@
     X(GREATER_THAN_EQUAL, ">=", false)                                         \
     X(ROCKET, "<=>", false)                                                    \
     X(ZIP, "<>", false)                                                        \
-    X(STEP, "step", true)                                                      \
+    X(BY, "by", true)                                                          \
     X(IMPORT, "import", true)                                                  \
     X(EXPOSE, "expose", true)                                                  \
     X(EXCEPT, "except", true)                                                  \
@@ -87,6 +87,8 @@
     X(REDO, "redo", true)                                                      \
     X(IN_KEYWORD, "in", true)                                                  \
     X(ASSERT, "assert", true)                                                  \
+    X(REQUIRE, "require", true)                                                \
+    X(ENSURE, "ensure", true)                                                  \
     X(IS, "is", true)                                                          \
     X(AS, "as", true)                                                          \
     X(FUN, "fun", true)                                                        \
@@ -106,7 +108,6 @@
     X(TYPE, "type", true)                                                      \
     X(EXPORT, "export", true)                                                  \
     X(INFIX, "infix", true)                                                    \
-    X(POSTFIX, "postfix", true)                                                \
     X(PREFIX, "prefix", true)                                                  \
     X(NATIVE, "native", true)                                                  \
     X(ENUM, "enum", true)                                                      \

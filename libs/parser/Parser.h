@@ -32,10 +32,7 @@ public:
     Expression_ptr parse_expression();
     Expression_ptr parse_expression(int precedence);
     ExpressionVector parse_expressions();
-    Expression_ptr parse_ternary_condition(
-        TokenType token_type,
-        Expression_ptr prev_condition
-    );
+    Expression_ptr parse_ternary_condition(Expression_ptr prev_condition);
 
     // --- Type ---
     TypeAnnotation_ptr parse_type();
@@ -69,9 +66,7 @@ private:
     parse_membered_definition_base(int indent_level);
     EnumDefinition parse_enum_body(std::string name, int indent_level);
     StatementVector parse_name_type_block(int expected_indent);
-    std::pair<std::string, TypeAnnotation_ptr> parse_name_type_pair(
-        int member_indent
-    );
+    std::pair<std::string, TypeAnnotation_ptr> parse_name_type_pair();
 
     // --- Control Flow & Branching ---
     Statement_ptr parse_branching(TokenType token_type, int if_indent_level);

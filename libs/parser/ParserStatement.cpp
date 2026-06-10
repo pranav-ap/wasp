@@ -106,8 +106,7 @@ Statement_ptr Parser::parse_statement(int expected_indent_level)
     }
 
     case TokenType::INFIX:
-    case TokenType::PREFIX:
-    case TokenType::POSTFIX: {
+    case TokenType::PREFIX: {
         TokenType fixity = token_pipe.current()->type;
         token_pipe.advance_pointer();
         result = parse_operator_definition(fixity, expected_indent_level);
@@ -279,8 +278,8 @@ Statement_ptr Parser::parse_import()
 
     std::optional<std::string> module_alias = std::nullopt;
     bool expose_all = false;
-    std::vector<ImportAsPair> exposed_symbols;
-    StringVector excluded_symbols;
+    std::vector<ImportAsPair> exposed_names;
+    StringVector excluded_names;
 
     // Check for module alias (import X as x)
     if (token_pipe.consume_optional_in_line(TokenType::AS))
@@ -301,7 +300,7 @@ Statement_ptr Parser::parse_import()
             {
                 do
                 {
-                    excluded_symbols.push_back(
+                    excluded_names.push_back(
                         token_pipe.require_in_line(TokenType::IDENTIFIER).lexeme
                     );
                 }
@@ -313,7 +312,7 @@ Statement_ptr Parser::parse_import()
         {
             do
             {
-                exposed_symbols.push_back(parse_imported_symbol());
+                exposed_names.push_back(parse_imported_symbol());
             }
             while (token_pipe.consume_optional_in_line(TokenType::COMMA));
         }
@@ -327,8 +326,8 @@ Statement_ptr Parser::parse_import()
         std::move(path),
         std::move(module_alias),
         expose_all,
-        std::move(exposed_symbols),
-        std::move(excluded_symbols)
+        std::move(exposed_names),
+        std::move(excluded_names)
     ));
 }
 
