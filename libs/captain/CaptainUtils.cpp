@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iterator>
 #include <string>
+#include <system_error>
 
 namespace Wasp {
 std::string Captain::read_file(const std::filesystem::path& file_path) {
@@ -30,6 +31,17 @@ void Captain::dump_build_artifacts(
 
     // "script.wasp" -> "script"
     std::string base_name = source_file_path.stem().string();
+
+    // Ensure build directory exists
+    std::error_code ec;
+    fs::create_directories(workspace->build_path, ec);
+
+    Doctor::get().assert(
+        !ec,
+        WaspStage::Captain,
+        "Failed to create build directory: " + workspace->build_path.string() +
+            " - Error: " + ec.message()
+    );
 
     fs::path debug_log_path = workspace->build_path / (base_name + ".wasp.debug");
     fs::path bytecode_path = workspace->build_path / (base_name + ".wasp.compiled");
