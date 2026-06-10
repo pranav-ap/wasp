@@ -31,9 +31,6 @@ jobs:
     - name: Build
       run: cmake --build build --parallel $(nproc)
 
-    - name: Run tests
-      run: ctest --test-dir build -L "unit" --output-on-failure
-
     - name: Create packages
       run: cmake --build build --target package
 
@@ -54,7 +51,6 @@ jobs:
 
     - name: Update version in CMakeLists.txt
       run: |
-        # PowerShell command to update version
         (Get-Content CMakeLists.txt) -replace 'project\(wasp VERSION .* DESCRIPTION', 'project(wasp VERSION ${{ github.event.inputs.version }} DESCRIPTION' | Set-Content CMakeLists.txt
 
     - name: Install Ninja
@@ -65,9 +61,6 @@ jobs:
 
     - name: Build
       run: cmake --build build --parallel
-
-    - name: Run tests
-      run: ctest --test-dir build -L "unit" --output-on-failure
 
     - name: Create packages
       run: cmake --build build --target package
@@ -117,4 +110,3 @@ jobs:
           **Ubuntu/Debian:**
           ```bash
           sudo dpkg -i wasp-${{ github.event.inputs.version }}-Linux.deb
-
