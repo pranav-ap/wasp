@@ -157,13 +157,13 @@ class Person
     // Update to MethodDefinition and remove the is_method check
     auto& func_def1 = check<Wasp::MethodDefinition>(class_def.members[0]);
     EXPECT_EQ(func_def1.name, "fortify");
-    EXPECT_FALSE(func_def1.is_static);
+    EXPECT_FALSE(func_def1.is_shared);
     EXPECT_TRUE(func_def1.parameters.empty());
 
     // Update to MethodDefinition and remove the is_method check
     auto& func_def2 = check<Wasp::MethodDefinition>(class_def.members[1]);
     EXPECT_EQ(func_def2.name, "weaken");
-    EXPECT_FALSE(func_def2.is_static);
+    EXPECT_FALSE(func_def2.is_shared);
 
     ASSERT_EQ(func_def2.parameters.size(), 1);
     EXPECT_EQ(func_def2.parameters[0].name, "damage");

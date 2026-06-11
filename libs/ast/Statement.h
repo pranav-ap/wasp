@@ -4,7 +4,6 @@
 #include "Token.h"
 
 #include <cctype>
-#include <filesystem>
 #include <memory>
 #include <optional>
 #include <string>
@@ -15,28 +14,11 @@
 namespace Wasp
 {
 
+// =============== Basics ===============
+
 struct ExpressionStatement
 {
     Expression_ptr expression;
-
-    ExpressionStatement() = default;
-
-    explicit ExpressionStatement(Expression_ptr expr)
-        : expression(std::move(expr))
-    {
-    }
-};
-
-struct Definition
-{
-    std::string name;
-
-    Definition() = default;
-    virtual ~Definition() = default;
-
-    explicit Definition(std::string name) : name(std::move(name))
-    {
-    }
 };
 
 struct Field
@@ -44,375 +26,166 @@ struct Field
     std::string name;
     TypeAnnotation_ptr type;
     bool is_variadic;
-
-    Field() = default;
-
-    Field(std::string name, TypeAnnotation_ptr type, bool is_variadic = false)
-        : name(std::move(name)), type(std::move(type)), is_variadic(is_variadic)
-    {
-    }
 };
 
 using FieldVector = std::vector<Field>;
-
-struct Templatable
-{
-    FieldVector template_params;
-
-    Templatable() = default;
-
-    explicit Templatable(FieldVector template_params)
-        : template_params(std::move(template_params))
-    {
-    }
-};
 
 struct Block
 {
     StatementVector statements;
 };
 
-// --- Callables ---
+// =============== Control Flow ===============
 
-struct CallableDefinition : public Definition, public Templatable
+struct Branch
 {
-    FieldVector parameters;
-    TypeAnnotation_ptr return_type;
+    Block block;
 
-    StatementVector body;
-
-    bool is_pure = false;
-
-    CallableDefinition() = default;
-
-    CallableDefinition(
-        std::string name,
-        FieldVector params,
-        TypeAnnotation_ptr ret,
-        StatementVector body,
-        bool is_pure = false,
-        FieldVector template_params = {}
-    )
-        : Definition(std::move(name)), Templatable(std::move(template_params)),
-          parameters(std::move(params)), return_type(std::move(ret)),
-          body(std::move(body)), is_pure(is_pure)
-    {
-    }
+    Expression_ptr test = nullptr;
+    Statement_ptr alternative = nullptr;
 };
 
-struct FunctionDefinition : public CallableDefinition
+struct SimpleLoop
 {
-    using CallableDefinition::CallableDefinition;
+    Expression_ptr condition;
+    TokenType style;
+
+    Block block;
 };
 
-struct MethodDefinition : public CallableDefinition
+struct ForInLoop
 {
-    bool is_static = false;
+    bool lhs_is_mutable;
+    Expression_ptr lhs;
+    Expression_ptr iterable;
 
-    MethodDefinition() = default;
-
-    MethodDefinition(
-        std::string name,
-        FieldVector params,
-        TypeAnnotation_ptr ret,
-        StatementVector body,
-        bool is_pure = false,
-        bool is_static = false,
-        FieldVector template_params = {}
-    )
-        : CallableDefinition(
-              std::move(name),
-              std::move(params),
-              std::move(ret),
-              std::move(body),
-              is_pure,
-              std::move(template_params)
-          ),
-          is_static(is_static)
-    {
-    }
+    Block block;
 };
 
-struct OperatorDefinition : public CallableDefinition
+struct Pass
 {
-    TokenType op_type;
-    TokenType fixity;
-
-    OperatorDefinition() = default;
-
-    OperatorDefinition(
-        TokenType fix,
-        TokenType op,
-        std::string mangled,
-        FieldVector params,
-        TypeAnnotation_ptr ret,
-        StatementVector body,
-        FieldVector template_params = {}
-    )
-        : CallableDefinition(
-              std::move(mangled),
-              std::move(params),
-              std::move(ret),
-              std::move(body),
-              true,
-              std::move(template_params)
-          ),
-          op_type(op), fixity(fix)
-    {
-    }
 };
 
-// --- OOP ---
-
-struct AbstractOopsDefinition : public Definition, public Templatable
+struct Required
 {
-    TypeAnnotationVector traits;
-    StatementVector members;
-    bool is_primitive;
-
-    AbstractOopsDefinition() = default;
-
-    AbstractOopsDefinition(
-        std::string name,
-        TypeAnnotationVector traits,
-        StatementVector members,
-        FieldVector template_params = {}
-    )
-        : Definition(std::move(name)), Templatable(std::move(template_params)),
-          traits(std::move(traits)), members(std::move(members)),
-          is_primitive(
-              !name.empty() && std::islower(static_cast<unsigned char>(name[0]))
-          )
-    {
-    }
 };
 
-struct ClassDefinition : public AbstractOopsDefinition
+struct Native
 {
-    using AbstractOopsDefinition::AbstractOopsDefinition;
 };
 
-struct TraitDefinition : public AbstractOopsDefinition
+struct Return
 {
-    using AbstractOopsDefinition::AbstractOopsDefinition;
+    std::optional<Expression_ptr> expression;
 };
 
-struct TypeAliasDefinition : public Definition, public Templatable
+struct LoopControl
+{
+    TokenType type;
+};
+
+// =============== Definitions ===============
+
+struct Definition
+{
+    std::string name;
+    FieldVector generics;
+};
+
+struct TypeAliasDefinition : public Definition
 {
     TypeAnnotation_ptr ref_type;
-
-    TypeAliasDefinition() = default;
-
-    TypeAliasDefinition(
-        std::string name,
-        TypeAnnotation_ptr ref,
-        FieldVector gen = {}
-    )
-        : Definition(std::move(name)), Templatable(std::move(gen)),
-          ref_type(std::move(ref))
-    {
-    }
 };
 
 struct EnumDefinition : public Definition
 {
     StringVector members;
     std::vector<EnumDefinition> nested_enums;
-
-    EnumDefinition() = default;
-
-    EnumDefinition(std::string name, StringVector members, std::vector<EnumDefinition> nested = {})
-        : Definition(std::move(name)), members(std::move(members)), nested_enums(std::move(nested))
-    {
-    }
 };
 
-// --- Control Flow ---
-
-struct Branch
+struct FunctionDefinition : public Definition
 {
-    StatementVector body;
+    FieldVector fields;
+    TypeAnnotation_ptr return_type;
 
-    Branch() = default;
+    Block block;
 
-    explicit Branch(StatementVector body) : body(std::move(body))
-    {
-    }
+    bool is_pure = false;
+
+    bool is_method = false;
+    bool is_shared = false;
 };
 
-struct IfBranch : Branch
+struct OperatorDefinition : public Definition
 {
-    Expression_ptr test;
-    Statement_ptr alternative;
+    TokenType op_type;
+    TokenType fixity;
 
-    IfBranch() = default;
+    FieldVector fields;
+    TypeAnnotation_ptr return_type;
 
-    IfBranch(
-        Expression_ptr test,
-        StatementVector body,
-        Statement_ptr alternative = nullptr
-    )
-        : Branch(std::move(body)), test(std::move(test)),
-          alternative(alternative)
-    {
-    }
+    Block body;
 };
 
-struct ElseBranch : Branch
+struct TypeDefinition : public Definition
 {
-    using Branch::Branch;
-};
-
-struct SimpleLoop : public Branch
-{
-    Expression_ptr condition;
-    TokenType style;
-
-    SimpleLoop() = default;
-
-    SimpleLoop(StatementVector body, Expression_ptr cond, TokenType style)
-        : Branch{std::move(body)}, condition(std::move(cond)), style(style)
+    enum class Kind
     {
-    }
+        Class,
+        Trait,
+        Primitive
+    } kind;
+
+    TypeAnnotationVector traits;
+    StatementVector members;
 };
 
-struct ForInLoop : public Branch
-{
-    bool lhs_is_mutable = false;
-    Expression_ptr lhs;
-    Expression_ptr iterable;
-
-    ForInLoop() = default;
-
-    ForInLoop(
-        StatementVector body,
-        Expression_ptr lhs,
-        Expression_ptr iter,
-        bool mut
-    )
-        : Branch{std::move(body)}, lhs_is_mutable(mut), lhs(std::move(lhs)),
-          iterable(std::move(iter))
-    {
-    }
-};
-
-// --- Others ---
-
-struct Placeholder
-{
-    // REQUIRED, NATIVE or PASS
-    TokenType type;
-
-    Placeholder() = default;
-
-    explicit Placeholder(TokenType type) : type(type)
-    {
-    }
-};
-
-struct Return
-{
-    std::optional<Expression_ptr> expression;
-
-    Return() = default;
-
-    explicit Return(Expression_ptr expr) : expression(std::move(expr))
-    {
-    }
-};
-
-struct LoopControl
-{
-    TokenType type;
-    std::string label;
-
-    LoopControl() = default;
-
-    explicit LoopControl(TokenType type, std::string label = "")
-        : type(type), label(std::move(label))
-    {
-    }
-};
-
-// --- Imports ---
+// =============== Imports ===============
 
 struct ImportAsPair
 {
     std::string name;
     std::optional<std::string> alias;
-
-    ImportAsPair() = default;
-
-    explicit ImportAsPair(
-        std::string name,
-        std::optional<std::string> alias = std::nullopt
-    )
-        : name(std::move(name)), alias(std::move(alias))
-    {
-    }
 };
 
 struct Import
 {
     std::optional<TokenType> access_modifier;
-    int access_argument = 1;
+    int jumps = 1;
+
     StringVector path;
-    std::filesystem::path absolute_path;
+
     std::optional<std::string> module_alias;
     bool expose_all = false;
     std::vector<ImportAsPair> exposed_names;
     StringVector excluded_names;
-
-    Import() = default;
-
-    Import(
-        std::optional<TokenType> access_modifier,
-        int access_argument,
-        StringVector path,
-        std::optional<std::string> module_alias = std::nullopt,
-        bool all = false,
-        std::vector<ImportAsPair> exposed_names = {},
-        StringVector excluded_names = {}
-    )
-        : access_modifier(access_modifier), access_argument(access_argument),
-          path(std::move(path)), module_alias(std::move(module_alias)),
-          expose_all(all), exposed_names(std::move(exposed_names)),
-          excluded_names(std::move(excluded_names))
-    {
-    }
 };
 
-// --- Variant & Utils ---
+// --- Variant  ---
 
 using StatementVariant = std::variant<
     std::monostate,
 
+    Import,
     ExpressionStatement,
 
     TypeAliasDefinition,
     EnumDefinition,
-
     FunctionDefinition,
-    MethodDefinition,
     OperatorDefinition,
+    TypeDefinition,
 
-    Field,
-    Block,
-
-    ClassDefinition,
-    TraitDefinition,
-
-    Import,
-
-    IfBranch,
-    ElseBranch,
+    Branch,
 
     SimpleLoop,
     ForInLoop,
     LoopControl,
 
-    Placeholder,
-    Return>;
+    Return,
+
+    Pass,
+    Required,
+    Native>;
 
 struct Statement : public AstNode<StatementVariant>
 {

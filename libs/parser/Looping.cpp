@@ -26,13 +26,13 @@ Statement_ptr Parser::parse_simple_loop(
 
     if (token_pipe.consume_optional_in_line(TokenType::EOL))
     {
-        auto body = parse_statements_block(loop_indent_level + 1);
-        return make_statement(SimpleLoop(body, condition, loop_style));
+        auto block = parse_block(loop_indent_level + 1);
+        return make_statement(SimpleLoop(condition, loop_style, block));
     }
 
     auto statement = parse_expression_statement();
-    auto body = {statement};
-    return make_statement(SimpleLoop(body, condition, loop_style));
+    auto block = Block{{statement}};
+    return make_statement(SimpleLoop(condition, loop_style, block));
 }
 
 Statement_ptr Parser::parse_for_in_loop(int loop_indent_level)
@@ -78,42 +78,30 @@ Statement_ptr Parser::parse_for_in_loop(int loop_indent_level)
     }
 
     Expression_ptr lhs = infix.left;
-    Expression_ptr iterable_expression = infix.right;
+    Expression_ptr iterable = infix.right;
 
     // 4. Require the loop body
     token_pipe.require_in_line(TokenType::DO);
 
     if (token_pipe.consume_optional_in_line(TokenType::EOL))
     {
-        auto body = parse_statements_block(loop_indent_level + 1);
-        return make_statement(
-            ForInLoop(body, lhs, iterable_expression, is_mutable)
-        );
+        auto block = parse_block(loop_indent_level + 1);
+        return make_statement(ForInLoop{is_mutable, lhs, iterable, block});
     }
 
     auto statement = parse_expression_statement();
     Doctor::get().fatal_if_nullptr(statement, WaspStage::Parser);
 
-    StatementVector body = {statement};
-    return make_statement(
-        ForInLoop(body, lhs, iterable_expression, is_mutable)
-    );
+    Block block = Block{{statement}};
+    return make_statement(ForInLoop{is_mutable, lhs, iterable, block});
 }
 
 Statement_ptr Parser::parse_loop_control_statement(TokenType control_type)
 {
     token_pipe.advance_pointer();
 
-    auto token = token_pipe.consume_optional_in_line(TokenType::IDENTIFIER);
-
-    if (token.has_value() && token.value().type == TokenType::IDENTIFIER)
-    {
-        std::string label = token.value().lexeme;
-        token_pipe.require_in_line(TokenType::EOL);
-        return make_statement(LoopControl{control_type, label});
-    }
-
     token_pipe.require_in_line(TokenType::EOL);
     return make_statement(LoopControl{control_type});
 }
+
 } // namespace Wasp

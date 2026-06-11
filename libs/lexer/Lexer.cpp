@@ -1,4 +1,5 @@
 #include "Lexer.h"
+#include "Doctor.h"
 #include "Token.h"
 
 #include <cctype>
@@ -484,7 +485,10 @@ Token Lexer::consume_single_char_punctuation(char ch) {
         next();
         return Token(TokenType::AT_SIGN, "@");
     default:
-        return consume_unknown_token();
+        Doctor::get().fatal(
+            WaspStage::Lexer,
+            "Unknown token starting with '" + std::string(1, ch) + "'"
+        );
     }
 }
 
@@ -501,12 +505,6 @@ Token Lexer::consume_space() {
 Token Lexer::consume_tab() {
     next();
     return Token(TokenType::TAB, "\t");
-}
-
-Token Lexer::consume_unknown_token() {
-    const char current_char = get_current_char();
-    next();
-    return Token(TokenType::UNKNOWN, std::string(1, current_char));
 }
 
 // UTILS

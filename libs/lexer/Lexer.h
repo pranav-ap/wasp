@@ -1,53 +1,16 @@
 #pragma once
 
+#include "SourceCodePointer.h"
 #include "Token.h"
 #include <queue>
 #include <string>
 #include <vector>
 
-namespace Wasp {
-
-struct SourceCodePointer
+namespace Wasp
 {
-    int index;
 
-    int line_num;
-    int column_num;
-
-    SourceCodePointer() : index(0), line_num(1), column_num(1) {};
-
-    void advance()
-    {
-        index++;
-    }
-
-    void retreat()
-    {
-        index--;
-    }
-
-    void increment_line_number()
-    {
-        line_num++;
-    }
-
-    void increment_column_number()
-    {
-        column_num++;
-    }
-
-    void decrement_column_number()
-    {
-        column_num--;
-    }
-
-    void reset_column_number()
-    {
-        column_num = 1;
-    }
-};
-
-class Lexer {
+class Lexer
+{
 public:
     std::vector<Token> run(std::string source_code);
 
@@ -83,7 +46,6 @@ private:
 	Token consume_eol();
     Token consume_space();
     Token consume_tab();
-	Token consume_unknown_token();
 
     // UTILS
 

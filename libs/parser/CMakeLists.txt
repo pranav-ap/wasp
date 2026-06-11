@@ -1,13 +1,14 @@
 add_library(
     ParserLib
     Parser.cpp
-    ExpressionParselets.cpp
-    ParserExpression.cpp
-    ParserStatement.cpp
-    ParserDefinition.cpp
-    ParserTypeAnnotation.cpp
-    ParserBranching.cpp
-    ParserLooping.cpp
+    Parselets.cpp
+    Expression.cpp
+    Statement.cpp
+    Importing.cpp
+    Definition.cpp
+    TypeAnnotation.cpp
+    Branching.cpp
+    Looping.cpp
     TokenPipe.cpp
     register_parselets.cpp
 )

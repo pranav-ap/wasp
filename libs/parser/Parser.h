@@ -1,7 +1,7 @@
 #pragma once
 
 #include "AST.h"
-#include "ExpressionParselets.h"
+#include "Parselets.h"
 #include "Precedence.h"
 #include "Statement.h"
 #include "Token.h"
@@ -41,24 +41,21 @@ public:
 private:
     // --- Statement Routing ---
     Statement_ptr parse_statement(int expected_indent_level = 0);
-    StatementVector parse_statements_block(int expected_indent_level);
+    Block parse_block(int expected_indent_level);
     Statement_ptr parse_expression_statement();
-
-    void consume_indents(int expected_indent_level);
 
     // --- Definitions & Declarations ---
     Expression_ptr parse_variable_definition(bool is_mutable);
     Statement_ptr parse_function_definition(
         int indent_level,
-        bool in_class_block = false,
-        bool is_static = false,
+        bool is_shared = false,
         bool is_pure = false
     );
     Statement_ptr parse_operator_definition(TokenType fixity, int indent_level);
     Statement_ptr parse_class_definition(int indent_level = 0);
     Statement_ptr parse_trait_definition(int indent_level = 0);
     Statement_ptr parse_enum_definition(int indent_level = 0);
-    Statement_ptr parse_alias_definition();
+    Statement_ptr parse_type_alias_definition();
     Statement_ptr parse_template_definition(int indent_level = 0);
 
     // --- OOP & Member Helpers ---
@@ -67,6 +64,9 @@ private:
     EnumDefinition parse_enum_body(std::string name, int indent_level);
     StatementVector parse_name_type_block(int expected_indent);
     std::pair<std::string, TypeAnnotation_ptr> parse_name_type_pair();
+
+    Field parse_field();
+    FieldVector parse_field_vector();
 
     // --- Control Flow & Branching ---
     Statement_ptr parse_branching(TokenType token_type, int if_indent_level);
@@ -78,7 +78,6 @@ private:
     Statement_ptr parse_for_in_loop(int loop_indent_level);
     Statement_ptr parse_loop_control_statement(TokenType control_type);
     Statement_ptr parse_return_statement();
-    Statement_ptr parse_placeholder(TokenType placeholder_type);
 
     // --- Modules & Imports ---
     Statement_ptr parse_import();

@@ -16,45 +16,21 @@ namespace Wasp
 struct IntegerLiteral
 {
     int value;
-
-    IntegerLiteral() = default;
-
-    explicit IntegerLiteral(int value) : value(value)
-    {
-    }
 };
 
 struct FloatLiteral
 {
     double value;
-
-    FloatLiteral() = default;
-
-    explicit FloatLiteral(double value) : value(value)
-    {
-    }
 };
 
 struct StringLiteral
 {
     std::string value;
-
-    StringLiteral() = default;
-
-    explicit StringLiteral(std::string value) : value(std::move(value))
-    {
-    }
 };
 
 struct BooleanLiteral
 {
     bool value;
-
-    BooleanLiteral() = default;
-
-    explicit BooleanLiteral(bool value) : value(value)
-    {
-    }
 };
 
 struct NoneLiteral
@@ -66,56 +42,22 @@ struct InterpolatedString
     ExpressionVector parts;
 };
 
-struct Box
-{
-    Expression_ptr expr;
-
-    Box() = default;
-
-    Box(Expression_ptr expr) : expr(std::move(expr))
-    {
-    }
-};
-
-struct OperatorExpression
-{
-    OperatorExpression() = default;
-};
-
-struct Prefix : public OperatorExpression
+struct Prefix
 {
     Token op;
     Expression_ptr operand;
-
-    Prefix() = default;
-
-    Prefix(Token op, Expression_ptr operand)
-        : op(std::move(op)), operand(std::move(operand))
-    {
-    }
 };
 
-struct Infix : public OperatorExpression
+struct Infix
 {
     Expression_ptr left;
     Token op;
     Expression_ptr right;
-
-    Infix() = default;
-
-    Infix(Expression_ptr left, Token op, Expression_ptr right)
-        : left(std::move(left)), op(std::move(op)), right(std::move(right))
-    {
-    }
 };
 
 struct SequenceLiteral
 {
     ExpressionVector expressions;
-
-    SequenceLiteral() = default;
-    explicit SequenceLiteral(ExpressionVector expressions)
-        : expressions(std::move(expressions)) {};
 };
 
 struct ListLiteral : public SequenceLiteral
@@ -136,10 +78,6 @@ struct SetLiteral : public SequenceLiteral
 struct MapLiteral
 {
     std::map<Expression_ptr, Expression_ptr> pairs;
-
-    explicit MapLiteral() = default;
-    explicit MapLiteral(std::map<Expression_ptr, Expression_ptr> pairs)
-        : pairs(std::move(pairs)) {};
 };
 
 struct Assignment
@@ -151,61 +89,15 @@ struct Assignment
 
     bool is_definition = false;
     bool is_mutable = false;
-
-    Assignment() = default;
-
-    Assignment(Expression_ptr lhs, Expression_ptr rhs)
-        : lhs(std::move(lhs)), rhs(std::move(rhs)), is_definition(false),
-          is_mutable(false)
-    {
-    }
-
-    Assignment(
-        Expression_ptr lhs,
-        Expression_ptr rhs,
-        bool is_definition,
-        bool is_mutable,
-        std::optional<TypeAnnotation_ptr> declared_type = std::nullopt
-    )
-        : lhs(std::move(lhs)), rhs(std::move(rhs)),
-          declared_type(std::move(declared_type)), is_definition(is_definition),
-          is_mutable(is_mutable)
-    {
-    }
 };
 
 // Branching
 
-struct TernaryBranch
+struct TernaryExpression
 {
-};
-
-struct IfTernaryBranch : public TernaryBranch
-{
+    Expression_ptr then_expr;
     Expression_ptr test;
-    Expression_ptr true_expression;
-
-    // IfTernaryBranch or ElseTernaryBranch
-    Expression_ptr alternative;
-
-    IfTernaryBranch() = default;
-
-    IfTernaryBranch(
-        Expression_ptr test,
-        Expression_ptr true_expression,
-        Expression_ptr alternative
-    )
-        : test(test), true_expression(true_expression),
-          alternative(alternative) {};
-};
-
-struct ElseTernaryBranch : public TernaryBranch
-{
-    Expression_ptr expression;
-
-    ElseTernaryBranch() = default;
-
-    ElseTernaryBranch(Expression_ptr expression) : expression(expression) {};
+    Expression_ptr else_expr;
 };
 
 // Identifiers & Access
@@ -213,63 +105,43 @@ struct ElseTernaryBranch : public TernaryBranch
 struct Identifier
 {
     std::string name;
-
-    Identifier() = default;
-
-    Identifier(std::string name) : name(std::move(name))
-    {
-    }
 };
 
 struct MemberAccess
 {
-    Expression_ptr left;
-    Expression_ptr right;
-
-    MemberAccess() = default;
-
-    MemberAccess(Expression_ptr left, Expression_ptr right)
-        : left(std::move(left)), right(std::move(right))
-    {
-    }
+    Expression_ptr object;
+    std::string member_name;
 };
 
 struct Call
 {
     Expression_ptr callable;
     ExpressionVector arguments;
-
-    Call() = default;
-
-    Call(Expression_ptr callable, ExpressionVector arguments)
-        : callable(callable), arguments(std::move(arguments))
-    {
-    }
 };
 
 struct Constructor
 {
-    Expression_ptr construtable;
-    ExpressionVector values;
-
-    Constructor() = default;
-
-    Constructor(Expression_ptr construtable, ExpressionVector values)
-        : construtable(construtable), values(std::move(values))
-    {
-    }
+    TypeAnnotation_ptr type;
+    ExpressionVector arguments;
 };
 
-// Foo<int>
-struct TemplateAngular
+struct Range
 {
-    Expression_ptr target;
-    TypeAnnotationVector angular_nodes;
+    Expression_ptr start;
+    Expression_ptr end;
 
-    TemplateAngular(Expression_ptr target, TypeAnnotationVector angular_nodes)
-        : target(std::move(target)), angular_nodes(std::move(angular_nodes))
+    enum class Kind
     {
-    }
+        Inclusive,
+        ExclusiveEnd,
+        ExclusiveStart
+    } kind;
+};
+
+struct Pipe
+{
+    Expression_ptr left;
+    Expression_ptr right;
 };
 
 // Expression
@@ -281,21 +153,16 @@ using ExpressionVariant = std::variant<
     FloatLiteral,
     StringLiteral,
     BooleanLiteral,
-
-    InterpolatedString,
-
     NoneLiteral,
-
-    Box,
+    InterpolatedString,
+    Range,
 
     Identifier,
-
     MemberAccess,
 
     Call,
-
+    Pipe,
     Constructor,
-    TemplateAngular,
 
     Prefix,
     Infix,
@@ -307,8 +174,7 @@ using ExpressionVariant = std::variant<
 
     Assignment,
 
-    IfTernaryBranch,
-    ElseTernaryBranch>;
+    TernaryExpression>;
 
 struct Expression : public AstNode<ExpressionVariant>
 {

@@ -14,8 +14,10 @@ using std::vector;
 namespace Wasp {
 
 optional<Token> TokenPipe::current() const {
-    if (index >= tokens.size())
+    if (index >= get_size())
+    {
         return nullopt;
+    }
     auto t = tokens[index];
     return t;
 }
@@ -31,8 +33,10 @@ optional<Token> TokenPipe::later() {
 }
 
 optional<Token> TokenPipe::lookahead() const {
-    if (index + 1 >= tokens.size())
+    if (index + 1 >= get_size())
+    {
         return nullopt;
+    }
     return tokens[index + 1];
 }
 
@@ -284,7 +288,7 @@ bool TokenPipe::peek_type_at_indent(int n, TokenType type) const {
 
 const Token* TokenPipe::peek(int offset) const
 {
-    if (index + offset < tokens.size())
+    if (index + offset < get_size())
     {
         return &tokens[index + offset];
     }
@@ -299,5 +303,8 @@ void TokenPipe::advance_pointer() { index++; }
 
 void TokenPipe::retreat_pointer() { index--; }
 
-size_t TokenPipe::get_size() const { return tokens.size(); }
+int TokenPipe::get_size() const
+{
+    return static_cast<int>(tokens.size());
+}
 } // namespace Wasp
