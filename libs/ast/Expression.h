@@ -5,7 +5,6 @@
 
 #include <map>
 #include <memory>
-#include <optional>
 #include <string>
 #include <utility>
 #include <variant>
@@ -55,24 +54,19 @@ struct Infix
     Expression_ptr right;
 };
 
-struct SequenceLiteral
+struct ListLiteral
 {
     ExpressionVector expressions;
 };
 
-struct ListLiteral : public SequenceLiteral
+struct TupleLiteral
 {
-    using SequenceLiteral::SequenceLiteral;
+    ExpressionVector expressions;
 };
 
-struct TupleLiteral : public SequenceLiteral
+struct SetLiteral
 {
-    using SequenceLiteral::SequenceLiteral;
-};
-
-struct SetLiteral : public SequenceLiteral
-{
-    using SequenceLiteral::SequenceLiteral;
+    ExpressionVector expressions;
 };
 
 struct MapLiteral
@@ -80,15 +74,22 @@ struct MapLiteral
     std::map<Expression_ptr, Expression_ptr> pairs;
 };
 
-struct Assignment
+// Binding & Assignment
+
+struct Binding
 {
     Expression_ptr lhs;
     Expression_ptr rhs;
 
-    std::optional<TypeAnnotation_ptr> declared_type = std::nullopt;
+    TypeAnnotation_ptr declared_type;
 
-    bool is_definition = false;
-    bool is_mutable = false;
+    bool is_mutable;
+};
+
+struct Assignment
+{
+    Expression_ptr lhs;
+    Expression_ptr rhs;
 };
 
 // Branching
@@ -110,7 +111,7 @@ struct Identifier
 struct MemberAccess
 {
     Expression_ptr object;
-    std::string member_name;
+    Expression_ptr member;
 };
 
 struct Call
@@ -121,7 +122,7 @@ struct Call
 
 struct Constructor
 {
-    TypeAnnotation_ptr type;
+    Expression_ptr constructible;
     ExpressionVector arguments;
 };
 
@@ -133,8 +134,7 @@ struct Range
     enum class Kind
     {
         Inclusive,
-        ExclusiveEnd,
-        ExclusiveStart
+        Exclusive,
     } kind;
 };
 
@@ -142,6 +142,17 @@ struct Pipe
 {
     Expression_ptr left;
     Expression_ptr right;
+};
+
+struct TemplateAngular
+{
+    Expression_ptr target;
+    TypeAnnotationVector angular_nodes;
+
+    TemplateAngular(Expression_ptr target, TypeAnnotationVector angular_nodes)
+        : target(std::move(target)), angular_nodes(std::move(angular_nodes))
+    {
+    }
 };
 
 // Expression
@@ -159,6 +170,7 @@ using ExpressionVariant = std::variant<
 
     Identifier,
     MemberAccess,
+    TemplateAngular,
 
     Call,
     Pipe,
@@ -172,6 +184,7 @@ using ExpressionVariant = std::variant<
     MapLiteral,
     SetLiteral,
 
+    Binding,
     Assignment,
 
     TernaryExpression>;
@@ -179,13 +192,11 @@ using ExpressionVariant = std::variant<
 struct Expression : public AstNode<ExpressionVariant>
 {
     using AstNode::AstNode;
-    bool is_desugared = false;
 };
 
-template <typename T> inline Expression_ptr make_expression(T&& data, bool is_desugared = false)
+template <typename T> inline Expression_ptr make_expression(T&& data)
 {
     auto expr = std::make_shared<Expression>(std::forward<T>(data));
-    expr->is_desugared = is_desugared;
     return expr;
 }
 

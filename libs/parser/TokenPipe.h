@@ -13,6 +13,10 @@ class TokenPipe
     int index;
 
 public:
+    TokenPipe() : index(0)
+    {
+    }
+
     explicit TokenPipe(const std::vector<Token>& tokens) : index(0)
     {
         for (const auto& token : tokens)

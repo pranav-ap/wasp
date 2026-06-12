@@ -40,13 +40,30 @@ template <typename VariantType> struct AstNode {
         requires std::is_constructible_v<VariantType, T&&>
     AstNode(T&& val) : data(std::forward<T>(val)) {}
 
-    template <typename T> bool is() const { return std::holds_alternative<T>(data); }
+    template <typename T> bool is() const
+    {
+        return std::holds_alternative<T>(data);
+    }
 
-    template <typename T> const T& as() const { return std::get<T>(data); }
-    template <typename T> T& as() { return std::get<T>(data); }
+    template <typename T> const T& as() const
+    {
+        return std::get<T>(data);
+    }
 
-    template <typename T> const T* try_as() const { return std::get_if<T>(&data); }
-    template <typename T> T* try_as() { return std::get_if<T>(&data); }
+    template <typename T> T& as()
+    {
+        return std::get<T>(data);
+    }
+
+    template <typename T> const T* try_as() const
+    {
+        return std::get_if<T>(&data);
+    }
+
+    template <typename T> T* try_as()
+    {
+        return std::get_if<T>(&data);
+    }
 };
 
 } // namespace Wasp

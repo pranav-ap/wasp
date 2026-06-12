@@ -51,12 +51,11 @@ void DependencyCrawler::traverse_edges(const std::filesystem::path& file_path)
 
             auto full_filepath = resolve_import_path(
                 import_stmt.access_modifier,
-                import_stmt.access_argument,
+                import_stmt.jumps,
                 import_stmt.path,
                 abs_path
             );
 
-            import_stmt.absolute_path = full_filepath;
             traverse_edges(full_filepath);
         }
     }
@@ -68,14 +67,14 @@ void DependencyCrawler::traverse_edges(const std::filesystem::path& file_path)
 
 std::filesystem::path DependencyCrawler::resolve_import_path(
     const std::optional<TokenType>& access_modifier,
-    int access_argument,
+    int jumps,
     const std::vector<std::string>& path_segments,
     const std::filesystem::path& current_file
 )
 {
     std::filesystem::path base = get_base_path(
         access_modifier,
-        access_argument,
+        jumps,
         current_file
     );
 
@@ -89,7 +88,7 @@ std::filesystem::path DependencyCrawler::resolve_import_path(
 
 std::filesystem::path DependencyCrawler::get_base_path(
     const std::optional<TokenType>& access_modifier,
-    int access_argument,
+    int jumps,
     const std::filesystem::path& current_file
 )
 {
@@ -111,7 +110,7 @@ std::filesystem::path DependencyCrawler::get_base_path(
         return base.parent_path();
 
     case TokenType::UP: {
-        for (int i = 0; i < access_argument; ++i)
+        for (int i = 0; i < jumps; ++i)
         {
             base = base.parent_path();
         }
@@ -125,7 +124,7 @@ std::filesystem::path DependencyCrawler::get_base_path(
         {
             if (std::filesystem::exists(base / "wasp.yaml"))
             {
-                if (++found == access_argument)
+                if (++found == jumps)
                 {
                     break;
                 }
@@ -134,7 +133,7 @@ std::filesystem::path DependencyCrawler::get_base_path(
         }
 
         Doctor::get().assert(
-            found == access_argument,
+            found == jumps,
             WaspStage::Captain,
             "Could not resolve pkg() boundary."
         );

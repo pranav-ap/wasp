@@ -3,7 +3,6 @@
 #include "TypeAnnotation.h"
 #include "test_utils.h"
 #include <gtest/gtest.h>
-#include <memory>
 
 TEST(ParseDefinitions, AliasDefinition)
 {
@@ -13,12 +12,10 @@ TEST(ParseDefinitions, AliasDefinition)
     auto& alias_def = check<Wasp::TypeAliasDefinition>(block[0]);
     EXPECT_EQ(alias_def.name, "int_list");
 
-    auto& list_type_ptr = check<std::shared_ptr<Wasp::ListTypeNode>>(
-        alias_def.ref_type
-    );
+    auto& list_type_ptr = check<Wasp::ListTypeNode>(alias_def.ref_type);
 
     auto& element_type = check<Wasp::TypeIdentifierNode>(
-        list_type_ptr->element_type
+        list_type_ptr.element_type
     );
 
     EXPECT_EQ(element_type.name, "int");
@@ -71,24 +68,24 @@ fun add(a: int, b: int) => int
     ASSERT_EQ(block.size(), 1);
 
     auto& func_def = check<Wasp::FunctionDefinition>(block[0]);
-    ASSERT_EQ(func_def.body.size(), 2);
+    ASSERT_EQ(func_def.block.statements.size(), 2);
 
     // IF ELSE NESTING
 
     {
-        auto& if_branch = check<Wasp::IfBranch>(func_def.body[0]);
+        auto& if_branch = check<Wasp::Branch>(func_def.block.statements[0]);
         ASSERT_TRUE(if_branch.alternative);
 
-        auto& elif_branch = check<Wasp::IfBranch>(if_branch.alternative);
+        auto& elif_branch = check<Wasp::Branch>(if_branch.alternative);
         ASSERT_TRUE(elif_branch.alternative);
 
-        check<Wasp::ElseBranch>(elif_branch.alternative);
+        check<Wasp::Branch>(elif_branch.alternative);
     }
 
     // RETURN STATEMENT
 
     {
-        check<Wasp::Return>(func_def.body[1]);
+        check<Wasp::Return>(func_def.block.statements[1]);
     }
 }
 
@@ -105,13 +102,13 @@ fun add(a: int, b: int) => int
     ASSERT_EQ(block.size(), 1);
 
     auto& func_def = check<Wasp::FunctionDefinition>(block[0]);
-    ASSERT_EQ(func_def.body.size(), 2);
+    ASSERT_EQ(func_def.block.statements.size(), 2);
 
-    auto& loop = check<Wasp::SimpleLoop>(func_def.body[0]);
+    auto& loop = check<Wasp::SimpleLoop>(func_def.block.statements[0]);
     check<Wasp::Infix>(loop.condition);
-    ASSERT_EQ(loop.body.size(), 1);
+    ASSERT_EQ(loop.block.statements.size(), 1);
 
-    check<Wasp::Return>(func_def.body[1]);
+    check<Wasp::Return>(func_def.block.statements[1]);
 }
 
 // CLASS
@@ -126,7 +123,7 @@ class Person is Fortifiable & Movable & Serializable
 
     ASSERT_EQ(block.size(), 1);
 
-    auto& class_def = check<Wasp::ClassDefinition>(block[0]);
+    auto& class_def = check<Wasp::TypeDefinition>(block[0]);
     EXPECT_EQ(class_def.name, "Person");
     ASSERT_EQ(class_def.traits.size(), 3);
 }
@@ -150,18 +147,16 @@ class Person
 
     ASSERT_EQ(block.size(), 1);
 
-    auto& class_def = check<Wasp::ClassDefinition>(block[0]);
+    auto& class_def = check<Wasp::TypeDefinition>(block[0]);
     EXPECT_EQ(class_def.name, "Person");
-    ASSERT_EQ(class_def.members.size(), 2);
+    ASSERT_EQ(class_def.methods.size(), 2);
 
-    // Update to MethodDefinition and remove the is_method check
-    auto& func_def1 = check<Wasp::MethodDefinition>(class_def.members[0]);
+    auto& func_def1 = class_def.methods[0];
     EXPECT_EQ(func_def1.name, "fortify");
     EXPECT_FALSE(func_def1.is_shared);
     EXPECT_TRUE(func_def1.parameters.empty());
 
-    // Update to MethodDefinition and remove the is_method check
-    auto& func_def2 = check<Wasp::MethodDefinition>(class_def.members[1]);
+    auto& func_def2 = class_def.methods[1];
     EXPECT_EQ(func_def2.name, "weaken");
     EXPECT_FALSE(func_def2.is_shared);
 

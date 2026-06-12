@@ -1,4 +1,4 @@
-#include "ExpressionParselets.h"
+#include "Parselets.h"
 #include "AST.h"
 #include "Doctor.h"
 #include "Expression.h"
@@ -86,7 +86,7 @@ Expression_ptr SquareBracketParselet::parse(Parser& parser, const Token&)
 
     ExpressionVector expressions = parser.parse_expressions();
     parser.token_pipe.require(TokenType::CLOSE_SQUARE_BRACKET);
-    return make_expression(ListLiteral(expressions));
+    return make_expression(ListLiteral{expressions});
 }
 
 Expression_ptr ParenthesisParselet::parse(Parser& parser, const Token&)
@@ -101,7 +101,7 @@ Expression_ptr ParenthesisParselet::parse(Parser& parser, const Token&)
 
     ExpressionVector expressions = parser.parse_expressions();
     parser.token_pipe.require(TokenType::CLOSE_PARENTHESIS);
-    return make_expression(TupleLiteral(expressions));
+    return make_expression(TupleLiteral{expressions});
 }
 
 Expression_ptr CurlyBraceParselet::parse(Parser& parser, const Token&)
@@ -143,7 +143,7 @@ Expression_ptr CurlyBraceParselet::parse(Parser& parser, const Token&)
 
         parser.token_pipe.ignore_spaces();
         parser.token_pipe.require(TokenType::CLOSE_CURLY_BRACE);
-        return make_expression(MapLiteral(pairs));
+        return make_expression(MapLiteral{pairs});
     }
 
     ExpressionVector elements;
@@ -162,7 +162,7 @@ Expression_ptr CurlyBraceParselet::parse(Parser& parser, const Token&)
     parser.token_pipe.ignore_spaces();
     parser.token_pipe.require(TokenType::CLOSE_CURLY_BRACE);
 
-    return make_expression(SetLiteral(elements));
+    return make_expression(SetLiteral{elements});
 }
 
 Expression_ptr AssignmentParselet::parse(
@@ -213,10 +213,10 @@ Expression_ptr AssignmentParselet::parse(
             break;
         }
 
-        right = make_expression(Infix(left, op_token, right));
+        right = make_expression(Infix{left, op_token, right});
     }
 
-    return make_expression(Assignment(left, right));
+    return make_expression(Assignment{left, right});
 }
 
 Expression_ptr TernaryConditionParselet::parse(Parser& parser, const Token&)
@@ -234,61 +234,24 @@ Expression_ptr MemberAccessParselet::parse(
     const Token&
 )
 {
-    Expression_ptr right = parser.parse_expression(get_precedence());
-    Doctor::get().fatal_if_nullptr(right, WaspStage::Parser);
-    return make_expression(MemberAccess(left, right));
+    Expression_ptr member = parser.parse_expression(get_precedence());
+    Doctor::get().fatal_if_nullptr(member, WaspStage::Parser);
+    return make_expression(MemberAccess(left, member));
 }
 
 bool LesserThanParselet::looks_like_generic_args(Parser& parser) const
 {
-    int offset = 0;
-    int depth = 1;
+    const auto next = parser.token_pipe.current();
 
-    while (true)
+    // If there's a space after '<', it's a comparison operator, not generics
+    if (next.has_value() &&
+        (next->type == TokenType::SPACE || next->type == TokenType::TAB))
     {
-        const Token* t = parser.token_pipe.peek(offset++);
-
-        if (!t || t->type == TokenType::EOL || t->type == TokenType::END_OF_FILE)
-        {
-            return false;
-        }
-
-        if (t->type == TokenType::SPACE || t->type == TokenType::TAB)
-        {
-            continue;
-        }
-
-        if (t->type == TokenType::GREATER_THAN)
-        {
-            depth--;
-            if (depth == 0)
-            {
-                return true;
-            }
-        }
-        else if (t->type == TokenType::LESSER_THAN)
-        {
-            depth++;
-        }
-        else if (
-            t->type == TokenType::IDENTIFIER || t->type == TokenType::COMMA ||
-            t->type == TokenType::VERTICAL_BAR || t->type == TokenType::AMPERSAND ||
-            t->type == TokenType::OPEN_SQUARE_BRACKET ||
-            t->type == TokenType::CLOSE_SQUARE_BRACKET ||
-            t->type == TokenType::OPEN_PARENTHESIS ||
-            t->type == TokenType::CLOSE_PARENTHESIS ||
-            t->type == TokenType::OPEN_CURLY_BRACE ||
-            t->type == TokenType::CLOSE_CURLY_BRACE || t->type == TokenType::DOT ||
-            t->type == TokenType::NONE || t->type == TokenType::NATIVE
-        )
-        {
-            continue;
-        }
-        else
-        {
-            return false;
-        }
+        return false;
     }
+
+    // Otherwise, treat it as generic arguments
+    return true;
 }
 
 Expression_ptr LesserThanParselet::parse(Parser& parser, Expression_ptr left, const Token& token)
@@ -311,7 +274,7 @@ Expression_ptr LesserThanParselet::parse(Parser& parser, Expression_ptr left, co
     }
 
     Expression_ptr right = parser.parse_expression(get_precedence());
-    return make_expression(Infix(left, token, right));
+    return make_expression(Infix{left, token, right});
 }
 
 static bool is_target_capitalized(const Expression_ptr& expr)
@@ -324,7 +287,7 @@ static bool is_target_capitalized(const Expression_ptr& expr)
 
     if (expr->is<MemberAccess>())
     {
-        return is_target_capitalized(expr->as<MemberAccess>().right);
+        return is_target_capitalized(expr->as<MemberAccess>().member);
     }
 
     if (expr->is<TemplateAngular>())
@@ -360,7 +323,7 @@ Expression_ptr CallParselet::parse(
 
     if (is_target_capitalized(left))
     {
-        return make_expression(Constructor(left, arguments));
+        return make_expression(Constructor{left, arguments});
     }
 
     return make_expression(Call(left, arguments));

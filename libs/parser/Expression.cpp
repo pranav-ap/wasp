@@ -86,7 +86,7 @@ Expression_ptr Parser::parse_variable_definition(bool is_mutable)
 
     token_pipe.advance_pointer();
 
-    std::optional<TypeAnnotation_ptr> declared_type = std::nullopt;
+    TypeAnnotation_ptr declared_type = nullptr;
 
     if (auto colon_token = token_pipe.current_in_line();
         colon_token && colon_token->type == TokenType::COLON)
@@ -105,7 +105,7 @@ Expression_ptr Parser::parse_variable_definition(bool is_mutable)
     token_pipe.advance_pointer();
     Expression_ptr rhs = parse_expression(0);
 
-    return make_expression(Assignment(lhs, rhs, true, is_mutable, declared_type));
+    return make_expression(Binding{lhs, rhs, declared_type, is_mutable});
 }
 
 ExpressionVector Parser::parse_expressions()

@@ -48,7 +48,7 @@ TypeAnnotation_ptr Parser::parse_variant_type()
 
     if (types.size() > 1)
     {
-        return make_type_annotation(std::make_shared<VariantTypeNode>(std::move(types)));
+        return make_type_annotation(VariantTypeNode(std::move(types)));
     }
 
     return types.front();
@@ -66,7 +66,7 @@ TypeAnnotation_ptr Parser::parse_intersection_type()
 
     if (types.size() > 1)
     {
-        return make_type_annotation(std::make_shared<IntersectionTypeNode>(std::move(types)));
+        return make_type_annotation(IntersectionTypeNode(std::move(types)));
     }
 
     return types.front();
@@ -105,7 +105,7 @@ TypeAnnotation_ptr Parser::parse_base_type()
             token_pipe.require(TokenType::GREATER_THAN);
 
             type = make_type_annotation(
-                std::make_shared<TemplateAngularTypeNode>(type, std::move(generic_args))
+                TemplateAngularTypeNode(type, std::move(generic_args))
             );
         }
     }
@@ -174,7 +174,7 @@ TypeAnnotation_ptr Parser::parse_list_type()
 {
     auto type = parse_type();
     token_pipe.require_later(TokenType::CLOSE_SQUARE_BRACKET);
-    return make_type_annotation(std::make_shared<ListTypeNode>(type));
+    return make_type_annotation(ListTypeNode(type));
 }
 
 TypeAnnotation_ptr Parser::parse_tuple_or_fun_type()
@@ -185,12 +185,10 @@ TypeAnnotation_ptr Parser::parse_tuple_or_fun_type()
     if (token_pipe.consume_optional_in_line(TokenType::ARROW))
     {
         auto return_type = parse_type();
-        return make_type_annotation(
-            std::make_shared<FunctionTypeNode>(types, return_type)
-        );
+        return make_type_annotation(FunctionTypeNode(types, return_type));
     }
 
-    return make_type_annotation(std::make_shared<TupleTypeNode>(types));
+    return make_type_annotation(TupleTypeNode(types));
 }
 
 TypeAnnotation_ptr Parser::parse_set_or_map_type()
@@ -201,13 +199,11 @@ TypeAnnotation_ptr Parser::parse_set_or_map_type()
     {
         auto value_type = parse_type();
         token_pipe.require_later(TokenType::CLOSE_CURLY_BRACE);
-        return make_type_annotation(
-            std::make_shared<MapTypeNode>(key_type, value_type)
-        );
+        return make_type_annotation(MapTypeNode(key_type, value_type));
     }
 
     token_pipe.require_later(TokenType::CLOSE_CURLY_BRACE);
-    return make_type_annotation(std::make_shared<SetTypeNode>(key_type));
+    return make_type_annotation(SetTypeNode(key_type));
 }
 
 } // namespace Wasp

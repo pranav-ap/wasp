@@ -12,7 +12,6 @@
 #include <optional>
 #include <string>
 #include <tuple>
-#include <utility>
 #include <vector>
 
 namespace Wasp
@@ -45,28 +44,64 @@ private:
     Statement_ptr parse_expression_statement();
 
     // --- Definitions & Declarations ---
+
     Expression_ptr parse_variable_definition(bool is_mutable);
+
     Statement_ptr parse_function_definition(
         int indent_level,
         bool is_shared = false,
-        bool is_pure = false
+        bool is_pure = false,
+        FieldVector generics = {}
     );
-    Statement_ptr parse_operator_definition(TokenType fixity, int indent_level);
-    Statement_ptr parse_class_definition(int indent_level = 0);
-    Statement_ptr parse_trait_definition(int indent_level = 0);
-    Statement_ptr parse_enum_definition(int indent_level = 0);
+
     Statement_ptr parse_type_alias_definition();
+
+    Statement_ptr parse_operator_definition(
+        TokenType fixity,
+        int indent_level,
+        FieldVector generics = {}
+    );
+
+    Statement_ptr parse_class_definition(
+        int indent_level = 0,
+        FieldVector generics = {}
+    );
+
+    Statement_ptr parse_trait_definition(
+        int indent_level = 0,
+        FieldVector generics = {}
+    );
+
+    Statement_ptr parse_primitive_definition(
+        int indent_level = 0,
+        FieldVector generics = {}
+    );
+
+    Statement_ptr parse_enum_definition(
+        int indent_level = 0,
+        FieldVector generics = {}
+    );
+
     Statement_ptr parse_template_definition(int indent_level = 0);
 
     // --- OOP & Member Helpers ---
-    std::tuple<std::string, TypeAnnotationVector, StatementVector>
+
+    std::tuple<
+        std::string,
+        TypeAnnotationVector,
+        FunctionDefinitionVector,
+        FieldVector>
     parse_membered_definition_base(int indent_level);
-    EnumDefinition parse_enum_body(std::string name, int indent_level);
-    StatementVector parse_name_type_block(int expected_indent);
-    std::pair<std::string, TypeAnnotation_ptr> parse_name_type_pair();
+
+    EnumDefinition parse_enum_body(
+        std::string name,
+        FieldVector generics,
+        int indent_level
+    );
 
     Field parse_field();
-    FieldVector parse_field_vector();
+    FieldVector parse_fields(int expected_indent);
+    FieldVector parse_parameters();
 
     // --- Control Flow & Branching ---
     Statement_ptr parse_branching(TokenType token_type, int if_indent_level);

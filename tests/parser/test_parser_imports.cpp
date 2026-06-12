@@ -15,7 +15,7 @@ TEST(ParseImports, SimpleImportLibrary)
     auto& stmt = check<Wasp::Import>(block[0]);
 
     EXPECT_FALSE(stmt.access_modifier.has_value());
-    EXPECT_EQ(stmt.access_argument, 1);
+    EXPECT_EQ(stmt.jumps, 1);
     ASSERT_EQ(stmt.path.size(), 1);
     EXPECT_EQ(stmt.path[0], "math3d");
 
@@ -32,7 +32,7 @@ TEST(ParseImports, SimpleMyImportLibrary)
 
     ASSERT_TRUE(stmt.access_modifier.has_value());
     EXPECT_EQ(stmt.access_modifier.value(), Wasp::TokenType::MY);
-    EXPECT_EQ(stmt.access_argument, 1);
+    EXPECT_EQ(stmt.jumps, 1);
 
     ASSERT_EQ(stmt.path.size(), 1);
     EXPECT_EQ(stmt.path[0], "math3d");
@@ -48,8 +48,8 @@ TEST(ParseImports, SimpleImportWithAliasAndDepth)
     ASSERT_TRUE(stmt.access_modifier.has_value());
     EXPECT_EQ(stmt.access_modifier.value(), Wasp::TokenType::UP);
 
-    // Depth is now stored cleanly in access_argument!
-    EXPECT_EQ(stmt.access_argument, 2);
+    // Depth is now stored cleanly in jumps!
+    EXPECT_EQ(stmt.jumps, 2);
 
     ASSERT_EQ(stmt.path.size(), 1);
     EXPECT_EQ(stmt.path[0], "navigation");
@@ -87,7 +87,7 @@ TEST(ParseImports, ExposeGroupedSymbols)
 
     ASSERT_TRUE(stmt.access_modifier.has_value());
     EXPECT_EQ(stmt.access_modifier.value(), Wasp::TokenType::UP);
-    EXPECT_EQ(stmt.access_argument, 3);
+    EXPECT_EQ(stmt.jumps, 3);
 
     ASSERT_EQ(stmt.path.size(), 1);
     EXPECT_EQ(stmt.path[0], "engine");

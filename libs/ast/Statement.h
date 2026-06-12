@@ -86,58 +86,68 @@ struct LoopControl
 
 // =============== Definitions ===============
 
-struct Definition
+struct TypeAliasDefinition
 {
     std::string name;
-    FieldVector generics;
-};
 
-struct TypeAliasDefinition : public Definition
-{
     TypeAnnotation_ptr ref_type;
 };
 
-struct EnumDefinition : public Definition
+struct EnumDefinition
 {
+    std::string name;
+    FieldVector generics;
+
     StringVector members;
     std::vector<EnumDefinition> nested_enums;
 };
 
-struct FunctionDefinition : public Definition
+struct FunctionDefinition
 {
-    FieldVector fields;
+    std::string name;
+    FieldVector generics;
+
+    FieldVector parameters;
     TypeAnnotation_ptr return_type;
 
     Block block;
 
-    bool is_pure = false;
-
-    bool is_method = false;
-    bool is_shared = false;
+    bool is_pure;
+    bool is_shared;
 };
 
-struct OperatorDefinition : public Definition
+using FunctionDefinitionVector = std::vector<FunctionDefinition>;
+
+struct OperatorDefinition
 {
+    std::string name;
+    FieldVector generics;
+
     TokenType op_type;
     TokenType fixity;
 
-    FieldVector fields;
+    FieldVector operands;
     TypeAnnotation_ptr return_type;
 
-    Block body;
+    Block block;
 };
 
-struct TypeDefinition : public Definition
+struct TypeDefinition
 {
+    std::string name;
+
     enum class Kind
     {
-        Class,
-        Trait,
-        Primitive
+        CLASS,
+        TRAIT,
+        PRIMITIVE
     } kind;
 
+    FieldVector generics;
+    FieldVector fields;
+    FunctionDefinitionVector methods;
+
     TypeAnnotationVector traits;
-    StatementVector members;
 };
 
 // =============== Imports ===============
@@ -145,7 +155,7 @@ struct TypeDefinition : public Definition
 struct ImportAsPair
 {
     std::string name;
-    std::optional<std::string> alias;
+    std::optional<std::string> alias = std::nullopt;
 };
 
 struct Import

@@ -1,7 +1,8 @@
 #pragma once
 
+#include "AST.h"
 #include "Expression.h"
-#include "Statement.h"
+
 #include <cstddef>
 #include <functional>
 #include <gtest/gtest.h>
@@ -21,9 +22,6 @@ const T& check(const Wasp::Expression_ptr& ptr) {
 
     ADD_FAILURE() << "AST Node Type Mismatch";
 
-    // We must return a T&.
-    // This lives forever, so the reference remains "valid"
-    // long enough for the test runner to report the failure.
     static T dummy{};
     return dummy;
 }

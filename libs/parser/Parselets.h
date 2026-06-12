@@ -2,6 +2,7 @@
 
 #include "AST.h"
 #include "Token.h"
+
 #include <memory>
 
 namespace Wasp

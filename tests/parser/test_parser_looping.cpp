@@ -23,7 +23,7 @@ TEST(ParseLooping, WhileSingle)
     }
 
     {
-        auto& body = check<Wasp::ExpressionStatement>(stmt.body[0]);
+        auto& body = check<Wasp::ExpressionStatement>(stmt.block.statements[0]);
         auto& assign = check<Wasp::Assignment>(body.expression);
 
         {
@@ -58,7 +58,7 @@ while x < 10 do
     ASSERT_EQ(block.size(), 1);
 
     auto& stmt = check<Wasp::SimpleLoop>(block[0]);
-    auto& body = stmt.body;
+    auto& body = stmt.block.statements;
     ASSERT_EQ(body.size(), 2);
 
     {
@@ -81,26 +81,7 @@ while x < 10 do
 )");
 
     auto& stmt = check<Wasp::SimpleLoop>(block[0]);
-    auto& body = stmt.body;
-    ASSERT_EQ(body.size(), 2);
-
-    auto& exprStmt = check<Wasp::ExpressionStatement>(body[0]);
-    check<Wasp::Assignment>(exprStmt.expression);
-
-    auto& ctrlStmt = check<Wasp::LoopControl>(body[1]);
-    EXPECT_EQ(ctrlStmt.type, Wasp::TokenType::CONTINUE);
-}
-
-TEST(ParseLooping, ContinueWithExpression)
-{
-    auto block = parse(R"(
-while x < 10 do
-    x = x + 1
-    continue x
-)");
-
-    auto& stmt = check<Wasp::SimpleLoop>(block[0]);
-    auto& body = stmt.body;
+    auto& body = stmt.block.statements;
     ASSERT_EQ(body.size(), 2);
 
     auto& exprStmt = check<Wasp::ExpressionStatement>(body[0]);

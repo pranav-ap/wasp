@@ -31,32 +31,7 @@ Statement_ptr Parser::parse_template_definition(int indent_level)
     token_pipe.advance_pointer(); // Consume 'template'
     token_pipe.require_in_line(TokenType::EOL);
 
-    FieldVector generics;
-    const int body_indent = indent_level + 1;
-
-    while (true)
-    {
-        token_pipe.ignore_empty_lines();
-
-        if (token_pipe.lookahead_indents() != body_indent)
-        {
-            break;
-        }
-
-        token_pipe.expect_n_indents(body_indent);
-
-        bool is_variadic = token_pipe.consume_optional(TokenType::DOT_DOT_DOT)
-                               .has_value();
-
-        auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
-        token_pipe.require_in_line(TokenType::COLON);
-
-        auto param_type = parse_type();
-        token_pipe.require_in_line(TokenType::EOL);
-
-        generics.emplace_back(name_token.lexeme, param_type, is_variadic);
-    }
-
+    FieldVector generics = parse_fields(indent_level + 1);
     Statement_ptr target = parse_statement(indent_level);
 
     std::visit(
@@ -70,10 +45,6 @@ Statement_ptr Parser::parse_template_definition(int indent_level)
                 def.generics = generics;
             },
             [&](TypeDefinition& def)
-            {
-                def.generics = generics;
-            },
-            [&](TypeAliasDefinition& def)
             {
                 def.generics = generics;
             },
@@ -92,7 +63,7 @@ Statement_ptr Parser::parse_template_definition(int indent_level)
 }
 
 // ============================================================================
-// Types & Enums
+// Type Alias
 // ============================================================================
 
 Statement_ptr Parser::parse_type_alias_definition()
@@ -107,20 +78,35 @@ Statement_ptr Parser::parse_type_alias_definition()
     auto ref_type = parse_type();
     token_pipe.require_in_line(TokenType::EOL);
 
-    return make_statement(TypeAliasDefinition(name, ref_type));
+    return make_statement(
+        TypeAliasDefinition{std::move(name), std::move(ref_type)}
+    );
 }
 
-Statement_ptr Parser::parse_enum_definition(int indent_level)
+// ============================================================================
+// Enums
+// ============================================================================
+
+Statement_ptr Parser::parse_enum_definition(
+    int indent_level,
+    FieldVector generics
+)
 {
     token_pipe.advance_pointer();
 
     Token identifier = token_pipe.require_in_line(TokenType::IDENTIFIER);
     token_pipe.require_in_line(TokenType::EOL);
 
-    return make_statement(parse_enum_body(identifier.lexeme, indent_level + 1));
+    return make_statement(
+        parse_enum_body(identifier.lexeme, generics, indent_level + 1)
+    );
 }
 
-EnumDefinition Parser::parse_enum_body(std::string name, int indent_level)
+EnumDefinition Parser::parse_enum_body(
+    std::string name,
+    FieldVector generics,
+    int indent_level
+)
 {
     std::vector<std::string> members;
     std::vector<EnumDefinition> nested_enums;
@@ -144,7 +130,7 @@ EnumDefinition Parser::parse_enum_body(std::string name, int indent_level)
             token_pipe.require_in_line(TokenType::EOL);
 
             nested_enums.push_back(
-                parse_enum_body(nested_name, indent_level + 1)
+                parse_enum_body(nested_name, generics, indent_level + 1)
             );
 
             continue;
@@ -160,7 +146,7 @@ EnumDefinition Parser::parse_enum_body(std::string name, int indent_level)
         break;
     }
 
-    return EnumDefinition(std::move(name), members, nested_enums);
+    return EnumDefinition{std::move(name), generics, members, nested_enums};
 }
 
 // ============================================================================
@@ -170,7 +156,8 @@ EnumDefinition Parser::parse_enum_body(std::string name, int indent_level)
 Statement_ptr Parser::parse_function_definition(
     int indent_level,
     bool is_shared,
-    bool is_pure
+    bool is_pure,
+    FieldVector generics
 )
 {
     auto name = token_pipe.require_in_line(TokenType::IDENTIFIER).lexeme;
@@ -194,6 +181,7 @@ Statement_ptr Parser::parse_function_definition(
     }
 
     TypeAnnotation_ptr return_type = nullptr;
+
     if (token_pipe.consume_optional_in_line(TokenType::ARROW))
     {
         return_type = parse_type();
@@ -204,16 +192,19 @@ Statement_ptr Parser::parse_function_definition(
 
     return make_statement(FunctionDefinition(
         std::move(name),
+        std::move(generics),
         std::move(parameters),
         std::move(return_type),
         std::move(body),
-        is_pure
+        is_pure,
+        is_shared
     ));
 }
 
 Statement_ptr Parser::parse_operator_definition(
     TokenType fixity,
-    int indent_level
+    int indent_level,
+    FieldVector generics
 )
 {
     auto operator_token = token_pipe.current_in_line();
@@ -221,7 +212,7 @@ Statement_ptr Parser::parse_operator_definition(
     token_pipe.advance_pointer();
 
     token_pipe.require_in_line(TokenType::OPEN_PARENTHESIS);
-    std::vector<Field> parameters;
+    std::vector<Field> operands;
 
     if (!token_pipe.consume_optional(TokenType::CLOSE_PARENTHESIS))
     {
@@ -231,7 +222,7 @@ Statement_ptr Parser::parse_operator_definition(
                                   .lexeme;
             token_pipe.require_in_line(TokenType::COLON);
             auto param_type = parse_type();
-            parameters.emplace_back(param_name, param_type);
+            operands.emplace_back(param_name, param_type);
         }
         while (token_pipe.consume_optional_in_line(TokenType::COMMA));
 
@@ -245,24 +236,31 @@ Statement_ptr Parser::parse_operator_definition(
     }
 
     token_pipe.require_in_line(TokenType::EOL);
-    Block body = parse_block(indent_level + 1);
+    Block block = parse_block(indent_level + 1);
+
+    std::string name = get_operator_name(fixity, operator_token->type);
 
     return make_statement(OperatorDefinition(
+        name,
+        std::move(generics),
         fixity,
         operator_token->type,
-        get_operator_name(fixity, operator_token->type),
-        std::move(parameters),
+        std::move(operands),
         std::move(return_type),
-        std::move(body)
+        std::move(block)
     ));
 }
 
 // ============================================================================
-// OOP Definitions
+// OOPS
 // ============================================================================
 
-std::tuple<std::string, TypeAnnotationVector, StatementVector> Parser::
-    parse_membered_definition_base(int indent_level)
+std::tuple<
+    std::string,
+    TypeAnnotationVector,
+    FunctionDefinitionVector,
+    FieldVector>
+Parser::parse_membered_definition_base(int indent_level)
 {
     token_pipe.advance_pointer();
 
@@ -275,10 +273,10 @@ std::tuple<std::string, TypeAnnotationVector, StatementVector> Parser::
     {
         auto t = parse_type();
 
-        if (t->is<std::shared_ptr<IntersectionTypeNode>>())
+        if (t->is<IntersectionTypeNode>())
         {
-            auto& intersection = t->as<std::shared_ptr<IntersectionTypeNode>>();
-            traits = std::move(intersection->types);
+            auto& intersection = t->as<IntersectionTypeNode>();
+            traits = std::move(intersection.types);
         }
         else
         {
@@ -288,69 +286,123 @@ std::tuple<std::string, TypeAnnotationVector, StatementVector> Parser::
 
     token_pipe.require_in_line(TokenType::EOL);
 
-    StatementVector members;
-    const int body_indent = indent_level + 1;
+    FunctionDefinitionVector methods;
+    FieldVector fields;
+
+    const int BODY_INDENT = indent_level + 1;
 
     while (true)
     {
         token_pipe.ignore_empty_lines();
 
-        if (token_pipe.lookahead_indents() != body_indent)
+        if (token_pipe.lookahead_indents() != BODY_INDENT)
         {
             break;
         }
 
-        token_pipe.expect_n_indents(body_indent);
-
-        if (token_pipe.consume_optional(TokenType::COMMENT))
-        {
-            token_pipe.advance_pointer();
-            continue;
-        }
+        token_pipe.expect_n_indents(BODY_INDENT);
 
         if (token_pipe.consume_optional(TokenType::FUN))
         {
-            members.push_back(
-                parse_function_definition(body_indent, true, false, false)
-            );
+            auto fun = parse_function_definition(BODY_INDENT, false, false);
+            auto fun_def = fun->as<FunctionDefinition>();
+            methods.push_back(fun_def);
         }
         else if (token_pipe.consume_optional(TokenType::PURE))
         {
             token_pipe.require_in_line(TokenType::FUN);
-            members.push_back(
-                parse_function_definition(body_indent, true, false, true)
-            );
+
+            auto fun = parse_function_definition(BODY_INDENT, false, true);
+            auto fun_def = fun->as<FunctionDefinition>();
+            methods.push_back(fun_def);
         }
         else if (token_pipe.consume_optional(TokenType::SHARE))
         {
             bool is_pure = token_pipe.consume_optional_in_line(TokenType::PURE)
                                .has_value();
+
             token_pipe.require_in_line(TokenType::FUN);
-            members.push_back(
-                parse_function_definition(body_indent, true, true, is_pure)
-            );
+
+            auto fun = parse_function_definition(BODY_INDENT, true, is_pure);
+            auto fun_def = fun->as<FunctionDefinition>();
+            methods.push_back(fun_def);
         }
         else
         {
-            auto [member_name, member_type] = parse_name_type_pair();
-            members.push_back(make_statement(Field(member_name, member_type)));
+            Field field = parse_field();
+            fields.push_back(std::move(field));
         }
     }
 
-    return {std::move(name), std::move(traits), std::move(members)};
+    return {
+        std::move(name),
+        std::move(traits),
+        std::move(methods),
+        std::move(fields)
+    };
 }
 
-Statement_ptr Parser::parse_class_definition(int indent_level)
+Statement_ptr Parser::parse_class_definition(
+    int indent_level,
+    FieldVector generics
+)
 {
+    auto [name, traits, methods, fields] = parse_membered_definition_base(
+        indent_level
+    );
 
-    auto [name, traits, members] = parse_membered_definition_base(indent_level);
-    return make_statement(TypeDefinition(name, traits, members));
+    return make_statement(
+        TypeDefinition{
+            .name = name,
+            .kind = TypeDefinition::Kind::CLASS,
+            .generics = generics,
+            .fields = fields,
+            .methods = methods,
+            .traits = traits
+        }
+    );
 }
 
-Statement_ptr Parser::parse_trait_definition(int indent_level)
+Statement_ptr Parser::parse_trait_definition(
+    int indent_level,
+    FieldVector generics
+)
 {
-    auto [name, traits, members] = parse_membered_definition_base(indent_level);
-    return make_statement(TypeDefinition(name, traits, members));
+    auto [name, traits, methods, fields] = parse_membered_definition_base(
+        indent_level
+    );
+
+    return make_statement(
+        TypeDefinition{
+            .name = name,
+            .kind = TypeDefinition::Kind::TRAIT,
+            .generics = generics,
+            .fields = fields,
+            .methods = methods,
+            .traits = traits
+        }
+    );
+}
+
+Statement_ptr Parser::parse_primitive_definition(
+    int indent_level,
+    FieldVector generics
+)
+{
+    auto [name, traits, methods, fields] = parse_membered_definition_base(
+        indent_level
+    );
+
+    return make_statement(
+        TypeDefinition{
+            .name = name,
+            .kind = TypeDefinition::Kind::PRIMITIVE,
+            .generics = generics,
+            .fields = fields,
+            .methods = methods,
+            .traits = traits
+        }
+    );
 }
 
 // ============================================================================
@@ -377,22 +429,27 @@ Statement_ptr Parser::parse_return_statement()
 // Helpers
 // ============================================================================
 
-std::pair<std::string, TypeAnnotation_ptr> Parser::parse_name_type_pair()
+Field Parser::parse_field()
 {
+    bool is_variadic = token_pipe
+                           .consume_optional_in_line(TokenType::DOT_DOT_DOT)
+                           .has_value();
+
     auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
     std::string name = name_token.lexeme;
 
     token_pipe.require_in_line(TokenType::COLON);
 
     auto type = parse_type();
+
     token_pipe.require_in_line(TokenType::EOL);
 
-    return {name, type};
+    return Field(name, type, is_variadic);
 }
 
-StatementVector Parser::parse_name_type_block(int expected_indent)
+FieldVector Parser::parse_fields(int expected_indent)
 {
-    StatementVector members;
+    FieldVector fields;
 
     while (true)
     {
@@ -404,32 +461,14 @@ StatementVector Parser::parse_name_type_block(int expected_indent)
         }
 
         token_pipe.expect_n_indents(expected_indent);
-        auto [member_name, member_type] = parse_name_type_pair();
-        members.push_back(make_statement(Field(member_name, member_type)));
+        Field field = parse_field();
+        fields.push_back(std::move(field));
     }
 
-    return members;
+    return fields;
 }
 
-Field Parser::parse_field()
-{
-    auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
-    std::string name = name_token.lexeme;
-
-    token_pipe.require_in_line(TokenType::COLON);
-
-    auto type = parse_type();
-
-    bool is_variadic = token_pipe
-                           .consume_optional_in_line(TokenType::DOT_DOT_DOT)
-                           .has_value();
-
-    token_pipe.require_in_line(TokenType::EOL);
-
-    return Field(name, type, is_variadic);
-}
-
-FieldVector Parser::parse_field_vector()
+FieldVector Parser::parse_parameters()
 {
     FieldVector fields;
 

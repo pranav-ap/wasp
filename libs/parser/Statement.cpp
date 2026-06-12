@@ -35,25 +35,33 @@ Statement_ptr Parser::parse_statement(int expected_indent_level)
 
     switch (token->type)
     {
-    case TokenType::TYPE:
+
+    case TokenType::TYPE: {
         result = parse_type_alias_definition();
         break;
-    case TokenType::ENUM:
+    }
+
+    case TokenType::ENUM: {
         result = parse_enum_definition();
         break;
+    }
 
-    case TokenType::IF:
+    case TokenType::IF: {
         result = parse_branching(token->type, expected_indent_level);
         break;
+    }
 
     case TokenType::WHILE:
     case TokenType::UNLESS:
-    case TokenType::UNTIL:
+    case TokenType::UNTIL: {
         result = parse_simple_loop(token->type, expected_indent_level);
         break;
-    case TokenType::FOR:
+    }
+
+    case TokenType::FOR: {
         result = parse_for_in_loop(expected_indent_level);
         break;
+    }
 
     case TokenType::NATIVE: {
         token_pipe.advance_pointer();
@@ -114,29 +122,40 @@ Statement_ptr Parser::parse_statement(int expected_indent_level)
         break;
     }
 
-    case TokenType::RETURN_KEYWORD:
+    case TokenType::RETURN_KEYWORD: {
         result = parse_return_statement();
         break;
+    }
 
-    case TokenType::CLASS:
+    case TokenType::CLASS: {
         result = parse_class_definition(expected_indent_level);
         break;
+    }
 
-    case TokenType::TRAIT:
+    case TokenType::TRAIT: {
         result = parse_trait_definition(expected_indent_level);
         break;
+    }
 
-    case TokenType::TEMPLATE:
+    case TokenType::PRIMITIVE: {
+        result = parse_primitive_definition(expected_indent_level);
+        break;
+    }
+
+    case TokenType::TEMPLATE: {
         result = parse_template_definition(expected_indent_level);
         break;
+    }
 
-    case TokenType::IMPORT:
+    case TokenType::IMPORT: {
         result = parse_import();
         break;
+    }
 
-    default:
+    default: {
         result = parse_expression_statement();
         break;
+    }
     }
 
     return result;
