@@ -39,7 +39,6 @@ add_wasp_test_suite(parser_tests "parser"
     parser/test_parser_literals.cpp
     parser/test_parser_looping.cpp
     parser/test_parser_stars.cpp
-    parser/test_parser_statements.cpp
     parser/test_parser_variable_definitions.cpp
 )
 

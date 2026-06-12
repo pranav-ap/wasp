@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: '3'
+
+tasks:
+  fresh:
+    desc: Fresh Build
+    cmds:
+      - clear
+      - rm -rf build
+      - cmake -B build -G Ninja
+      - cmake --build build
+      - ctest --test-dir build -L "unit"
+
+  build:
+    desc: Build
+    cmds:
+      - clear
+      - cmake --build build
+
+  test:
+    desc: Test
+    cmds:
+      - clear
+      - ctest --test-dir build -L "unit"
+
+  build-test:
+    desc: Build and Test
+    cmds:
+      - clear
+      - cmake --build build
+      - ctest --test-dir build -L "unit"

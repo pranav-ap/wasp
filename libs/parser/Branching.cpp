@@ -53,19 +53,15 @@ Statement_ptr Parser::parse_branching(
         token_pipe.expect_n_indents(if_keyword_indent_level);
         // Consumes 'else'
         token_pipe.advance_pointer();
-        auto alternative = parse_else_block(if_keyword_indent_level);
+        token_pipe.require_in_line(TokenType::EOL);
+
+        Block else_block = parse_block(if_keyword_indent_level + 1);
+        auto alternative = make_statement(Branch{std::move(else_block)});
+
         return make_statement(Branch(block, test, alternative));
     }
 
     return make_statement(Branch(block, test));
-}
-
-Statement_ptr Parser::parse_else_block(int if_keyword_indent_level)
-{
-    token_pipe.require_in_line(TokenType::EOL);
-
-    Block else_block = parse_block(if_keyword_indent_level + 1);
-    return make_statement(Branch{std::move(else_block)});
 }
 
 Expression_ptr Parser::parse_ternary_condition(Expression_ptr test)

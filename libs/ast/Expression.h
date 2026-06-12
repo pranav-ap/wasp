@@ -148,11 +148,6 @@ struct TemplateAngular
 {
     Expression_ptr target;
     TypeAnnotationVector angular_nodes;
-
-    TemplateAngular(Expression_ptr target, TypeAnnotationVector angular_nodes)
-        : target(std::move(target)), angular_nodes(std::move(angular_nodes))
-    {
-    }
 };
 
 // Expression

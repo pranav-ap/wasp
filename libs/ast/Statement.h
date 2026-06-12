@@ -161,12 +161,12 @@ struct ImportAsPair
 struct Import
 {
     std::optional<TokenType> access_modifier;
-    int jumps = 1;
+    int jumps;
 
     StringVector path;
 
     std::optional<std::string> module_alias;
-    bool expose_all = false;
+    bool expose_all;
     std::vector<ImportAsPair> exposed_names;
     StringVector excluded_names;
 };

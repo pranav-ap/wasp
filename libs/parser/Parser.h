@@ -105,7 +105,6 @@ private:
 
     // --- Control Flow & Branching ---
     Statement_ptr parse_branching(TokenType token_type, int if_indent_level);
-    Statement_ptr parse_else_block(int if_indent_level);
     Statement_ptr parse_simple_loop(
         TokenType loop_style,
         int loop_indent_level
