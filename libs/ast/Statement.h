@@ -14,6 +14,17 @@
 namespace Wasp
 {
 
+// =============== Block ===============
+
+struct Block
+{
+    StatementVector statements;
+
+    Statement_ptr get(int index);
+    void add(Statement_ptr statement);
+    int size() const;
+};
+
 // =============== Basics ===============
 
 struct ExpressionStatement
@@ -29,11 +40,6 @@ struct Field
 };
 
 using FieldVector = std::vector<Field>;
-
-struct Block
-{
-    StatementVector statements;
-};
 
 // =============== Control Flow ===============
 

@@ -43,7 +43,7 @@ void DependencyCrawler::traverse_edges(const std::filesystem::path& file_path)
     currently_visiting.insert(abs_path);
 
     // Look for Top-Level Imports using the new unified Import node
-    for (auto& stmt_ptr : mod->stmts)
+    for (auto& stmt_ptr : mod->block.statements)
     {
         if (stmt_ptr->is<Import>())
         {

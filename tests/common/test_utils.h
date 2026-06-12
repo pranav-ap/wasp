@@ -1,7 +1,9 @@
 #pragma once
 
 #include "AST.h"
+// IWYU pragma: keep
 #include "Expression.h"
+#include "Statement.h"
 
 #include <cstddef>
 #include <functional>
@@ -10,14 +12,21 @@
 #include <string>
 #include <vector>
 
-Wasp::StatementVector parse(const std::string& code);
+Wasp::Block parse(const std::string& code);
 
 template<typename T>
 const T& check(const Wasp::Expression_ptr& ptr) {
-    auto* val = ptr->try_as<T>();
 
-    if (val) {
-        return *val;
+    if (!ptr)
+    {
+        ADD_FAILURE() << "Target pointer is null";
+        static T dummy{};
+        return dummy;
+    }
+
+    if (ptr->is<T>())
+    {
+        return ptr->as<T>();
     }
 
     ADD_FAILURE() << "AST Node Type Mismatch";
@@ -27,19 +36,19 @@ const T& check(const Wasp::Expression_ptr& ptr) {
 }
 
 // Use PtrType as a template parameter to accept Statement_ptr or Expression_ptr
-template<typename T, typename PtrType>
-const T& check(const PtrType& ptr) {
-    if (!ptr) {
+template <typename T, typename PtrType> const T& check(const PtrType& ptr)
+{
+    if (!ptr)
+    {
         ADD_FAILURE() << "Target pointer is null";
         static T dummy{};
         return dummy;
     }
 
-    // Use 'template' keyword here because try_as is a dependent template member
-    auto* val = ptr->template try_as<T>();
-
-    if (val) {
-        return *val;
+    // Use 'is' to check type, then 'as' to cast
+    if (ptr->template is<T>())
+    {
+        return ptr->template as<T>();
     }
 
     ADD_FAILURE() << "AST Node Type Mismatch";

@@ -54,16 +54,6 @@ template <typename VariantType> struct AstNode {
     {
         return std::get<T>(data);
     }
-
-    template <typename T> const T* try_as() const
-    {
-        return std::get_if<T>(&data);
-    }
-
-    template <typename T> T* try_as()
-    {
-        return std::get_if<T>(&data);
-    }
 };
 
 } // namespace Wasp

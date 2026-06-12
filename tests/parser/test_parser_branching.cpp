@@ -1,7 +1,6 @@
 #include "Expression.h"
 #include "Statement.h"
 #include "Token.h"
-#include "TypeAnnotation.h"
 
 #include "test_utils.h"
 #include <gtest/gtest.h>
@@ -10,7 +9,7 @@ TEST(ParseBranching, TernaryExpression)
 {
     auto block = parse("if true then 1 else 2");
 
-    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
+    auto& stmt = check<Wasp::ExpressionStatement>(block.get(0));
 
     auto& ternary = check<Wasp::TernaryExpression>(stmt.expression);
 
@@ -31,7 +30,7 @@ TEST(ParseBranching, TernaryLetExpression)
 {
     auto block = parse("if let x = 1 then 1 else 2");
 
-    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
+    auto& stmt = check<Wasp::ExpressionStatement>(block.get(0));
     auto& ternary = check<Wasp::TernaryExpression>(stmt.expression);
 
     // Test Condition (Binding node for variable definition)
@@ -59,7 +58,7 @@ TEST(ParseBranching, IfBlock)
 if true then
     1
 )");
-    auto& stmt = check<Wasp::Branch>(block[0]);
+    auto& stmt = check<Wasp::Branch>(block.get(0));
 
     auto& body = stmt.block.statements;
     ASSERT_EQ(body.size(), 1);
@@ -84,7 +83,7 @@ else
 )");
 
     // 1. Check the main 'if' branch
-    auto& stmt = check<Wasp::Branch>(block[0]);
+    auto& stmt = check<Wasp::Branch>(block.get(0));
     auto& test = check<Wasp::Infix>(stmt.test);
 
     {

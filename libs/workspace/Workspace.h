@@ -1,6 +1,6 @@
 #pragma once
 
-#include "AST.h"
+#include "Statement.h"
 
 #include <filesystem>
 #include <map>
@@ -13,7 +13,7 @@ namespace Wasp
 struct Module;
 using Module_ptr = std::shared_ptr<Module>;
 
-struct Workspace;
+class Workspace;
 using Workspace_ptr = std::shared_ptr<Workspace>;
 
 // ============================================================================
@@ -24,11 +24,11 @@ struct Module
 {
     const std::filesystem::path absolute_filepath;
 
-    StatementVector stmts;
+    Block block;
 
     Module() = default;
 
-    Module(std::filesystem::path file_path, StatementVector stmts);
+    Module(std::filesystem::path file_path, Block block);
 
     std::string get_name() const;
     std::string get_path() const;

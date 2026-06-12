@@ -10,7 +10,7 @@ TEST(ParseDefinitions, AliasDefinition)
     auto block = parse("type int_list = [int]");
     ASSERT_EQ(block.size(), 1);
 
-    auto& alias_def = check<Wasp::TypeAliasDefinition>(block[0]);
+    auto& alias_def = check<Wasp::TypeAliasDefinition>(block.get(0));
     EXPECT_EQ(alias_def.name, "int_list");
 
     auto& list_type_ptr = check<Wasp::ListTypeNode>(alias_def.ref_type);
@@ -35,7 +35,7 @@ enum Animal
 
     ASSERT_EQ(block.size(), 1);
 
-    auto& enum_def = check<Wasp::EnumDefinition>(block[0]);
+    auto& enum_def = check<Wasp::EnumDefinition>(block.get(0));
     EXPECT_EQ(enum_def.name, "Animal");
 
     // Check top-level members
@@ -68,7 +68,7 @@ fun add(a: int, b: int) => int
 
     ASSERT_EQ(block.size(), 1);
 
-    auto& func_def = check<Wasp::FunctionDefinition>(block[0]);
+    auto& func_def = check<Wasp::FunctionDefinition>(block.get(0));
     ASSERT_EQ(func_def.block.statements.size(), 2);
 
     // IF ELSE NESTING
@@ -102,7 +102,7 @@ fun add(a: int, b: int) => int
 
     ASSERT_EQ(block.size(), 1);
 
-    auto& func_def = check<Wasp::FunctionDefinition>(block[0]);
+    auto& func_def = check<Wasp::FunctionDefinition>(block.get(0));
     ASSERT_EQ(func_def.block.statements.size(), 2);
 
     auto& loop = check<Wasp::SimpleLoop>(func_def.block.statements[0]);
@@ -124,7 +124,7 @@ class Person is Fortifiable & Movable & Serializable
 
     ASSERT_EQ(block.size(), 1);
 
-    auto& class_def = check<Wasp::TypeDefinition>(block[0]);
+    auto& class_def = check<Wasp::TypeDefinition>(block.get(0));
     EXPECT_EQ(class_def.name, "Person");
     ASSERT_EQ(class_def.traits.size(), 3);
 }
@@ -148,7 +148,7 @@ class Person
 
     ASSERT_EQ(block.size(), 1);
 
-    auto& class_def = check<Wasp::TypeDefinition>(block[0]);
+    auto& class_def = check<Wasp::TypeDefinition>(block.get(0));
     EXPECT_EQ(class_def.name, "Person");
     ASSERT_EQ(class_def.methods.size(), 2);
 
@@ -177,7 +177,7 @@ return 5 + 23
 )");
     ASSERT_EQ(block.size(), 1);
 
-    auto& stmt = check<Wasp::Return>(block[0]);
+    auto& stmt = check<Wasp::Return>(block.get(0));
     ASSERT_TRUE(stmt.expression.has_value())
         << "Expected an expression in return statement";
 
@@ -202,7 +202,7 @@ return
 
     ASSERT_EQ(block.size(), 1);
 
-    auto& stmt = check<Wasp::Return>(block[0]);
+    auto& stmt = check<Wasp::Return>(block.get(0));
     EXPECT_FALSE(stmt.expression.has_value())
         << "Expected no expression in return statement";
 }

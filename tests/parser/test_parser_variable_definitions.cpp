@@ -4,14 +4,13 @@
 #include "test_utils.h"
 
 #include <gtest/gtest.h>
-#include <memory>
 
 TEST(ParseDefinitions, IntDefinition)
 {
     auto block = parse("let x: int = 5");
     ASSERT_EQ(block.size(), 1);
 
-    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
+    auto& stmt = check<Wasp::ExpressionStatement>(block.get(0));
     auto& binding = check<Wasp::Binding>(stmt.expression);
 
     EXPECT_TRUE(binding.is_mutable);
@@ -32,7 +31,7 @@ TEST(ParseDefinitions, ListDefinition)
     auto block = parse("let x : [int] = [1, 2, 3]");
     ASSERT_EQ(block.size(), 1);
 
-    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
+    auto& stmt = check<Wasp::ExpressionStatement>(block.get(0));
     auto& binding = check<Wasp::Binding>(stmt.expression);
 
     EXPECT_TRUE(binding.is_mutable);
@@ -56,7 +55,7 @@ TEST(ParseDefinitions, MapDefinition)
     auto block = parse("let x : { int => int } = {1 => 1, 2 => 2, 3 => 3}");
     ASSERT_EQ(block.size(), 1);
 
-    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
+    auto& stmt = check<Wasp::ExpressionStatement>(block.get(0));
     auto& binding = check<Wasp::Binding>(stmt.expression);
 
     EXPECT_TRUE(binding.is_mutable);
@@ -81,7 +80,7 @@ TEST(ParseDefinitions, FunTypeDefinition)
     auto block = parse("let x : (int) => int = function_name");
     ASSERT_EQ(block.size(), 1);
 
-    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
+    auto& stmt = check<Wasp::ExpressionStatement>(block.get(0));
     auto& binding = check<Wasp::Binding>(stmt.expression);
 
     EXPECT_TRUE(binding.is_mutable);
@@ -111,7 +110,7 @@ TEST(ParseDefinitions, VariantDefinition)
     auto block = parse("let x : int | float = 5");
     ASSERT_EQ(block.size(), 1);
 
-    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
+    auto& stmt = check<Wasp::ExpressionStatement>(block.get(0));
     auto& binding = check<Wasp::Binding>(stmt.expression);
 
     EXPECT_TRUE(binding.is_mutable);

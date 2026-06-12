@@ -1,11 +1,13 @@
 #include "test_utils.h"
-#include "AST.h"
 #include "Lexer.h"
 #include "Parser.h"
+#include "Statement.h"
+
 
 #include <string>
 
-Wasp::StatementVector parse(const std::string& code) {
+Wasp::Block parse(const std::string& code)
+{
     Wasp::Lexer lexer;
     Wasp::Parser parser;
 

@@ -9,7 +9,7 @@ TEST(ParseLooping, WhileSingle)
 {
     auto block = parse(R"(while x < 10 do x = x + 1)");
 
-    auto& stmt = check<Wasp::SimpleLoop>(block[0]);
+    auto& stmt = check<Wasp::SimpleLoop>(block.get(0));
 
     {
         auto& condInfix = check<Wasp::Infix>(stmt.condition);
@@ -57,7 +57,7 @@ while x < 10 do
 
     ASSERT_EQ(block.size(), 1);
 
-    auto& stmt = check<Wasp::SimpleLoop>(block[0]);
+    auto& stmt = check<Wasp::SimpleLoop>(block.get(0));
     auto& body = stmt.block.statements;
     ASSERT_EQ(body.size(), 2);
 
@@ -80,7 +80,7 @@ while x < 10 do
     continue
 )");
 
-    auto& stmt = check<Wasp::SimpleLoop>(block[0]);
+    auto& stmt = check<Wasp::SimpleLoop>(block.get(0));
     auto& body = stmt.block.statements;
     ASSERT_EQ(body.size(), 2);
 

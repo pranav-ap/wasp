@@ -25,7 +25,7 @@ public:
     Parser();
 
     // --- Entry Point ---
-    StatementVector run(const std::vector<Token>& tokens);
+    Block run(const std::vector<Token>& tokens);
 
     // --- Expression ---
     Expression_ptr parse_expression();

@@ -1,5 +1,4 @@
 #include "Workspace.h"
-#include "AST.h"
 
 #include <filesystem>
 #include <map>
@@ -13,8 +12,8 @@ namespace Wasp
 // Module Implementation
 // ============================================================================
 
-Module::Module(std::filesystem::path file_path, StatementVector stmts)
-    : absolute_filepath(std::move(file_path)), stmts(std::move(stmts))
+Module::Module(std::filesystem::path file_path, Block block)
+    : absolute_filepath(std::move(file_path)), block(std::move(block))
 {
 }
 

@@ -8,7 +8,7 @@ TEST(ParseExpressions, MemberAccessNested) {
     auto block = parse("Animal.Dog.GermanShepherd");
     ASSERT_EQ(block.size(), 1);
 
-    auto& expr_stmt = check<Wasp::ExpressionStatement>(block[0]);
+    auto& expr_stmt = check<Wasp::ExpressionStatement>(block.get(0));
 
     // Top Level: [Animal.Dog] . [GermanShepherd]
     auto& outer_access = check<Wasp::MemberAccess>(expr_stmt.expression);
@@ -30,7 +30,7 @@ TEST(ParseExpressions, FunctionCallWithoutArguments) {
     auto block = parse("get_worker()");
     ASSERT_EQ(block.size(), 1);
 
-    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
+    auto& stmt = check<Wasp::ExpressionStatement>(block.get(0));
     auto& call = check<Wasp::Call>(stmt.expression);
 
     auto& id = check<Wasp::Identifier>(call.callable);
@@ -42,7 +42,7 @@ TEST(ParseExpressions, FunctionCallWithMultipleArguments) {
     auto block = parse("get_worker(1, \"John\", true)");
     ASSERT_EQ(block.size(), 1);
 
-    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
+    auto& stmt = check<Wasp::ExpressionStatement>(block.get(0));
     ASSERT_NE(stmt.expression, nullptr);
 
     auto& call = check<Wasp::Call>(stmt.expression);
@@ -53,7 +53,7 @@ TEST(ParseExpressions, MethodCallWithArguments) {
     auto block = parse("company.get_worker(1, \"John\", true)");
     ASSERT_EQ(block.size(), 1);
 
-    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
+    auto& stmt = check<Wasp::ExpressionStatement>(block.get(0));
 
     // Top Level is now a pure Call node
     auto& call = check<Wasp::Call>(stmt.expression);
@@ -73,7 +73,7 @@ TEST(ParseExpressions, MethodCallWithArgumentsThenMemberAccess) {
     auto block = parse("company.get_worker(1, \"John\", true).name");
     ASSERT_EQ(block.size(), 1);
 
-    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
+    auto& stmt = check<Wasp::ExpressionStatement>(block.get(0));
 
     // Top Level: [company.get_worker(...)] . [name]
     auto& outer_access = check<Wasp::MemberAccess>(stmt.expression);
@@ -98,7 +98,7 @@ TEST(ParseExpressions, FunctionCallThenMemberAccess) {
     auto block = parse("get_company().worker");
     ASSERT_EQ(block.size(), 1);
 
-    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
+    auto& stmt = check<Wasp::ExpressionStatement>(block.get(0));
 
     // Top Level: [get_company()] . [worker]
     auto& access = check<Wasp::MemberAccess>(stmt.expression);
@@ -118,7 +118,7 @@ TEST(ParseExpressions, FunctionCallThenMethodCall) {
     auto block = parse("get_company().get_worker(1)");
     ASSERT_EQ(block.size(), 1);
 
-    auto& stmt = check<Wasp::ExpressionStatement>(block[0]);
+    auto& stmt = check<Wasp::ExpressionStatement>(block.get(0));
 
     // Top Level: A Call because the chain ends in an execution: (...)
     auto& outer_call = check<Wasp::Call>(stmt.expression);
