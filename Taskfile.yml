@@ -30,3 +30,9 @@ tasks:
       - clear
       - cmake --build build
       - ctest --test-dir build -L "unit"
+
+  tree:
+    desc: Prints Tree Structure of libs
+    cmds:
+      - clear
+      - tree libs -L 2

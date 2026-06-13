@@ -11,6 +11,8 @@
 
 namespace Wasp
 {
+struct Symbol;
+using Symbol_ptr = std::shared_ptr<Symbol>;
 
 struct IntegerLiteral
 {
@@ -106,6 +108,8 @@ struct TernaryExpression
 struct Identifier
 {
     std::string name;
+
+    Symbol_ptr symbol = nullptr;
 };
 
 struct MemberAccess
