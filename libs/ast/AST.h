@@ -15,6 +15,9 @@ namespace Wasp {
 
 using StringVector = std::vector<std::string>;
 
+struct Symbol;
+using Symbol_ptr = std::shared_ptr<Symbol>;
+
 struct Statement;
 using Statement_ptr = std::shared_ptr<Statement>;
 using StatementVector = std::vector<Statement_ptr>;

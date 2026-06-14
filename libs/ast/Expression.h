@@ -11,8 +11,6 @@
 
 namespace Wasp
 {
-struct Symbol;
-using Symbol_ptr = std::shared_ptr<Symbol>;
 
 struct IntegerLiteral
 {

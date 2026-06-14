@@ -7,7 +7,6 @@
 
 #include <cmath>
 #include <cstdlib>
-#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -94,6 +93,14 @@ TypeAnnotation_ptr Parser::parse_base_type()
 
         if (token_pipe.consume_optional_in_line(TokenType::LESSER_THAN))
         {
+            Doctor::get().assert(
+                type->is<TypeIdentifierNode>(),
+                WaspStage::Parser,
+                "Only type identifiers can be used as template types"
+            );
+
+            std::string name = type->as<TypeIdentifierNode>().name;
+
             std::vector<TypeAnnotation_ptr> generic_args;
 
             do
@@ -105,7 +112,7 @@ TypeAnnotation_ptr Parser::parse_base_type()
             token_pipe.require(TokenType::GREATER_THAN);
 
             type = make_type_annotation(
-                TemplateAngularTypeNode(type, std::move(generic_args))
+                TemplateAngularTypeNode(name, std::move(generic_args))
             );
         }
     }

@@ -95,8 +95,9 @@ struct LoopControl
 struct TypeAliasDefinition
 {
     std::string name;
-
     TypeAnnotation_ptr ref_type;
+
+    Symbol_ptr symbol = nullptr;
 };
 
 struct EnumDefinition
@@ -106,6 +107,8 @@ struct EnumDefinition
 
     StringVector members;
     std::vector<EnumDefinition> nested_enums;
+
+    Symbol_ptr symbol = nullptr;
 };
 
 struct FunctionDefinition
@@ -120,6 +123,8 @@ struct FunctionDefinition
 
     bool is_pure;
     bool is_shared;
+
+    Symbol_ptr symbol = nullptr;
 };
 
 using FunctionDefinitionVector = std::vector<FunctionDefinition>;
@@ -136,6 +141,8 @@ struct OperatorDefinition
     TypeAnnotation_ptr return_type;
 
     Block block;
+
+    Symbol_ptr symbol = nullptr;
 };
 
 struct TypeDefinition
@@ -154,6 +161,8 @@ struct TypeDefinition
     FunctionDefinitionVector methods;
 
     TypeAnnotationVector traits;
+
+    Symbol_ptr symbol = nullptr;
 };
 
 // =============== Imports ===============

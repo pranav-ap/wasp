@@ -22,6 +22,8 @@ struct LiteralTypeNode
 struct TypeIdentifierNode
 {
     std::string name;
+
+    Symbol_ptr symbol = nullptr;
 };
 
 struct ListTypeNode
@@ -64,8 +66,10 @@ struct FunctionTypeNode
 // Foo<T>
 struct TemplateAngularTypeNode
 {
-    TypeAnnotation_ptr base_type;
+    std::string name;
     TypeAnnotationVector type_arguments;
+
+    Symbol_ptr symbol = nullptr;
 };
 
 using TypeAnnotationVariant = std::variant<

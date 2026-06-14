@@ -6,7 +6,6 @@
 #include "Token.h"
 #include "TypeAnnotation.h"
 
-#include <memory>
 #include <string>
 #include <tuple>
 #include <utility>

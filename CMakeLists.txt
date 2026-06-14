@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(wasp VERSION 0.1.0 DESCRIPTION "Wasp Programming Language Compiler")
+project(wasp VERSION 0.1.0 DESCRIPTION "Wasp Compiler")
 
 # ==========================================
 # Global Settings
@@ -73,6 +73,7 @@ add_subdirectory(libs/lexer)
 add_subdirectory(libs/ast)
 add_subdirectory(libs/parser)
 add_subdirectory(libs/captain)
+add_subdirectory(libs/semantics)
 
 add_subdirectory(src)
 
