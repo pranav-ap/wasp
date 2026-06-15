@@ -50,6 +50,7 @@ void Parser::register_all_parselets()
         TokenType::IDENTIFIER,
         std::make_shared<IdentifierParselet>()
     );
+
     register_parselet(TokenType::MY, std::make_shared<IdentifierParselet>());
     register_parselet(TokenType::OUR, std::make_shared<IdentifierParselet>());
 
@@ -89,7 +90,7 @@ void Parser::register_all_parselets()
     );
     register_parselet(
         TokenType::OPEN_PARENTHESIS,
-        std::make_shared<CallParselet>()
+        std::make_shared<CallOrConstructorParselet>()
     );
 
     auto assignment_parselet = std::make_shared<AssignmentParselet>();

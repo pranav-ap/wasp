@@ -106,7 +106,7 @@ fun add(a: int, b: int) => int
     ASSERT_EQ(func_def.block.statements.size(), 2);
 
     auto& loop = check<Wasp::SimpleLoop>(func_def.block.statements[0]);
-    check<Wasp::Infix>(loop.condition);
+    check<Wasp::Infix>(loop.test);
     ASSERT_EQ(loop.block.statements.size(), 1);
 
     check<Wasp::Return>(func_def.block.statements[1]);
@@ -124,7 +124,7 @@ class Person is Fortifiable & Movable & Serializable
 
     ASSERT_EQ(block.size(), 1);
 
-    auto& class_def = check<Wasp::TypeDefinition>(block.get(0));
+    auto& class_def = check<Wasp::ClassDefinition>(block.get(0));
     EXPECT_EQ(class_def.name, "Person");
     ASSERT_EQ(class_def.traits.size(), 3);
 }
@@ -148,7 +148,7 @@ class Person
 
     ASSERT_EQ(block.size(), 1);
 
-    auto& class_def = check<Wasp::TypeDefinition>(block.get(0));
+    auto& class_def = check<Wasp::ClassDefinition>(block.get(0));
     EXPECT_EQ(class_def.name, "Person");
     ASSERT_EQ(class_def.methods.size(), 2);
 

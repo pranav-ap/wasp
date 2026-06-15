@@ -3,8 +3,8 @@
 #include "Doctor.h"
 #include "Lexer.h"
 #include "Parser.h"
+#include "SemanticsAnalyzer.h"
 #include "Workspace.h"
-
 
 #include <filesystem>
 #include <memory>
@@ -91,6 +91,11 @@ std::vector<Module_ptr> Captain::calculate_build_order()
 Workspace_ptr Captain::build()
 {
     parse_modules();
+
+    auto build_order = calculate_build_order();
+
+    SemanticsAnalyzer sa;
+    sa.run(build_order);
 
     return workspace;
 }

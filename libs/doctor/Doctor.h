@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <fmt/core.h>
 #include <optional>
 #include <source_location>
@@ -21,8 +22,11 @@ struct WaspError {
     std::string cpp_function;
 };
 
-class Doctor {
+class Doctor
+{
 private:
+    std::chrono::steady_clock::time_point timer_start;
+
     Doctor() = default;
 
     void print_error(const WaspError& err) const;
@@ -79,7 +83,7 @@ public:
         }
     }
 
-    template <typename T> bool is_nullptr(T ptr, WaspStage stage) const
+    template <typename T> bool is_nullptr(T ptr, WaspStage) const
     {
         if (ptr == nullptr) {
             return true;
@@ -88,12 +92,27 @@ public:
     }
 
     template <typename T>
-    bool is_nullopt(const std::optional<T>& opt, WaspStage stage) const
+    bool is_nullopt(const std::optional<T>& opt, WaspStage) const
     {
         if (!opt.has_value()) {
             return true;
         }
         return false;
+    }
+
+    void start()
+    {
+        timer_start = std::chrono::steady_clock::now();
+    }
+
+    double stop()
+    {
+        auto end = std::chrono::steady_clock::now();
+
+        auto duration = std::chrono::duration_cast<
+            std::chrono::microseconds>(end - timer_start);
+
+        return duration.count() / 1000.0;
     }
 };
 

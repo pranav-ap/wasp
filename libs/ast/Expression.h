@@ -118,13 +118,15 @@ struct MemberAccess
 
 struct Call
 {
-    Expression_ptr callable;
+    Expression_ptr callee;
+    TypeAnnotationVector angular_nodes;
     ExpressionVector arguments;
 };
 
 struct Constructor
 {
     Expression_ptr constructible;
+    TypeAnnotationVector angular_nodes;
     ExpressionVector arguments;
 };
 
@@ -146,12 +148,6 @@ struct Pipe
     Expression_ptr right;
 };
 
-struct TemplateAngular
-{
-    Expression_ptr target;
-    TypeAnnotationVector angular_nodes;
-};
-
 // Expression
 
 using ExpressionVariant = std::variant<
@@ -167,7 +163,6 @@ using ExpressionVariant = std::variant<
 
     Identifier,
     MemberAccess,
-    TemplateAngular,
 
     Call,
     Pipe,
@@ -205,6 +200,7 @@ inline std::string get_operator_name(TokenType fixity, TokenType op_type)
     {
         fix = "infix_";
     }
+
     if (fixity == TokenType::PREFIX)
     {
         fix = "prefix_";

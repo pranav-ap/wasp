@@ -124,12 +124,12 @@ TEST(ParseDefinitions, VariantDefinition)
         binding.declared_type
     );
 
-    ASSERT_EQ(variant_type_ptr.types.size(), 2);
+    ASSERT_EQ(variant_type_ptr.options.size(), 2);
 
-    auto& type_1 = check<Wasp::TypeIdentifierNode>(variant_type_ptr.types[0]);
+    auto& type_1 = check<Wasp::TypeIdentifierNode>(variant_type_ptr.options[0]);
     EXPECT_EQ(type_1.name, "int");
 
-    auto& type_2 = check<Wasp::TypeIdentifierNode>(variant_type_ptr.types[1]);
+    auto& type_2 = check<Wasp::TypeIdentifierNode>(variant_type_ptr.options[1]);
     EXPECT_EQ(type_2.name, "float");
 
     // Check RHS assignment

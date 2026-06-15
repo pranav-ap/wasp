@@ -19,7 +19,7 @@ enum class ScopeType
     MODULE,
     CLASS,
     TRAIT,
-    PRIMTIIVE,
+    PRIMITIVE,
     FUNCTION,
     PURE_FUNCTION,
     METHOD,

@@ -50,38 +50,15 @@ private:
     Statement_ptr parse_function_definition(
         int indent_level,
         bool is_shared = false,
-        bool is_pure = false,
-        FieldVector generics = {}
+        bool is_pure = false
     );
 
     Statement_ptr parse_type_alias_definition();
-
-    Statement_ptr parse_operator_definition(
-        TokenType fixity,
-        int indent_level,
-        FieldVector generics = {}
-    );
-
-    Statement_ptr parse_class_definition(
-        int indent_level = 0,
-        FieldVector generics = {}
-    );
-
-    Statement_ptr parse_trait_definition(
-        int indent_level = 0,
-        FieldVector generics = {}
-    );
-
-    Statement_ptr parse_primitive_definition(
-        int indent_level = 0,
-        FieldVector generics = {}
-    );
-
-    Statement_ptr parse_enum_definition(
-        int indent_level = 0,
-        FieldVector generics = {}
-    );
-
+    Statement_ptr parse_operator_definition(TokenType fixity, int indent_level);
+    Statement_ptr parse_class_definition(int indent_level = 0);
+    Statement_ptr parse_trait_definition(int indent_level = 0);
+    Statement_ptr parse_primitive_definition(int indent_level = 0);
+    Statement_ptr parse_enum_definition(int indent_level = 0);
     Statement_ptr parse_template_definition(int indent_level = 0);
 
     // --- OOP & Member Helpers ---

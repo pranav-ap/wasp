@@ -94,10 +94,21 @@ struct TemplateType
 {
     TypeStringMap template_parameters;
     StringVector ordered_parameter_names;
-    std::optional<std::string> variadic_name;
+
+    bool empty() const;
+    std::vector<std::pair<std::string, Type_ptr>>
+    get_ordered_generics() const;
 };
 
 using TemplateType_ptr = std::shared_ptr<TemplateType>;
+
+struct AngularType
+{
+    std::string name;
+    TypeVector type_arguments;
+};
+
+using AngularType_ptr = std::shared_ptr<AngularType>;
 
 // ============================================================================
 // Composite Types
@@ -156,6 +167,11 @@ struct EnumType
 
     std::string name;
     StringVector members;
+
+    explicit EnumType(std::string name)
+        : type_id(get_next_type_id()), name(std::move(name))
+    {
+    }
 };
 
 using EnumType_ptr = std::shared_ptr<EnumType>;
@@ -183,8 +199,18 @@ struct Signature
 
 using Signature_ptr = std::shared_ptr<Signature>;
 
+struct SignatureSet
+{
+    std::vector<Signature_ptr> signatures;
+
+    void add(Signature_ptr signature);
+    Signature_ptr get(int index) const;
+};
+
+using SignatureSet_ptr = std::shared_ptr<SignatureSet>;
+
 // ============================================================================
-// Oops Types
+// I Table
 // ============================================================================
 
 struct MethodCoordinate
@@ -201,30 +227,60 @@ using ITable = std::map<MethodCoordinate, MethodCoordinate>;
 // trait type id => I Table
 using ITablesMap = std::map<int, ITable>;
 
-struct BagType
+// ============================================================================
+// Oops Types
+// ============================================================================
+
+struct FieldMap
 {
     TypeStringMap types;
     StringVector ordered_keys;
 
-    int get_index(const std::string& function_name) const;
-    Type_ptr get_type(const std::string& function_name) const;
+    int get_index(const std::string& field_name) const;
+    Type_ptr get(const std::string& field_name) const;
     bool contains(const std::string& field_name) const;
 };
 
-using BagType_ptr = std::shared_ptr<BagType>;
+using FieldMap_ptr = std::shared_ptr<FieldMap>;
+
+struct MethodMap
+{
+    std::map<std::string, SignatureSet_ptr> signatures;
+    StringVector ordered_keys;
+
+    int get_index(const std::string& function_name) const;
+    SignatureSet_ptr get(const std::string& function_name) const;
+    bool contains(const std::string& function_name) const;
+};
+
+using MethodMap_ptr = std::shared_ptr<MethodMap>;
 
 struct OopsType
 {
     int type_id;
     std::string name;
 
-    BagType_ptr fields;
-    BagType_ptr methods;
+    FieldMap_ptr fields;
+    MethodMap_ptr methods;
     ITablesMap itables;
 
     TypeVector traits;
 
     TemplateType_ptr template_type;
+
+    explicit OopsType(
+        std::string name,
+        FieldMap_ptr fields,
+        MethodMap_ptr methods,
+        TypeVector traits,
+        TemplateType_ptr template_type
+    )
+        : type_id(get_next_type_id()), name(std::move(name)),
+          fields(std::move(fields)), methods(std::move(methods)),
+          traits(std::move(traits)),
+          template_type(std::move(template_type))
+    {
+    }
 
     virtual ~OopsType() = default;
 
@@ -233,7 +289,6 @@ struct OopsType
 
     bool is_field(const std::string& member_name) const;
     bool is_method(const std::string& member_name) const;
-    int get_flat_index(const std::string& member_name) const;
 };
 
 struct ClassType : public OopsType
@@ -265,6 +320,10 @@ struct TypeAlias
     std::string name;
     Type_ptr underlying_type;
     TemplateType_ptr template_type;
+
+    explicit TypeAlias(std::string name) : name(std::move(name))
+    {
+    }
 };
 
 using TypeAlias_ptr = std::shared_ptr<TypeAlias>;
@@ -315,10 +374,12 @@ using TypeVariant = std::variant<
     EnumMemberType_ptr,
 
     GenericType_ptr,
+    AngularType_ptr,
 
     ModuleType_ptr,
 
     Signature_ptr,
+    SignatureSet_ptr,
 
     ClassType_ptr,
     TraitType_ptr,

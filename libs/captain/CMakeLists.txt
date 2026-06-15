@@ -8,6 +8,7 @@ target_link_libraries(CaptainLib
         LexerLib
         ASTLib
         ParserLib
+        SemanticsLib
 )
 
 target_include_directories(CaptainLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

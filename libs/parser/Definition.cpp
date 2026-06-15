@@ -47,6 +47,11 @@ Statement_ptr Parser::parse_template_definition(int indent_level)
             {
                 def.generics = generics;
             },
+            [&](TypeAliasDefinition& def)
+            {
+                def.generics = generics;
+            },
+
             [&](auto&)
             {
                 Doctor::get().fatal(
@@ -78,7 +83,7 @@ Statement_ptr Parser::parse_type_alias_definition()
     token_pipe.require_in_line(TokenType::EOL);
 
     return make_statement(
-        TypeAliasDefinition{std::move(name), std::move(ref_type)}
+        TypeAliasDefinition{std::move(name), FieldVector{}, std::move(ref_type)}
     );
 }
 
@@ -86,10 +91,7 @@ Statement_ptr Parser::parse_type_alias_definition()
 // Enums
 // ============================================================================
 
-Statement_ptr Parser::parse_enum_definition(
-    int indent_level,
-    FieldVector generics
-)
+Statement_ptr Parser::parse_enum_definition(int indent_level)
 {
     token_pipe.advance_pointer();
 
@@ -97,7 +99,7 @@ Statement_ptr Parser::parse_enum_definition(
     token_pipe.require_in_line(TokenType::EOL);
 
     return make_statement(
-        parse_enum_body(identifier.lexeme, generics, indent_level + 1)
+        parse_enum_body(identifier.lexeme, FieldVector{}, indent_level + 1)
     );
 }
 
@@ -155,8 +157,7 @@ EnumDefinition Parser::parse_enum_body(
 Statement_ptr Parser::parse_function_definition(
     int indent_level,
     bool is_shared,
-    bool is_pure,
-    FieldVector generics
+    bool is_pure
 )
 {
     auto name = token_pipe.require_in_line(TokenType::IDENTIFIER).lexeme;
@@ -191,7 +192,7 @@ Statement_ptr Parser::parse_function_definition(
 
     return make_statement(FunctionDefinition(
         std::move(name),
-        std::move(generics),
+        FieldVector{},
         std::move(parameters),
         std::move(return_type),
         std::move(body),
@@ -202,8 +203,7 @@ Statement_ptr Parser::parse_function_definition(
 
 Statement_ptr Parser::parse_operator_definition(
     TokenType fixity,
-    int indent_level,
-    FieldVector generics
+    int indent_level
 )
 {
     auto operator_token = token_pipe.current_in_line();
@@ -241,7 +241,7 @@ Statement_ptr Parser::parse_operator_definition(
 
     return make_statement(OperatorDefinition(
         name,
-        std::move(generics),
+        FieldVector{},
         fixity,
         operator_token->type,
         std::move(operands),
@@ -341,66 +341,36 @@ Parser::parse_membered_definition_base(int indent_level)
     };
 }
 
-Statement_ptr Parser::parse_class_definition(
-    int indent_level,
-    FieldVector generics
-)
+Statement_ptr Parser::parse_class_definition(int indent_level)
 {
     auto [name, traits, methods, fields] = parse_membered_definition_base(
         indent_level
     );
 
     return make_statement(
-        TypeDefinition{
-            .name = name,
-            .kind = TypeDefinition::Kind::CLASS,
-            .generics = generics,
-            .fields = fields,
-            .methods = methods,
-            .traits = traits
-        }
+        ClassDefinition(name, FieldVector{}, fields, methods, traits)
     );
 }
 
-Statement_ptr Parser::parse_trait_definition(
-    int indent_level,
-    FieldVector generics
-)
+Statement_ptr Parser::parse_trait_definition(int indent_level)
 {
     auto [name, traits, methods, fields] = parse_membered_definition_base(
         indent_level
     );
 
     return make_statement(
-        TypeDefinition{
-            .name = name,
-            .kind = TypeDefinition::Kind::TRAIT,
-            .generics = generics,
-            .fields = fields,
-            .methods = methods,
-            .traits = traits
-        }
+        TraitDefinition(name, FieldVector{}, fields, methods, traits)
     );
 }
 
-Statement_ptr Parser::parse_primitive_definition(
-    int indent_level,
-    FieldVector generics
-)
+Statement_ptr Parser::parse_primitive_definition(int indent_level)
 {
     auto [name, traits, methods, fields] = parse_membered_definition_base(
         indent_level
     );
 
     return make_statement(
-        TypeDefinition{
-            .name = name,
-            .kind = TypeDefinition::Kind::PRIMITIVE,
-            .generics = generics,
-            .fields = fields,
-            .methods = methods,
-            .traits = traits
-        }
+        PrimitiveDefinition(name, FieldVector{}, fields, methods, traits)
     );
 }
 

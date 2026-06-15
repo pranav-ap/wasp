@@ -107,7 +107,7 @@ namespace Wasp
         int get_precedence() const override;
     };
 
-    class CallParselet : public IInfixParselet
+    class CallOrConstructorParselet : public IInfixParselet
     {
     public:
         Expression_ptr parse(Parser &parser, const Expression_ptr left, const Token &token) override;

@@ -2,7 +2,6 @@
 #include "Expression.h"
 #include "Statement.h"
 #include "SymbolScope.h"
-#include "TypeAnnotation.h"
 #include "Workspace.h"
 
 #include <vector>
@@ -10,24 +9,21 @@
 namespace Wasp
 {
 
-class NameResolution
+class Hoisting
 {
 public:
-    explicit NameResolution() : current_scope(nullptr)
+    explicit Hoisting() : current_scope(nullptr)
     {
     }
 
     void run(Module_ptr mod);
 
 private:
-    Workspace_ptr workspace;
     Module_ptr current_module;
     SymbolScope_ptr current_scope;
 
     void enter_scope(ScopeType scope_type);
     void leave_scope();
-
-    // Statements
 
     void visit(Block& block);
     void visit(Statement_ptr statement);
@@ -46,44 +42,12 @@ private:
     void visit(SimpleLoop& statement);
     void visit(ForInLoop& statement);
 
-    void visit(Return& statement);
-
     void visit(ExpressionStatement& statement);
 
-    // Expressions
-
-    void visit(std::vector<Expression_ptr>& expressions);
     void visit(Expression_ptr expression);
 
     void visit(Binding& binding);
-    void visit(Assignment& assignment);
     void visit(TernaryExpression& expr);
-
-    void visit(Identifier& expr);
-    void visit(MemberAccess& expr);
-
-    void visit(ListLiteral& expr);
-    void visit(TupleLiteral& expr);
-    void visit(MapLiteral& expr);
-    void visit(SetLiteral& expr);
-
-    void visit(Call& expr);
-    void visit(Constructor& expr);
-
-    // Types
-
-    void visit(const TypeAnnotation_ptr type_node);
-    void visit(const TypeAnnotationVector& type_nodes);
-
-    void visit(TypeIdentifierNode& expr);
-    void visit(ListTypeNode& expr);
-    void visit(TupleTypeNode& expr);
-    void visit(SetTypeNode& expr);
-    void visit(MapTypeNode& expr);
-    void visit(VariantTypeNode& expr);
-    void visit(IntersectionTypeNode& expr);
-    void visit(FunctionTypeNode& expr);
-    void visit(AngularTypeNode& node);
 };
 
 } // namespace Wasp

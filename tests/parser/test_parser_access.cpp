@@ -33,7 +33,7 @@ TEST(ParseExpressions, FunctionCallWithoutArguments) {
     auto& stmt = check<Wasp::ExpressionStatement>(block.get(0));
     auto& call = check<Wasp::Call>(stmt.expression);
 
-    auto& id = check<Wasp::Identifier>(call.callable);
+    auto& id = check<Wasp::Identifier>(call.callee);
     EXPECT_EQ(id.name, "get_worker");
     EXPECT_EQ(call.arguments.size(), 0);
 }
@@ -60,7 +60,7 @@ TEST(ParseExpressions, MethodCallWithArguments) {
     EXPECT_EQ(call.arguments.size(), 3);
 
     // The callable being executed is a MemberAccess node
-    auto& callee_access = check<Wasp::MemberAccess>(call.callable);
+    auto& callee_access = check<Wasp::MemberAccess>(call.callee);
 
     auto& object_id = check<Wasp::Identifier>(callee_access.object);
     EXPECT_EQ(object_id.name, "company");
@@ -85,7 +85,7 @@ TEST(ParseExpressions, MethodCallWithArgumentsThenMemberAccess) {
     auto& call = check<Wasp::Call>(outer_access.object);
     EXPECT_EQ(call.arguments.size(), 3);
 
-    auto& inner_access = check<Wasp::MemberAccess>(call.callable);
+    auto& inner_access = check<Wasp::MemberAccess>(call.callee);
 
     auto& object_id = check<Wasp::Identifier>(inner_access.object);
     EXPECT_EQ(object_id.name, "company");
@@ -110,7 +110,7 @@ TEST(ParseExpressions, FunctionCallThenMemberAccess) {
     auto& call = check<Wasp::Call>(access.object);
     EXPECT_EQ(call.arguments.size(), 0);
 
-    auto& callee_id = check<Wasp::Identifier>(call.callable);
+    auto& callee_id = check<Wasp::Identifier>(call.callee);
     EXPECT_EQ(callee_id.name, "get_company");
 }
 
@@ -125,7 +125,7 @@ TEST(ParseExpressions, FunctionCallThenMethodCall) {
     EXPECT_EQ(outer_call.arguments.size(), 1);
 
     // The callable is the MemberAccess: [get_company()] . [get_worker]
-    auto& access = check<Wasp::MemberAccess>(outer_call.callable);
+    auto& access = check<Wasp::MemberAccess>(outer_call.callee);
 
     auto& method_id = check<Wasp::Identifier>(access.member);
     EXPECT_EQ(method_id.name, "get_worker");
@@ -134,6 +134,6 @@ TEST(ParseExpressions, FunctionCallThenMethodCall) {
     auto& object_call = check<Wasp::Call>(access.object);
     EXPECT_EQ(object_call.arguments.size(), 0);
 
-    auto& object_callee = check<Wasp::Identifier>(object_call.callable);
+    auto& object_callee = check<Wasp::Identifier>(object_call.callee);
     EXPECT_EQ(object_callee.name, "get_company");
 }

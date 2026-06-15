@@ -14,11 +14,6 @@ struct NoneTypeNode
 {
 };
 
-struct LiteralTypeNode
-{
-    Expression_ptr value;
-};
-
 struct TypeIdentifierNode
 {
     std::string name;
@@ -49,7 +44,7 @@ struct MapTypeNode
 
 struct VariantTypeNode
 {
-    TypeAnnotationVector types;
+    TypeAnnotationVector options;
 };
 
 struct IntersectionTypeNode
@@ -64,7 +59,7 @@ struct FunctionTypeNode
 };
 
 // Foo<T>
-struct TemplateAngularTypeNode
+struct AngularTypeNode
 {
     std::string name;
     TypeAnnotationVector type_arguments;
@@ -76,17 +71,19 @@ using TypeAnnotationVariant = std::variant<
     std::monostate,
 
     NoneTypeNode,
-    LiteralTypeNode,
     TypeIdentifierNode,
 
     ListTypeNode,
     TupleTypeNode,
     SetTypeNode,
     MapTypeNode,
+
     VariantTypeNode,
     IntersectionTypeNode,
+
     FunctionTypeNode,
-    TemplateAngularTypeNode>;
+
+    AngularTypeNode>;
 
 struct TypeAnnotation : public AstNode<TypeAnnotationVariant>
 {

@@ -12,7 +12,7 @@ TEST(ParseLooping, WhileSingle)
     auto& stmt = check<Wasp::SimpleLoop>(block.get(0));
 
     {
-        auto& condInfix = check<Wasp::Infix>(stmt.condition);
+        auto& condInfix = check<Wasp::Infix>(stmt.test);
         auto& left = check<Wasp::Identifier>(condInfix.left);
         EXPECT_EQ(left.name, "x");
 

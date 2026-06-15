@@ -6,8 +6,10 @@
 #include <iterator>
 #include <string>
 
-namespace Wasp {
-std::string Captain::read_file(const std::filesystem::path& file_path) {
+namespace Wasp
+{
+std::string Captain::read_file(const std::filesystem::path& file_path)
+{
     std::ifstream file(file_path);
 
     Doctor::get().assert(

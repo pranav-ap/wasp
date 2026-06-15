@@ -37,6 +37,8 @@ struct Field
     std::string name;
     TypeAnnotation_ptr type;
     bool is_variadic;
+
+    Symbol_ptr symbol = nullptr;
 };
 
 using FieldVector = std::vector<Field>;
@@ -53,7 +55,7 @@ struct Branch
 
 struct SimpleLoop
 {
-    Expression_ptr condition;
+    Expression_ptr test;
     TokenType style;
 
     Block block;
@@ -95,6 +97,8 @@ struct LoopControl
 struct TypeAliasDefinition
 {
     std::string name;
+
+    FieldVector generics;
     TypeAnnotation_ptr ref_type;
 
     Symbol_ptr symbol = nullptr;
@@ -149,20 +153,42 @@ struct TypeDefinition
 {
     std::string name;
 
-    enum class Kind
-    {
-        CLASS,
-        TRAIT,
-        PRIMITIVE
-    } kind;
-
     FieldVector generics;
     FieldVector fields;
     FunctionDefinitionVector methods;
-
     TypeAnnotationVector traits;
 
     Symbol_ptr symbol = nullptr;
+
+    explicit TypeDefinition() = default;
+
+    explicit TypeDefinition(
+        std::string name,
+        FieldVector generics,
+        FieldVector fields,
+        FunctionDefinitionVector methods,
+        TypeAnnotationVector traits
+    )
+        : name(std::move(name)), generics(std::move(generics)),
+          fields(std::move(fields)), methods(std::move(methods)),
+          traits(std::move(traits))
+    {
+    }
+};
+
+struct ClassDefinition : public TypeDefinition
+{
+    using TypeDefinition::TypeDefinition;
+};
+
+struct TraitDefinition : public TypeDefinition
+{
+    using TypeDefinition::TypeDefinition;
+};
+
+struct PrimitiveDefinition : public TypeDefinition
+{
+    using TypeDefinition::TypeDefinition;
 };
 
 // =============== Imports ===============
@@ -198,7 +224,9 @@ using StatementVariant = std::variant<
     EnumDefinition,
     FunctionDefinition,
     OperatorDefinition,
-    TypeDefinition,
+    ClassDefinition,
+    TraitDefinition,
+    PrimitiveDefinition,
 
     Branch,
 

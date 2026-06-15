@@ -1,9 +1,8 @@
+#include "TypeAnnotation.h"
 #include "AST.h"
 #include "Doctor.h"
-#include "Expression.h"
 #include "Parser.h"
 #include "Token.h"
-#include "TypeAnnotation.h"
 
 #include <cmath>
 #include <cstdlib>
@@ -112,7 +111,7 @@ TypeAnnotation_ptr Parser::parse_base_type()
             token_pipe.require(TokenType::GREATER_THAN);
 
             type = make_type_annotation(
-                TemplateAngularTypeNode(name, std::move(generic_args))
+                AngularTypeNode(name, std::move(generic_args))
             );
         }
     }
@@ -127,39 +126,6 @@ TypeAnnotation_ptr Parser::consume_datatype_word()
 
     switch (token->type)
     {
-    case TokenType::NUMBER_LITERAL: {
-        token_pipe.advance_pointer();
-        auto value = std::stod(token->lexeme);
-        Expression_ptr literal_expr;
-
-        if (std::fmod(value, 1.0) == 0.0)
-        {
-            literal_expr = make_expression(
-                IntegerLiteral{static_cast<int>(value)}
-            );
-        }
-        else
-        {
-            literal_expr = make_expression(FloatLiteral{value});
-        }
-
-        return make_type_annotation(LiteralTypeNode{std::move(literal_expr)});
-    }
-    case TokenType::STRING_LITERAL: {
-        token_pipe.advance_pointer();
-        auto literal_expr = make_expression(StringLiteral{token->lexeme});
-        return make_type_annotation(LiteralTypeNode{std::move(literal_expr)});
-    }
-    case TokenType::TRUE_KEYWORD: {
-        token_pipe.advance_pointer();
-        auto literal_expr = make_expression(BooleanLiteral{true});
-        return make_type_annotation(LiteralTypeNode{std::move(literal_expr)});
-    }
-    case TokenType::FALSE_KEYWORD: {
-        token_pipe.advance_pointer();
-        auto literal_expr = make_expression(BooleanLiteral{false});
-        return make_type_annotation(LiteralTypeNode{std::move(literal_expr)});
-    }
     case TokenType::IDENTIFIER: {
         token_pipe.advance_pointer();
         return make_type_annotation(TypeIdentifierNode(token->lexeme));

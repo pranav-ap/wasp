@@ -1,16 +1,11 @@
 #pragma once
 
 #include "AST.h"
-// IWYU pragma: keep
 #include "Expression.h"
 #include "Statement.h"
 
-#include <cstddef>
-#include <functional>
 #include <gtest/gtest.h>
-#include <initializer_list>
 #include <string>
-#include <vector>
 
 Wasp::Block parse(const std::string& code);
 
@@ -35,65 +30,22 @@ const T& check(const Wasp::Expression_ptr& ptr) {
     return dummy;
 }
 
-// Use PtrType as a template parameter to accept Statement_ptr or Expression_ptr
-template <typename T, typename PtrType> const T& check(const PtrType& ptr)
+template <typename T, typename PtrType>
+const T& check(const PtrType& ptr)
 {
     if (!ptr)
     {
-        ADD_FAILURE() << "Target pointer is null";
+        ADD_FAILURE() << "Null pointer";
         static T dummy{};
         return dummy;
     }
 
-    // Use 'is' to check type, then 'as' to cast
     if (ptr->template is<T>())
     {
         return ptr->template as<T>();
     }
 
-    ADD_FAILURE() << "AST Node Type Mismatch";
-
+    ADD_FAILURE() << "Type mismatch";
     static T dummy{};
     return dummy;
-}
-
-// Overload specifically for empty sequences
-template<typename T>
-void check_sequence(const Wasp::Expression_ptr& expr) {
-    const auto& seq = check<T>(expr);
-    ASSERT_EQ(seq.expressions.size(), 0) << "Sequence size mismatch: expected empty sequence";
-}
-
-template<typename T, typename U>
-void check_sequence(const Wasp::Expression_ptr& expr, const std::vector<U>& expected_values) {
-    // Check the container type (ListLiteral, TupleLiteral, etc.)
-    const auto& seq = check<T>(expr);
-
-    // Check Length
-    ASSERT_EQ(seq.expressions.size(), expected_values.size()) << "Sequence size mismatch";
-
-    // Check each element against the expected type U
-    for (size_t i = 0; i < expected_values.size(); ++i) {
-        EXPECT_EQ(check<U>(seq.expressions[i]), expected_values[i])
-            << "Value mismatch at index " << i;
-    }
-}
-
-template<typename T, typename U>
-void check_sequence(const Wasp::Expression_ptr& expr, std::initializer_list<U> expected) {
-    check_sequence<T, U>(expr, std::vector<U>(expected));
-}
-
-template <typename T>
-void check_sequence_custom(
-    const Wasp::Expression_ptr& expr,
-    size_t expected_size,
-    std::function<void(const Wasp::Expression_ptr&, size_t)> element_checker
-) {
-    const auto& seq = check<T>(expr);
-    ASSERT_EQ(seq.expressions.size(), expected_size);
-
-    for (size_t i = 0; i < seq.expressions.size(); ++i) {
-        element_checker(seq.expressions[i], i);
-    }
 }

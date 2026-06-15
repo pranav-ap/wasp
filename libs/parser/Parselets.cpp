@@ -239,6 +239,22 @@ Expression_ptr MemberAccessParselet::parse(
     return make_expression(MemberAccess(left, member));
 }
 
+static bool is_target_capitalized(const Expression_ptr& expr)
+{
+    if (expr->is<Identifier>())
+    {
+        const auto& name = expr->as<Identifier>().name;
+        return !name.empty() && std::isupper(name.front());
+    }
+
+    if (expr->is<MemberAccess>())
+    {
+        return is_target_capitalized(expr->as<MemberAccess>().member);
+    }
+
+    return false;
+}
+
 bool LesserThanParselet::looks_like_generic_args(Parser& parser) const
 {
     const auto next = parser.token_pipe.current();
@@ -256,61 +272,68 @@ bool LesserThanParselet::looks_like_generic_args(Parser& parser) const
 
 Expression_ptr LesserThanParselet::parse(Parser& parser, Expression_ptr left, const Token& token)
 {
-    if ((left->is<Identifier>() || left->is<MemberAccess>()) && looks_like_generic_args(parser))
+    if (!looks_like_generic_args(parser))
     {
-        TypeAnnotationVector generic_args;
+        Expression_ptr right = parser.parse_expression(
+            get_precedence()
+        );
 
-        do
-        {
-            parser.token_pipe.ignore_spaces();
-            generic_args.push_back(parser.parse_type());
-            parser.token_pipe.ignore_spaces();
-        }
-        while (parser.token_pipe.consume_optional(TokenType::COMMA));
-
-        parser.token_pipe.require(TokenType::GREATER_THAN);
-
-        return make_expression(TemplateAngular(left, generic_args));
+        return make_expression(Infix{left, token, right});
     }
 
-    Expression_ptr right = parser.parse_expression(get_precedence());
-    return make_expression(Infix{left, token, right});
+    Doctor::get().assert(
+        (left->is<Identifier>() || left->is<MemberAccess>()),
+        WaspStage::Parser,
+        "Incorrect LHS for generic type application"
+    );
+
+    TypeAnnotationVector generic_args;
+
+    do
+    {
+        parser.token_pipe.ignore_spaces();
+        generic_args.push_back(parser.parse_type());
+        parser.token_pipe.ignore_spaces();
+    }
+    while (parser.token_pipe.consume_optional(TokenType::COMMA));
+
+    parser.token_pipe.require(TokenType::GREATER_THAN);
+
+    parser.token_pipe.require_in_line(TokenType::OPEN_PARENTHESIS);
+
+    ExpressionVector arguments;
+
+    if (!parser.token_pipe.consume_optional_in_line(
+            TokenType::CLOSE_PARENTHESIS
+        ))
+    {
+        arguments = parser.parse_expressions();
+        parser.token_pipe.require(TokenType::CLOSE_PARENTHESIS);
+    }
+
+    bool is_capitalized = is_target_capitalized(left);
+
+    if (is_capitalized)
+    {
+        return make_expression(
+            Constructor{left, generic_args, arguments}
+        );
+    }
+
+    return make_expression(Call(left, generic_args, arguments));
 }
 
-static bool is_target_capitalized(const Expression_ptr& expr)
-{
-    if (expr->is<Identifier>())
-    {
-        const auto& name = expr->as<Identifier>().name;
-        return !name.empty() && std::isupper(name.front());
-    }
-
-    if (expr->is<MemberAccess>())
-    {
-        return is_target_capitalized(expr->as<MemberAccess>().member);
-    }
-
-    if (expr->is<TemplateAngular>())
-    {
-        return is_target_capitalized(expr->as<TemplateAngular>().target);
-    }
-
-    return false;
-}
-
-Expression_ptr CallParselet::parse(
+Expression_ptr CallOrConstructorParselet::parse(
     Parser& parser,
     const Expression_ptr left,
     const Token&
 )
 {
     Doctor::get().assert(
-        left->is<Identifier>() || left->is<MemberAccess>() || left->is<Call>() ||
-            left->is<Constructor>() || left->is<TemplateAngular>(),
+        left->is<Identifier>() || left->is<MemberAccess>(),
         WaspStage::Parser,
-        "Expected identifier, member access, call, constructor, or generic "
-        "instantiation on the "
-        "left side of a function call"
+        "Incorrect LHS for function call or constructor "
+        "call"
     );
 
     ExpressionVector arguments;
@@ -323,10 +346,14 @@ Expression_ptr CallParselet::parse(
 
     if (is_target_capitalized(left))
     {
-        return make_expression(Constructor{left, arguments});
+        return make_expression(
+            Constructor{left, TypeAnnotationVector{}, arguments}
+        );
     }
 
-    return make_expression(Call(left, arguments));
+    return make_expression(
+        Call(left, TypeAnnotationVector{}, arguments)
+    );
 }
 
 Expression_ptr InterpolatedStringParselet::parse(
@@ -410,7 +437,8 @@ int TernaryConditionParselet::get_precedence() const
 {
     return static_cast<int>(Precedence::TERNARY_CONDITION);
 }
-int CallParselet::get_precedence() const
+
+int CallOrConstructorParselet::get_precedence() const
 {
     return static_cast<int>(Precedence::CALL);
 }
