@@ -1,5 +1,5 @@
-#include "TypeChecker.h"
 #include "AST.h"
+#include "Final.h"
 #include "Statement.h"
 #include "SymbolScope.h"
 
@@ -14,7 +14,7 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-void TypeChecker::visit(Block& block)
+void Final::visit(Block& block)
 {
     for (auto& statement : block.statements)
     {
@@ -22,7 +22,7 @@ void TypeChecker::visit(Block& block)
     }
 }
 
-void TypeChecker::visit(Statement_ptr statement)
+void Final::visit(Statement_ptr statement)
 {
     std::visit(
         [&](auto& node)
@@ -36,12 +36,12 @@ void TypeChecker::visit(Statement_ptr statement)
     );
 }
 
-void TypeChecker::visit(Import&)
+void Final::visit(Import&)
 {
     // TODO: Implement
 }
 
-void TypeChecker::visit(Branch& stmt)
+void Final::visit(Branch& stmt)
 {
     enter_scope(ScopeType::BRANCH);
     visit(stmt.test);
@@ -49,7 +49,7 @@ void TypeChecker::visit(Branch& stmt)
     leave_scope();
 }
 
-void TypeChecker::visit(SimpleLoop& stmt)
+void Final::visit(SimpleLoop& stmt)
 {
     enter_scope(ScopeType::LOOP);
     visit(stmt.test);
@@ -57,7 +57,7 @@ void TypeChecker::visit(SimpleLoop& stmt)
     leave_scope();
 }
 
-void TypeChecker::visit(ForInLoop& stmt)
+void Final::visit(ForInLoop& stmt)
 {
     enter_scope(ScopeType::LOOP);
     visit(stmt.lhs);
@@ -65,7 +65,7 @@ void TypeChecker::visit(ForInLoop& stmt)
     leave_scope();
 }
 
-void TypeChecker::visit(Return& stmt)
+void Final::visit(Return& stmt)
 {
     if (stmt.expression.has_value())
     {
@@ -73,7 +73,7 @@ void TypeChecker::visit(Return& stmt)
     }
 }
 
-void TypeChecker::visit(ExpressionStatement& stmt)
+void Final::visit(ExpressionStatement& stmt)
 {
     visit(stmt.expression);
 }

@@ -1,8 +1,9 @@
 #include "SemanticsAnalyzer.h"
+#include "Collector.h"
 #include "Doctor.h"
-#include "Hoisting.h"
+#include "Final.h"
+#include "Hoister.h"
 #include "SymbolScope.h"
-#include "TypeChecker.h"
 #include "Workspace.h"
 #include "fmt/base.h"
 
@@ -18,15 +19,17 @@ void SemanticsAnalyzer::run(
 {
     enter_scope(ScopeType::WORKSPACE);
 
-    Hoisting hoisting;
-    TypeChecker type_checker;
+    Hoister hoisting;
+    Collector collect;
+    Final fin;
 
     for (const auto& mod : build_order)
     {
         Doctor::get().start();
 
         hoisting.run(mod);
-        type_checker.run(mod);
+        collect.run(mod);
+        fin.run(mod);
 
         double time_taken = Doctor::get().stop();
 

@@ -1,10 +1,10 @@
 #include "AST.h"
 #include "Doctor.h"
 #include "Expression.h"
+#include "Final.h"
 #include "Symbol.h"
 #include "SymbolScope.h"
 #include "Type.h"
-#include "TypeChecker.h"
 #include "TypeSystem.h"
 
 #include <algorithm>
@@ -28,6 +28,31 @@ namespace Wasp
 
 namespace
 {
+
+void validate_purity_constraints(
+    SymbolScope_ptr scope,
+    Symbol_ptr target_symbol
+)
+{
+    if (target_symbol->closure_depth >= scope->closure_depth)
+    {
+        return;
+    }
+
+    while (scope && scope->closure_depth > target_symbol->closure_depth)
+    {
+        bool inside_pure = scope->type == ScopeType::PURE_FUNCTION ||
+                           scope->type == ScopeType::PURE_METHOD;
+
+        Doctor::semantics().assert(
+            inside_pure,
+            "A pure function cannot mutate variables from an outer scope"
+        );
+
+        scope = scope->enclosing_scope;
+    }
+}
+
 StringVector unfurl_member_access(const MemberAccess& expr)
 {
     StringVector path = {expr.member->as<Identifier>().name};
@@ -195,7 +220,7 @@ Type_ptr resolve_member_access(
 // Binding
 // ===============================================================================
 
-Type_ptr TypeChecker::visit(Binding& binding)
+Type_ptr Final::visit(Binding& binding)
 {
     Doctor::semantics().assert(
         binding.lhs->is<Identifier>(),
@@ -228,7 +253,7 @@ Type_ptr TypeChecker::visit(Binding& binding)
 // Assignment
 // ===============================================================================
 
-Type_ptr TypeChecker::visit(Assignment& expr)
+Type_ptr Final::visit(Assignment& expr)
 {
     if (expr.lhs->is<Identifier>())
     {
@@ -243,31 +268,7 @@ Type_ptr TypeChecker::visit(Assignment& expr)
     Doctor::semantics().fatal("Unexpected in Assignment LHS");
 }
 
-void validate_purity_constraints(
-    SymbolScope_ptr scope,
-    Symbol_ptr target_symbol
-)
-{
-    if (target_symbol->closure_depth >= scope->closure_depth)
-    {
-        return;
-    }
-
-    while (scope && scope->closure_depth > target_symbol->closure_depth)
-    {
-        bool inside_pure = scope->type == ScopeType::PURE_FUNCTION ||
-                           scope->type == ScopeType::PURE_METHOD;
-
-        Doctor::semantics().assert(
-            inside_pure,
-            "A pure function cannot mutate variables from an outer scope"
-        );
-
-        scope = scope->enclosing_scope;
-    }
-}
-
-Type_ptr TypeChecker::mutate_variable(
+Type_ptr Final::mutate_variable(
     Expression_ptr expr,
     Expression_ptr assigned_expr
 )
@@ -298,7 +299,7 @@ Type_ptr TypeChecker::mutate_variable(
     return expected_type;
 }
 
-Type_ptr TypeChecker::mutate_member(
+Type_ptr Final::mutate_member(
     Expression_ptr lhs_expr,
     Expression_ptr rhs_expr
 )
@@ -321,7 +322,7 @@ Type_ptr TypeChecker::mutate_member(
 // Identifier
 // ===============================================================================
 
-Type_ptr TypeChecker::visit(Identifier& expr)
+Type_ptr Final::visit(Identifier& expr)
 {
     auto symbol = current_scope->lookup_variable(expr.name);
     expr.symbol = symbol;
@@ -332,7 +333,7 @@ Type_ptr TypeChecker::visit(Identifier& expr)
 // Member Access
 // ===============================================================================
 
-Type_ptr TypeChecker::visit(MemberAccess& access)
+Type_ptr Final::visit(MemberAccess& access)
 {
     Doctor::semantics().assert(
         access.member->is<Identifier>(),

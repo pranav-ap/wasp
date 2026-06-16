@@ -1,8 +1,8 @@
 #include "AST.h"
+#include "Final.h"
 #include "Doctor.h"
 #include "Expression.h"
 #include "Type.h"
-#include "TypeChecker.h"
 #include "TypeNode.h"
 
 #include <memory>
@@ -13,12 +13,13 @@ template <class... Ts> struct overloaded : Ts...
 {
     using Ts::operator()...;
 };
+
 template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
 
-Type_ptr TypeChecker::visit(const TypeNode_ptr type_node)
+Type_ptr Final::visit(const TypeNode_ptr type_node)
 {
     Doctor::semantics().fatal_if_nullptr(type_node);
 
@@ -37,7 +38,7 @@ Type_ptr TypeChecker::visit(const TypeNode_ptr type_node)
     );
 }
 
-TypeVector TypeChecker::visit(const TypeNodeVector& type_nodes)
+TypeVector Final::visit(const TypeNodeVector& type_nodes)
 {
     TypeVector types;
 
@@ -49,12 +50,12 @@ TypeVector TypeChecker::visit(const TypeNodeVector& type_nodes)
     return types;
 }
 
-Type_ptr TypeChecker::visit(NoneTypeNode&)
+Type_ptr Final::visit(NoneTypeNode&)
 {
     return make_shared_type<NoneType>();
 }
 
-Type_ptr TypeChecker::visit(LiteralTypeNode& type_node)
+Type_ptr Final::visit(LiteralTypeNode& type_node)
 {
     return std::visit(
         overloaded{
@@ -87,7 +88,7 @@ Type_ptr TypeChecker::visit(LiteralTypeNode& type_node)
     );
 }
 
-Type_ptr TypeChecker::visit(TypeIdentifierNode& type_node)
+Type_ptr Final::visit(TypeIdentifierNode& type_node)
 {
     auto symbol = current_scope->lookup(type_node.name);
 
@@ -106,51 +107,51 @@ Type_ptr TypeChecker::visit(TypeIdentifierNode& type_node)
     return type;
 }
 
-Type_ptr TypeChecker::visit(ListTypeNode& type_node)
+Type_ptr Final::visit(ListTypeNode& type_node)
 {
     Type_ptr element_type = visit(type_node.element_type);
     return make_shared_type<ListType>(element_type);
 }
 
-Type_ptr TypeChecker::visit(TupleTypeNode& type_node)
+Type_ptr Final::visit(TupleTypeNode& type_node)
 {
     TypeVector element_types = visit(type_node.element_types);
     return make_shared_type<TupleType>(element_types);
 }
 
-Type_ptr TypeChecker::visit(SetTypeNode& type_node)
+Type_ptr Final::visit(SetTypeNode& type_node)
 {
     Type_ptr element_type = visit(type_node.element_type);
     return make_shared_type<SetType>(element_type);
 }
 
-Type_ptr TypeChecker::visit(MapTypeNode& type_node)
+Type_ptr Final::visit(MapTypeNode& type_node)
 {
     Type_ptr key_type = visit(type_node.key_type);
     Type_ptr value_type = visit(type_node.value_type);
     return make_shared_type<MapType>(key_type, value_type);
 }
 
-Type_ptr TypeChecker::visit(VariantTypeNode& type_node)
+Type_ptr Final::visit(VariantTypeNode& type_node)
 {
     TypeVector options = visit(type_node.options);
     return make_shared_type<VariantType>(options);
 }
 
-Type_ptr TypeChecker::visit(IntersectionTypeNode& type_node)
+Type_ptr Final::visit(IntersectionTypeNode& type_node)
 {
     TypeVector types = visit(type_node.types);
     return make_shared_type<IntersectionType>(types);
 }
 
-Type_ptr TypeChecker::visit(FunctionTypeNode& type_node)
+Type_ptr Final::visit(FunctionTypeNode& type_node)
 {
     TypeVector input_types = visit(type_node.input_types);
     Type_ptr return_type = visit(type_node.return_type);
     return make_shared_type<Signature>(input_types, return_type);
 }
 
-Type_ptr TypeChecker::visit(AngularTypeNode& type_node)
+Type_ptr Final::visit(AngularTypeNode& type_node)
 {
     TypeVector type_arguments = visit(type_node.type_arguments);
 

@@ -1,4 +1,4 @@
-#include "TypeChecker.h"
+#include "Final.h"
 #include "SymbolScope.h"
 #include "Workspace.h"
 
@@ -13,7 +13,7 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-void TypeChecker::run(Module_ptr mod)
+void Final::run(Module_ptr mod)
 {
     current_module = mod;
 
@@ -22,7 +22,7 @@ void TypeChecker::run(Module_ptr mod)
     leave_scope();
 }
 
-void TypeChecker::enter_scope(ScopeType scope_type)
+void Final::enter_scope(ScopeType scope_type)
 {
     auto new_scope = std::make_shared<SymbolScope>(
         scope_type,
@@ -32,7 +32,7 @@ void TypeChecker::enter_scope(ScopeType scope_type)
     current_scope = new_scope;
 }
 
-void TypeChecker::leave_scope()
+void Final::leave_scope()
 {
     if (current_scope != nullptr)
     {

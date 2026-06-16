@@ -1,4 +1,4 @@
-#include "Hoisting.h"
+#include "Hoister.h"
 #include "AST.h"
 #include "Doctor.h"
 #include "Expression.h"
@@ -20,7 +20,7 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-void Hoisting::run(Module_ptr mod)
+void Hoister::run(Module_ptr mod)
 {
     current_module = mod;
 
@@ -29,7 +29,7 @@ void Hoisting::run(Module_ptr mod)
     leave_scope();
 }
 
-void Hoisting::enter_scope(ScopeType scope_type)
+void Hoister::enter_scope(ScopeType scope_type)
 {
     auto new_scope = std::make_shared<SymbolScope>(
         scope_type,
@@ -38,7 +38,7 @@ void Hoisting::enter_scope(ScopeType scope_type)
     current_scope = new_scope;
 }
 
-void Hoisting::leave_scope()
+void Hoister::leave_scope()
 {
     if (current_scope != nullptr)
     {
@@ -46,7 +46,7 @@ void Hoisting::leave_scope()
     }
 }
 
-void Hoisting::visit(Block& block)
+void Hoister::visit(Block& block)
 {
     for (auto& statement : block.statements)
     {
@@ -54,7 +54,7 @@ void Hoisting::visit(Block& block)
     }
 }
 
-void Hoisting::visit(Statement_ptr statement)
+void Hoister::visit(Statement_ptr statement)
 {
     std::visit(
         [&](auto& node)
@@ -68,11 +68,11 @@ void Hoisting::visit(Statement_ptr statement)
     );
 }
 
-void Hoisting::visit(Import&)
+void Hoister::visit(Import&)
 {
 }
 
-void Hoisting::visit(FunctionDefinition& def)
+void Hoister::visit(FunctionDefinition& def)
 {
     auto symbol = SymbolFactory::create_function(
         def.name,
@@ -106,7 +106,7 @@ void Hoisting::visit(FunctionDefinition& def)
     leave_scope();
 }
 
-void Hoisting::visit(OperatorDefinition& def)
+void Hoister::visit(OperatorDefinition& def)
 {
     auto symbol = SymbolFactory::create_function(
         def.name,
@@ -140,7 +140,7 @@ void Hoisting::visit(OperatorDefinition& def)
     leave_scope();
 }
 
-void Hoisting::visit(ClassDefinition& def)
+void Hoister::visit(ClassDefinition& def)
 {
     auto symbol = SymbolFactory::create_type(
         def.name,
@@ -162,7 +162,7 @@ void Hoisting::visit(ClassDefinition& def)
     leave_scope();
 }
 
-void Hoisting::visit(TraitDefinition& def)
+void Hoister::visit(TraitDefinition& def)
 {
     auto symbol = SymbolFactory::create_type(
         def.name,
@@ -184,7 +184,7 @@ void Hoisting::visit(TraitDefinition& def)
     leave_scope();
 }
 
-void Hoisting::visit(PrimitiveDefinition& def)
+void Hoister::visit(PrimitiveDefinition& def)
 {
     auto symbol = SymbolFactory::create_type(
         def.name,
@@ -206,7 +206,7 @@ void Hoisting::visit(PrimitiveDefinition& def)
     leave_scope();
 }
 
-void Hoisting::visit(EnumDefinition& def)
+void Hoister::visit(EnumDefinition& def)
 {
     auto symbol = SymbolFactory::create_type(
         def.name,
@@ -219,7 +219,7 @@ void Hoisting::visit(EnumDefinition& def)
     def.symbol = symbol;
 }
 
-void Hoisting::visit(TypeAliasDefinition& def)
+void Hoister::visit(TypeAliasDefinition& def)
 {
     auto symbol = SymbolFactory::create_type_alias(
         def.name,
@@ -232,7 +232,7 @@ void Hoisting::visit(TypeAliasDefinition& def)
     def.symbol = symbol;
 }
 
-void Hoisting::visit(Branch& stmt)
+void Hoister::visit(Branch& stmt)
 {
     enter_scope(ScopeType::BRANCH);
     visit(stmt.test);
@@ -240,7 +240,7 @@ void Hoisting::visit(Branch& stmt)
     leave_scope();
 }
 
-void Hoisting::visit(SimpleLoop& stmt)
+void Hoister::visit(SimpleLoop& stmt)
 {
     enter_scope(ScopeType::LOOP);
     visit(stmt.test);
@@ -248,7 +248,7 @@ void Hoisting::visit(SimpleLoop& stmt)
     leave_scope();
 }
 
-void Hoisting::visit(ForInLoop& stmt)
+void Hoister::visit(ForInLoop& stmt)
 {
     enter_scope(ScopeType::LOOP);
     visit(stmt.lhs);
@@ -256,7 +256,7 @@ void Hoisting::visit(ForInLoop& stmt)
     leave_scope();
 }
 
-void Hoisting::visit(ExpressionStatement& statement)
+void Hoister::visit(ExpressionStatement& statement)
 {
     visit(statement.expression);
 }
@@ -265,7 +265,7 @@ void Hoisting::visit(ExpressionStatement& statement)
 // Expressions
 // ============================================================================
 
-void Hoisting::visit(Expression_ptr expression)
+void Hoister::visit(Expression_ptr expression)
 {
     std::visit(
         [&](auto& node)
@@ -279,7 +279,7 @@ void Hoisting::visit(Expression_ptr expression)
     );
 }
 
-void Hoisting::visit(Binding& binding)
+void Hoister::visit(Binding& binding)
 {
     Doctor::parser().assert(
         binding.lhs->is<Identifier>(),
@@ -300,7 +300,7 @@ void Hoisting::visit(Binding& binding)
     id.symbol = var_symbol;
 }
 
-void Hoisting::visit(TernaryExpression& expr)
+void Hoister::visit(TernaryExpression& expr)
 {
     enter_scope(ScopeType::BRANCH);
     visit(expr.test);

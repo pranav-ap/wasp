@@ -4,15 +4,13 @@
 #include "SymbolScope.h"
 #include "Workspace.h"
 
-#include <vector>
-
 namespace Wasp
 {
 
-class Hoisting
+class Hoister
 {
 public:
-    explicit Hoisting() : current_scope(nullptr)
+    explicit Hoister() : current_scope(nullptr)
     {
     }
 

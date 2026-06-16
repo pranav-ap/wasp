@@ -1,10 +1,10 @@
 #include "AST.h"
 #include "Doctor.h"
 #include "Expression.h"
+#include "Final.h"
 #include "Symbol.h"
 #include "SymbolScope.h"
 #include "Type.h"
-#include "TypeChecker.h"
 #include "TypeSystem.h"
 
 #include <string>
@@ -77,7 +77,7 @@ Type_ptr handle_identifier_call(
 }
 } // namespace
 
-Type_ptr TypeChecker::visit(Call& call)
+Type_ptr Final::visit(Call& call)
 {
     TypeVector argument_types = visit(call.arguments);
     TypeVector generic_types = visit(call.angular_nodes);

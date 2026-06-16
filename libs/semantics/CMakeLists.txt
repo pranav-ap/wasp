@@ -1,26 +1,29 @@
 add_library(
     SemanticsLib
-    Type.cpp
+    Collector_definitions.cpp
+    Collector_types.cpp
+    Collector.cpp
+    Final_call.cpp
+    Final_constructor.cpp
+    Final_definitions.cpp
+    Final_expressions.cpp
+    Final_operators.cpp
+    Final_statements.cpp
+    Final_types.cpp
+    Final_variables.cpp
+    Final.cpp
+    Hoister.cpp
+    SemanticsAnalyzer.cpp
     Symbol.cpp
     SymbolFactory.cpp
     SymbolScope.cpp
-    Hoisting.cpp
-    TypeChecker_call.cpp
-    TypeChecker_constructor.cpp
-    TypeChecker_definitions.cpp
-    TypeChecker_expressions.cpp
-    TypeChecker_operators.cpp
-    TypeChecker_statements.cpp
-    TypeChecker_types.cpp
-    TypeChecker_variables.cpp
-    TypeChecker.cpp
+    Type.cpp
     TypeSystem_assignable.cpp
     TypeSystem_calculate.cpp
     TypeSystem_call_resolution.cpp
     TypeSystem_checks.cpp
     TypeSystem_equality.cpp
     TypeSystem.cpp
-    SemanticsAnalyzer.cpp
 )
 
 target_link_libraries(SemanticsLib PUBLIC ASTLib TokenLib WorkspaceLib DoctorLib)

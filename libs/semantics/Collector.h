@@ -1,5 +1,4 @@
 #include "AST.h"
-#include "Expression.h"
 #include "Statement.h"
 #include "SymbolScope.h"
 #include "Type.h"
@@ -8,15 +7,14 @@
 #include "Workspace.h"
 
 #include <memory>
-#include <vector>
 
 namespace Wasp
 {
 
-class TypeChecker
+class Collector
 {
 public:
-    explicit TypeChecker()
+    explicit Collector()
         : current_scope(nullptr),
           type_system(std::make_shared<TypeSystem>())
     {
@@ -43,44 +41,6 @@ private:
     void visit(PrimitiveDefinition& statement);
     void visit(EnumDefinition& statement);
     void visit(TypeAliasDefinition& statement);
-
-    void visit(Branch& statement);
-    void visit(SimpleLoop& statement);
-    void visit(ForInLoop& statement);
-
-    void visit(Return& statement);
-
-    void visit(ExpressionStatement& statement);
-
-    // Expressions
-
-    Type_ptr visit(Expression_ptr expression);
-    TypeVector visit(std::vector<Expression_ptr>& expressions);
-
-    Type_ptr visit(Binding& binding);
-    Type_ptr visit(Assignment& expr);
-
-    Type_ptr visit(TernaryExpression& expr);
-
-    Type_ptr visit(Identifier& expr);
-    Type_ptr visit(MemberAccess& expr);
-
-    Type_ptr visit(IntegerLiteral& expr);
-    Type_ptr visit(FloatLiteral& expr);
-    Type_ptr visit(StringLiteral& expr);
-    Type_ptr visit(BooleanLiteral& expr);
-    Type_ptr visit(NoneLiteral& expr);
-
-    Type_ptr visit(ListLiteral& expr);
-    Type_ptr visit(TupleLiteral& expr);
-    Type_ptr visit(MapLiteral& expr);
-    Type_ptr visit(SetLiteral& expr);
-
-    Type_ptr visit(Prefix& expr);
-    Type_ptr visit(Infix& expr);
-
-    Type_ptr visit(Call& expr);
-    Type_ptr visit(Constructor& expr);
 
     // Types
 
@@ -114,16 +74,6 @@ private:
     FieldMap_ptr track_fields(FieldVector fields);
     MethodMap_ptr track_methods(FunctionDefinitionVector methods);
     TypeVector track_traits(TypeNodeVector traits);
-
-    Type_ptr mutate_variable(
-        Expression_ptr identifier_expr,
-        Expression_ptr assigned_expr
-    );
-
-    Type_ptr mutate_member(
-        Expression_ptr lhs_expr,
-        Expression_ptr rhs_expr
-    );
 };
 
 } // namespace Wasp

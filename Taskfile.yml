@@ -36,3 +36,9 @@ tasks:
     cmds:
       - clear
       - tree libs -L 2
+
+  run:
+    desc: run main.wasp
+    cmds:
+      - clear
+      - wasp run ./code/main.wasp

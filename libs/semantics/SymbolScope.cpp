@@ -3,6 +3,7 @@
 #include "Doctor.h"
 #include "Symbol.h"
 #include "SymbolFactory.h"
+#include "Type.h"
 
 #include <memory>
 #include <string>
@@ -236,6 +237,22 @@ Symbol_ptr SymbolScope::overload(Symbol_ptr symbol)
     symbols[symbol->name] = overload_symbol;
 
     return overload_symbol;
+}
+
+void SymbolScope::define(TemplateType_ptr template_type)
+{
+    if (template_type->empty())
+    {
+        return;
+    }
+
+    auto ordered_generics = template_type->get_ordered_generics();
+
+    for (const auto& [name, generic_type] : ordered_generics)
+    {
+        auto symbol = SymbolFactory::create_type(name, generic_type);
+        this->define(symbol);
+    }
 }
 
 } // namespace Wasp

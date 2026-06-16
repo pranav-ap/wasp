@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Symbol.h"
+#include "Type.h"
 
 #include <memory>
 #include <string>
@@ -44,9 +45,10 @@ struct SymbolScope : public std::enable_shared_from_this<SymbolScope>
 
     // define
 
-    void define(Symbol_ptr symbol);
-    void define_overload(Symbol_ptr symbol);
-    Symbol_ptr overload(Symbol_ptr symbol);
+    void define(Symbol_ptr);
+    void define_overload(Symbol_ptr);
+    Symbol_ptr overload(Symbol_ptr);
+    void define(TemplateType_ptr);
 
     // Lookup
     Symbol_ptr lookup_local(const std::string& name) const;
