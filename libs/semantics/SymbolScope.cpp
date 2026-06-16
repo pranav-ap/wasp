@@ -2,6 +2,7 @@
 #include "AST.h"
 #include "Doctor.h"
 #include "Symbol.h"
+#include "SymbolFactory.h"
 
 #include <memory>
 #include <string>
@@ -78,10 +79,7 @@ Symbol_ptr SymbolScope::lookup_required(const std::string& name) const
         current = current->enclosing_scope.get();
     }
 
-    Doctor::get().fatal(
-        WaspStage::Semantics,
-        "Undefined symbol: '" + name + "'"
-    );
+    Doctor::semantics().fatal("Undefined symbol: '" + name + "'");
 }
 
 Symbol_ptr SymbolScope::lookup_required_and_resolve(
@@ -89,13 +87,36 @@ Symbol_ptr SymbolScope::lookup_required_and_resolve(
 ) const
 {
     Symbol_ptr unresolved = this->lookup(name);
-    Doctor::get().fatal_if_nullptr(
+    Doctor::semantics().fatal_if_nullptr(
         unresolved,
-        WaspStage::Semantics,
         "Undefined symbol: '" + name + "'"
     );
 
     return unresolved->resolve();
+}
+
+Symbol_ptr SymbolScope::lookup_variable(const std::string& name) const
+{
+    Symbol_ptr symbol = this->lookup_required_and_resolve(name);
+
+    Doctor::semantics().assert(
+        symbol->is<VariableSymbol>(),
+        "Expected variable symbol for '" + name + "'"
+    );
+
+    return symbol;
+}
+
+Symbol_ptr SymbolScope::lookup_functions(const std::string& name) const
+{
+    Symbol_ptr symbol = this->lookup_required_and_resolve(name);
+
+    Doctor::semantics().assert(
+        symbol->is<FunctionOverloadsSymbol>(),
+        "Expected function overloads symbol for '" + name + "'"
+    );
+
+    return symbol;
 }
 
 bool SymbolScope::contains_in_current_scope(const std::string& name) const
@@ -151,28 +172,70 @@ int SymbolScope::get_function_closure_distance(int target_closure_depth) const
 // Define
 // ------------------------------------------
 
-Symbol_ptr SymbolScope::define(Symbol_ptr symbol)
+void SymbolScope::define(Symbol_ptr symbol)
 {
-    Doctor::get().fatal_if_nullptr(
+    Doctor::semantics().fatal_if_nullptr(
         symbol,
-        WaspStage::Semantics,
         "Cannot define a null symbol"
     );
 
-    Doctor::get().assert(
+    Doctor::semantics().assert(
         !symbol->is<FunctionSymbol>(),
-        WaspStage::Semantics,
-        "Cannot directly define a function symbol"
+        "Cannot directly define a function symbol. Use overload() instead."
     );
 
-    Doctor::get().assert(
+    Doctor::semantics().assert(
         !contains_in_current_scope(symbol->name),
-        WaspStage::Semantics,
         symbol->name + " is already declared in this scope"
     );
 
     symbols[symbol->name] = symbol;
-    return symbol;
+}
+
+void SymbolScope::define_overload(Symbol_ptr symbol)
+{
+    Doctor::semantics().fatal_if_nullptr(
+        symbol,
+        "Cannot define a null symbol"
+    );
+
+    Doctor::semantics().assert(
+        symbol->is<FunctionOverloadsSymbol>(),
+        "Expected a FunctionOverloadsSymbol for overload definition"
+    );
+
+    if (!symbols.contains(symbol->name))
+    {
+        symbols[symbol->name] = symbol;
+    }
+}
+
+Symbol_ptr SymbolScope::overload(Symbol_ptr symbol)
+{
+    Doctor::semantics().fatal_if_nullptr(
+        symbol,
+        "Cannot define a null symbol"
+    );
+
+    Doctor::semantics().assert(
+        symbol->is<FunctionSymbol>(),
+        "Only Function Symbol can be overloaded. Use define() instead."
+    );
+
+    auto overload_symbol = this->lookup(symbol->name);
+
+    if (!overload_symbol)
+    {
+        overload_symbol = SymbolFactory::create_function_overloads(
+            symbol->name
+        );
+    }
+
+    overload_symbol->as<FunctionOverloadsSymbol>().add_overload(symbol);
+
+    symbols[symbol->name] = overload_symbol;
+
+    return overload_symbol;
 }
 
 } // namespace Wasp

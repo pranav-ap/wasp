@@ -2,9 +2,12 @@
 #include "Doctor.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <iterator>
+#include <sstream>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 template <class... Ts> struct overloaded : Ts...
@@ -24,22 +27,20 @@ int FieldMap::get_index(const std::string& name) const
 {
     auto it = std::find(ordered_keys.begin(), ordered_keys.end(), name);
 
-    Doctor::get().assert(
+    Doctor::semantics().assert(
         it != ordered_keys.end(),
-        WaspStage::Semantics,
         "Bag does not contain member '" + name + "'."
     );
 
     return static_cast<int>(std::distance(ordered_keys.begin(), it));
 }
 
-Type_ptr FieldMap::get(const std::string& name) const
+Type_ptr FieldMap::get_type(const std::string& name) const
 {
     auto it = types.find(name);
 
-    Doctor::get().assert(
+    Doctor::semantics().assert(
         it != types.end(),
-        WaspStage::Semantics,
         "Bag does not contain member '" + name + "'."
     );
 
@@ -59,22 +60,20 @@ int MethodMap::get_index(const std::string& name) const
 {
     auto it = std::find(ordered_keys.begin(), ordered_keys.end(), name);
 
-    Doctor::get().assert(
+    Doctor::semantics().assert(
         it != ordered_keys.end(),
-        WaspStage::Semantics,
         "Bag does not contain member '" + name + "'."
     );
 
     return static_cast<int>(std::distance(ordered_keys.begin(), it));
 }
 
-SignatureSet_ptr MethodMap::get(const std::string& name) const
+SignatureSet_ptr MethodMap::get_type(const std::string& name) const
 {
     auto it = signatures.find(name);
 
-    Doctor::get().assert(
+    Doctor::semantics().assert(
         it != signatures.end(),
-        WaspStage::Semantics,
         "Bag does not contain member '" + name + "'."
     );
 
@@ -146,10 +145,10 @@ int ModuleType::get_member_index(const std::string& member_name) const
 {
     auto it = std::find(ordered_keys.begin(), ordered_keys.end(), member_name);
 
-    Doctor::get().assert(
+    Doctor::semantics().assert(
         it != ordered_keys.end(),
-        WaspStage::Semantics,
-        "Module '" + name + "' does not contain member '" + member_name + "'."
+        "Module '" + name + "' does not contain member '" + member_name +
+            "'."
     );
 
     return static_cast<int>(std::distance(ordered_keys.begin(), it));
@@ -159,10 +158,10 @@ Type_ptr ModuleType::get_member(const std::string& member_name) const
 {
     auto it = member_types.find(member_name);
 
-    Doctor::get().assert(
+    Doctor::semantics().assert(
         it != member_types.end(),
-        WaspStage::Semantics,
-        "Module '" + name + "' does not contain member '" + member_name + "'."
+        "Module '" + name + "' does not contain member '" + member_name +
+            "'."
     );
 
     return it->second;
@@ -192,10 +191,9 @@ std::vector<std::pair<std::string, Type_ptr>> TemplateType::
 
 Type_ptr TemplateType::get_generic_type(int index) const
 {
-    Doctor::get().assert(
+    Doctor::semantics().assert(
         index >= 0 &&
             index < static_cast<int>(ordered_parameter_names.size()),
-        WaspStage::Semantics,
         "Invalid generic index: " + std::to_string(index)
     );
 
@@ -207,9 +205,8 @@ Type_ptr TemplateType::get_generic_type(const std::string& name) const
 {
     auto it = template_parameters.find(name);
 
-    Doctor::get().assert(
+    Doctor::semantics().assert(
         it != template_parameters.end(),
-        WaspStage::Semantics,
         "Template does not contain generic '" + name + "'."
     );
 
@@ -227,13 +224,38 @@ void SignatureSet::add(Signature_ptr signature)
 
 Signature_ptr SignatureSet::get(int index) const
 {
-    Doctor::get().assert(
+    Doctor::semantics().assert(
         index >= 0 && index < static_cast<int>(signatures.size()),
-        WaspStage::Semantics,
         "Invalid signature index: " + std::to_string(index)
     );
 
     return signatures[index];
+}
+
+// ============================================================================
+// Enum Type
+// ============================================================================
+
+int EnumType::get_value(const std::vector<std::string>& path) const
+{
+    std::stringstream ss;
+
+    for (size_t i = 0; i < path.size(); ++i)
+    {
+        ss << path[i] << (i == path.size() - 1 ? "" : ".");
+    }
+
+    std::string search_path = ss.str();
+    auto it = std::find(members.begin(), members.end(), search_path);
+
+    if (it != members.end())
+    {
+        return static_cast<int>(std::distance(members.begin(), it));
+    }
+
+    Doctor::semantics().fatal(
+        "Enum '" + name + "' does not contain '" + search_path
+    );
 }
 
 // ============================================================================
@@ -242,9 +264,8 @@ Signature_ptr SignatureSet::get(int index) const
 
 std::string Type::to_string() const
 {
-    Doctor::get().fatal_if_nullptr(
+    Doctor::semantics().fatal_if_nullptr(
         this,
-        WaspStage::VM,
         "Attempted to stringify a null object pointer"
     );
 

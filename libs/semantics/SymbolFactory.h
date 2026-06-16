@@ -41,6 +41,8 @@ public:
         int lexical_depth = 0
     );
 
+    static Symbol_ptr create_function_overloads(const std::string& name);
+
     static Symbol_ptr create_type(
         const std::string& name,
         Type_ptr type = nullptr,

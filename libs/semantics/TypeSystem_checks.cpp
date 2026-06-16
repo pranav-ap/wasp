@@ -7,10 +7,6 @@
 namespace Wasp
 {
 
-// =========================================================================
-// Type Checks
-// =========================================================================
-
 bool TypeSystem::is_int_type(Type_ptr obj) const
 {
     Doctor::semantics().fatal_if_nullptr(obj);
@@ -106,4 +102,11 @@ bool TypeSystem::is_primitive_type(const Type_ptr type) const
            type->is<TupleType_ptr>() || type->is<VariantType_ptr>() ||
            type->is<IntersectionType_ptr>();
 }
+
+bool TypeSystem::is_key_type(const Type_ptr type) const
+{
+    return is_int_type(type) || is_string_type(type) ||
+           is_boolean_type(type);
+}
+
 } // namespace Wasp

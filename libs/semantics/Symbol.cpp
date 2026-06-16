@@ -56,8 +56,7 @@ Type_ptr Symbol::get_type() const
         return as<SymbolAliasSymbol>().target->get_type();
     }
 
-    Doctor::get().fatal(
-        WaspStage::Semantics,
+    Doctor::semantics().fatal(
         "Symbol does not have a type attribute : " + name
     );
 }
@@ -86,10 +85,7 @@ void Symbol::set_type(Type_ptr new_type)
     }
     else
     {
-        Doctor::get().fatal(
-            WaspStage::Semantics,
-            "Cannot set type for symbol: " + name
-        );
+        Doctor::semantics().fatal("Cannot set type for symbol: " + name);
     }
 }
 
@@ -121,6 +117,20 @@ bool Symbol::should_be_captured(int usage_depth) const
 std::string Symbol::to_string() const
 {
     return name + " (id=" + std::to_string(id) + ")";
+}
+
+// ============================================================================
+// Payload Functions
+// ============================================================================
+
+void FunctionOverloadsSymbol::add_overload(Symbol_ptr function_symbol)
+{
+    Doctor::semantics().assert(
+        function_symbol->is<FunctionSymbol>(),
+        "Only FunctionSymbol can be added as an overload"
+    );
+
+    overloads.push_back(function_symbol);
 }
 
 } // namespace Wasp

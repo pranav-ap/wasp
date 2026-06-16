@@ -20,16 +20,13 @@ namespace Wasp
 
 Type_ptr TypeChecker::visit(const TypeNode_ptr type_node)
 {
-    Doctor::get().fatal_if_nullptr(type_node, WaspStage::Semantics);
+    Doctor::semantics().fatal_if_nullptr(type_node);
 
     return std::visit(
         overloaded{
             [&](std::monostate&) -> Type_ptr
             {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "Type node is in monostate"
-                );
+                Doctor::semantics().fatal("Type node is in monostate");
             },
             [&](auto& node) -> Type_ptr
             {
@@ -83,10 +80,7 @@ Type_ptr TypeChecker::visit(LiteralTypeNode& type_node)
             },
             [&](auto&) -> Type_ptr
             {
-                Doctor::get().fatal(
-                    WaspStage::Semantics,
-                    "Invalid literal type"
-                );
+                Doctor::semantics().fatal("Invalid literal type");
             }
         },
         type_node.literal->data
@@ -97,17 +91,15 @@ Type_ptr TypeChecker::visit(TypeIdentifierNode& type_node)
 {
     auto symbol = current_scope->lookup(type_node.name);
 
-    Doctor::get().fatal_if_nullptr(
+    Doctor::semantics().fatal_if_nullptr(
         symbol,
-        WaspStage::Semantics,
         "Undefined type: " + type_node.name
     );
 
     auto type = symbol->get_type();
 
-    Doctor::get().fatal_if_nullptr(
+    Doctor::semantics().fatal_if_nullptr(
         type,
-        WaspStage::Semantics,
         "Symbol is not a type: " + type_node.name
     );
 

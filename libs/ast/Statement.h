@@ -102,6 +102,7 @@ struct TypeAliasDefinition
     TypeNode_ptr ref_type;
 
     Symbol_ptr symbol = nullptr;
+    Symbol_ptr overload_symbol = nullptr;
 };
 
 struct EnumDefinition
@@ -113,6 +114,7 @@ struct EnumDefinition
     std::vector<EnumDefinition> nested_enums;
 
     Symbol_ptr symbol = nullptr;
+    Symbol_ptr overload_symbol = nullptr;
 };
 
 struct FunctionDefinition
@@ -129,6 +131,7 @@ struct FunctionDefinition
     bool is_shared;
 
     Symbol_ptr symbol = nullptr;
+    Symbol_ptr overload_symbol = nullptr;
 };
 
 using FunctionDefinitionVector = std::vector<FunctionDefinition>;
@@ -147,6 +150,7 @@ struct OperatorDefinition
     Block block;
 
     Symbol_ptr symbol = nullptr;
+    Symbol_ptr overload_symbol = nullptr;
 };
 
 struct TypeDefinition
@@ -159,6 +163,7 @@ struct TypeDefinition
     TypeNodeVector traits;
 
     Symbol_ptr symbol = nullptr;
+    Symbol_ptr overload_symbol = nullptr;
 
     explicit TypeDefinition() = default;
 

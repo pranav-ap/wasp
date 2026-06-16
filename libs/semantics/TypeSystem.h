@@ -1,9 +1,12 @@
 #pragma once
 
+#include "AST.h"
+#include "Symbol.h"
 #include "SymbolScope.h"
 #include "Type.h"
 
 #include <memory>
+#include <tuple>
 
 namespace Wasp
 {
@@ -61,6 +64,30 @@ struct TypeSystem
     bool is_string_type(const Type_ptr type) const;
     bool is_none_type(const Type_ptr type) const;
     bool is_primitive_type(const Type_ptr type) const;
+
+    bool is_key_type(const Type_ptr type) const;
+
+    // =========================================================================
+    // Calculate
+    // =========================================================================
+
+    Type_ptr unify(SymbolScope_ptr scope, const TypeVector& types);
+
+    TypeVector remove_duplicates(
+        SymbolScope_ptr scope,
+        const TypeVector& types
+    ) const;
+
+    // =========================================================================
+    // Function Call Resolution
+    // =========================================================================
+
+    std::tuple<Symbol_ptr, int> get_best_function_symbol(
+        SymbolScope_ptr scope,
+        const Symbol_ptr symbol,
+        const TypeVector& generic_types,
+        const TypeVector& argument_types
+    ) const;
 };
 
 using TypeSystem_ptr = std::shared_ptr<TypeSystem>;

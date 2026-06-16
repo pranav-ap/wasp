@@ -16,7 +16,7 @@ namespace Wasp
 
 Type_ptr TypeChecker::visit(Constructor& expr)
 {
-    Doctor::get().fatal(WaspStage::Semantics, "Not supported yet");
+    Doctor::semantics().fatal("Not supported yet");
 }
 
 } // namespace Wasp

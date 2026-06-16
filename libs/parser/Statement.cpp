@@ -166,7 +166,7 @@ Block Parser::parse_block(int expected_indent_level)
     token_pipe.ignore_empty_lines();
 
     auto s = parse_statement(expected_indent_level);
-    Doctor::get().fatal_if_nullptr(s, WaspStage::Parser);
+    Doctor::parser().fatal_if_nullptr(s);
 
     StatementVector statements{std::move(s)};
 
@@ -179,11 +179,10 @@ Block Parser::parse_block(int expected_indent_level)
         {
             auto current_token = token_pipe.current();
 
-            Doctor::get().fatal(
-                WaspStage::Parser,
+            Doctor::parser().fatal(
                 "Unexpected indent level. Expected " +
-                    std::to_string(expected_indent_level) + " but got " +
-                    std::to_string(actual_indent_level)
+                std::to_string(expected_indent_level) + " but got " +
+                std::to_string(actual_indent_level)
             );
         }
 

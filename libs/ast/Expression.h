@@ -2,7 +2,6 @@
 
 #include "AST.h"
 #include "Token.h"
-#include "TypeNode.h"
 
 #include <map>
 #include <memory>
@@ -109,12 +108,20 @@ struct Identifier
     std::string name;
 
     Symbol_ptr symbol = nullptr;
+    bool must_be_captured = false;
 };
 
 struct MemberAccess
 {
     Expression_ptr object;
     Expression_ptr member;
+
+    enum class Kind
+    {
+        FIELD,
+        METHOD,
+        TRAIT_DISPATCH
+    } kind = Kind::FIELD;
 
     int member_index = -1;
 };
@@ -124,6 +131,8 @@ struct Call
     Expression_ptr callee;
     TypeNodeVector angular_nodes;
     ExpressionVector arguments;
+
+    int overload_index = -1;
 };
 
 struct Constructor
@@ -138,11 +147,7 @@ struct Range
     Expression_ptr start;
     Expression_ptr end;
 
-    enum class Kind
-    {
-        Inclusive,
-        Exclusive,
-    } kind;
+    bool is_inclusive;
 };
 
 struct Pipe

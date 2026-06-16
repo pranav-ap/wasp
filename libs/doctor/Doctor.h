@@ -33,7 +33,7 @@ class Doctor
 {
 private:
     std::chrono::steady_clock::time_point timer_start;
-    static WaspStage current_stage;
+    static inline WaspStage current_stage = WaspStage::Lexer;
 
     Doctor() = default;
 

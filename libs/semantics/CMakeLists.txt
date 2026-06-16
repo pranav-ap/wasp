@@ -10,13 +10,13 @@ add_library(
     TypeChecker_definitions.cpp
     TypeChecker_expressions.cpp
     TypeChecker_operators.cpp
-    TypeChecker_resolvers.cpp
     TypeChecker_statements.cpp
     TypeChecker_types.cpp
-    TypeChecker_utils.cpp
     TypeChecker_variables.cpp
     TypeChecker.cpp
     TypeSystem_assignable.cpp
+    TypeSystem_calculate.cpp
+    TypeSystem_call_resolution.cpp
     TypeSystem_checks.cpp
     TypeSystem_equality.cpp
     TypeSystem.cpp

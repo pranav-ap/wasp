@@ -81,7 +81,9 @@ void Hoisting::visit(FunctionDefinition& def)
         current_scope->lexical_depth
     );
 
-    def.symbol = current_scope->define(symbol);
+    auto overload_symbol = current_scope->overload(symbol);
+    def.symbol = symbol;
+    def.overload_symbol = overload_symbol;
 
     enter_scope(ScopeType::FUNCTION);
 
@@ -95,7 +97,8 @@ void Hoisting::visit(FunctionDefinition& def)
             current_scope->lexical_depth
         );
 
-        param.symbol = current_scope->define(var_symbol);
+        current_scope->define(var_symbol);
+        param.symbol = symbol;
     }
 
     visit(def.block);
@@ -112,7 +115,9 @@ void Hoisting::visit(OperatorDefinition& def)
         current_scope->lexical_depth
     );
 
-    def.symbol = current_scope->define(symbol);
+    auto overload_symbol = current_scope->overload(symbol);
+    def.symbol = symbol;
+    def.overload_symbol = overload_symbol;
 
     enter_scope(ScopeType::FUNCTION);
 
@@ -126,7 +131,8 @@ void Hoisting::visit(OperatorDefinition& def)
             current_scope->lexical_depth
         );
 
-        operand.symbol = current_scope->define(var_symbol);
+        current_scope->define(var_symbol);
+        operand.symbol = var_symbol;
     }
 
     visit(def.block);
@@ -143,12 +149,17 @@ void Hoisting::visit(ClassDefinition& def)
         current_scope->lexical_depth
     );
 
-    def.symbol = current_scope->define(symbol);
+    current_scope->define(symbol);
+    def.symbol = symbol;
+
+    enter_scope(ScopeType::CLASS);
 
     for (auto& method : def.methods)
     {
         visit(method);
     }
+
+    leave_scope();
 }
 
 void Hoisting::visit(TraitDefinition& def)
@@ -160,12 +171,17 @@ void Hoisting::visit(TraitDefinition& def)
         current_scope->lexical_depth
     );
 
-    def.symbol = current_scope->define(symbol);
+    current_scope->define(symbol);
+    def.symbol = symbol;
+
+    enter_scope(ScopeType::CLASS);
 
     for (auto& method : def.methods)
     {
         visit(method);
     }
+
+    leave_scope();
 }
 
 void Hoisting::visit(PrimitiveDefinition& def)
@@ -177,12 +193,17 @@ void Hoisting::visit(PrimitiveDefinition& def)
         current_scope->lexical_depth
     );
 
-    def.symbol = current_scope->define(symbol);
+    current_scope->define(symbol);
+    def.symbol = symbol;
+
+    enter_scope(ScopeType::CLASS);
 
     for (auto& method : def.methods)
     {
         visit(method);
     }
+
+    leave_scope();
 }
 
 void Hoisting::visit(EnumDefinition& def)
@@ -194,7 +215,8 @@ void Hoisting::visit(EnumDefinition& def)
         current_scope->lexical_depth
     );
 
-    def.symbol = current_scope->define(symbol);
+    current_scope->define(symbol);
+    def.symbol = symbol;
 }
 
 void Hoisting::visit(TypeAliasDefinition& def)
@@ -206,7 +228,8 @@ void Hoisting::visit(TypeAliasDefinition& def)
         current_scope->lexical_depth
     );
 
-    def.symbol = current_scope->define(symbol);
+    current_scope->define(symbol);
+    def.symbol = symbol;
 }
 
 void Hoisting::visit(Branch& stmt)
@@ -258,9 +281,8 @@ void Hoisting::visit(Expression_ptr expression)
 
 void Hoisting::visit(Binding& binding)
 {
-    Doctor::get().assert(
+    Doctor::parser().assert(
         binding.lhs->is<Identifier>(),
-        WaspStage::Parser,
         "Left-hand side of a binding must be an identifier"
     );
 
@@ -274,7 +296,8 @@ void Hoisting::visit(Binding& binding)
         current_scope->lexical_depth
     );
 
-    id.symbol = current_scope->define(var_symbol);
+    current_scope->define(var_symbol);
+    id.symbol = var_symbol;
 }
 
 void Hoisting::visit(TernaryExpression& expr)

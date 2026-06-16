@@ -108,17 +108,12 @@ private:
     void enter_scope(ScopeType scope_type);
     void leave_scope();
 
-    TemplateType_ptr create_template_type(const FieldVector& generics);
-    void define_template_type(TemplateType_ptr template_type);
-
     Signature_ptr analyze(FunctionDefinition& def);
     Signature_ptr analyze(OperatorDefinition& def);
 
     FieldMap_ptr track_fields(FieldVector fields);
     MethodMap_ptr track_methods(FunctionDefinitionVector methods);
     TypeVector track_traits(TypeNodeVector traits);
-
-    void validate_purity_constraints(Symbol_ptr target_symbol) const;
 
     Type_ptr mutate_variable(
         Expression_ptr identifier_expr,

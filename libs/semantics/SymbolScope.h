@@ -44,13 +44,18 @@ struct SymbolScope : public std::enable_shared_from_this<SymbolScope>
 
     // define
 
-    Symbol_ptr define(Symbol_ptr symbol);
+    void define(Symbol_ptr symbol);
+    void define_overload(Symbol_ptr symbol);
+    Symbol_ptr overload(Symbol_ptr symbol);
 
     // Lookup
     Symbol_ptr lookup_local(const std::string& name) const;
     Symbol_ptr lookup(const std::string& name) const;
     Symbol_ptr lookup_required(const std::string& name) const;
     Symbol_ptr lookup_required_and_resolve(const std::string& name) const;
+
+    Symbol_ptr lookup_variable(const std::string& name) const;
+    Symbol_ptr lookup_functions(const std::string& name) const;
 
     // Queries
     bool contains_in_current_scope(const std::string& name) const;

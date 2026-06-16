@@ -20,7 +20,7 @@ Statement_ptr Parser::parse_simple_loop(
     token_pipe.advance_pointer();
 
     auto condition = parse_expression();
-    Doctor::get().fatal_if_nullptr(condition, WaspStage::Parser);
+    Doctor::parser().fatal_if_nullptr(condition);
 
     token_pipe.require_in_line(TokenType::DO);
 
@@ -54,26 +54,22 @@ Statement_ptr Parser::parse_for_in_loop(int loop_indent_level)
     // 3. Parse the 'x in y' part as an expression (will resolve to an Infix
     // node)
     auto expression = parse_expression();
-    Doctor::get().fatal_if_nullptr(expression, WaspStage::Parser);
+    Doctor::parser().fatal_if_nullptr(expression);
 
     if (!expression->is<Infix>())
     {
         auto current_token = token_pipe.current();
 
-        Doctor::get().fatal(
-            WaspStage::Parser,
-            "Expected 'EXPR in ITERABLE' after for"
-        );
+        Doctor::parser().fatal("Expected 'EXPR in ITERABLE' after for");
     }
 
     const auto& infix = expression->as<Infix>();
 
     if (infix.op.type != TokenType::IN_KEYWORD)
     {
-        Doctor::get().fatal(
-            WaspStage::Parser,
+        Doctor::parser().fatal(
             "Expected 'in' keyword in for loop, but got " +
-                to_string(infix.op.type)
+            to_string(infix.op.type)
         );
     }
 
@@ -90,7 +86,7 @@ Statement_ptr Parser::parse_for_in_loop(int loop_indent_level)
     }
 
     auto statement = parse_expression_statement();
-    Doctor::get().fatal_if_nullptr(statement, WaspStage::Parser);
+    Doctor::parser().fatal_if_nullptr(statement);
 
     Block block = Block{{statement}};
     return make_statement(ForInLoop{is_mutable, lhs, iterable, block});

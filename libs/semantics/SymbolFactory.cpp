@@ -80,6 +80,13 @@ Symbol_ptr SymbolFactory::create_function(
     );
 }
 
+Symbol_ptr SymbolFactory::create_function_overloads(
+    const std::string& name
+)
+{
+    return create_symbol(name, FunctionOverloadsSymbol{{}});
+}
+
 Symbol_ptr SymbolFactory::create_type(
     const std::string& name,
     Type_ptr type,

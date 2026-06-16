@@ -39,9 +39,11 @@ struct FunctionSymbol
     bool is_static_method;
 };
 
-struct OverloadedFunctionSymbol
+struct FunctionOverloadsSymbol
 {
-    std::vector<FunctionSymbol> overloads;
+    SymbolVector overloads;
+
+    void add_overload(Symbol_ptr function_symbol);
 };
 
 struct TypeSymbol
@@ -68,7 +70,7 @@ using SymbolVariant = std::variant<
 
     VariableSymbol,
     FunctionSymbol,
-    OverloadedFunctionSymbol,
+    FunctionOverloadsSymbol,
     TypeSymbol,
     TypeAliasSymbol,
     SymbolAliasSymbol>;

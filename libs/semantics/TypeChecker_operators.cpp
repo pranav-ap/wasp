@@ -16,12 +16,12 @@ namespace Wasp
 
 Type_ptr TypeChecker::visit(Prefix& expr)
 {
-    Doctor::get().fatal(WaspStage::Semantics, "Not supported yet");
+    Doctor::semantics().fatal("Not supported yet");
 }
 
 Type_ptr TypeChecker::visit(Infix& expr)
 {
-    Doctor::get().fatal(WaspStage::Semantics, "Not supported yet");
+    Doctor::semantics().fatal("Not supported yet");
 }
 
 } // namespace Wasp

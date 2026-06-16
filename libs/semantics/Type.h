@@ -176,6 +176,8 @@ struct EnumType
         : type_id(get_next_type_id()), name(std::move(name))
     {
     }
+
+    int get_value(const StringVector& path) const;
 };
 
 using EnumType_ptr = std::shared_ptr<EnumType>;
@@ -241,7 +243,7 @@ struct FieldMap
     StringVector ordered_keys;
 
     int get_index(const std::string& field_name) const;
-    Type_ptr get(const std::string& field_name) const;
+    Type_ptr get_type(const std::string& field_name) const;
     bool contains(const std::string& field_name) const;
 };
 
@@ -253,7 +255,7 @@ struct MethodMap
     StringVector ordered_keys;
 
     int get_index(const std::string& function_name) const;
-    SignatureSet_ptr get(const std::string& function_name) const;
+    SignatureSet_ptr get_type(const std::string& function_name) const;
     bool contains(const std::string& function_name) const;
 };
 
