@@ -4,7 +4,7 @@
 #include "Parser.h"
 #include "Statement.h"
 #include "Token.h"
-#include "TypeAnnotation.h"
+#include "TypeNode.h"
 
 #include <string>
 #include <tuple>
@@ -54,10 +54,7 @@ Statement_ptr Parser::parse_template_definition(int indent_level)
 
             [&](auto&)
             {
-                Doctor::get().fatal(
-                    WaspStage::Parser,
-                    "Invalid template target"
-                );
+                Doctor::parser().fatal("Invalid template target");
             }
         },
         target->data
@@ -180,7 +177,7 @@ Statement_ptr Parser::parse_function_definition(
         token_pipe.require_in_line(TokenType::CLOSE_PARENTHESIS);
     }
 
-    TypeAnnotation_ptr return_type = nullptr;
+    TypeNode_ptr return_type = nullptr;
 
     if (token_pipe.consume_optional_in_line(TokenType::ARROW))
     {
@@ -207,7 +204,7 @@ Statement_ptr Parser::parse_operator_definition(
 )
 {
     auto operator_token = token_pipe.current_in_line();
-    Doctor::get().fatal_if_nullopt(operator_token, WaspStage::Parser);
+    Doctor::parser().fatal_if_nullopt(operator_token);
     token_pipe.advance_pointer();
 
     token_pipe.require_in_line(TokenType::OPEN_PARENTHESIS);
@@ -228,7 +225,7 @@ Statement_ptr Parser::parse_operator_definition(
         token_pipe.require_in_line(TokenType::CLOSE_PARENTHESIS);
     }
 
-    TypeAnnotation_ptr return_type = nullptr;
+    TypeNode_ptr return_type = nullptr;
     if (token_pipe.consume_optional_in_line(TokenType::ARROW))
     {
         return_type = parse_type();
@@ -256,7 +253,7 @@ Statement_ptr Parser::parse_operator_definition(
 
 std::tuple<
     std::string,
-    TypeAnnotationVector,
+    TypeNodeVector,
     FunctionDefinitionVector,
     FieldVector>
 Parser::parse_membered_definition_base(int indent_level)
@@ -266,7 +263,7 @@ Parser::parse_membered_definition_base(int indent_level)
     auto name_token = token_pipe.require_in_line(TokenType::IDENTIFIER);
     std::string name = name_token.lexeme;
 
-    TypeAnnotationVector traits;
+    TypeNodeVector traits;
 
     if (token_pipe.consume_optional_in_line(TokenType::IS))
     {

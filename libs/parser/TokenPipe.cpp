@@ -47,23 +47,22 @@ Token TokenPipe::require(TokenType token_type) {
             return *token;
         }
 
-        Doctor::get().fatal(
-            WaspStage::Parser,
-            "Expected token of type " + to_string(token_type) + " but got " +
-                to_string(token->type)
+        Doctor::parser().fatal(
+            "Expected token of type " + to_string(token_type) +
+            " but got " + to_string(token->type)
         );
     }
 
-    Doctor::get().fatal(
-        WaspStage::Parser,
-        "Expected token of type " + to_string(token_type) + " but got end of file"
+    Doctor::parser().fatal(
+        "Expected token of type " + to_string(token_type) +
+        " but got end of file"
     );
 }
 
 Token TokenPipe::require(const std::vector<TokenType>& token_types) {
     const auto token = current();
 
-    Doctor::get().fatal_if_nullopt(token, WaspStage::Parser);
+    Doctor::parser().fatal_if_nullopt(token);
 
     for (const auto& type : token_types) {
         if (token->type == type) {
@@ -77,10 +76,10 @@ Token TokenPipe::require(const std::vector<TokenType>& token_types) {
         expected_types += to_string(token_types[i]) + (i < token_types.size() - 1 ? ", " : " ");
     }
 
-    Doctor::get().fatal(
-        WaspStage::Parser,
+    Doctor::parser().fatal(
+
         "Expected one of { " + expected_types + "} but got " +
-            to_string(token->type)
+        to_string(token->type)
     );
 }
 
@@ -202,9 +201,10 @@ void TokenPipe::expect_no_indents_or_spaces() const {
     const auto token = current();
 
     if (token) {
-        Doctor::get().assert(
-            token->type != TokenType::TAB && token->type != TokenType::SPACE,
-            WaspStage::Parser,
+        Doctor::parser().assert(
+            token->type != TokenType::TAB &&
+                token->type != TokenType::SPACE,
+
             "Unexpected indent or space"
         );
     }
@@ -214,11 +214,11 @@ void TokenPipe::expect_n_indents(const int n) {
     for (int i = 0; i < n; i++) {
         const auto token = current();
 
-        Doctor::get().fatal_if_nullopt(token, WaspStage::Parser);
+        Doctor::parser().fatal_if_nullopt(token);
 
-        Doctor::get().assert(
+        Doctor::parser().assert(
             token->type == TokenType::TAB,
-            WaspStage::Parser,
+
             "Expected " + std::to_string(n) + " indents but got " +
                 std::to_string(i)
         );

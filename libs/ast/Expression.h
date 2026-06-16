@@ -2,6 +2,7 @@
 
 #include "AST.h"
 #include "Token.h"
+#include "TypeNode.h"
 
 #include <map>
 #include <memory>
@@ -81,7 +82,7 @@ struct Binding
     Expression_ptr lhs;
     Expression_ptr rhs;
 
-    TypeAnnotation_ptr declared_type;
+    TypeNode_ptr declared_type;
 
     bool is_mutable;
 };
@@ -114,19 +115,21 @@ struct MemberAccess
 {
     Expression_ptr object;
     Expression_ptr member;
+
+    int member_index = -1;
 };
 
 struct Call
 {
     Expression_ptr callee;
-    TypeAnnotationVector angular_nodes;
+    TypeNodeVector angular_nodes;
     ExpressionVector arguments;
 };
 
 struct Constructor
 {
     Expression_ptr constructible;
-    TypeAnnotationVector angular_nodes;
+    TypeNodeVector angular_nodes;
     ExpressionVector arguments;
 };
 

@@ -6,7 +6,7 @@ add_library(
     Statement.cpp
     Importing.cpp
     Definition.cpp
-    TypeAnnotation.cpp
+    TypeNode.cpp
     Branching.cpp
     Looping.cpp
     TokenPipe.cpp

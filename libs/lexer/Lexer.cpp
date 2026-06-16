@@ -485,8 +485,7 @@ Token Lexer::consume_single_char_punctuation(char ch) {
         next();
         return Token(TokenType::AT_SIGN, "@");
     default:
-        Doctor::get().fatal(
-            WaspStage::Lexer,
+        Doctor::lexer().fatal(
             "Unknown token starting with '" + std::string(1, ch) + "'"
         );
     }

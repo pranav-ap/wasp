@@ -8,7 +8,14 @@
 
 namespace Wasp {
 
-enum class WaspStage { Lexer, Parser, Semantics, Captain, Compiler, VM, Native };
+enum class WaspStage
+{
+    Lexer,
+    Parser,
+    Semantics,
+    Captain,
+    Compiler
+};
 
 std::string to_string(WaspStage stage);
 
@@ -26,6 +33,7 @@ class Doctor
 {
 private:
     std::chrono::steady_clock::time_point timer_start;
+    static WaspStage current_stage;
 
     Doctor() = default;
 
@@ -42,44 +50,74 @@ public:
         return instance;
     }
 
+    static Doctor& lexer()
+    {
+        current_stage = WaspStage::Lexer;
+        return get();
+    }
+
+    static Doctor& parser()
+    {
+        current_stage = WaspStage::Parser;
+        return get();
+    }
+
+    static Doctor& semantics()
+    {
+        current_stage = WaspStage::Semantics;
+        return get();
+    }
+
+    static Doctor& captain()
+    {
+        current_stage = WaspStage::Captain;
+        return get();
+    }
+
+    static Doctor& compiler()
+    {
+        current_stage = WaspStage::Compiler;
+        return get();
+    }
+
     [[noreturn]] void fatal(
-        WaspStage stage,
         const std::string& message = "",
-        const std::source_location location = std::source_location::current()
+        const std::source_location location =
+            std::source_location::current()
     ) const;
 
     void assert(
         bool condition,
-        WaspStage stage,
         const std::string& message = "",
-        const std::source_location location = std::source_location::current()
+        const std::source_location location =
+            std::source_location::current()
     ) const;
 
     template <typename T>
     void fatal_if_nullptr(
         T ptr,
-        WaspStage stage,
         const std::string& message = "",
-        const std::source_location location = std::source_location::current()
+        const std::source_location location =
+            std::source_location::current()
     ) const
     {
         if (ptr == nullptr) {
             std::string final_msg = message.empty() ? "Oh shit! A nullptr" : message;
-            fatal(stage, final_msg, location);
+            fatal(final_msg, location);
         }
     }
 
     template <typename T>
     void fatal_if_nullopt(
         const std::optional<T>& opt,
-        WaspStage stage,
         const std::string& message = "",
-        const std::source_location location = std::source_location::current()
+        const std::source_location location =
+            std::source_location::current()
     ) const
     {
         if (!opt.has_value()) {
             std::string final_msg = message.empty() ? "Oh shit! A nullopt" : message;
-            fatal(stage, final_msg, location);
+            fatal(final_msg, location);
         }
     }
 

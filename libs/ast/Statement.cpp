@@ -11,9 +11,8 @@ namespace Wasp
 
 Statement_ptr Block::get(int index)
 {
-    Doctor::get().assert(
+    Doctor::semantics().assert(
         index >= 0 || index < static_cast<int>(statements.size()),
-        WaspStage::Parser,
         "Block index out of bounds: " + std::to_string(index) +
             " (size: " + std::to_string(statements.size()) + ")"
     );

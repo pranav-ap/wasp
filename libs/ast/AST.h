@@ -26,15 +26,16 @@ struct Expression;
 using Expression_ptr = std::shared_ptr<Expression>;
 using ExpressionVector = std::vector<Expression_ptr>;
 
-struct TypeAnnotation;
-using TypeAnnotation_ptr = std::shared_ptr<TypeAnnotation>;
-using TypeAnnotationVector = std::vector<TypeAnnotation_ptr>;
+struct TypeNode;
+using TypeNode_ptr = std::shared_ptr<TypeNode>;
+using TypeNodeVector = std::vector<TypeNode_ptr>;
 
 // --------------------------------------------------------------
 // AST Node Template
 // ---------------------------------------------------------------
 
-template <typename VariantType> struct AstNode {
+template <typename VariantType> struct AstNode
+{
     VariantType data;
 
     AstNode() = default;

@@ -103,7 +103,7 @@ Workspace_ptr Captain::build()
 void Captain::execute()
 {
     auto main_module = workspace->get_module(entry_file);
-    Doctor::get().fatal_if_nullptr(main_module, WaspStage::Captain);
+    Doctor::captain().fatal_if_nullptr(main_module);
 }
 
 } // namespace Wasp

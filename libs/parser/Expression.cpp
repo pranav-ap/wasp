@@ -40,28 +40,27 @@ Expression_ptr Parser::parse_expression(const int precedence)
 
     auto prefix_it = prefix_parselets.find(token_type);
 
-    Doctor::get().assert(
+    Doctor::parser().assert(
         prefix_it != prefix_parselets.end(),
-        WaspStage::Parser,
         "Expected the start of an expression but found : " + token->lexeme
     );
 
     Expression_ptr left = prefix_it->second->parse(*this, *token);
 
-    Doctor::get().fatal_if_nullptr(left, WaspStage::Parser);
+    Doctor::parser().fatal_if_nullptr(left);
 
     while (precedence < get_next_operator_precedence())
     {
         token = token_pipe.current_in_line();
-        Doctor::get().fatal_if_nullopt(token, WaspStage::Parser);
+        Doctor::parser().fatal_if_nullopt(token);
 
         token_pipe.advance_pointer();
 
         auto infix_it = infix_parselets.find(token->type);
 
-        Doctor::get().assert(
+        Doctor::parser().assert(
             infix_it != infix_parselets.end(),
-            WaspStage::Parser,
+
             "No matching infix parselet found for token : " + token->lexeme
         );
 
@@ -76,9 +75,9 @@ Expression_ptr Parser::parse_variable_definition(bool is_mutable)
     token_pipe.advance_pointer();
 
     auto id_token = token_pipe.current_in_line();
-    Doctor::get().assert(
+    Doctor::parser().assert(
         id_token && id_token->type == TokenType::IDENTIFIER,
-        WaspStage::Parser,
+
         "Expected an identifier after variable definition keyword."
     );
 
@@ -86,7 +85,7 @@ Expression_ptr Parser::parse_variable_definition(bool is_mutable)
 
     token_pipe.advance_pointer();
 
-    TypeAnnotation_ptr declared_type = nullptr;
+    TypeNode_ptr declared_type = nullptr;
 
     if (auto colon_token = token_pipe.current_in_line();
         colon_token && colon_token->type == TokenType::COLON)
@@ -96,9 +95,9 @@ Expression_ptr Parser::parse_variable_definition(bool is_mutable)
     }
 
     auto equal_token = token_pipe.current_in_line();
-    Doctor::get().assert(
+    Doctor::parser().assert(
         equal_token && equal_token->type == TokenType::EQUAL,
-        WaspStage::Parser,
+
         "Variable definition must be initialized with '='."
     );
 

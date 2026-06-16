@@ -35,7 +35,7 @@ struct ExpressionStatement
 struct Field
 {
     std::string name;
-    TypeAnnotation_ptr type;
+    TypeNode_ptr type;
     bool is_variadic;
 
     Symbol_ptr symbol = nullptr;
@@ -99,7 +99,7 @@ struct TypeAliasDefinition
     std::string name;
 
     FieldVector generics;
-    TypeAnnotation_ptr ref_type;
+    TypeNode_ptr ref_type;
 
     Symbol_ptr symbol = nullptr;
 };
@@ -121,7 +121,7 @@ struct FunctionDefinition
     FieldVector generics;
 
     FieldVector parameters;
-    TypeAnnotation_ptr return_type;
+    TypeNode_ptr return_type;
 
     Block block;
 
@@ -142,7 +142,7 @@ struct OperatorDefinition
     TokenType fixity;
 
     FieldVector operands;
-    TypeAnnotation_ptr return_type;
+    TypeNode_ptr return_type;
 
     Block block;
 
@@ -156,7 +156,7 @@ struct TypeDefinition
     FieldVector generics;
     FieldVector fields;
     FunctionDefinitionVector methods;
-    TypeAnnotationVector traits;
+    TypeNodeVector traits;
 
     Symbol_ptr symbol = nullptr;
 
@@ -167,7 +167,7 @@ struct TypeDefinition
         FieldVector generics,
         FieldVector fields,
         FunctionDefinitionVector methods,
-        TypeAnnotationVector traits
+        TypeNodeVector traits
     )
         : name(std::move(name)), generics(std::move(generics)),
           fields(std::move(fields)), methods(std::move(methods)),

@@ -26,10 +26,6 @@ std::string to_string(WaspStage stage)
         return "Captain Error";
     case WaspStage::Compiler:
         return "Compiler Error";
-    case WaspStage::VM:
-        return "Runtime Error";
-    case WaspStage::Native:
-        return "Native Error";
     default:
         return "Unknown Error";
     }
@@ -55,13 +51,12 @@ void Doctor::print_error(const WaspError& err) const
 }
 
 void Doctor::fatal(
-    WaspStage stage,
     const std::string& message,
     const std::source_location location
 ) const
 {
     WaspError err{
-        stage,
+        current_stage,
         message,
         location.file_name(),
         static_cast<int>(location.line()),
@@ -81,14 +76,13 @@ void Doctor::fatal(
 
 void Doctor::assert(
     bool condition,
-    WaspStage stage,
     const std::string& message,
     const std::source_location location
 ) const
 {
     if (!condition)
     {
-        fatal(stage, message, location);
+        fatal(message, location);
     }
 }
 

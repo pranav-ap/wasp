@@ -1,6 +1,6 @@
 #include "Expression.h"
 #include "Statement.h"
-#include "TypeAnnotation.h"
+#include "TypeNode.h"
 #include "test_utils.h"
 
 #include <gtest/gtest.h>

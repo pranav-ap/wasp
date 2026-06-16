@@ -31,14 +31,14 @@ void DependencyCrawler::traverse_edges(const std::filesystem::path& file_path)
         return;
     }
 
-    Doctor::get().assert(
+    Doctor::captain().assert(
         !currently_visiting.contains(abs_path),
-        WaspStage::Captain,
+
         "Strict cyclic import detected involving: " + abs_path.string()
     );
 
     auto mod = workspace->get_module(abs_path);
-    Doctor::get().fatal_if_nullptr(mod, WaspStage::Captain);
+    Doctor::captain().fatal_if_nullptr(mod);
 
     currently_visiting.insert(abs_path);
 
@@ -132,9 +132,9 @@ std::filesystem::path DependencyCrawler::get_base_path(
             base = base.parent_path();
         }
 
-        Doctor::get().assert(
+        Doctor::captain().assert(
             found == jumps,
-            WaspStage::Captain,
+
             "Could not resolve pkg() boundary."
         );
 
@@ -161,10 +161,9 @@ std::filesystem::path DependencyCrawler::resolve_gateway(
             return base / "main.wasp";
         }
 
-        Doctor::get().fatal(
-            WaspStage::Captain,
+        Doctor::captain().fatal(
             "Directory import missing exports.wasp or main.wasp: " +
-                base.string()
+            base.string()
         );
     }
 

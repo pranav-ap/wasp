@@ -1,5 +1,6 @@
 #pragma once
 
+#include "SymbolScope.h"
 #include "Type.h"
 
 #include <memory>
@@ -10,6 +11,44 @@ namespace Wasp
 struct TypeSystem
 {
     explicit TypeSystem() {};
+
+    // ============================================================================
+    // Equality Checks
+    // ============================================================================
+
+    bool equal(
+        SymbolScope_ptr scope,
+        const Type_ptr type_1,
+        const Type_ptr type_2
+    ) const;
+
+    bool equal(
+        SymbolScope_ptr scope,
+        const TypeVector& type_vector_1,
+        const TypeVector& type_vector_2
+    ) const;
+
+    bool equal_unordered(
+        SymbolScope_ptr scope,
+        const TypeVector& type_vector_1,
+        const TypeVector& type_vector_2
+    ) const;
+
+    // ============================================================================
+    // Assignability
+    // ============================================================================
+
+    bool assignable(
+        SymbolScope_ptr scope,
+        const Type_ptr lhs_type,
+        const Type_ptr rhs_type
+    ) const;
+
+    bool assignable(
+        SymbolScope_ptr scope,
+        const TypeVector& type_vector_1,
+        const TypeVector& type_vector_2
+    ) const;
 
     // =========================================================================
     // Type Checks

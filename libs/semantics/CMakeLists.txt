@@ -1,13 +1,24 @@
 add_library(
     SemanticsLib
     Type.cpp
-    Type_utils.cpp
     Symbol.cpp
     SymbolFactory.cpp
     SymbolScope.cpp
     Hoisting.cpp
-    NameResolution.cpp
-    TypeCollection.cpp
+    TypeChecker_call.cpp
+    TypeChecker_constructor.cpp
+    TypeChecker_definitions.cpp
+    TypeChecker_expressions.cpp
+    TypeChecker_operators.cpp
+    TypeChecker_resolvers.cpp
+    TypeChecker_statements.cpp
+    TypeChecker_types.cpp
+    TypeChecker_utils.cpp
+    TypeChecker_variables.cpp
+    TypeChecker.cpp
+    TypeSystem_assignable.cpp
+    TypeSystem_checks.cpp
+    TypeSystem_equality.cpp
     TypeSystem.cpp
     SemanticsAnalyzer.cpp
 )

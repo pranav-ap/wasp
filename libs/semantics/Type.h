@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AST.h"
 #include <map>
 #include <memory>
 #include <optional>
@@ -68,7 +69,7 @@ struct BooleanType
 
 struct LiteralType
 {
-    Type_ptr value;
+    Expression_ptr value;
 };
 
 using IntType_ptr = std::shared_ptr<IntType>;
@@ -98,6 +99,9 @@ struct TemplateType
     bool empty() const;
     std::vector<std::pair<std::string, Type_ptr>>
     get_ordered_generics() const;
+
+    Type_ptr get_generic_type(int index) const;
+    Type_ptr get_generic_type(const std::string& name) const;
 };
 
 using TemplateType_ptr = std::shared_ptr<TemplateType>;
@@ -347,7 +351,7 @@ struct ModuleType
 using ModuleType_ptr = std::shared_ptr<ModuleType>;
 
 // ============================================================================
-// The Core Type Variant
+// Type Variant
 // ============================================================================
 
 using TypeVariant = std::variant<

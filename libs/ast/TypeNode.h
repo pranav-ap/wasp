@@ -14,6 +14,11 @@ struct NoneTypeNode
 {
 };
 
+struct LiteralTypeNode
+{
+    Expression_ptr literal;
+};
+
 struct TypeIdentifierNode
 {
     std::string name;
@@ -23,54 +28,55 @@ struct TypeIdentifierNode
 
 struct ListTypeNode
 {
-    TypeAnnotation_ptr element_type;
+    TypeNode_ptr element_type;
 };
 
 struct TupleTypeNode
 {
-    TypeAnnotationVector element_types;
+    TypeNodeVector element_types;
 };
 
 struct SetTypeNode
 {
-    TypeAnnotation_ptr element_type;
+    TypeNode_ptr element_type;
 };
 
 struct MapTypeNode
 {
-    TypeAnnotation_ptr key_type;
-    TypeAnnotation_ptr value_type;
+    TypeNode_ptr key_type;
+    TypeNode_ptr value_type;
 };
 
 struct VariantTypeNode
 {
-    TypeAnnotationVector options;
+    TypeNodeVector options;
 };
 
 struct IntersectionTypeNode
 {
-    TypeAnnotationVector types;
+    TypeNodeVector types;
 };
 
 struct FunctionTypeNode
 {
-    TypeAnnotationVector input_types;
-    TypeAnnotation_ptr return_type;
+    TypeNodeVector input_types;
+    TypeNode_ptr return_type;
 };
 
 // Foo<T>
 struct AngularTypeNode
 {
     std::string name;
-    TypeAnnotationVector type_arguments;
+    TypeNodeVector type_arguments;
 
     Symbol_ptr symbol = nullptr;
 };
 
-using TypeAnnotationVariant = std::variant<
+using TypeNodeVariant = std::variant<
     std::monostate,
 
     NoneTypeNode,
+    LiteralTypeNode,
     TypeIdentifierNode,
 
     ListTypeNode,
@@ -85,14 +91,14 @@ using TypeAnnotationVariant = std::variant<
 
     AngularTypeNode>;
 
-struct TypeAnnotation : public AstNode<TypeAnnotationVariant>
+struct TypeNode : public AstNode<TypeNodeVariant>
 {
     using AstNode::AstNode;
 };
 
-template <typename T> inline TypeAnnotation_ptr make_type_annotation(T&& data)
+template <typename T> inline TypeNode_ptr make_type_annotation(T&& data)
 {
-    return std::make_shared<TypeAnnotation>(std::forward<T>(data));
+    return std::make_shared<TypeNode>(std::forward<T>(data));
 }
 
 } // namespace Wasp

@@ -53,7 +53,7 @@ Expression_ptr LiteralParselet::parse(Parser& parser, const Token& token)
         return make_expression(NoneLiteral());
     }
     default:
-        Doctor::get().fatal(WaspStage::Parser, "Expected a literal value");
+        Doctor::parser().fatal("Expected a literal value");
     }
 }
 
@@ -123,7 +123,7 @@ Expression_ptr CurlyBraceParselet::parse(Parser& parser, const Token&)
     parser.token_pipe.ignore_spaces();
 
     auto first_expr = parser.parse_expression();
-    Doctor::get().fatal_if_nullptr(first_expr, WaspStage::Parser);
+    Doctor::parser().fatal_if_nullptr(first_expr);
 
     parser.token_pipe.ignore_spaces();
 
@@ -177,7 +177,7 @@ Expression_ptr AssignmentParselet::parse(
         static_cast<int>(Precedence::ASSIGNMENT) - 1
     );
 
-    Doctor::get().fatal_if_nullptr(right, WaspStage::Parser);
+    Doctor::parser().fatal_if_nullptr(right);
 
     if (token.type != TokenType::EQUAL)
     {
@@ -235,7 +235,7 @@ Expression_ptr MemberAccessParselet::parse(
 )
 {
     Expression_ptr member = parser.parse_expression(get_precedence());
-    Doctor::get().fatal_if_nullptr(member, WaspStage::Parser);
+    Doctor::parser().fatal_if_nullptr(member);
     return make_expression(MemberAccess(left, member));
 }
 
@@ -281,13 +281,13 @@ Expression_ptr LesserThanParselet::parse(Parser& parser, Expression_ptr left, co
         return make_expression(Infix{left, token, right});
     }
 
-    Doctor::get().assert(
+    Doctor::parser().assert(
         (left->is<Identifier>() || left->is<MemberAccess>()),
-        WaspStage::Parser,
+
         "Incorrect LHS for generic type application"
     );
 
-    TypeAnnotationVector generic_args;
+    TypeNodeVector generic_args;
 
     do
     {
@@ -329,9 +329,9 @@ Expression_ptr CallOrConstructorParselet::parse(
     const Token&
 )
 {
-    Doctor::get().assert(
+    Doctor::parser().assert(
         left->is<Identifier>() || left->is<MemberAccess>(),
-        WaspStage::Parser,
+
         "Incorrect LHS for function call or constructor "
         "call"
     );
@@ -347,13 +347,11 @@ Expression_ptr CallOrConstructorParselet::parse(
     if (is_target_capitalized(left))
     {
         return make_expression(
-            Constructor{left, TypeAnnotationVector{}, arguments}
+            Constructor{left, TypeNodeVector{}, arguments}
         );
     }
 
-    return make_expression(
-        Call(left, TypeAnnotationVector{}, arguments)
-    );
+    return make_expression(Call(left, TypeNodeVector{}, arguments));
 }
 
 Expression_ptr InterpolatedStringParselet::parse(
@@ -390,10 +388,10 @@ Expression_ptr InterpolatedStringParselet::parse(
             node.parts.push_back(parser.parse_expression(0));
 
             auto close_brace = parser.token_pipe.current_in_line();
-            Doctor::get().assert(
+            Doctor::parser().assert(
                 close_brace &&
                     close_brace->type == TokenType::CLOSE_CURLY_BRACE,
-                WaspStage::Parser,
+
                 "Expected '}' at the end of an interpolation expression"
             );
 
@@ -402,10 +400,10 @@ Expression_ptr InterpolatedStringParselet::parse(
         }
         else
         {
-            Doctor::get().fatal(
-                WaspStage::Parser,
+            Doctor::parser().fatal(
+
                 "Unexpected token inside interpolated string : " +
-                    current->lexeme
+                current->lexeme
             );
         }
     }

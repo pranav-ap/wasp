@@ -34,8 +34,8 @@ public:
     Expression_ptr parse_ternary_condition(Expression_ptr prev_condition);
 
     // --- Type ---
-    TypeAnnotation_ptr parse_type();
-    TypeAnnotationVector parse_types();
+    TypeNode_ptr parse_type();
+    TypeNodeVector parse_types();
 
 private:
     // --- Statement Routing ---
@@ -65,7 +65,7 @@ private:
 
     std::tuple<
         std::string,
-        TypeAnnotationVector,
+        TypeNodeVector,
         FunctionDefinitionVector,
         FieldVector>
     parse_membered_definition_base(int indent_level);
@@ -96,14 +96,14 @@ private:
     ImportAsPair parse_imported_symbol();
 
     // --- Internal Type Parsing Helpers ---
-    TypeAnnotation_ptr consume_datatype_word();
-    TypeAnnotation_ptr parse_list_type();
-    TypeAnnotation_ptr parse_set_or_map_type();
-    TypeAnnotation_ptr parse_tuple_or_fun_type();
+    TypeNode_ptr consume_datatype_word();
+    TypeNode_ptr parse_list_type();
+    TypeNode_ptr parse_set_or_map_type();
+    TypeNode_ptr parse_tuple_or_fun_type();
 
-    TypeAnnotation_ptr parse_base_type();
-    TypeAnnotation_ptr parse_intersection_type();
-    TypeAnnotation_ptr parse_variant_type();
+    TypeNode_ptr parse_base_type();
+    TypeNode_ptr parse_intersection_type();
+    TypeNode_ptr parse_variant_type();
 
     // --- Pratt Parser Registry ---
     std::map<TokenType, IPrefixParselet_ptr> prefix_parselets;
