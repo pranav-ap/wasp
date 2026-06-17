@@ -19,7 +19,7 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-std::tuple<Symbol_ptr, int> TypeSystem::get_best_function_symbol(
+std::tuple<Symbol_ptr, int> TypeSystem::get_best_function(
     SymbolScope_ptr scope,
     const Symbol_ptr symbol,
     const TypeVector& generic_types,
@@ -135,6 +135,88 @@ std::tuple<Symbol_ptr, int> TypeSystem::get_best_function_symbol(
 
     // Return the best match
     return {viable[0].sym, viable[0].index};
+}
+
+std::tuple<Signature_ptr, int> TypeSystem::get_best_method(
+    SymbolScope_ptr scope,
+    const SignatureSet_ptr signature_set,
+    const TypeVector& generic_types,
+    const TypeVector& argument_types
+) const
+{
+    struct Candidate
+    {
+        Signature_ptr sig;
+        int index;
+        int score;
+    };
+
+    std::vector<Candidate> viable;
+
+    for (size_t i = 0; i < signature_set->signatures.size(); ++i)
+    {
+        auto& signature = signature_set->signatures[i];
+
+        // Skip if arity doesn't match
+        if (signature->parameter_types.size() != argument_types.size())
+        {
+            continue;
+        }
+
+        // Check if arguments are assignable to parameters
+        bool all_assignable = true;
+
+        for (size_t j = 0; j < argument_types.size(); ++j)
+        {
+            bool is_assignable = assignable(
+                scope,
+                signature->parameter_types[j],
+                argument_types[j]
+            );
+
+            if (!is_assignable)
+            {
+                all_assignable = false;
+                break;
+            }
+        }
+
+        if (all_assignable)
+        {
+            viable.push_back({signature, static_cast<int>(i), 0});
+        }
+    }
+
+    Doctor::semantics().assert(
+        !viable.empty(),
+        "No viable candidates for function call"
+    );
+
+    // Only one candidate.
+    // Return it.
+    if (viable.size() == 1)
+    {
+        return {viable[0].sig, viable[0].index};
+    }
+
+    // Sort by score in descending order
+    std::sort(
+        viable.begin(),
+        viable.end(),
+        [](const Candidate& a, const Candidate& b)
+        {
+            return a.score > b.score;
+        }
+    );
+
+    // Check for ambiguity (two candidates with same highest score)
+    if (viable.size() > 1 && viable[0].score == viable[1].score)
+    {
+        Doctor::semantics().fatal("Ambiguous method call");
+    }
+
+    // Return the best match
+    return {viable[0].sig, viable[0].index};
 }
 
 } // namespace Wasp

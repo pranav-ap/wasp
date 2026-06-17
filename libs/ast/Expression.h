@@ -113,15 +113,8 @@ struct Identifier
 
 struct MemberAccess
 {
-    Expression_ptr object;
+    Expression_ptr owner;
     Expression_ptr member;
-
-    enum class Kind
-    {
-        FIELD,
-        METHOD,
-        TRAIT_DISPATCH
-    } kind = Kind::FIELD;
 
     int member_index = -1;
 };
@@ -132,7 +125,24 @@ struct Call
     TypeNodeVector angular_nodes;
     ExpressionVector arguments;
 
+    enum class OwnerKind
+    {
+        IDK,
+
+        CLASS,
+        TRAIT,
+        PRIMITIVE
+    } owner_kind = OwnerKind::IDK;
+
+    enum class Kind
+    {
+        FREE,
+        INSTANCE,
+        STATIC
+    } kind = Kind::FREE;
+
     int overload_index = -1;
+    int owner_type_id = -1;
 };
 
 struct Constructor

@@ -17,12 +17,12 @@ TEST(ParseExpressions, MemberAccessNested) {
     EXPECT_EQ(member_id.name, "GermanShepherd");
 
     // Inner Level: [Animal] . [Dog]
-    auto& inner_access = check<Wasp::MemberAccess>(outer_access.object);
+    auto& inner_access = check<Wasp::MemberAccess>(outer_access.owner);
 
     auto& inner_member_id = check<Wasp::Identifier>(inner_access.member);
     EXPECT_EQ(inner_member_id.name, "Dog");
 
-    auto& inner_object_id = check<Wasp::Identifier>(inner_access.object);
+    auto& inner_object_id = check<Wasp::Identifier>(inner_access.owner);
     EXPECT_EQ(inner_object_id.name, "Animal");
 }
 
@@ -62,7 +62,7 @@ TEST(ParseExpressions, MethodCallWithArguments) {
     // The callable being executed is a MemberAccess node
     auto& callee_access = check<Wasp::MemberAccess>(call.callee);
 
-    auto& object_id = check<Wasp::Identifier>(callee_access.object);
+    auto& object_id = check<Wasp::Identifier>(callee_access.owner);
     EXPECT_EQ(object_id.name, "company");
 
     auto& member_id = check<Wasp::Identifier>(callee_access.member);
@@ -82,12 +82,12 @@ TEST(ParseExpressions, MethodCallWithArgumentsThenMemberAccess) {
     EXPECT_EQ(property_id.name, "name");
 
     // The object side is the Call node!
-    auto& call = check<Wasp::Call>(outer_access.object);
+    auto& call = check<Wasp::Call>(outer_access.owner);
     EXPECT_EQ(call.arguments.size(), 3);
 
     auto& inner_access = check<Wasp::MemberAccess>(call.callee);
 
-    auto& object_id = check<Wasp::Identifier>(inner_access.object);
+    auto& object_id = check<Wasp::Identifier>(inner_access.owner);
     EXPECT_EQ(object_id.name, "company");
 
     auto& member_id = check<Wasp::Identifier>(inner_access.member);
@@ -107,7 +107,7 @@ TEST(ParseExpressions, FunctionCallThenMemberAccess) {
     EXPECT_EQ(property_id.name, "worker");
 
     // The object side is a Call node
-    auto& call = check<Wasp::Call>(access.object);
+    auto& call = check<Wasp::Call>(access.owner);
     EXPECT_EQ(call.arguments.size(), 0);
 
     auto& callee_id = check<Wasp::Identifier>(call.callee);
@@ -131,7 +131,7 @@ TEST(ParseExpressions, FunctionCallThenMethodCall) {
     EXPECT_EQ(method_id.name, "get_worker");
 
     // The object side of the member access is the initial Call
-    auto& object_call = check<Wasp::Call>(access.object);
+    auto& object_call = check<Wasp::Call>(access.owner);
     EXPECT_EQ(object_call.arguments.size(), 0);
 
     auto& object_callee = check<Wasp::Identifier>(object_call.callee);

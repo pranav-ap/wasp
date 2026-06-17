@@ -22,11 +22,7 @@ namespace Wasp
 namespace
 {
 
-// ============================================================================
-// Call Handlers
-// ============================================================================
-
-Type_ptr resolve_standard_overload(
+Type_ptr resolve_function(
     Call& call,
     Symbol_ptr functions_symbol,
     const TypeVector& generic_types,
@@ -35,13 +31,12 @@ Type_ptr resolve_standard_overload(
     TypeSystem_ptr type_system
 )
 {
-    auto [function_symbol, raw_index] = type_system
-                                            ->get_best_function_symbol(
-                                                scope,
-                                                functions_symbol,
-                                                generic_types,
-                                                argument_types
-                                            );
+    auto [function_symbol, raw_index] = type_system->get_best_function(
+        scope,
+        functions_symbol,
+        generic_types,
+        argument_types
+    );
 
     auto signature = function_symbol->get_type()->as<Signature_ptr>();
 
@@ -50,31 +45,50 @@ Type_ptr resolve_standard_overload(
     return signature->return_type;
 }
 
-Type_ptr handle_identifier_call(
+Call::Kind get_call_kind(Expression_ptr owner, SymbolScope_ptr scope)
+{
+    if (!owner->is<Identifier>())
+    {
+        return Call::Kind::FREE;
+    }
+
+    auto name = owner->as<Identifier>().name;
+    auto sym = scope->lookup_required_and_resolve(name);
+
+    if (sym->is<TypeSymbol>() || name == "our")
+    {
+        return Call::Kind::STATIC;
+    }
+
+    return Call::Kind::INSTANCE;
+}
+
+Type_ptr resolve_method(
     Call& call,
-    Identifier& identifier,
+    MemberAccess& ma,
     const TypeVector& generic_types,
     const TypeVector& argument_types,
+    OopsType_ptr owner_type,
     SymbolScope_ptr scope,
     TypeSystem_ptr type_system
 )
 {
-    identifier.symbol = scope->lookup_functions(identifier.name);
+    auto method_name = ma.member->as<Identifier>().name;
+    auto signatures = owner_type->methods->get_type(method_name);
 
-    if (identifier.symbol->should_be_captured(scope->closure_depth))
-    {
-        identifier.must_be_captured = true;
-    }
-
-    return resolve_standard_overload(
-        call,
-        identifier.symbol,
-        generic_types,
-        argument_types,
+    auto [signature, overload] = type_system->get_best_method(
         scope,
-        type_system
+        signatures,
+        generic_types,
+        argument_types
     );
+
+    ma.member_index = owner_type->methods->get_index(method_name);
+    call.overload_index = overload;
+
+    return signature->return_type;
 }
+
 } // namespace
 
 Type_ptr Final::visit(Call& call)
@@ -86,25 +100,125 @@ Type_ptr Final::visit(Call& call)
         overloaded{
             [&](Identifier& id)
             {
-                return handle_identifier_call(
+                return handle_call(
                     call,
                     id,
                     generic_types,
-                    argument_types,
-                    current_scope,
-                    type_system
+                    argument_types
                 );
             },
-            // [&](MemberAccess& ma)
-            // {
-            //     return handle_member_call(call, ma, argument_types);
-            // },
+            [&](MemberAccess& ma)
+            {
+                return handle_call(
+                    call,
+                    ma,
+                    generic_types,
+                    argument_types
+                );
+            },
             [&](auto&) -> Type_ptr
             {
                 Doctor::semantics().fatal("Invalid callable");
             }
         },
         call.callee->data
+    );
+}
+
+Type_ptr Final::handle_call(
+    Call& call,
+    Identifier& identifier,
+    const TypeVector& generic_types,
+    const TypeVector& argument_types
+)
+{
+    identifier.symbol = current_scope->lookup_functions(identifier.name);
+
+    if (identifier.symbol->should_be_captured(
+            current_scope->closure_depth
+        ))
+    {
+        identifier.must_be_captured = true;
+    }
+
+    return resolve_function(
+        call,
+        identifier.symbol,
+        generic_types,
+        argument_types,
+        current_scope,
+        type_system
+    );
+}
+
+Type_ptr Final::handle_call(
+    Call& call,
+    MemberAccess& access,
+    TypeVector& generic_types,
+    TypeVector& argument_types
+)
+{
+    Type_ptr left_type = visit(access.owner);
+    left_type = left_type->unwrap_alias();
+
+    argument_types.insert(argument_types.begin(), left_type);
+
+    return std::visit(
+        overloaded{
+            [&](ClassType_ptr class_type) -> Type_ptr
+            {
+                call.owner_kind = Call::OwnerKind::CLASS;
+                call.kind = get_call_kind(access.owner, current_scope);
+
+                return resolve_method(
+                    call,
+                    access,
+                    generic_types,
+                    argument_types,
+                    class_type,
+                    current_scope,
+                    type_system
+                );
+            },
+
+            [&](TraitType_ptr trait_type) -> Type_ptr
+            {
+                call.owner_kind = Call::OwnerKind::TRAIT;
+                call.kind = get_call_kind(access.owner, current_scope);
+
+                return resolve_method(
+                    call,
+                    access,
+                    generic_types,
+                    argument_types,
+                    trait_type,
+                    current_scope,
+                    type_system
+                );
+            },
+
+            [&](PrimitiveType_ptr primitive_type) -> Type_ptr
+            {
+                call.owner_kind = Call::OwnerKind::PRIMITIVE;
+                call.kind = get_call_kind(access.owner, current_scope);
+
+                return resolve_method(
+                    call,
+                    access,
+                    generic_types,
+                    argument_types,
+                    primitive_type,
+                    current_scope,
+                    type_system
+                );
+            },
+
+            [&](auto&) -> Type_ptr
+            {
+                Doctor::semantics().fatal("Invalid member call LHS");
+            }
+        },
+        left_type->data
     );
 }
 

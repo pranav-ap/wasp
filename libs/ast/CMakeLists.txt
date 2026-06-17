@@ -1,4 +1,4 @@
-add_library(ASTLib Statement.cpp)
+add_library(ASTLib Statement.cpp ASTCloner.cpp)
 
 target_link_libraries(ASTLib PUBLIC TokenLib DoctorLib)
 

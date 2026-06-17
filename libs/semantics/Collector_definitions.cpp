@@ -130,14 +130,14 @@ StringVector collect_enum_names(
 void Collector::visit(FunctionDefinition& def)
 {
     current_scope->define_overload(def.overload_symbol);
-    auto signature = analyze(def);
+    auto signature = extract_signature(def);
     def.symbol->set_type(make_type(signature));
 }
 
 void Collector::visit(OperatorDefinition& def)
 {
     current_scope->define_overload(def.overload_symbol);
-    auto signature = analyze(def);
+    auto signature = extract_signature(def);
     def.symbol->set_type(make_type(signature));
 }
 
@@ -267,7 +267,7 @@ void Collector::visit(TypeAliasDefinition& def)
 // Utils
 // ============================================================================
 
-Signature_ptr Collector::analyze(FunctionDefinition& def)
+Signature_ptr Collector::extract_signature(FunctionDefinition& def)
 {
     ScopeType scope_type = def.is_pure ? ScopeType::PURE_FUNCTION
                                        : ScopeType::FUNCTION;
@@ -307,7 +307,7 @@ Signature_ptr Collector::analyze(FunctionDefinition& def)
     return signature;
 }
 
-Signature_ptr Collector::analyze(OperatorDefinition& def)
+Signature_ptr Collector::extract_signature(OperatorDefinition& def)
 {
     enter_scope(ScopeType::PURE_FUNCTION);
 
@@ -380,7 +380,7 @@ MethodMap_ptr Collector::track_methods(FunctionDefinitionVector methods)
             method_map[method.name] = std::make_shared<SignatureSet>();
         }
 
-        auto signature = analyze(method);
+        auto signature = extract_signature(method);
 
         SignatureSet_ptr signatures_set = method_map[method.name];
         signatures_set->add(signature);

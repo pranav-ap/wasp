@@ -47,7 +47,7 @@ TypeNode_ptr Parser::parse_variant_type()
 
     if (types.size() > 1)
     {
-        return make_type_annotation(VariantTypeNode(std::move(types)));
+        return make_type_node(VariantTypeNode(std::move(types)));
     }
 
     return types.front();
@@ -65,9 +65,7 @@ TypeNode_ptr Parser::parse_intersection_type()
 
     if (types.size() > 1)
     {
-        return make_type_annotation(
-            IntersectionTypeNode(std::move(types))
-        );
+        return make_type_node(IntersectionTypeNode(std::move(types)));
     }
 
     return types.front();
@@ -118,7 +116,7 @@ TypeNode_ptr Parser::parse_base_type()
 
             token_pipe.require(TokenType::GREATER_THAN);
 
-            type = make_type_annotation(
+            type = make_type_node(
                 AngularTypeNode(name, std::move(generic_args))
             );
         }
@@ -150,38 +148,30 @@ TypeNode_ptr Parser::consume_datatype_word()
             literal_expr = make_expression(FloatLiteral{value});
         }
 
-        return make_type_annotation(
-            LiteralTypeNode{std::move(literal_expr)}
-        );
+        return make_type_node(LiteralTypeNode{std::move(literal_expr)});
     }
     case TokenType::STRING_LITERAL: {
         token_pipe.advance_pointer();
         auto literal_expr = make_expression(StringLiteral{token->lexeme});
-        return make_type_annotation(
-            LiteralTypeNode{std::move(literal_expr)}
-        );
+        return make_type_node(LiteralTypeNode{std::move(literal_expr)});
     }
     case TokenType::TRUE_KEYWORD: {
         token_pipe.advance_pointer();
         auto literal_expr = make_expression(BooleanLiteral{true});
-        return make_type_annotation(
-            LiteralTypeNode{std::move(literal_expr)}
-        );
+        return make_type_node(LiteralTypeNode{std::move(literal_expr)});
     }
     case TokenType::FALSE_KEYWORD: {
         token_pipe.advance_pointer();
         auto literal_expr = make_expression(BooleanLiteral{false});
-        return make_type_annotation(
-            LiteralTypeNode{std::move(literal_expr)}
-        );
+        return make_type_node(LiteralTypeNode{std::move(literal_expr)});
     }
     case TokenType::IDENTIFIER: {
         token_pipe.advance_pointer();
-        return make_type_annotation(TypeIdentifierNode(token->lexeme));
+        return make_type_node(TypeIdentifierNode(token->lexeme));
     }
     case TokenType::NONE: {
         token_pipe.advance_pointer();
-        return make_type_annotation(NoneTypeNode{});
+        return make_type_node(NoneTypeNode{});
     }
     default: {
         Doctor::parser().fatal(
@@ -195,7 +185,7 @@ TypeNode_ptr Parser::parse_list_type()
 {
     auto type = parse_type();
     token_pipe.require_later(TokenType::CLOSE_SQUARE_BRACKET);
-    return make_type_annotation(ListTypeNode(type));
+    return make_type_node(ListTypeNode(type));
 }
 
 TypeNode_ptr Parser::parse_tuple_or_fun_type()
@@ -206,10 +196,10 @@ TypeNode_ptr Parser::parse_tuple_or_fun_type()
     if (token_pipe.consume_optional_in_line(TokenType::ARROW))
     {
         auto return_type = parse_type();
-        return make_type_annotation(FunctionTypeNode(types, return_type));
+        return make_type_node(FunctionTypeNode(types, return_type));
     }
 
-    return make_type_annotation(TupleTypeNode(types));
+    return make_type_node(TupleTypeNode(types));
 }
 
 TypeNode_ptr Parser::parse_set_or_map_type()
@@ -220,11 +210,11 @@ TypeNode_ptr Parser::parse_set_or_map_type()
     {
         auto value_type = parse_type();
         token_pipe.require_later(TokenType::CLOSE_CURLY_BRACE);
-        return make_type_annotation(MapTypeNode(key_type, value_type));
+        return make_type_node(MapTypeNode(key_type, value_type));
     }
 
     token_pipe.require_later(TokenType::CLOSE_CURLY_BRACE);
-    return make_type_annotation(SetTypeNode(key_type));
+    return make_type_node(SetTypeNode(key_type));
 }
 
 } // namespace Wasp

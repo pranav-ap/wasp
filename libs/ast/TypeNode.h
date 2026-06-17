@@ -96,7 +96,7 @@ struct TypeNode : public AstNode<TypeNodeVariant>
     using AstNode::AstNode;
 };
 
-template <typename T> inline TypeNode_ptr make_type_annotation(T&& data)
+template <typename T> inline TypeNode_ptr make_type_node(T&& data)
 {
     return std::make_shared<TypeNode>(std::forward<T>(data));
 }

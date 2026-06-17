@@ -56,7 +56,7 @@ void validate_purity_constraints(
 StringVector unfurl_member_access(const MemberAccess& expr)
 {
     StringVector path = {expr.member->as<Identifier>().name};
-    Expression_ptr current = expr.object;
+    Expression_ptr current = expr.owner;
 
     while (current && current->is<MemberAccess>())
     {
@@ -67,7 +67,7 @@ StringVector unfurl_member_access(const MemberAccess& expr)
         }
 
         path.push_back(nested_ma.member->as<Identifier>().name);
-        current = nested_ma.object;
+        current = nested_ma.owner;
     }
 
     if (current && current->is<Identifier>())
@@ -143,12 +143,10 @@ Type_ptr resolve_member_access(
 
                 if (type->is_field(member_name))
                 {
-                    ma.kind = MemberAccess::Kind::FIELD;
                     ma.member_index = type->fields->get_index(member_name);
                     return type->fields->get_type(member_name);
                 }
 
-                ma.kind = MemberAccess::Kind::METHOD;
                 ma.member_index = type->methods->get_index(member_name);
                 return make_type(type->methods->get_type(member_name));
             },
@@ -160,7 +158,6 @@ Type_ptr resolve_member_access(
                     type->name + " has no member named " + member_name
                 );
 
-                ma.kind = MemberAccess::Kind::TRAIT_DISPATCH;
                 ma.member_index = type->methods->get_index(member_name);
                 return make_type(type->methods->get_type(member_name));
             },
@@ -350,7 +347,7 @@ Type_ptr Final::visit(MemberAccess& access)
         return enum_type_object.value();
     }
 
-    Type_ptr left_type = visit(access.object);
+    Type_ptr left_type = visit(access.owner);
 
     return resolve_member_access(
         access,

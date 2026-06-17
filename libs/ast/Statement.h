@@ -132,6 +132,8 @@ struct FunctionDefinition
 
     Symbol_ptr symbol = nullptr;
     Symbol_ptr overload_symbol = nullptr;
+
+    bool is_primary = false;
 };
 
 using FunctionDefinitionVector = std::vector<FunctionDefinition>;

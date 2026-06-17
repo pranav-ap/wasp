@@ -68,8 +68,8 @@ private:
     void enter_scope(ScopeType scope_type);
     void leave_scope();
 
-    Signature_ptr analyze(FunctionDefinition& def);
-    Signature_ptr analyze(OperatorDefinition& def);
+    Signature_ptr extract_signature(FunctionDefinition& def);
+    Signature_ptr extract_signature(OperatorDefinition& def);
 
     FieldMap_ptr track_fields(FieldVector fields);
     MethodMap_ptr track_methods(FunctionDefinitionVector methods);

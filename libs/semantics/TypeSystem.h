@@ -3,6 +3,7 @@
 #include "AST.h"
 #include "Symbol.h"
 #include "SymbolScope.h"
+#include "Token.h"
 #include "Type.h"
 
 #include <memory>
@@ -82,11 +83,35 @@ struct TypeSystem
     // Function Call Resolution
     // =========================================================================
 
-    std::tuple<Symbol_ptr, int> get_best_function_symbol(
+    std::tuple<Symbol_ptr, int> get_best_function(
         SymbolScope_ptr scope,
         const Symbol_ptr symbol,
         const TypeVector& generic_types,
         const TypeVector& argument_types
+    ) const;
+
+    std::tuple<Signature_ptr, int> get_best_method(
+        SymbolScope_ptr scope,
+        const SignatureSet_ptr signature_set,
+        const TypeVector& generic_types,
+        const TypeVector& argument_types
+    ) const;
+
+    // =========================================================================
+    // Operator Resolution
+    // =========================================================================
+
+    Type_ptr infer(
+        SymbolScope_ptr scope,
+        const Type_ptr left_type,
+        const TokenType op,
+        const Type_ptr right_type
+    ) const;
+
+    Type_ptr infer(
+        SymbolScope_ptr scope,
+        const TokenType op,
+        const Type_ptr operand_type
     ) const;
 };
 

@@ -74,7 +74,7 @@ SignatureSet_ptr MethodMap::get_type(const std::string& name) const
 
     Doctor::semantics().assert(
         it != signatures.end(),
-        "Bag does not contain member '" + name + "'."
+        "Method Map does not contain member '" + name + "'."
     );
 
     return it->second;

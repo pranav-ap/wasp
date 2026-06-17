@@ -13,17 +13,21 @@ add_library(
     Final_variables.cpp
     Final.cpp
     Hoister.cpp
+    Refiner_definitions.cpp
+    Refiner.cpp
     SemanticsAnalyzer.cpp
     Symbol.cpp
     SymbolFactory.cpp
     SymbolScope.cpp
+    Transformer_definitions.cpp
+    Transformer.cpp
     Type.cpp
     TypeSystem_assignable.cpp
     TypeSystem_calculate.cpp
-    TypeSystem_call_resolution.cpp
+    TypeSystem_calls.cpp
     TypeSystem_checks.cpp
     TypeSystem_equality.cpp
-    TypeSystem.cpp
+    TypeSystem_operators.cpp
 )
 
 target_link_libraries(SemanticsLib PUBLIC ASTLib TokenLib WorkspaceLib DoctorLib)

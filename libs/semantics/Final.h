@@ -117,6 +117,20 @@ private:
         Expression_ptr lhs_expr,
         Expression_ptr rhs_expr
     );
+
+    Type_ptr handle_call(
+        Call& call,
+        Identifier& identifier,
+        const TypeVector& generic_types,
+        const TypeVector& argument_types
+    );
+
+    Type_ptr handle_call(
+        Call& call,
+        MemberAccess& access,
+        TypeVector& generic_types,
+        TypeVector& argument_types
+    );
 };
 
 } // namespace Wasp
