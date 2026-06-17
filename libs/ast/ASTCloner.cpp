@@ -10,10 +10,6 @@
 namespace Wasp
 {
 
-// ============================================================================
-// Overloaded visitor helper
-// ============================================================================
-
 template <class... Ts> struct overloaded : Ts...
 {
     using Ts::operator()...;
@@ -56,6 +52,10 @@ Statement_ptr ASTCloner::clone(const Statement_ptr& stmt)
                 return clone(s);
             },
             [&](const FunctionDefinition& s)
+            {
+                return clone(s);
+            },
+            [&](const MethodDefinition& s)
             {
                 return clone(s);
             },
@@ -341,6 +341,23 @@ FunctionDefinitionVector ASTCloner::clone(
     return result;
 }
 
+MethodDefinitionVector ASTCloner::clone(const MethodDefinitionVector& methods)
+{
+    MethodDefinitionVector result;
+    result.reserve(methods.size());
+
+    for (const auto& method : methods)
+    {
+        auto cloned = clone(method);
+        if (cloned)
+        {
+            result.push_back(cloned->as<MethodDefinition>());
+        }
+    }
+
+    return result;
+}
+
 ExpressionVector ASTCloner::clone(const ExpressionVector& expressions)
 {
     ExpressionVector result;
@@ -426,6 +443,17 @@ Statement_ptr ASTCloner::clone(const FunctionDefinition& stmt)
     FunctionDefinition cloned;
     cloned.name = stmt.name;
     cloned.generics = clone(stmt.generics);
+    cloned.parameters = clone(stmt.parameters);
+    cloned.return_type = clone(stmt.return_type);
+    cloned.block = clone(stmt.block);
+    cloned.is_pure = stmt.is_pure;
+    return make_statement(cloned);
+}
+
+Statement_ptr ASTCloner::clone(const MethodDefinition& stmt)
+{
+    MethodDefinition cloned;
+    cloned.name = stmt.name;
     cloned.parameters = clone(stmt.parameters);
     cloned.return_type = clone(stmt.return_type);
     cloned.block = clone(stmt.block);

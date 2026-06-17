@@ -1,5 +1,6 @@
-#include "Refiner.h"
+#include "Phase.h"
 #include "AST.h"
+#include "Expression.h"
 #include "Statement.h"
 #include "SymbolScope.h"
 #include "Workspace.h"
@@ -17,7 +18,7 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-void Refiner::run(Module_ptr mod)
+void Phase::run(Module_ptr mod)
 {
     current_module = mod;
 
@@ -26,17 +27,14 @@ void Refiner::run(Module_ptr mod)
     leave_scope();
 }
 
-void Refiner::enter_scope(ScopeType scope_type)
+void Phase::enter_scope(ScopeType scope_type)
 {
-    auto new_scope = std::make_shared<SymbolScope>(
-        scope_type,
-        current_scope
-    );
+    auto new_scope = std::make_shared<SymbolScope>(scope_type, current_scope);
 
     current_scope = new_scope;
 }
 
-void Refiner::leave_scope()
+void Phase::leave_scope()
 {
     if (current_scope != nullptr)
     {
@@ -48,7 +46,7 @@ void Refiner::leave_scope()
 // Statements
 // ============================================================================
 
-void Refiner::visit(Block& block)
+void Phase::visit(Block& block)
 {
     for (auto& statement : block.statements)
     {
@@ -56,7 +54,7 @@ void Refiner::visit(Block& block)
     }
 }
 
-void Refiner::visit(Statement_ptr statement)
+void Phase::visit(Statement_ptr statement)
 {
     std::visit(
         [&](auto& node)
@@ -68,11 +66,6 @@ void Refiner::visit(Statement_ptr statement)
         },
         statement->data
     );
-}
-
-void Refiner::visit(Import&)
-{
-    // TODO: Implement
 }
 
 } // namespace Wasp

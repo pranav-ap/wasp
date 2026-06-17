@@ -151,7 +151,49 @@ EnumDefinition Parser::parse_enum_body(
 // Callables
 // ============================================================================
 
-Statement_ptr Parser::parse_function_definition(
+Statement_ptr Parser::parse_function_definition(int indent_level, bool is_pure)
+{
+    auto name = token_pipe.require_in_line(TokenType::IDENTIFIER).lexeme;
+
+    token_pipe.require_in_line(TokenType::OPEN_PARENTHESIS);
+    std::vector<Field> parameters;
+
+    if (!token_pipe.consume_optional(TokenType::CLOSE_PARENTHESIS))
+    {
+        do
+        {
+            auto param_name = token_pipe.require_in_line(TokenType::IDENTIFIER)
+                                  .lexeme;
+            token_pipe.require_in_line(TokenType::COLON);
+            auto param_type = parse_type();
+            parameters.emplace_back(param_name, param_type);
+        }
+        while (token_pipe.consume_optional_in_line(TokenType::COMMA));
+
+        token_pipe.require_in_line(TokenType::CLOSE_PARENTHESIS);
+    }
+
+    TypeNode_ptr return_type = nullptr;
+
+    if (token_pipe.consume_optional_in_line(TokenType::ARROW))
+    {
+        return_type = parse_type();
+    }
+
+    token_pipe.require_in_line(TokenType::EOL);
+    Block body = parse_block(indent_level + 1);
+
+    return make_statement(FunctionDefinition(
+        std::move(name),
+        FieldVector{},
+        std::move(parameters),
+        std::move(return_type),
+        std::move(body),
+        is_pure
+    ));
+}
+
+Statement_ptr Parser::parse_method_definition(
     int indent_level,
     bool is_shared,
     bool is_pure
@@ -187,9 +229,8 @@ Statement_ptr Parser::parse_function_definition(
     token_pipe.require_in_line(TokenType::EOL);
     Block body = parse_block(indent_level + 1);
 
-    return make_statement(FunctionDefinition(
+    return make_statement(MethodDefinition(
         std::move(name),
-        FieldVector{},
         std::move(parameters),
         std::move(return_type),
         std::move(body),
@@ -251,11 +292,7 @@ Statement_ptr Parser::parse_operator_definition(
 // OOPS
 // ============================================================================
 
-std::tuple<
-    std::string,
-    TypeNodeVector,
-    FunctionDefinitionVector,
-    FieldVector>
+std::tuple<std::string, TypeNodeVector, MethodDefinitionVector, FieldVector>
 Parser::parse_membered_definition_base(int indent_level)
 {
     token_pipe.advance_pointer();
@@ -282,7 +319,7 @@ Parser::parse_membered_definition_base(int indent_level)
 
     token_pipe.require_in_line(TokenType::EOL);
 
-    FunctionDefinitionVector methods;
+    MethodDefinitionVector methods;
     FieldVector fields;
 
     const int BODY_INDENT = indent_level + 1;
@@ -300,16 +337,16 @@ Parser::parse_membered_definition_base(int indent_level)
 
         if (token_pipe.consume_optional(TokenType::FUN))
         {
-            auto fun = parse_function_definition(BODY_INDENT, false, false);
-            auto fun_def = fun->as<FunctionDefinition>();
+            auto fun = parse_method_definition(BODY_INDENT, false, false);
+            auto fun_def = fun->as<MethodDefinition>();
             methods.push_back(fun_def);
         }
         else if (token_pipe.consume_optional(TokenType::PURE))
         {
             token_pipe.require_in_line(TokenType::FUN);
 
-            auto fun = parse_function_definition(BODY_INDENT, false, true);
-            auto fun_def = fun->as<FunctionDefinition>();
+            auto fun = parse_method_definition(BODY_INDENT, false, true);
+            auto fun_def = fun->as<MethodDefinition>();
             methods.push_back(fun_def);
         }
         else if (token_pipe.consume_optional(TokenType::SHARE))
@@ -319,8 +356,8 @@ Parser::parse_membered_definition_base(int indent_level)
 
             token_pipe.require_in_line(TokenType::FUN);
 
-            auto fun = parse_function_definition(BODY_INDENT, true, is_pure);
-            auto fun_def = fun->as<FunctionDefinition>();
+            auto fun = parse_method_definition(BODY_INDENT, true, is_pure);
+            auto fun_def = fun->as<MethodDefinition>();
             methods.push_back(fun_def);
         }
         else

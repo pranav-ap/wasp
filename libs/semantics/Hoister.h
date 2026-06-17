@@ -1,34 +1,27 @@
+#pragma once
+
 #include "AST.h"
 #include "Expression.h"
+#include "Phase.h"
 #include "Statement.h"
-#include "SymbolScope.h"
-#include "Workspace.h"
 
 namespace Wasp
 {
 
-class Hoister
+class Hoister : public Phase
 {
 public:
-    explicit Hoister() : current_scope(nullptr)
+    explicit Hoister() : Phase()
     {
     }
 
-    void run(Module_ptr mod);
+    using Phase::visit;
 
 private:
-    Module_ptr current_module;
-    SymbolScope_ptr current_scope;
-
-    void enter_scope(ScopeType scope_type);
-    void leave_scope();
-
-    void visit(Block& block);
-    void visit(Statement_ptr statement);
-
     void visit(Import& statement);
 
     void visit(FunctionDefinition& statement);
+    void visit(MethodDefinition& statement);
     void visit(OperatorDefinition& statement);
     void visit(ClassDefinition& statement);
     void visit(TraitDefinition& statement);

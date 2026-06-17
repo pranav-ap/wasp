@@ -48,10 +48,12 @@ std::tuple<Symbol_ptr, int> TypeSystem::get_best_function(
     {
         auto& function_symbol_obj = candidates[i];
         auto& function_symbol = function_symbol_obj->as<FunctionSymbol>();
-        auto signature = function_symbol.type->as<Signature_ptr>();
+        FunctionType_ptr function_type = function_symbol.type
+                                             ->as<FunctionType_ptr>();
 
         // Skip if arity doesn't match
-        if (signature->parameter_types.size() != argument_types.size())
+        if (function_type->signature->parameter_types.size() !=
+            argument_types.size())
         {
             continue;
         }
@@ -63,7 +65,7 @@ std::tuple<Symbol_ptr, int> TypeSystem::get_best_function(
         {
             bool is_assignable = assignable(
                 scope,
-                signature->parameter_types[j],
+                function_type->signature->parameter_types[j],
                 argument_types[j]
             );
 
@@ -77,7 +79,10 @@ std::tuple<Symbol_ptr, int> TypeSystem::get_best_function(
         if (all_assignable)
         {
             viable.push_back(
-                {function_symbol_obj, static_cast<int>(i), signature, 0}
+                {function_symbol_obj,
+                 static_cast<int>(i),
+                 function_type->signature,
+                 0}
             );
         }
     }
@@ -137,28 +142,26 @@ std::tuple<Symbol_ptr, int> TypeSystem::get_best_function(
     return {viable[0].sym, viable[0].index};
 }
 
-std::tuple<Signature_ptr, int> TypeSystem::get_best_method(
+std::tuple<MethodType_ptr, int> TypeSystem::get_best_method(
     SymbolScope_ptr scope,
-    const SignatureSet_ptr signature_set,
-    const TypeVector& generic_types,
+    const MethodOverloadType_ptr method_overload_type,
     const TypeVector& argument_types
 ) const
 {
     struct Candidate
     {
-        Signature_ptr sig;
+        MethodType_ptr method_type;
         int index;
-        int score;
     };
 
     std::vector<Candidate> viable;
 
-    for (size_t i = 0; i < signature_set->signatures.size(); ++i)
+    for (size_t i = 0; i < method_overload_type->method_types.size(); ++i)
     {
-        auto& signature = signature_set->signatures[i];
+        auto& method_type = method_overload_type->method_types[i];
 
         // Skip if arity doesn't match
-        if (signature->parameter_types.size() != argument_types.size())
+        if (method_type->signature->parameter_types.size() != argument_types.size())
         {
             continue;
         }
@@ -170,7 +173,7 @@ std::tuple<Signature_ptr, int> TypeSystem::get_best_method(
         {
             bool is_assignable = assignable(
                 scope,
-                signature->parameter_types[j],
+                method_type->signature->parameter_types[j],
                 argument_types[j]
             );
 
@@ -183,7 +186,7 @@ std::tuple<Signature_ptr, int> TypeSystem::get_best_method(
 
         if (all_assignable)
         {
-            viable.push_back({signature, static_cast<int>(i), 0});
+            viable.push_back({method_type, static_cast<int>(i)});
         }
     }
 
@@ -196,27 +199,38 @@ std::tuple<Signature_ptr, int> TypeSystem::get_best_method(
     // Return it.
     if (viable.size() == 1)
     {
-        return {viable[0].sig, viable[0].index};
+        return {viable[0].method_type, viable[0].index};
     }
 
-    // Sort by score in descending order
-    std::sort(
-        viable.begin(),
-        viable.end(),
-        [](const Candidate& a, const Candidate& b)
-        {
-            return a.score > b.score;
-        }
-    );
+    Doctor::semantics().fatal("Ambiguous method call");
+}
 
-    // Check for ambiguity (two candidates with same highest score)
-    if (viable.size() > 1 && viable[0].score == viable[1].score)
+bool TypeSystem::signatures_match(
+    SymbolScope_ptr scope,
+    const Signature_ptr a,
+    const Signature_ptr b
+) const
+{
+    if (a->parameter_types.size() != b->parameter_types.size())
     {
-        Doctor::semantics().fatal("Ambiguous method call");
+        return false;
     }
 
-    // Return the best match
-    return {viable[0].sig, viable[0].index};
+    for (size_t i = 0; i < a->parameter_types.size(); ++i)
+    {
+        bool is_assignable = assignable(
+            scope,
+            a->parameter_types[i],
+            b->parameter_types[i]
+        );
+
+        if (!is_assignable)
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 } // namespace Wasp

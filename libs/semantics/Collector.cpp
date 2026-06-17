@@ -1,11 +1,10 @@
 #include "Collector.h"
 #include "AST.h"
+#include "Doctor.h"
 #include "Statement.h"
 #include "SymbolScope.h"
-#include "Workspace.h"
 
-#include <memory>
-#include <variant>
+#include <tuple>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -17,57 +16,16 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-void Collector::run(Module_ptr mod)
+std::tuple<Statement_ptr, SymbolScope_ptr> Collector::get_tree(Symbol_ptr symbol)
 {
-    current_module = mod;
+    auto it = forest.find(symbol);
 
-    enter_scope(ScopeType::MODULE);
-    visit(current_module->block);
-    leave_scope();
-}
-
-void Collector::enter_scope(ScopeType scope_type)
-{
-    auto new_scope = std::make_shared<SymbolScope>(
-        scope_type,
-        current_scope
+    Doctor::semantics().assert(
+        it != forest.end(),
+        "No AST found for symbol '" + symbol->name + "'"
     );
 
-    current_scope = new_scope;
-}
-
-void Collector::leave_scope()
-{
-    if (current_scope != nullptr)
-    {
-        current_scope = current_scope->enclosing_scope;
-    }
-}
-
-// ============================================================================
-// Statements
-// ============================================================================
-
-void Collector::visit(Block& block)
-{
-    for (auto& statement : block.statements)
-    {
-        visit(statement);
-    }
-}
-
-void Collector::visit(Statement_ptr statement)
-{
-    std::visit(
-        [&](auto& node)
-        {
-            if constexpr (requires { visit(node); })
-            {
-                visit(node);
-            }
-        },
-        statement->data
-    );
+    return {it->second, scope_forest[symbol]};
 }
 
 void Collector::visit(Import&)

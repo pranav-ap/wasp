@@ -32,6 +32,24 @@ void Final::visit(FunctionDefinition& def)
     leave_scope();
 }
 
+void Final::visit(MethodDefinition& def)
+{
+    current_scope->define_overload(def.overload_symbol);
+
+    ScopeType scope_type = def.is_pure ? ScopeType::PURE_METHOD : ScopeType::METHOD;
+
+    enter_scope(scope_type);
+
+    for (const auto& parameter : def.parameters)
+    {
+        current_scope->define(parameter.symbol);
+    }
+
+    visit(def.block);
+
+    leave_scope();
+}
+
 void Final::visit(OperatorDefinition& def)
 {
     enter_scope(ScopeType::PURE_FUNCTION);

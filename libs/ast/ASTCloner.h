@@ -32,6 +32,7 @@ public:
 
     FieldVector clone(const FieldVector& fields);
     FunctionDefinitionVector clone(const FunctionDefinitionVector& funcs);
+    MethodDefinitionVector clone(const MethodDefinitionVector& methods);
 
     ExpressionVector clone(const ExpressionVector& expressions);
     TypeNodeVector clone(const TypeNodeVector& types);
@@ -40,6 +41,7 @@ public:
     Statement_ptr clone(const TypeAliasDefinition& stmt);
     Statement_ptr clone(const EnumDefinition& stmt);
     Statement_ptr clone(const FunctionDefinition& stmt);
+    Statement_ptr clone(const MethodDefinition& stmt);
     Statement_ptr clone(const OperatorDefinition& stmt);
     Statement_ptr clone(const ClassDefinition& stmt);
     Statement_ptr clone(const TraitDefinition& stmt);

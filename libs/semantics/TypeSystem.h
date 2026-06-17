@@ -90,11 +90,16 @@ struct TypeSystem
         const TypeVector& argument_types
     ) const;
 
-    std::tuple<Signature_ptr, int> get_best_method(
+    std::tuple<MethodType_ptr, int> get_best_method(
         SymbolScope_ptr scope,
-        const SignatureSet_ptr signature_set,
-        const TypeVector& generic_types,
+        const MethodOverloadType_ptr method_overload_type,
         const TypeVector& argument_types
+    ) const;
+
+    bool signatures_match(
+        SymbolScope_ptr scope,
+        const Signature_ptr a,
+        const Signature_ptr b
     ) const;
 
     // =========================================================================

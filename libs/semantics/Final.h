@@ -1,42 +1,33 @@
+#pragma once
+
 #include "AST.h"
 #include "Expression.h"
+#include "Phase.h"
 #include "Statement.h"
-#include "SymbolScope.h"
 #include "Type.h"
 #include "TypeNode.h"
-#include "TypeSystem.h"
-#include "Workspace.h"
 
-#include <memory>
 #include <vector>
 
 namespace Wasp
 {
 
-class Final
+class Final : public Phase
 {
 public:
-    explicit Final()
-        : current_scope(nullptr),
-          type_system(std::make_shared<TypeSystem>())
+    explicit Final() : Phase()
     {
     }
 
-    void run(Module_ptr mod);
+    using Phase::visit;
 
 private:
-    Module_ptr current_module;
-    SymbolScope_ptr current_scope;
-    TypeSystem_ptr type_system;
-
     // Statements
-
-    void visit(Block& block);
-    void visit(Statement_ptr statement);
 
     void visit(Import& statement);
 
     void visit(FunctionDefinition& statement);
+    void visit(MethodDefinition& statement);
     void visit(OperatorDefinition& statement);
     void visit(ClassDefinition& statement);
     void visit(TraitDefinition& statement);
@@ -104,9 +95,6 @@ private:
     Type_ptr visit(AngularTypeNode& type_node);
 
     // Utils
-
-    void enter_scope(ScopeType scope_type);
-    void leave_scope();
 
     Type_ptr mutate_variable(
         Expression_ptr identifier_expr,

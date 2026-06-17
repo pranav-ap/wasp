@@ -148,7 +148,14 @@ Type_ptr Final::visit(FunctionTypeNode& type_node)
 {
     TypeVector input_types = visit(type_node.input_types);
     Type_ptr return_type = visit(type_node.return_type);
-    return make_shared_type<Signature>(input_types, return_type);
+
+    Signature_ptr signature = std::make_shared<Signature>(
+        input_types,
+        return_type,
+        std::make_shared<TemplateType>()
+    );
+
+    return make_shared_type<FunctionType>("", signature, false, false);
 }
 
 Type_ptr Final::visit(AngularTypeNode& type_node)

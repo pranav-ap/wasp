@@ -1,4 +1,5 @@
 #include "AST.h"
+#include "ASTCloner.h"
 #include "Collector.h"
 #include "Doctor.h"
 #include "Statement.h"
@@ -10,6 +11,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -131,14 +133,101 @@ void Collector::visit(FunctionDefinition& def)
 {
     current_scope->define_overload(def.overload_symbol);
     auto signature = extract_signature(def);
-    def.symbol->set_type(make_type(signature));
+
+    FunctionType_ptr function_type = std::make_shared<FunctionType>(
+        def.name,
+        signature,
+        def.is_pure,
+        false
+    );
+
+    def.symbol->set_type(make_type(function_type));
+
+    if (def.block.statements.size() == 1)
+    {
+        auto lonely = def.block.statements[0];
+
+        if (lonely->is<Native>())
+        {
+            function_type->is_native = true;
+        }
+    }
+
+    visit(def.block);
+
+    if (!def.generics.empty())
+    {
+        forest[def.symbol] = ASTCloner::get().clone(def);
+        scope_forest[def.symbol] = current_scope;
+    }
+}
+
+void Collector::visit(MethodDefinition& def)
+{
+    current_scope->define_overload(def.overload_symbol);
+    auto signature = extract_signature(def);
+
+    MethodType_ptr method_type = std::make_shared<MethodType>(
+        def.name,
+        signature,
+        def.is_shared,
+        def.is_pure,
+        false,
+        false
+    );
+
+    def.symbol->set_type(make_type(method_type));
+
+    if (def.block.statements.size() == 1)
+    {
+        auto lonely = def.block.statements[0];
+
+        if (lonely->is<Required>())
+        {
+            method_type->is_required = true;
+        }
+        else if (lonely->is<Native>())
+        {
+            method_type->is_native = true;
+        }
+    }
+
+    visit(def.block);
 }
 
 void Collector::visit(OperatorDefinition& def)
 {
     current_scope->define_overload(def.overload_symbol);
     auto signature = extract_signature(def);
-    def.symbol->set_type(make_type(signature));
+
+    bool is_pure = true;
+
+    FunctionType_ptr function_type = std::make_shared<FunctionType>(
+        def.name,
+        signature,
+        is_pure,
+        false
+    );
+
+    def.symbol->set_type(make_type(function_type));
+
+    if (def.block.statements.size() == 1)
+    {
+        auto lonely = def.block.statements[0];
+
+        if (lonely->is<Native>())
+        {
+            function_type->is_native = true;
+        }
+    }
+
+    visit(def.block);
+
+    if (!def.generics.empty())
+    {
+        forest[def.symbol] = ASTCloner::get().clone(def);
+        scope_forest[def.symbol] = current_scope;
+    }
 }
 
 void Collector::visit(ClassDefinition& def)
@@ -154,7 +243,9 @@ void Collector::visit(ClassDefinition& def)
     MethodMap_ptr methods = track_methods(def.methods);
     TypeVector traits = track_traits(def.traits);
 
-    auto class_type = make_shared_type<ClassType>(
+    // init class type
+
+    ClassType_ptr class_type = std::make_shared<ClassType>(
         def.name,
         fields,
         methods,
@@ -162,11 +253,25 @@ void Collector::visit(ClassDefinition& def)
         template_type
     );
 
-    def.symbol->set_type(class_type);
+    def.symbol->set_type(make_type(class_type));
+
+    // visit methods
 
     for (auto& method : def.methods)
     {
         visit(method);
+    }
+
+    // conform traits
+
+    conform_traits(def, class_type);
+
+    // clone AST
+
+    if (!def.generics.empty())
+    {
+        forest[def.symbol] = ASTCloner::get().clone(def);
+        scope_forest[def.symbol] = current_scope;
     }
 
     leave_scope();
@@ -185,7 +290,7 @@ void Collector::visit(TraitDefinition& def)
     MethodMap_ptr methods = track_methods(def.methods);
     TypeVector traits = track_traits(def.traits);
 
-    auto class_type = make_shared_type<TraitType>(
+    TraitType_ptr trait_type = std::make_shared<TraitType>(
         def.name,
         fields,
         methods,
@@ -193,11 +298,19 @@ void Collector::visit(TraitDefinition& def)
         template_type
     );
 
-    def.symbol->set_type(class_type);
+    def.symbol->set_type(make_type(trait_type));
 
     for (auto& method : def.methods)
     {
         visit(method);
+    }
+
+    conform_traits(def, trait_type);
+
+    if (!def.generics.empty())
+    {
+        forest[def.symbol] = ASTCloner::get().clone(def);
+        scope_forest[def.symbol] = current_scope;
     }
 
     leave_scope();
@@ -216,7 +329,7 @@ void Collector::visit(PrimitiveDefinition& def)
     MethodMap_ptr methods = track_methods(def.methods);
     TypeVector traits = track_traits(def.traits);
 
-    auto class_type = make_shared_type<PrimitiveType>(
+    PrimitiveType_ptr primitive_type = std::make_shared<PrimitiveType>(
         def.name,
         fields,
         methods,
@@ -224,11 +337,19 @@ void Collector::visit(PrimitiveDefinition& def)
         template_type
     );
 
-    def.symbol->set_type(class_type);
+    def.symbol->set_type(make_type(primitive_type));
 
     for (auto& method : def.methods)
     {
         visit(method);
+    }
+
+    conform_traits(def, primitive_type);
+
+    if (!def.generics.empty())
+    {
+        forest[def.symbol] = ASTCloner::get().clone(def);
+        scope_forest[def.symbol] = current_scope;
     }
 
     leave_scope();
@@ -248,6 +369,12 @@ void Collector::visit(EnumDefinition& def)
 
     auto enum_type = enum_type_obj->as<EnumType_ptr>();
     enum_type->members = std::move(full_names);
+
+    if (!def.generics.empty())
+    {
+        forest[def.symbol] = ASTCloner::get().clone(def);
+        scope_forest[def.symbol] = current_scope;
+    }
 }
 
 void Collector::visit(TypeAliasDefinition& def)
@@ -259,6 +386,12 @@ void Collector::visit(TypeAliasDefinition& def)
 
     auto alias_type = visit(def.ref_type);
     def.symbol->set_type(alias_type);
+
+    if (!def.generics.empty())
+    {
+        forest[def.symbol] = ASTCloner::get().clone(def);
+        scope_forest[def.symbol] = current_scope;
+    }
 
     leave_scope();
 }
@@ -275,6 +408,45 @@ Signature_ptr Collector::extract_signature(FunctionDefinition& def)
     enter_scope(scope_type);
 
     auto template_type = create_template_type(def.generics, type_system);
+    current_scope->define(template_type);
+
+    Type_ptr return_type = make_shared_type<NoneType>();
+
+    if (def.return_type)
+    {
+        return_type = visit(def.return_type);
+    }
+
+    TypeVector param_types;
+
+    for (const auto& param : def.parameters)
+    {
+        auto type = visit(param.type);
+        param_types.push_back(type);
+
+        param.symbol->set_type(type);
+    }
+
+    visit(def.block);
+
+    leave_scope();
+
+    auto signature = std::make_shared<Signature>(
+        param_types,
+        return_type,
+        template_type
+    );
+
+    return signature;
+}
+
+Signature_ptr Collector::extract_signature(MethodDefinition& def)
+{
+    ScopeType scope_type = def.is_pure ? ScopeType::PURE_METHOD : ScopeType::METHOD;
+
+    enter_scope(scope_type);
+
+    auto template_type = create_template_type({}, type_system);
     current_scope->define(template_type);
 
     Type_ptr return_type = make_shared_type<NoneType>();
@@ -367,9 +539,9 @@ FieldMap_ptr Collector::track_fields(FieldVector fields)
     );
 }
 
-MethodMap_ptr Collector::track_methods(FunctionDefinitionVector methods)
+MethodMap_ptr Collector::track_methods(MethodDefinitionVector methods)
 {
-    std::map<std::string, SignatureSet_ptr> method_map;
+    std::map<std::string, MethodOverloadType_ptr> method_map;
     StringVector ordered_keys;
 
     for (auto& method : methods)
@@ -377,13 +549,21 @@ MethodMap_ptr Collector::track_methods(FunctionDefinitionVector methods)
         if (!method_map.contains(method.name))
         {
             ordered_keys.push_back(method.name);
-            method_map[method.name] = std::make_shared<SignatureSet>();
+            method_map[method.name] = std::make_shared<MethodOverloadType>();
         }
 
         auto signature = extract_signature(method);
 
-        SignatureSet_ptr signatures_set = method_map[method.name];
-        signatures_set->add(signature);
+        MethodOverloadType_ptr method_overload_type = method_map[method.name];
+        method_overload_type->add(
+            std::make_shared<MethodType>(
+                method.name,
+                signature,
+                method.is_shared,
+                method.is_pure,
+                false
+            )
+        );
     }
 
     return std::make_shared<MethodMap>(
@@ -403,6 +583,186 @@ TypeVector Collector::track_traits(TypeNodeVector traits)
     }
 
     return trait_types;
+}
+
+// ============================================================================
+// Trait Conformance
+// ============================================================================
+
+void Collector::conform_traits(TypeDefinition& def, OopsType_ptr target_type)
+{
+    if (target_type->traits.empty())
+    {
+        return;
+    }
+
+    std::vector<MethodType_ptr> required_method_types = collect_required_methods(
+        target_type
+    );
+
+    validate_required_methods(def, required_method_types);
+    merge_trait_methods(def, target_type, current_scope);
+}
+
+std::vector<MethodType_ptr> Collector::collect_required_methods(
+    OopsType_ptr target_type
+)
+{
+    std::vector<MethodType_ptr> required_method_types;
+
+    for (const auto& trait_obj : target_type->traits)
+    {
+        auto trait_type = trait_obj->as<TraitType_ptr>();
+
+        auto trait_required_methods = collect_required_methods(trait_type);
+        required_method_types.insert(
+            required_method_types.end(),
+            trait_required_methods.begin(),
+            trait_required_methods.end()
+        );
+    }
+
+    return required_method_types;
+}
+
+std::vector<MethodType_ptr> Collector::collect_required_methods(
+    TraitType_ptr trait_type
+)
+{
+    std::vector<MethodType_ptr> required_method_types;
+
+    for (auto [method_name, signatures] : trait_type->methods->signatures)
+    {
+        for (const auto& method_type : signatures->method_types)
+        {
+            if (method_type->is_required)
+            {
+                required_method_types.push_back(method_type);
+            }
+        }
+    }
+
+    return required_method_types;
+}
+
+void Collector::validate_required_methods(
+    const TypeDefinition& def,
+    const std::vector<MethodType_ptr>& required_method_types
+)
+{
+    for (const auto& required_method_type : required_method_types)
+    {
+        bool found_the_required_method = false;
+
+        for (const auto& method : def.methods)
+        {
+            if (method.name == required_method_type->name)
+            {
+                Signature_ptr candidate_signature = method.symbol->get_type()
+                                                        ->as<MethodType_ptr>()
+                                                        ->signature;
+
+                found_the_required_method = type_system->signatures_match(
+                    current_scope,
+                    required_method_type->signature,
+                    candidate_signature
+                );
+
+                if (found_the_required_method)
+                {
+                    break;
+                }
+            }
+        }
+
+        Doctor::semantics().assert(
+            found_the_required_method,
+            "Class '" + def.name + "' does not implement required method '" +
+                required_method_type->name + "' from trait"
+        );
+    }
+}
+
+void Collector::merge_trait_methods(
+    TypeDefinition& target_def,
+    OopsType_ptr target_type,
+    SymbolScope_ptr // definition_scope
+)
+{
+    for (const auto& trait_obj : target_type->traits)
+    {
+        auto trait_type = trait_obj->as<TraitType_ptr>();
+
+        Symbol_ptr trait_symbol = current_scope->lookup_required(trait_type->name);
+        auto [ast, definition_scope] = get_tree(trait_symbol);
+
+        auto trait_def = ast->as<TraitDefinition>();
+
+        merge_trait_methods(target_def, target_type, trait_def, definition_scope);
+    }
+}
+
+void Collector::merge_trait_methods(
+    TypeDefinition& target_def,
+    OopsType_ptr target_type,
+    TraitDefinition& trait_def,
+    SymbolScope_ptr // definition_scope
+)
+{
+    for (const auto& trait_method : trait_def.methods)
+    {
+        MethodType_ptr trait_method_type = trait_method.symbol->get_type()
+                                               ->as<MethodType_ptr>();
+
+        if (trait_method_type->is_required)
+        {
+            // already checked for conformance, so we can skip required methods
+            continue;
+        }
+
+        bool already_exists = false;
+
+        for (const MethodDefinition& target_method : target_def.methods)
+        {
+            if (target_method.name != trait_method.name)
+            {
+                continue;
+            }
+
+            MethodType_ptr target_method_type = target_method.symbol->get_type()
+                                                    ->as<MethodType_ptr>();
+
+            already_exists = type_system->signatures_match(
+                current_scope,
+                trait_method_type->signature,
+                target_method_type->signature
+            );
+
+            if (already_exists)
+            {
+                break;
+            }
+        }
+
+        if (already_exists)
+        {
+            continue;
+        }
+
+        auto trait_method_statement_clone = ASTCloner::get().clone(trait_method);
+
+        Doctor::semantics().assert(
+            trait_method_statement_clone->is<MethodDefinition>(),
+            "Expected MethodDefinition when cloning trait method"
+        );
+
+        auto trait_method_clone = trait_method_statement_clone
+                                      ->as<MethodDefinition>();
+
+        target_def.methods.push_back(trait_method_clone);
+
+        target_type->methods->get_type(trait_method.name)->add(trait_method_type);
+    }
 }
 
 } // namespace Wasp

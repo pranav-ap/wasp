@@ -38,11 +38,11 @@ Type_ptr resolve_function(
         argument_types
     );
 
-    auto signature = function_symbol->get_type()->as<Signature_ptr>();
+    auto function_type = function_symbol->get_type()->as<FunctionType_ptr>();
 
     call.overload_index = raw_index;
 
-    return signature->return_type;
+    return function_type->signature->return_type;
 }
 
 Call::Kind get_call_kind(Expression_ptr owner, SymbolScope_ptr scope)
@@ -74,19 +74,18 @@ Type_ptr resolve_method(
 )
 {
     auto method_name = ma.member->as<Identifier>().name;
-    auto signatures = owner_type->methods->get_type(method_name);
+    auto method_overload_type = owner_type->methods->get_type(method_name);
 
-    auto [signature, overload] = type_system->get_best_method(
+    auto [method_type, overload] = type_system->get_best_method(
         scope,
-        signatures,
-        generic_types,
+        method_overload_type,
         argument_types
     );
 
     ma.member_index = owner_type->methods->get_index(method_name);
     call.overload_index = overload;
 
-    return signature->return_type;
+    return method_type->signature->return_type;
 }
 
 } // namespace

@@ -68,7 +68,7 @@ int MethodMap::get_index(const std::string& name) const
     return static_cast<int>(std::distance(ordered_keys.begin(), it));
 }
 
-SignatureSet_ptr MethodMap::get_type(const std::string& name) const
+MethodOverloadType_ptr MethodMap::get_type(const std::string& name) const
 {
     auto it = signatures.find(name);
 
@@ -214,22 +214,12 @@ Type_ptr TemplateType::get_generic_type(const std::string& name) const
 }
 
 // ============================================================================
-// Signature Set
+// MethodOverloadType
 // ============================================================================
 
-void SignatureSet::add(Signature_ptr signature)
+void MethodOverloadType::add(MethodType_ptr method_type)
 {
-    signatures.push_back(signature);
-}
-
-Signature_ptr SignatureSet::get(int index) const
-{
-    Doctor::semantics().assert(
-        index >= 0 && index < static_cast<int>(signatures.size()),
-        "Invalid signature index: " + std::to_string(index)
-    );
-
-    return signatures[index];
+    method_types.push_back(method_type);
 }
 
 // ============================================================================
@@ -347,9 +337,14 @@ std::string Type::to_string() const
                 return "module type: " + module->name;
             },
 
-            [](Signature_ptr) -> std::string
+            [](FunctionType_ptr) -> std::string
             {
-                return "signature type";
+                return "function type";
+            },
+
+            [](MethodType_ptr) -> std::string
+            {
+                return "method type";
             },
 
             [](ClassType_ptr cls) -> std::string

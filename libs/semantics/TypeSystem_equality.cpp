@@ -105,18 +105,35 @@ bool TypeSystem::equal(
                 return equal_unordered(scope, l->types, r->types);
             },
 
-            [&](Signature_ptr l, Signature_ptr r)
+            [&](FunctionType_ptr l, FunctionType_ptr r)
             {
                 bool lhs_result = equal(
                     scope,
-                    l->parameter_types,
-                    r->parameter_types
+                    l->signature->parameter_types,
+                    r->signature->parameter_types
                 );
 
                 bool rhs_result = equal(
                     scope,
-                    l->return_type,
-                    r->return_type
+                    l->signature->return_type,
+                    r->signature->return_type
+                );
+
+                return lhs_result && rhs_result;
+            },
+
+            [&](MethodType_ptr l, MethodType_ptr r)
+            {
+                bool lhs_result = equal(
+                    scope,
+                    l->signature->parameter_types,
+                    r->signature->parameter_types
+                );
+
+                bool rhs_result = equal(
+                    scope,
+                    l->signature->return_type,
+                    r->signature->return_type
                 );
 
                 return lhs_result && rhs_result;

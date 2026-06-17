@@ -14,28 +14,6 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-void Final::visit(Block& block)
-{
-    for (auto& statement : block.statements)
-    {
-        visit(statement);
-    }
-}
-
-void Final::visit(Statement_ptr statement)
-{
-    std::visit(
-        [&](auto& node)
-        {
-            if constexpr (requires { visit(node); })
-            {
-                visit(node);
-            }
-        },
-        statement->data
-    );
-}
-
 void Final::visit(Import&)
 {
     // TODO: Implement

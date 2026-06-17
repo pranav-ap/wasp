@@ -90,27 +90,13 @@ Statement_ptr Parser::parse_statement(int expected_indent_level)
 
     case TokenType::FUN: {
         token_pipe.advance_pointer();
-        result = parse_function_definition(expected_indent_level, false, false);
+        result = parse_function_definition(expected_indent_level, false);
         break;
     }
     case TokenType::PURE: {
         token_pipe.advance_pointer();
         token_pipe.require_in_line(TokenType::FUN);
-        result = parse_function_definition(expected_indent_level, false, true);
-        break;
-    }
-
-    case TokenType::SHARE: {
-        token_pipe.advance_pointer();
-        bool is_pure = token_pipe.consume_optional_in_line(TokenType::PURE)
-                           .has_value();
-
-        token_pipe.require_in_line(TokenType::FUN);
-        result = parse_function_definition(
-            expected_indent_level,
-            true,
-            is_pure
-        );
+        result = parse_function_definition(expected_indent_level, true);
         break;
     }
 

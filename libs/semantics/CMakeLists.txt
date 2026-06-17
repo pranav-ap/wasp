@@ -11,16 +11,12 @@ add_library(
     Final_statements.cpp
     Final_types.cpp
     Final_variables.cpp
-    Final.cpp
     Hoister.cpp
-    Refiner_definitions.cpp
-    Refiner.cpp
+    Phase.cpp
     SemanticsAnalyzer.cpp
     Symbol.cpp
     SymbolFactory.cpp
     SymbolScope.cpp
-    Transformer_definitions.cpp
-    Transformer.cpp
     Type.cpp
     TypeSystem_assignable.cpp
     TypeSystem_calculate.cpp

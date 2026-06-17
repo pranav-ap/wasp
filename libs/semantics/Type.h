@@ -199,21 +199,51 @@ struct Signature
     TypeVector parameter_types;
     Type_ptr return_type;
     TemplateType_ptr template_type;
-
-    bool is_static_method;
 };
 
 using Signature_ptr = std::shared_ptr<Signature>;
 
-struct SignatureSet
+struct FunctionType
 {
-    std::vector<Signature_ptr> signatures;
+    std::string name;
+    Signature_ptr signature;
 
-    void add(Signature_ptr signature);
-    Signature_ptr get(int index) const;
+    bool is_pure;
+    bool is_native;
 };
 
-using SignatureSet_ptr = std::shared_ptr<SignatureSet>;
+using FunctionType_ptr = std::shared_ptr<FunctionType>;
+
+struct FunctionOverloadType
+{
+    std::string name;
+    std::vector<FunctionType> function_types;
+};
+
+using FunctionOverloadType_ptr = std::shared_ptr<FunctionOverloadType>;
+
+struct MethodType
+{
+    std::string name;
+    Signature_ptr signature;
+
+    bool is_shared;
+    bool is_pure;
+    bool is_native;
+    bool is_required;
+};
+
+using MethodType_ptr = std::shared_ptr<MethodType>;
+
+struct MethodOverloadType
+{
+    std::string name;
+    std::vector<MethodType_ptr> method_types;
+
+    void add(MethodType_ptr method_type);
+};
+
+using MethodOverloadType_ptr = std::shared_ptr<MethodOverloadType>;
 
 // ============================================================================
 // I Table
@@ -251,11 +281,11 @@ using FieldMap_ptr = std::shared_ptr<FieldMap>;
 
 struct MethodMap
 {
-    std::map<std::string, SignatureSet_ptr> signatures;
+    std::map<std::string, MethodOverloadType_ptr> signatures;
     StringVector ordered_keys;
 
     int get_index(const std::string& function_name) const;
-    SignatureSet_ptr get_type(const std::string& function_name) const;
+    MethodOverloadType_ptr get_type(const std::string& function_name) const;
     bool contains(const std::string& function_name) const;
 };
 
@@ -384,8 +414,10 @@ using TypeVariant = std::variant<
 
     ModuleType_ptr,
 
-    Signature_ptr,
-    SignatureSet_ptr,
+    FunctionType_ptr,
+    MethodType_ptr,
+    FunctionOverloadType_ptr,
+    MethodOverloadType_ptr,
 
     ClassType_ptr,
     TraitType_ptr,

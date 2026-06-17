@@ -128,15 +128,30 @@ struct FunctionDefinition
     Block block;
 
     bool is_pure;
+
+    Symbol_ptr symbol = nullptr;
+    Symbol_ptr overload_symbol = nullptr;
+};
+
+using FunctionDefinitionVector = std::vector<FunctionDefinition>;
+
+struct MethodDefinition
+{
+    std::string name;
+
+    FieldVector parameters;
+    TypeNode_ptr return_type;
+
+    Block block;
+
+    bool is_pure;
     bool is_shared;
 
     Symbol_ptr symbol = nullptr;
     Symbol_ptr overload_symbol = nullptr;
-
-    bool is_primary = false;
 };
 
-using FunctionDefinitionVector = std::vector<FunctionDefinition>;
+using MethodDefinitionVector = std::vector<MethodDefinition>;
 
 struct OperatorDefinition
 {
@@ -161,7 +176,7 @@ struct TypeDefinition
 
     FieldVector generics;
     FieldVector fields;
-    FunctionDefinitionVector methods;
+    MethodDefinitionVector methods;
     TypeNodeVector traits;
 
     Symbol_ptr symbol = nullptr;
@@ -173,7 +188,7 @@ struct TypeDefinition
         std::string name,
         FieldVector generics,
         FieldVector fields,
-        FunctionDefinitionVector methods,
+        MethodDefinitionVector methods,
         TypeNodeVector traits
     )
         : name(std::move(name)), generics(std::move(generics)),
@@ -229,8 +244,12 @@ using StatementVariant = std::variant<
 
     TypeAliasDefinition,
     EnumDefinition,
+
     FunctionDefinition,
+    MethodDefinition,
+
     OperatorDefinition,
+
     ClassDefinition,
     TraitDefinition,
     PrimitiveDefinition,

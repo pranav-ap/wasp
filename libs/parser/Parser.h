@@ -49,6 +49,11 @@ private:
 
     Statement_ptr parse_function_definition(
         int indent_level,
+        bool is_pure = false
+    );
+
+    Statement_ptr parse_method_definition(
+        int indent_level,
         bool is_shared = false,
         bool is_pure = false
     );
@@ -63,11 +68,7 @@ private:
 
     // --- OOP & Member Helpers ---
 
-    std::tuple<
-        std::string,
-        TypeNodeVector,
-        FunctionDefinitionVector,
-        FieldVector>
+    std::tuple<std::string, TypeNodeVector, MethodDefinitionVector, FieldVector>
     parse_membered_definition_base(int indent_level);
 
     EnumDefinition parse_enum_body(
