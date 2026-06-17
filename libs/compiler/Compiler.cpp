@@ -335,7 +335,7 @@ llvm::Value* Compiler::generate(const Identifier& ident)
     auto it = named_values_.find(ident.name);
 
     Doctor::compiler().check(
-        it == named_values_.end(),
+        it != named_values_.end(),
         "Undefined variable: " + ident.name
     );
 

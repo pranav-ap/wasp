@@ -227,9 +227,10 @@ Type_ptr Final::visit(Binding& binding)
 
     auto& id = binding.lhs->as<Identifier>();
 
-    id.symbol = SymbolFactory::create_type(
+    id.symbol = SymbolFactory::create_variable(
         id.name,
         nullptr,
+        binding.is_mutable,
         current_scope->closure_depth,
         current_scope->lexical_depth
     );
