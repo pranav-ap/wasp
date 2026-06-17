@@ -20,7 +20,7 @@ template <class... Ts> struct overloaded : Ts...
 template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 // ============================================================================
-// Main Entry Points - Type Argument Version
+// Entry Points
 // ============================================================================
 
 Statement_ptr Solidifier::solidify(
@@ -28,10 +28,7 @@ Statement_ptr Solidifier::solidify(
     const TypeNodeVector& type_arguments
 )
 {
-    // Build substitution map
     auto subst_map = build_substitution_map(func.generics, type_arguments);
-
-    // Delegate to the internal solidify
     return solidify(func, subst_map);
 }
 
@@ -64,7 +61,7 @@ Statement_ptr Solidifier::solidify(
 }
 
 // ============================================================================
-// Main Entry Points - Substitution Map Version
+// Internals
 // ============================================================================
 
 Statement_ptr Solidifier::solidify(
@@ -72,8 +69,137 @@ Statement_ptr Solidifier::solidify(
     const std::map<std::string, TypeNode_ptr>& substitution_map
 )
 {
-    // For now, just clone the statement - we'll handle each type later
-    return ASTCloner::get().clone(stmt);
+    Doctor::semantics().fatal_if_nullptr(
+        stmt,
+        "Attempted to solidify a null Statement"
+    );
+
+    return std::visit(
+        overloaded{
+            [&](const std::monostate&) -> Statement_ptr
+            {
+                Doctor::semantics().fatal(
+                    "Attempted to solidify a Statement in monostate"
+                );
+            },
+            [&](const Import& s) -> Statement_ptr
+            {
+                return ASTCloner::get().clone(s);
+            },
+            [&](const ExpressionStatement& s) -> Statement_ptr
+            {
+                ExpressionStatement result;
+                result.expression = solidify(s.expression, substitution_map);
+                return make_statement(result);
+            },
+            [&](const TypeAliasDefinition& s) -> Statement_ptr
+            {
+                TypeAliasDefinition result;
+                result.name = s.name;
+                result.generics = {}; // No generics after instantiation
+                result.ref_type = solidify(s.ref_type, substitution_map);
+                result.symbol = s.symbol;
+                result.overload_symbol = s.overload_symbol;
+                return make_statement(result);
+            },
+            [&](const EnumDefinition& s) -> Statement_ptr
+            {
+                // TODO : Implement full enum solidification
+                return ASTCloner::get().clone(s);
+            },
+            [&](const FunctionDefinition& s) -> Statement_ptr
+            {
+                return solidify(s, substitution_map);
+            },
+            [&](const MethodDefinition& s) -> Statement_ptr
+            {
+                return solidify(s, substitution_map);
+            },
+            [&](const OperatorDefinition& s) -> Statement_ptr
+            {
+                OperatorDefinition result;
+                result.name = s.name;
+                result.generics = {}; // No generics after instantiation
+                result.op_type = s.op_type;
+                result.fixity = s.fixity;
+                // Solidify operands (parameters)
+                for (const auto& operand : s.operands)
+                {
+                    result.operands.push_back(solidify(operand, substitution_map));
+                }
+                // Solidify return type
+                result.return_type = solidify(s.return_type, substitution_map);
+                // Solidify body
+                result.block = solidify(s.block, substitution_map);
+                result.symbol = s.symbol; // TODO must handle symbols
+                result.overload_symbol = s.overload_symbol;
+                return make_statement(result);
+            },
+            [&](const ClassDefinition& s) -> Statement_ptr
+            {
+                return solidify(s, substitution_map);
+            },
+            [&](const TraitDefinition& s) -> Statement_ptr
+            {
+                return solidify(s, substitution_map);
+            },
+            [&](const PrimitiveDefinition& s) -> Statement_ptr
+            {
+                return ASTCloner::get().clone(s);
+            },
+            [&](const Branch& s) -> Statement_ptr
+            {
+                Branch result;
+                result.test = solidify(s.test, substitution_map);
+                result.block = solidify(s.block, substitution_map);
+                result.alternative = solidify(s.alternative, substitution_map);
+                return make_statement(result);
+            },
+            [&](const SimpleLoop& s) -> Statement_ptr
+            {
+                SimpleLoop result;
+                result.style = s.style;
+                result.test = solidify(s.test, substitution_map);
+                result.block = solidify(s.block, substitution_map);
+                return make_statement(result);
+            },
+            [&](const ForInLoop& s) -> Statement_ptr
+            {
+                ForInLoop result;
+                result.lhs_is_mutable = s.lhs_is_mutable;
+                result.lhs = solidify(s.lhs, substitution_map);
+                result.iterable = solidify(s.iterable, substitution_map);
+                result.block = solidify(s.block, substitution_map);
+                return make_statement(result);
+            },
+            [&](const LoopControl& s) -> Statement_ptr
+            {
+                return ASTCloner::get().clone(s);
+            },
+            [&](const Return& s) -> Statement_ptr
+            {
+                Return result;
+                if (s.expression)
+                {
+                    result.expression = solidify(*s.expression, substitution_map);
+                }
+                return make_statement(result);
+            },
+            [&](const Pass& s) -> Statement_ptr
+            {
+                return make_statement(Pass{});
+            },
+            [&](const Required& s) -> Statement_ptr
+            {
+                return make_statement(Required{});
+            },
+            [&](const Native& s) -> Statement_ptr
+            {
+                return make_statement(Native{});
+            }
+        },
+        stmt->data
+    );
 }
 
 StatementVector Solidifier::solidify(
@@ -105,7 +231,6 @@ Expression_ptr Solidifier::solidify(
     const std::map<std::string, TypeNode_ptr>& substitution_map
 )
 {
-    // For now, just clone expressions
     return ASTCloner::get().clone(expr);
 }
 
@@ -128,36 +253,44 @@ TypeNode_ptr Solidifier::solidify(
     const std::map<std::string, TypeNode_ptr>& substitution_map
 )
 {
-    if (!type_node)
-    {
-        return nullptr;
-    }
+    Doctor::semantics().fatal_if_nullptr(
+        type_node,
+        "Attempted to solidify a null TypeNode"
+    );
 
-    // Visit the type node and substitute generics
     return std::visit(
         overloaded{
             [&](const TypeIdentifierNode& ident) -> TypeNode_ptr
             {
-                // Check if this identifier is a generic parameter
                 auto it = substitution_map.find(ident.name);
+
                 if (it != substitution_map.end())
                 {
                     // Replace with concrete type
                     return ASTCloner::get().clone(it->second);
                 }
+
                 // Not a generic - keep as is
                 return ASTCloner::get().clone(type_node);
             },
             [&](const AngularTypeNode& angular) -> TypeNode_ptr
             {
-                // Solidify the type arguments
-                AngularTypeNode result;
-                result.name = angular.name;
-                result.symbol = angular.symbol;
+                TypeNodeVector solidified_args;
+
                 for (const auto& arg : angular.type_arguments)
                 {
-                    result.type_arguments.push_back(solidify(arg, substitution_map));
+                    auto solidified_arg = solidify(arg, substitution_map);
+                    solidified_args.push_back(solidified_arg);
                 }
+
+                std::string mangled_name = get_solid_name(
+                    angular.name,
+                    solidified_args
+                );
+
+                TypeIdentifierNode result;
+                result.name = mangled_name;
+                // TODO: Set symbol to point to the instantiated type later
                 return make_type_node(result);
             },
             [&](const ListTypeNode& list) -> TypeNode_ptr
@@ -276,8 +409,29 @@ Statement_ptr Solidifier::solidify(
     const std::map<std::string, TypeNode_ptr>& substitution_map
 )
 {
-    // TODO: Implement full function solidification
-    return ASTCloner::get().clone(func);
+    FunctionDefinition result;
+
+    result.name = func.name;
+    result.is_pure = func.is_pure;
+    result.symbol = func.symbol; // TODO: Update symbol later
+    result.overload_symbol = func.overload_symbol;
+
+    // Remove generics after instantiation
+    result.generics = {};
+
+    // Solidify parameters
+    for (const auto& param : func.parameters)
+    {
+        result.parameters.push_back(solidify(param, substitution_map));
+    }
+
+    // Solidify return type
+    result.return_type = solidify(func.return_type, substitution_map);
+
+    // Solidify the function body
+    result.block = solidify(func.block, substitution_map);
+
+    return make_statement(result);
 }
 
 Statement_ptr Solidifier::solidify(
@@ -285,8 +439,27 @@ Statement_ptr Solidifier::solidify(
     const std::map<std::string, TypeNode_ptr>& substitution_map
 )
 {
-    // TODO: Implement full method solidification
-    return ASTCloner::get().clone(method);
+    MethodDefinition result;
+
+    result.name = method.name;
+    result.is_pure = method.is_pure;
+    result.is_shared = method.is_shared;
+    result.symbol = method.symbol; // TODO: Update symbol later
+    result.overload_symbol = method.overload_symbol;
+
+    // Solidify parameters
+    for (const auto& param : method.parameters)
+    {
+        result.parameters.push_back(solidify(param, substitution_map));
+    }
+
+    // Solidify return type
+    result.return_type = solidify(method.return_type, substitution_map);
+
+    // Solidify the method body
+    result.block = solidify(method.block, substitution_map);
+
+    return make_statement(result);
 }
 
 Statement_ptr Solidifier::solidify(
@@ -294,8 +467,42 @@ Statement_ptr Solidifier::solidify(
     const std::map<std::string, TypeNode_ptr>& substitution_map
 )
 {
-    // TODO: Implement full class solidification
-    return ASTCloner::get().clone(cls);
+    ClassDefinition result;
+
+    result.name = cls.name;
+    result.symbol = cls.symbol; // TODO: Update symbol to point to instantiated
+    result.overload_symbol = cls.overload_symbol;
+
+    result.generics = {};
+
+    for (const auto& field : cls.fields)
+    {
+        result.fields.push_back(solidify(field, substitution_map));
+    }
+
+    for (const auto& method : cls.methods)
+    {
+        auto solidified_method = solidify(method, substitution_map);
+
+        Doctor::semantics().fatal_if_nullptr(
+            solidified_method,
+            "Expected solidified method to be a MethodDefinition"
+        );
+
+        Doctor::semantics().assert(
+            solidified_method->is<MethodDefinition>(),
+            "Expected solidified method to be a MethodDefinition"
+        );
+
+        result.methods.push_back(solidified_method->as<MethodDefinition>());
+    }
+
+    for (const auto& trait : cls.traits)
+    {
+        result.traits.push_back(solidify(trait, substitution_map));
+    }
+
+    return make_statement(result);
 }
 
 Statement_ptr Solidifier::solidify(
@@ -303,8 +510,34 @@ Statement_ptr Solidifier::solidify(
     const std::map<std::string, TypeNode_ptr>& substitution_map
 )
 {
-    // TODO: Implement full trait solidification
-    return ASTCloner::get().clone(trait);
+    TraitDefinition result;
+
+    result.name = trait.name;
+    result.symbol = trait.symbol; // TODO: Update symbol later
+    result.overload_symbol = trait.overload_symbol;
+
+    result.generics = {};
+
+    for (const auto& field : trait.fields)
+    {
+        result.fields.push_back(solidify(field, substitution_map));
+    }
+
+    for (const auto& method : trait.methods)
+    {
+        auto solidified_method = solidify(method, substitution_map);
+        if (solidified_method)
+        {
+            result.methods.push_back(solidified_method->as<MethodDefinition>());
+        }
+    }
+
+    for (const auto& super : trait.traits)
+    {
+        result.traits.push_back(solidify(super, substitution_map));
+    }
+
+    return make_statement(result);
 }
 
 // ============================================================================

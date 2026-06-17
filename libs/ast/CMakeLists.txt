@@ -1,4 +1,9 @@
-add_library(ASTLib Statement.cpp ASTCloner.cpp Solidifier.cpp)
+add_library(
+    ASTLib
+    Statement.cpp
+    ASTCloner.cpp
+    Solidifier.cpp
+)
 
 target_link_libraries(ASTLib PUBLIC TokenLib DoctorLib)
 
