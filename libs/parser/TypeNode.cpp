@@ -99,7 +99,7 @@ TypeNode_ptr Parser::parse_base_type()
 
         if (token_pipe.consume_optional_in_line(TokenType::LESSER_THAN))
         {
-            Doctor::parser().assert(
+            Doctor::parser().check(
                 type->is<TypeIdentifierNode>(),
                 "Only type identifiers can be used as template types"
             );

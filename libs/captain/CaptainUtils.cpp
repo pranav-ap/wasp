@@ -12,7 +12,7 @@ std::string Captain::read_file(const std::filesystem::path& file_path)
 {
     std::ifstream file(file_path);
 
-    Doctor::captain().assert(
+    Doctor::captain().check(
         file.is_open(),
         "Failed to open file: " + file_path.string()
     );

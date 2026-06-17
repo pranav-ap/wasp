@@ -125,7 +125,7 @@ std::string Symbol::to_string() const
 
 void FunctionOverloadsSymbol::add_overload(Symbol_ptr function_symbol)
 {
-    Doctor::semantics().assert(
+    Doctor::semantics().check(
         function_symbol->is<FunctionSymbol>(),
         "Only FunctionSymbol can be added as an overload"
     );

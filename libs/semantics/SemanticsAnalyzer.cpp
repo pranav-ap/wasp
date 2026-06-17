@@ -5,7 +5,6 @@
 #include "Hoister.h"
 #include "SymbolScope.h"
 #include "Workspace.h"
-#include "fmt/base.h"
 
 #include <memory>
 #include <vector>
@@ -13,9 +12,7 @@
 namespace Wasp
 {
 
-void SemanticsAnalyzer::run(
-    const std::vector<Module_ptr>& build_order
-)
+void SemanticsAnalyzer::run(const std::vector<Module_ptr>& build_order)
 {
     Doctor::get().start();
 
@@ -38,9 +35,7 @@ void SemanticsAnalyzer::run(
 
     leave_scope();
 
-    double time_taken = Doctor::get().stop();
-
-    fmt::print(stdout, "Workspace analyzed in {:.2f} seconds.\n", time_taken);
+    Doctor::get().stop();
 }
 
 void SemanticsAnalyzer::enter_scope(ScopeType scope_type)

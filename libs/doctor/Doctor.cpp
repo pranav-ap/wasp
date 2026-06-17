@@ -74,7 +74,7 @@ void Doctor::fatal(
     std::exit(EXIT_FAILURE);
 }
 
-void Doctor::assert(
+void Doctor::check(
     bool condition,
     const std::string& message,
     const std::source_location location

@@ -10,10 +10,7 @@ namespace Wasp
 
 Type_ptr TypeSystem::unify(SymbolScope_ptr scope, const TypeVector& types)
 {
-    Doctor::semantics().assert(
-        !types.empty(),
-        "Cannot unify an empty set of types"
-    );
+    Doctor::semantics().check(!types.empty(), "Cannot unify an empty set of types");
 
     TypeVector unique_types = remove_duplicates(scope, types);
 

@@ -265,7 +265,7 @@ void Hoister::visit(Expression_ptr expression)
 
 void Hoister::visit(Binding& binding)
 {
-    Doctor::parser().assert(
+    Doctor::parser().check(
         binding.lhs->is<Identifier>(),
         "Left-hand side of a binding must be an identifier"
     );

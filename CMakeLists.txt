@@ -66,8 +66,21 @@ FetchContent_MakeAvailable(fmt)
 
 find_package(LLVM REQUIRED CONFIG)
 
-include_directories(${LLVM_INCLUDE_DIRS})
-add_definitions(${LLVM_DEFINITIONS})
+message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
+message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+
+execute_process(
+    COMMAND llvm-config-22 --libs core support target x86 asmprinter mc object
+    OUTPUT_VARIABLE LLVM_LIBS_RAW
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+string(REPLACE " " ";" LLVM_LIBS_TEMP "${LLVM_LIBS_RAW}")
+set(LLVM_LIBS "")
+foreach(LIB ${LLVM_LIBS_TEMP})
+    string(REPLACE "-l" "" LIB_NAME "${LIB}")
+    list(APPEND LLVM_LIBS ${LIB_NAME})
+endforeach()
+message(STATUS "LLVM_LIBS: ${LLVM_LIBS}")
 
 # ==========================================
 # Wasp Modules

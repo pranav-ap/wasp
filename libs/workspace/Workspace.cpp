@@ -62,8 +62,7 @@ Module_ptr Workspace::get_module(int module_index)
     return nullptr;
 }
 
-const std::map<std::filesystem::path, Module_ptr>& Workspace::
-    get_all_modules() const
+const std::map<std::filesystem::path, Module_ptr>& Workspace::get_all_modules() const
 {
     return module_registry;
 }

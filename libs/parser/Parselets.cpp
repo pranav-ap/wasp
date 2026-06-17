@@ -281,7 +281,7 @@ Expression_ptr LesserThanParselet::parse(Parser& parser, Expression_ptr left, co
         return make_expression(Infix{left, token, right});
     }
 
-    Doctor::parser().assert(
+    Doctor::parser().check(
         (left->is<Identifier>() || left->is<MemberAccess>()),
 
         "Incorrect LHS for generic type application"
@@ -329,7 +329,7 @@ Expression_ptr CallOrConstructorParselet::parse(
     const Token&
 )
 {
-    Doctor::parser().assert(
+    Doctor::parser().check(
         left->is<Identifier>() || left->is<MemberAccess>(),
 
         "Incorrect LHS for function call or constructor "
@@ -388,9 +388,8 @@ Expression_ptr InterpolatedStringParselet::parse(
             node.parts.push_back(parser.parse_expression(0));
 
             auto close_brace = parser.token_pipe.current_in_line();
-            Doctor::parser().assert(
-                close_brace &&
-                    close_brace->type == TokenType::CLOSE_CURLY_BRACE,
+            Doctor::parser().check(
+                close_brace && close_brace->type == TokenType::CLOSE_CURLY_BRACE,
 
                 "Expected '}' at the end of an interpolation expression"
             );

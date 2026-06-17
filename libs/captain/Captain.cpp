@@ -1,4 +1,5 @@
 #include "Captain.h"
+#include "Compiler.h"
 #include "DependencyCrawler.h"
 #include "Doctor.h"
 #include "Lexer.h"
@@ -88,7 +89,7 @@ std::vector<Module_ptr> Captain::calculate_build_order()
     return build_order;
 }
 
-Workspace_ptr Captain::build()
+void Captain::build()
 {
     parse_modules();
 
@@ -97,7 +98,8 @@ Workspace_ptr Captain::build()
     SemanticsAnalyzer sa;
     sa.run(build_order);
 
-    return workspace;
+    Compiler compiler;
+    compiler.run(build_order);
 }
 
 void Captain::execute()

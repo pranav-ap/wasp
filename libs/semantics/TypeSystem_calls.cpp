@@ -26,7 +26,7 @@ std::tuple<Symbol_ptr, int> TypeSystem::get_best_function(
     const TypeVector& argument_types
 ) const
 {
-    Doctor::semantics().assert(
+    Doctor::semantics().check(
         symbol->is<FunctionOverloadsSymbol>(),
         "Symbol '" + symbol->name + "' is not an overloaded function"
     );
@@ -87,7 +87,7 @@ std::tuple<Symbol_ptr, int> TypeSystem::get_best_function(
         }
     }
 
-    Doctor::semantics().assert(
+    Doctor::semantics().check(
         !viable.empty(),
         "No viable candidates for function " + symbol->name
     );
@@ -190,7 +190,7 @@ std::tuple<MethodType_ptr, int> TypeSystem::get_best_method(
         }
     }
 
-    Doctor::semantics().assert(
+    Doctor::semantics().check(
         !viable.empty(),
         "No viable candidates for function call"
     );

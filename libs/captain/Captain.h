@@ -21,7 +21,7 @@ private:
 
 public:
     explicit Captain(const std::filesystem::path& target_path);
-    Workspace_ptr build();
+    void build();
     void execute();
 };
 

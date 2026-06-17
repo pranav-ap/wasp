@@ -100,7 +100,7 @@ Symbol_ptr SymbolScope::lookup_variable(const std::string& name) const
 {
     Symbol_ptr symbol = this->lookup_required_and_resolve(name);
 
-    Doctor::semantics().assert(
+    Doctor::semantics().check(
         symbol->is<VariableSymbol>(),
         "Expected variable symbol for '" + name + "'"
     );
@@ -112,7 +112,7 @@ Symbol_ptr SymbolScope::lookup_functions(const std::string& name) const
 {
     Symbol_ptr symbol = this->lookup_required_and_resolve(name);
 
-    Doctor::semantics().assert(
+    Doctor::semantics().check(
         symbol->is<FunctionOverloadsSymbol>(),
         "Expected function overloads symbol for '" + name + "'"
     );
@@ -180,12 +180,12 @@ void SymbolScope::define(Symbol_ptr symbol)
         "Cannot define a null symbol"
     );
 
-    Doctor::semantics().assert(
+    Doctor::semantics().check(
         !symbol->is<FunctionSymbol>(),
         "Cannot directly define a function symbol. Use overload() instead."
     );
 
-    Doctor::semantics().assert(
+    Doctor::semantics().check(
         !contains_in_current_scope(symbol->name),
         symbol->name + " is already declared in this scope"
     );
@@ -200,7 +200,7 @@ void SymbolScope::define_overload(Symbol_ptr symbol)
         "Cannot define a null symbol"
     );
 
-    Doctor::semantics().assert(
+    Doctor::semantics().check(
         symbol->is<FunctionOverloadsSymbol>(),
         "Expected a FunctionOverloadsSymbol for overload definition"
     );
@@ -218,7 +218,7 @@ Symbol_ptr SymbolScope::overload(Symbol_ptr symbol)
         "Cannot define a null symbol"
     );
 
-    Doctor::semantics().assert(
+    Doctor::semantics().check(
         symbol->is<FunctionSymbol>(),
         "Only Function Symbol can be overloaded. Use define() instead."
     );

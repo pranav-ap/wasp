@@ -44,7 +44,7 @@ void validate_purity_constraints(
         bool inside_pure = scope->type == ScopeType::PURE_FUNCTION ||
                            scope->type == ScopeType::PURE_METHOD;
 
-        Doctor::semantics().assert(
+        Doctor::semantics().check(
             inside_pure,
             "A pure function cannot mutate variables from an outer scope"
         );
@@ -113,7 +113,7 @@ std::optional<Type_ptr> try_resolve_as_enum(
     auto enum_type = base_type->as<EnumType_ptr>();
     int value = enum_type->get_value(path);
 
-    Doctor::semantics().assert(value != -1, "Enum member not found.");
+    Doctor::semantics().check(value != -1, "Enum member not found.");
 
     return make_shared_type<EnumMemberType>(enum_type, value);
 }
@@ -136,7 +136,7 @@ Type_ptr resolve_member_access(
 
             [&](ClassType_ptr type) -> Type_ptr
             {
-                Doctor::semantics().assert(
+                Doctor::semantics().check(
                     type->contains_member(member_name),
                     type->name + " has no member named " + member_name
                 );
@@ -153,7 +153,7 @@ Type_ptr resolve_member_access(
 
             [&](TraitType_ptr type) -> Type_ptr
             {
-                Doctor::semantics().assert(
+                Doctor::semantics().check(
                     type->contains_member(member_name),
                     type->name + " has no member named " + member_name
                 );
@@ -219,7 +219,7 @@ Type_ptr resolve_member_access(
 
 Type_ptr Final::visit(Binding& binding)
 {
-    Doctor::semantics().assert(
+    Doctor::semantics().check(
         binding.lhs->is<Identifier>(),
         "Left-hand side of a binding must be an identifier"
     );
@@ -238,7 +238,7 @@ Type_ptr Final::visit(Binding& binding)
     Type_ptr declared_type = visit(binding.declared_type);
     id.symbol->set_type(declared_type);
 
-    Doctor::semantics().assert(
+    Doctor::semantics().check(
         type_system->equal(current_scope, declared_type, inferred_type),
         "Declared type and inferred type do not match"
     );
@@ -278,7 +278,7 @@ Type_ptr Final::mutate_variable(
     const VariableSymbol& variable_symbol = identifier.symbol
                                                 ->as<VariableSymbol>();
 
-    Doctor::semantics().assert(
+    Doctor::semantics().check(
         variable_symbol.is_mutable,
         "Cannot mutate constant '" + symbol_name + "'"
     );
@@ -288,7 +288,7 @@ Type_ptr Final::mutate_variable(
     Type_ptr assigned_type = visit(assigned_expr);
     Type_ptr expected_type = identifier.symbol->get_type();
 
-    Doctor::semantics().assert(
+    Doctor::semantics().check(
         type_system->equal(current_scope, expected_type, assigned_type),
         "Type mismatch in assignment to '" + symbol_name + "'"
     );
@@ -306,7 +306,7 @@ Type_ptr Final::mutate_member(
 
     Type_ptr actual_type = visit(rhs_expr);
 
-    Doctor::semantics().assert(
+    Doctor::semantics().check(
         type_system->equal(current_scope, expected_type, actual_type),
         "Type mismatch in member assignment to '" +
             access.member->as<Identifier>().name + "'"
@@ -332,7 +332,7 @@ Type_ptr Final::visit(Identifier& expr)
 
 Type_ptr Final::visit(MemberAccess& access)
 {
-    Doctor::semantics().assert(
+    Doctor::semantics().check(
         access.member->is<Identifier>(),
         "RHS of member access must be an identifier."
     );

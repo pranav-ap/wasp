@@ -27,7 +27,7 @@ int FieldMap::get_index(const std::string& name) const
 {
     auto it = std::find(ordered_keys.begin(), ordered_keys.end(), name);
 
-    Doctor::semantics().assert(
+    Doctor::semantics().check(
         it != ordered_keys.end(),
         "Bag does not contain member '" + name + "'."
     );
@@ -39,7 +39,7 @@ Type_ptr FieldMap::get_type(const std::string& name) const
 {
     auto it = types.find(name);
 
-    Doctor::semantics().assert(
+    Doctor::semantics().check(
         it != types.end(),
         "Bag does not contain member '" + name + "'."
     );
@@ -60,7 +60,7 @@ int MethodMap::get_index(const std::string& name) const
 {
     auto it = std::find(ordered_keys.begin(), ordered_keys.end(), name);
 
-    Doctor::semantics().assert(
+    Doctor::semantics().check(
         it != ordered_keys.end(),
         "Bag does not contain member '" + name + "'."
     );
@@ -72,7 +72,7 @@ MethodOverloadType_ptr MethodMap::get_type(const std::string& name) const
 {
     auto it = signatures.find(name);
 
-    Doctor::semantics().assert(
+    Doctor::semantics().check(
         it != signatures.end(),
         "Method Map does not contain member '" + name + "'."
     );
@@ -145,10 +145,9 @@ int ModuleType::get_member_index(const std::string& member_name) const
 {
     auto it = std::find(ordered_keys.begin(), ordered_keys.end(), member_name);
 
-    Doctor::semantics().assert(
+    Doctor::semantics().check(
         it != ordered_keys.end(),
-        "Module '" + name + "' does not contain member '" + member_name +
-            "'."
+        "Module '" + name + "' does not contain member '" + member_name + "'."
     );
 
     return static_cast<int>(std::distance(ordered_keys.begin(), it));
@@ -158,10 +157,9 @@ Type_ptr ModuleType::get_member(const std::string& member_name) const
 {
     auto it = member_types.find(member_name);
 
-    Doctor::semantics().assert(
+    Doctor::semantics().check(
         it != member_types.end(),
-        "Module '" + name + "' does not contain member '" + member_name +
-            "'."
+        "Module '" + name + "' does not contain member '" + member_name + "'."
     );
 
     return it->second;
@@ -191,9 +189,8 @@ std::vector<std::pair<std::string, Type_ptr>> TemplateType::
 
 Type_ptr TemplateType::get_generic_type(int index) const
 {
-    Doctor::semantics().assert(
-        index >= 0 &&
-            index < static_cast<int>(ordered_parameter_names.size()),
+    Doctor::semantics().check(
+        index >= 0 && index < static_cast<int>(ordered_parameter_names.size()),
         "Invalid generic index: " + std::to_string(index)
     );
 
@@ -205,7 +202,7 @@ Type_ptr TemplateType::get_generic_type(const std::string& name) const
 {
     auto it = template_parameters.find(name);
 
-    Doctor::semantics().assert(
+    Doctor::semantics().check(
         it != template_parameters.end(),
         "Template does not contain generic '" + name + "'."
     );

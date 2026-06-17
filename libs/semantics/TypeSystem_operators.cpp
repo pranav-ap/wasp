@@ -106,16 +106,14 @@ Type_ptr TypeSystem::infer(
     case TokenType::MINUS:
     case TokenType::DIVISION:
     case TokenType::MOD: {
-        Doctor::semantics().assert(
+        Doctor::semantics().check(
             is_number_type(left_type),
-            "Left operand must be a number, got '" +
-                left_type->to_string() + "'"
+            "Left operand must be a number, got '" + left_type->to_string() + "'"
         );
 
-        Doctor::semantics().assert(
+        Doctor::semantics().check(
             is_number_type(right_type),
-            "Right operand must be a number, got '" +
-                right_type->to_string() + "'"
+            "Right operand must be a number, got '" + right_type->to_string() + "'"
         );
 
         return (is_float_type(left_type) || is_float_type(right_type))
@@ -127,16 +125,14 @@ Type_ptr TypeSystem::infer(
     case TokenType::LESSER_THAN_EQUAL:
     case TokenType::GREATER_THAN:
     case TokenType::GREATER_THAN_EQUAL: {
-        Doctor::semantics().assert(
+        Doctor::semantics().check(
             is_number_type(left_type),
-            "Left operand must be a number, got '" +
-                left_type->to_string() + "'"
+            "Left operand must be a number, got '" + left_type->to_string() + "'"
         );
 
-        Doctor::semantics().assert(
+        Doctor::semantics().check(
             is_number_type(right_type),
-            "Right operand must be a number, got '" +
-                right_type->to_string() + "'"
+            "Right operand must be a number, got '" + right_type->to_string() + "'"
         );
 
         [[fallthrough]];
@@ -150,31 +146,31 @@ Type_ptr TypeSystem::infer(
         }
         if (is_number_type(left_type))
         {
-            Doctor::semantics().assert(
+            Doctor::semantics().check(
                 is_number_type(right_type),
-                "Right operand must be a number, got '" +
-                    right_type->to_string() + "'"
+                "Right operand must be a number, got '" + right_type->to_string() +
+                    "'"
             );
         }
         else if (is_string_type(left_type))
         {
-            Doctor::semantics().assert(
+            Doctor::semantics().check(
                 is_string_type(right_type),
-                "Right operand must be a string, got '" +
-                    right_type->to_string() + "'"
+                "Right operand must be a string, got '" + right_type->to_string() +
+                    "'"
             );
         }
         else if (is_boolean_type(left_type))
         {
-            Doctor::semantics().assert(
+            Doctor::semantics().check(
                 is_boolean_type(right_type),
-                "Right operand must be a boolean, got '" +
-                    right_type->to_string() + "'"
+                "Right operand must be a boolean, got '" + right_type->to_string() +
+                    "'"
             );
         }
         else if (left_type->is<EnumType_ptr>())
         {
-            Doctor::semantics().assert(
+            Doctor::semantics().check(
                 equal(scope, left_type, right_type),
                 "Enum mismatch"
             );
@@ -191,16 +187,14 @@ Type_ptr TypeSystem::infer(
 
     case TokenType::AND:
     case TokenType::OR: {
-        Doctor::semantics().assert(
+        Doctor::semantics().check(
             is_boolean_type(left_type),
-            "Left operand must be a boolean, got '" +
-                left_type->to_string() + "'"
+            "Left operand must be a boolean, got '" + left_type->to_string() + "'"
         );
 
-        Doctor::semantics().assert(
+        Doctor::semantics().check(
             is_boolean_type(right_type),
-            "Right operand must be a boolean, got '" +
-                right_type->to_string() + "'"
+            "Right operand must be a boolean, got '" + right_type->to_string() + "'"
         );
 
         return make_shared_type<BooleanType>();

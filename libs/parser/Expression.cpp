@@ -40,7 +40,7 @@ Expression_ptr Parser::parse_expression(const int precedence)
 
     auto prefix_it = prefix_parselets.find(token_type);
 
-    Doctor::parser().assert(
+    Doctor::parser().check(
         prefix_it != prefix_parselets.end(),
         "Expected the start of an expression but found : " + token->lexeme
     );
@@ -58,7 +58,7 @@ Expression_ptr Parser::parse_expression(const int precedence)
 
         auto infix_it = infix_parselets.find(token->type);
 
-        Doctor::parser().assert(
+        Doctor::parser().check(
             infix_it != infix_parselets.end(),
 
             "No matching infix parselet found for token : " + token->lexeme
@@ -75,7 +75,7 @@ Expression_ptr Parser::parse_variable_definition(bool is_mutable)
     token_pipe.advance_pointer();
 
     auto id_token = token_pipe.current_in_line();
-    Doctor::parser().assert(
+    Doctor::parser().check(
         id_token && id_token->type == TokenType::IDENTIFIER,
 
         "Expected an identifier after variable definition keyword."
@@ -95,7 +95,7 @@ Expression_ptr Parser::parse_variable_definition(bool is_mutable)
     }
 
     auto equal_token = token_pipe.current_in_line();
-    Doctor::parser().assert(
+    Doctor::parser().check(
         equal_token && equal_token->type == TokenType::EQUAL,
 
         "Variable definition must be initialized with '='."

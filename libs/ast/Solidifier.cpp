@@ -489,7 +489,7 @@ Statement_ptr Solidifier::solidify(
             "Expected solidified method to be a MethodDefinition"
         );
 
-        Doctor::semantics().assert(
+        Doctor::semantics().check(
             solidified_method->is<MethodDefinition>(),
             "Expected solidified method to be a MethodDefinition"
         );
@@ -551,7 +551,7 @@ std::map<std::string, TypeNode_ptr> Solidifier::build_substitution_map(
 {
     std::map<std::string, TypeNode_ptr> subst_map;
 
-    Doctor::semantics().assert(
+    Doctor::semantics().check(
         generics.size() == type_arguments.size(),
         "Number of type arguments must match number of generic parameters"
     );

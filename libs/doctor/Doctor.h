@@ -1,5 +1,6 @@
 #pragma once
 
+#include "fmt/base.h"
 #include <chrono>
 #include <fmt/core.h>
 #include <optional>
@@ -86,11 +87,10 @@ public:
             std::source_location::current()
     ) const;
 
-    void assert(
+    void check(
         bool condition,
         const std::string& message = "",
-        const std::source_location location =
-            std::source_location::current()
+        const std::source_location location = std::source_location::current()
     ) const;
 
     template <typename T>
@@ -143,14 +143,23 @@ public:
         timer_start = std::chrono::steady_clock::now();
     }
 
-    double stop()
+    void stop()
     {
         auto end = std::chrono::steady_clock::now();
 
-        auto duration = std::chrono::duration_cast<
-            std::chrono::microseconds>(end - timer_start);
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
+            end - timer_start
+        );
 
-        return duration.count() / 1000.0;
+        double elapsed_ms = duration.count() / 1000.0;
+        double elapsed_s = duration.count() / 1000000.0;
+
+        fmt::print(
+            stdout,
+            "Completed in {:.2f} ms ({:.3f} s).\n",
+            elapsed_ms,
+            elapsed_s
+        );
     }
 };
 

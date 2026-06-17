@@ -20,7 +20,7 @@ std::tuple<Statement_ptr, SymbolScope_ptr> Collector::get_tree(Symbol_ptr symbol
 {
     auto it = forest.find(symbol);
 
-    Doctor::semantics().assert(
+    Doctor::semantics().check(
         it != forest.end(),
         "No AST found for symbol '" + symbol->name + "'"
     );

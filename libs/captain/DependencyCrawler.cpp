@@ -31,7 +31,7 @@ void DependencyCrawler::traverse_edges(const std::filesystem::path& file_path)
         return;
     }
 
-    Doctor::captain().assert(
+    Doctor::captain().check(
         !currently_visiting.contains(abs_path),
 
         "Strict cyclic import detected involving: " + abs_path.string()
@@ -132,7 +132,7 @@ std::filesystem::path DependencyCrawler::get_base_path(
             base = base.parent_path();
         }
 
-        Doctor::captain().assert(
+        Doctor::captain().check(
             found == jumps,
 
             "Could not resolve pkg() boundary."

@@ -28,7 +28,7 @@ Type_ptr Final::visit(Constructor& expr)
     {
         auto cls = target_type->as<ClassType_ptr>();
 
-        Doctor::semantics().assert(
+        Doctor::semantics().check(
             argument_types.size() == cls->fields->ordered_keys.size(),
             "Constructor Arguments Count Mismatch for class '" + cls->name +
                 "'. Expected " + std::to_string(cls->fields->ordered_keys.size()) +
@@ -39,7 +39,7 @@ Type_ptr Final::visit(Constructor& expr)
         {
             const std::string& field_name = cls->fields->ordered_keys[i];
 
-            Doctor::semantics().assert(
+            Doctor::semantics().check(
                 cls->fields->contains(field_name),
                 "Field '" + field_name + "' not found in class '" + cls->name + "'."
             );
@@ -52,7 +52,7 @@ Type_ptr Final::visit(Constructor& expr)
                 argument_types[i]
             );
 
-            Doctor::semantics().assert(
+            Doctor::semantics().check(
                 is_assignable,
                 "Type mismatch in constructor arguments"
             );

@@ -47,7 +47,7 @@ TemplateType_ptr create_template_type(
 
             for (auto& inner_type : types)
             {
-                Doctor::semantics().assert(
+                Doctor::semantics().check(
                     inner_type->is<TraitType_ptr>(),
                     "Only an interesection of traits is supported"
                 );
@@ -59,21 +59,21 @@ TemplateType_ptr create_template_type(
 
             for (auto& inner_type : types)
             {
-                Doctor::semantics().assert(
+                Doctor::semantics().check(
                     type_system->is_primitive_type(inner_type),
                     "Only an union of primitives is supported"
                 );
             }
         }
 
-        Doctor::semantics().assert(
+        Doctor::semantics().check(
             !generics_map.contains(generic.name),
             "Duplicate generic parameter name: " + generic.name
         );
 
         if (generic.is_variadic)
         {
-            Doctor::semantics().assert(
+            Doctor::semantics().check(
                 !seen_variadic_generic,
                 "Only one variadic generic parameter is allowed"
             );
@@ -362,7 +362,7 @@ void Collector::visit(EnumDefinition& def)
     auto enum_type_obj = def.symbol->get_type();
     Doctor::semantics().fatal_if_nullptr(enum_type_obj);
 
-    Doctor::semantics().assert(
+    Doctor::semantics().check(
         enum_type_obj->is<EnumType_ptr>(),
         "Expected EnumType_ptr for enum definition"
     );
@@ -523,7 +523,7 @@ FieldMap_ptr Collector::track_fields(FieldVector fields)
 
     for (const auto& field : fields)
     {
-        Doctor::semantics().assert(
+        Doctor::semantics().check(
             !field_map.contains(field.name),
             "Duplicate field name: " + field.name
         );
@@ -675,7 +675,7 @@ void Collector::validate_required_methods(
             }
         }
 
-        Doctor::semantics().assert(
+        Doctor::semantics().check(
             found_the_required_method,
             "Class '" + def.name + "' does not implement required method '" +
                 required_method_type->name + "' from trait"
@@ -751,7 +751,7 @@ void Collector::merge_trait_methods(
 
         auto trait_method_statement_clone = ASTCloner::get().clone(trait_method);
 
-        Doctor::semantics().assert(
+        Doctor::semantics().check(
             trait_method_statement_clone->is<MethodDefinition>(),
             "Expected MethodDefinition when cloning trait method"
         );

@@ -53,10 +53,9 @@ Type_ptr Final::visit(TernaryExpression& expr)
 {
     Type_ptr test_type = visit(expr.test);
 
-    Doctor::semantics().assert(
+    Doctor::semantics().check(
         type_system->is_boolean_type(test_type),
-        "Test expression must be of boolean type, got: " +
-            test_type->to_string()
+        "Test expression must be of boolean type, got: " + test_type->to_string()
     );
 
     Type_ptr then_type = visit(expr.then_expr);
@@ -119,7 +118,7 @@ Type_ptr Final::visit(SetLiteral& expr)
 
     for (auto& type : element_types)
     {
-        Doctor::semantics().assert(
+        Doctor::semantics().check(
             type_system->is_key_type(type),
             "Invalid set element type: " + type->to_string()
         );
@@ -142,7 +141,7 @@ Type_ptr Final::visit(MapLiteral& expr)
         Type_ptr k_type = visit(k_expr);
         Type_ptr v_type = visit(v_expr);
 
-        Doctor::semantics().assert(
+        Doctor::semantics().check(
             type_system->is_key_type(k_type),
             "Invalid map key type: " + k_type->to_string()
         );
