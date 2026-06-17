@@ -21,8 +21,6 @@ public:
     {
     }
 
-    using Phase::visit;
-
     std::map<Symbol_ptr, Statement_ptr> get_forest() const
     {
         return forest;
@@ -40,6 +38,9 @@ private:
     std::map<Symbol_ptr, SymbolScope_ptr> scope_forest;
 
     // Statements
+
+    void visit(Block& block);
+    void visit(Statement_ptr statement);
 
     void visit(Import& statement);
 

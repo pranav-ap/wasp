@@ -1,6 +1,5 @@
 #pragma once
 
-#include "AST.h"
 #include "Statement.h"
 #include "SymbolScope.h"
 #include "TypeSystem.h"
@@ -25,10 +24,7 @@ public:
     SymbolScope_ptr current_scope;
     TypeSystem_ptr type_system;
 
-    // Statements
-
-    void visit(Block& block);
-    void visit(Statement_ptr statement);
+    virtual void visit(Block& block) = 0;
 
     // Utils
 

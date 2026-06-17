@@ -15,9 +15,10 @@ public:
     {
     }
 
-    using Phase::visit;
-
 private:
+    void visit(Block& block);
+    void visit(Statement_ptr statement);
+
     void visit(Import& statement);
 
     void visit(FunctionDefinition& statement);

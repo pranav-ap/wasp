@@ -17,6 +17,31 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
+// ============================================================================
+// Statements
+// ============================================================================
+
+void Hoister::visit(Block& block)
+{
+    for (auto& statement : block.statements)
+    {
+        visit(statement);
+    }
+}
+
+void Hoister::visit(Statement_ptr statement)
+{
+    std::visit(
+        [&](auto& node)
+        {
+            if constexpr (requires { visit(node); })
+            {
+                visit(node);
+            }
+        },
+        statement->data
+    );
+}
 
 void Hoister::visit(Import&)
 {

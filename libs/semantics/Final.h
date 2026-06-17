@@ -19,10 +19,11 @@ public:
     {
     }
 
-    using Phase::visit;
-
 private:
     // Statements
+
+    void visit(Block& block);
+    void visit(Statement_ptr statement);
 
     void visit(Import& statement);
 

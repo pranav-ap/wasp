@@ -6,13 +6,17 @@
 #include "Type.h"
 #include "Workspace.h"
 
+#include "llvm/IR/Instructions.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
+#include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 
 #include <memory>
+#include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace Wasp
@@ -31,6 +35,9 @@ private:
     std::unique_ptr<llvm::IRBuilder<>> builder;
     std::unique_ptr<llvm::Module> llvm_module;
 
+    std::unordered_map<std::string, llvm::AllocaInst*> named_values_;
+    llvm::Function* current_function_ = nullptr;
+
     // Statements
 
     void generate(const Statement_ptr& stmt);
@@ -42,10 +49,9 @@ private:
 
     llvm::Value* generate(const Expression_ptr& expr);
 
-    llvm::Value* generate(const IntegerLiteral& lit);
-    llvm::Value* generate(const FloatLiteral& lit);
-    llvm::Value* generate(const StringLiteral& lit);
-    llvm::Value* generate(const BooleanLiteral& lit);
+    llvm::Value* generate(const Binding& binding);
+    llvm::Value* generate(const Assignment& assignment);
+    llvm::Value* generate(const Identifier& ident);
 
     // Types
 

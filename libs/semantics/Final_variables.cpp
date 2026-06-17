@@ -3,6 +3,7 @@
 #include "Expression.h"
 #include "Final.h"
 #include "Symbol.h"
+#include "SymbolFactory.h"
 #include "SymbolScope.h"
 #include "Type.h"
 #include "TypeSystem.h"
@@ -225,6 +226,14 @@ Type_ptr Final::visit(Binding& binding)
     );
 
     auto& id = binding.lhs->as<Identifier>();
+
+    id.symbol = SymbolFactory::create_type(
+        id.name,
+        nullptr,
+        current_scope->closure_depth,
+        current_scope->lexical_depth
+    );
+
     current_scope->define(id.symbol);
 
     Type_ptr inferred_type = visit(binding.rhs);

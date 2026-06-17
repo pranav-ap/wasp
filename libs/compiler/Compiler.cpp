@@ -3,6 +3,8 @@
 #include "Doctor.h"
 #include "Expression.h"
 #include "Statement.h"
+#include "Symbol.h"
+#include "Token.h"
 #include "Type.h"
 #include "Workspace.h"
 
@@ -21,7 +23,6 @@
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/raw_ostream.h>
 
-#include <llvm/Config/llvm-config.h>
 #include <memory>
 #include <string>
 #include <system_error>
@@ -154,28 +155,108 @@ llvm::Value* Compiler::generate(const Expression_ptr& expr)
         "Cannot generate code for null expression"
     );
 
-    return std::visit(
+    auto result = std::visit(
         overloaded{
+            // ========== LITERALS ==========
             [&](const IntegerLiteral& lit) -> llvm::Value*
             {
-                return generate(lit);
+                return llvm::ConstantInt::get(builder->getInt32Ty(), lit.value);
             },
             [&](const FloatLiteral& lit) -> llvm::Value*
             {
-                return generate(lit);
+                return llvm::ConstantFP::get(builder->getDoubleTy(), lit.value);
             },
             [&](const StringLiteral& lit) -> llvm::Value*
             {
-                return generate(lit);
+                return builder->CreateGlobalString(lit.value, lit.value);
             },
             [&](const BooleanLiteral& lit) -> llvm::Value*
             {
-                return generate(lit);
+                return llvm::ConstantInt::get(
+                    builder->getInt1Ty(),
+                    lit.value ? 1 : 0
+                );
             },
             [&](const NoneLiteral& lit) -> llvm::Value*
             {
                 return llvm::ConstantPointerNull::get(builder->getPtrTy());
             },
+
+            // ========== OPERATORS ==========
+            [&](const Prefix& prefix) -> llvm::Value*
+            {
+                auto* operand = generate(prefix.operand);
+
+                switch (prefix.op.type)
+                {
+                case TokenType::MINUS:
+                    return builder->CreateNeg(operand, "neg");
+                case TokenType::BANG:
+                    return builder->CreateNot(operand, "not");
+                default:
+                    Doctor::compiler().fatal(
+                        "Unsupported prefix operator: " + to_string(prefix.op.type)
+                    );
+                }
+            },
+            [&](const Infix& infix) -> llvm::Value*
+            {
+                auto* left = generate(infix.left);
+                auto* right = generate(infix.right);
+
+                switch (infix.op.type)
+                {
+                // Arithmetic
+                case TokenType::PLUS:
+                    return builder->CreateAdd(left, right, "add");
+                case TokenType::MINUS:
+                    return builder->CreateSub(left, right, "sub");
+                case TokenType::STAR:
+                    return builder->CreateMul(left, right, "mul");
+                case TokenType::DIVISION:
+                    return builder->CreateSDiv(left, right, "div");
+                case TokenType::MOD:
+                    return builder->CreateSRem(left, right, "rem");
+                // Comparisons
+                case TokenType::EQUAL_EQUAL:
+                    return builder->CreateICmpEQ(left, right, "cmpeq");
+                case TokenType::BANG_EQUAL:
+                    return builder->CreateICmpNE(left, right, "cmpne");
+                case TokenType::LESSER_THAN:
+                    return builder->CreateICmpSLT(left, right, "cmplt");
+                case TokenType::GREATER_THAN:
+                    return builder->CreateICmpSGT(left, right, "cmpgt");
+                case TokenType::LESSER_THAN_EQUAL:
+                    return builder->CreateICmpSLE(left, right, "cmple");
+                case TokenType::GREATER_THAN_EQUAL:
+                    return builder->CreateICmpSGE(left, right, "cmpge");
+                // Logical (short-circuit handled elsewhere)
+                case TokenType::AND:
+                    return builder->CreateAnd(left, right, "and");
+                case TokenType::OR:
+                    return builder->CreateOr(left, right, "or");
+                default:
+                    Doctor::compiler().fatal(
+                        "Unsupported infix operator: " + to_string(infix.op.type)
+                    );
+                }
+            },
+
+            // ========== Variables ==========
+
+            [&](const Binding& binding) -> llvm::Value*
+            {
+                return generate(binding);
+            },
+            [&](const Assignment& assignment) -> llvm::Value*
+            {
+                return generate(assignment);
+            },
+            [&](const Identifier& identifier) -> llvm::Value*
+            {
+                return generate(identifier);
+            },
+
             [&](const auto&) -> llvm::Value*
             {
                 Doctor::get().fatal(
@@ -185,26 +266,82 @@ llvm::Value* Compiler::generate(const Expression_ptr& expr)
         },
         expr->data
     );
+
+    Doctor::compiler().fatal_if_nullptr(
+        result,
+        "Failed to generate code for expression"
+    );
+
+    return result;
 }
 
-llvm::Value* Compiler::generate(const IntegerLiteral& lit)
+llvm::Value* Compiler::generate(const Binding& binding)
 {
-    return llvm::ConstantInt::get(builder->getInt32Ty(), lit.value);
+    auto* rhs = generate(binding.rhs);
+
+    Doctor::compiler().check(
+        binding.lhs->is<Identifier>(),
+        "Left-hand side of a binding must be an identifier"
+    );
+
+    const auto& identity = binding.lhs->as<Identifier>();
+
+    Doctor::compiler().fatal_if_nullptr(
+        identity.symbol,
+        "Identifier in binding does not have an associated symbol"
+    );
+
+    Type_ptr var_type = identity.symbol->get_type();
+
+    Doctor::compiler().fatal_if_nullptr(
+        var_type,
+        "Variable in binding does not have an associated type"
+    );
+
+    llvm::Type* var_llvm_type = generate(var_type);
+
+    // Allocate stack space for the variable
+    auto* alloca = builder->CreateAlloca(var_llvm_type, nullptr, identity.name);
+    // Store the RHS value into the variable
+    builder->CreateStore(rhs, alloca);
+
+    // Store in the symbol table for later lookup
+    named_values_[identity.name] = alloca;
+
+    return rhs;
 }
 
-llvm::Value* Compiler::generate(const FloatLiteral& lit)
+llvm::Value* Compiler::generate(const Assignment& assignment)
 {
-    return llvm::ConstantFP::get(builder->getDoubleTy(), lit.value);
+    const auto& ident = assignment.lhs->as<Identifier>();
+
+    auto it = named_values_.find(ident.name);
+
+    Doctor::compiler().check(
+        it != named_values_.end(),
+        "Undefined variable: " + ident.name
+    );
+
+    auto* rhs = generate(assignment.rhs);
+
+    auto* alloca = it->second;
+    builder->CreateStore(rhs, alloca);
+
+    return rhs;
 }
 
-llvm::Value* Compiler::generate(const StringLiteral& lit)
+llvm::Value* Compiler::generate(const Identifier& ident)
 {
-    return builder->CreateGlobalString(lit.value, lit.value);
-}
+    auto it = named_values_.find(ident.name);
 
-llvm::Value* Compiler::generate(const BooleanLiteral& lit)
-{
-    return llvm::ConstantInt::get(builder->getInt1Ty(), lit.value ? 1 : 0);
+    Doctor::compiler().check(
+        it == named_values_.end(),
+        "Undefined variable: " + ident.name
+    );
+
+    auto* alloca = it->second;
+    return builder
+        ->CreateLoad(alloca->getAllocatedType(), alloca, ident.name + "_load");
 }
 
 llvm::Type* Compiler::generate(Type_ptr wasp_type)
@@ -214,24 +351,38 @@ llvm::Type* Compiler::generate(Type_ptr wasp_type)
         "Cannot generate LLVM type for null Wasp type"
     );
 
-    if (wasp_type->is<IntType_ptr>())
-    {
-        return builder->getInt32Ty();
-    }
-    if (wasp_type->is<FloatType_ptr>())
-    {
-        return builder->getDoubleTy();
-    }
-    if (wasp_type->is<StringType_ptr>())
-    {
-        return builder->getPtrTy();
-    }
-    if (wasp_type->is<BooleanType_ptr>())
-    {
-        return builder->getInt1Ty();
-    }
+    auto result = std::visit(
+        overloaded{
+            [&](const IntType_ptr&) -> llvm::Type*
+            {
+                return builder->getInt32Ty();
+            },
+            [&](const FloatType_ptr&) -> llvm::Type*
+            {
+                return builder->getDoubleTy();
+            },
+            [&](const StringType_ptr&) -> llvm::Type*
+            {
+                return builder->getPtrTy();
+            },
+            [&](const BooleanType_ptr&) -> llvm::Type*
+            {
+                return builder->getInt1Ty();
+            },
+            [&](const auto&) -> llvm::Type*
+            {
+                Doctor::get().fatal("Unsupported type in code generation");
+            }
+        },
+        wasp_type->data
+    );
 
-    return nullptr;
+    Doctor::compiler().fatal_if_nullptr(
+        result,
+        "Failed to generate LLVM type for Wasp type"
+    );
+
+    return result;
 }
 
 } // namespace Wasp
