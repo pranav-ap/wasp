@@ -57,20 +57,20 @@ void Compiler::run(const std::vector<Module_ptr>& build_order)
     Doctor::get().start();
 
     // Create implicit main function
-    auto main_type = llvm::FunctionType::get(
+    llvm::FunctionType* main_type = llvm::FunctionType::get(
         builder->getInt32Ty(), // return type: int
         {},                    // no parameters
         false
     );
 
-    auto main_func = llvm::Function::Create(
+    llvm::Function* main_func = llvm::Function::Create(
         main_type,
         llvm::Function::ExternalLinkage,
         "main",
         llvm_module.get()
     );
 
-    auto entry = llvm::BasicBlock::Create(*context, "entry", main_func);
+    llvm::BasicBlock* entry = llvm::BasicBlock::Create(*context, "entry", main_func);
     builder->SetInsertPoint(entry);
 
     for (const auto& mod : build_order)
