@@ -64,23 +64,29 @@ FetchContent_MakeAvailable(fmt)
 
 # LLVM
 
-find_package(LLVM REQUIRED CONFIG)
+# find_package(LLVM REQUIRED CONFIG)
 
-message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
-message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+# message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
+# message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
-execute_process(
-    COMMAND llvm-config-22 --libs core support target x86 asmprinter mc object
-    OUTPUT_VARIABLE LLVM_LIBS_RAW
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-string(REPLACE " " ";" LLVM_LIBS_TEMP "${LLVM_LIBS_RAW}")
-set(LLVM_LIBS "")
-foreach(LIB ${LLVM_LIBS_TEMP})
-    string(REPLACE "-l" "" LIB_NAME "${LIB}")
-    list(APPEND LLVM_LIBS ${LIB_NAME})
-endforeach()
-message(STATUS "LLVM_LIBS: ${LLVM_LIBS}")
+# execute_process(
+#     COMMAND llvm-config-22 --libs core support target x86 asmprinter mc object
+#     OUTPUT_VARIABLE LLVM_LIBS_RAW
+#     OUTPUT_STRIP_TRAILING_WHITESPACE
+# )
+# string(REPLACE " " ";" LLVM_LIBS_TEMP "${LLVM_LIBS_RAW}")
+# set(LLVM_LIBS "")
+# foreach(LIB ${LLVM_LIBS_TEMP})
+#     string(REPLACE "-l" "" LIB_NAME "${LIB}")
+#     list(APPEND LLVM_LIBS ${LIB_NAME})
+# endforeach()
+# message(STATUS "LLVM_LIBS: ${LLVM_LIBS}")
+
+# ==========================================
+# QBE (Quick Backend)
+# ==========================================
+
+find_program(QBE_EXECUTABLE qbe REQUIRED)
 
 # ==========================================
 # Wasp Modules
