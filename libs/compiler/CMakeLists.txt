@@ -10,6 +10,7 @@ target_link_directories(CompilerLib PUBLIC ${LLVM_LIBRARY_DIRS})
 
 target_link_libraries(CompilerLib PUBLIC
     ${LLVM_LIBS}
+    SalterLib
     SemanticsLib
     ASTLib
     TokenLib

@@ -1,6 +1,8 @@
 #include "Workspace.h"
+#include "Doctor.h"
 #include "Statement.h"
 
+#include <cstddef>
 #include <filesystem>
 #include <map>
 #include <string>
@@ -28,8 +30,45 @@ std::string Module::get_path() const
     return absolute_filepath.string();
 }
 
+std::string Module::get_qualified_name() const
+{
+    Doctor::semantics().fatal_if_empty_string(
+        absolute_filepath,
+        "Module file path cannot be empty"
+    );
+
+    // todo - remove hardcoding
+    std::filesystem::path project_root = "/workspaces/wasp/code";
+
+    std::string result;
+
+    // Get the relative path from project root
+    auto rel_path = std::filesystem::relative(absolute_filepath, project_root);
+    result = rel_path.string();
+
+    // Replace path separators with underscores
+
+    for (char& c : result)
+    {
+        if (c == '/' || c == '\\')
+        {
+            c = '_';
+        }
+    }
+
+    // Remove file extension
+    size_t dot_pos = result.find_last_of('.');
+
+    if (dot_pos != std::string::npos)
+    {
+        result = result.substr(0, dot_pos);
+    }
+
+    return result;
+}
+
 // ============================================================================
-// Workspace Implementation
+// Workspace
 // ============================================================================
 
 Workspace::Workspace(std::filesystem::path root)

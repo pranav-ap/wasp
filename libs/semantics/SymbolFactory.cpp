@@ -1,5 +1,6 @@
 #include "SymbolFactory.h"
 #include "AST.h"
+#include "Doctor.h"
 #include "Symbol.h"
 #include "Type.h"
 
@@ -72,6 +73,12 @@ Symbol_ptr SymbolFactory::create_function(
     int lexical_depth
 )
 {
+    Doctor::semantics().check(
+        name != "main",
+        "Cannot define a function named 'main'. The 'main' function is reserved as "
+        "the program entry point."
+    );
+
     return create_symbol(
         name,
         FunctionSymbol{type, false, false, false},

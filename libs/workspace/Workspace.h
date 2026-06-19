@@ -32,6 +32,8 @@ struct Module
 
     std::string get_name() const;
     std::string get_path() const;
+
+    std::string get_qualified_name() const;
 };
 
 // ============================================================================

@@ -62,26 +62,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(fmt)
 
-# LLVM
-
-# find_package(LLVM REQUIRED CONFIG)
-
-# message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
-# message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
-
-# execute_process(
-#     COMMAND llvm-config-22 --libs core support target x86 asmprinter mc object
-#     OUTPUT_VARIABLE LLVM_LIBS_RAW
-#     OUTPUT_STRIP_TRAILING_WHITESPACE
-# )
-# string(REPLACE " " ";" LLVM_LIBS_TEMP "${LLVM_LIBS_RAW}")
-# set(LLVM_LIBS "")
-# foreach(LIB ${LLVM_LIBS_TEMP})
-#     string(REPLACE "-l" "" LIB_NAME "${LIB}")
-#     list(APPEND LLVM_LIBS ${LIB_NAME})
-# endforeach()
-# message(STATUS "LLVM_LIBS: ${LLVM_LIBS}")
-
 # ==========================================
 # QBE (Quick Backend)
 # ==========================================
@@ -100,6 +80,7 @@ add_subdirectory(libs/ast)
 add_subdirectory(libs/parser)
 add_subdirectory(libs/captain)
 add_subdirectory(libs/semantics)
+add_subdirectory(libs/salter)
 add_subdirectory(libs/compiler)
 
 add_subdirectory(src)

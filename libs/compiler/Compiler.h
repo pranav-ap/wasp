@@ -6,17 +6,8 @@
 #include "Type.h"
 #include "Workspace.h"
 
-#include "llvm/IR/Instructions.h"
-#include "llvm/IR/Type.h"
-#include "llvm/IR/Value.h"
-#include <llvm/IR/DerivedTypes.h>
-#include <llvm/IR/IRBuilder.h>
-#include <llvm/IR/LLVMContext.h>
-#include <llvm/IR/Module.h>
-
-#include <memory>
+#include <map>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 namespace Wasp
@@ -24,37 +15,38 @@ namespace Wasp
 class Compiler
 {
 public:
-    explicit Compiler();
+    explicit Compiler() {};
 
     ~Compiler() = default;
 
     void run(const std::vector<Module_ptr>& build_order);
 
 private:
-    std::unique_ptr<llvm::LLVMContext> context;
-    std::unique_ptr<llvm::IRBuilder<>> builder;
-    std::unique_ptr<llvm::Module> llvm_module;
+    int string_counter = 0;
+    int temp_counter = 0;
+    std::map<std::string, std::string> named_values;
 
-    std::unordered_map<std::string, llvm::AllocaInst*> named_values_;
-    llvm::Function* current_function_ = nullptr;
-
+private:
     // Statements
 
-    void generate(const Statement_ptr& stmt);
-    void generate(const Block& stmt);
+    std::string generate(const Statement_ptr);
+    std::string generate(const Block&);
 
-    void generate(const ExpressionStatement& stmt);
+    std::string generate(const ExpressionStatement&);
 
     // Expressions
 
-    llvm::Value* generate(const Expression_ptr& expr);
+    std::string generate(const Expression_ptr);
 
-    llvm::Value* generate(const Binding& binding);
-    llvm::Value* generate(const Assignment& assignment);
-    llvm::Value* generate(const Identifier& ident);
+    std::string generate(const Prefix&);
+    std::string generate(const Infix&);
+
+    std::string generate(const Binding&);
+    std::string generate(const Assignment&);
+    std::string generate(const Identifier&);
 
     // Types
 
-    llvm::Type* generate(Type_ptr wasp_type);
+    std::string generate(Type_ptr wasp_type);
 };
 } // namespace Wasp

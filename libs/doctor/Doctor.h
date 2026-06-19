@@ -121,6 +121,21 @@ public:
         }
     }
 
+    void fatal_if_empty_string(
+        const std::string& text,
+        const std::string& message = "",
+        const std::source_location location = std::source_location::current()
+    ) const
+    {
+        if (text.empty())
+        {
+            std::string final_msg = message.empty() ? "Didn't expect an empty string"
+                                                    : message;
+
+            fatal(final_msg, location);
+        }
+    }
+
     template <typename T> bool is_nullptr(T ptr, WaspStage) const
     {
         if (ptr == nullptr) {

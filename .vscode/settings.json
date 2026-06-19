@@ -4,7 +4,10 @@
         "build": true,
         "include": true,
         ".devcontainer": true,
-        "assets": true
+        "assets": true,
+        "logs": true,
+        ".github": true,
+        "third_party": true
     },
     "files.associations": {
         "**/.github/workflows/*.{yml,yaml}": "yaml",

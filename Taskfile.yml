@@ -42,12 +42,14 @@ tasks:
     cmds:
       - clear
       - wasp run ./code/main.wasp
-      - clang ./code/build/main.ll -o ./code/build/main
+      - qbe ./code/build/main.ssa -o ./code/build/main.s
+      - cc ./code/build/main.s -o ./code/build/main
       - ./code/build/main
 
   play:
-    desc: Generate LLVM IR for play
+    desc: Play with QBE
     cmds:
       - clear
-      - clang ./play/a.ll -o ./play/a
-      - ./play/a
+      - qbe ./play/test.ssa -o ./play/test.s
+      - cc ./play/test.s -o ./play/test
+      - ./play/test
