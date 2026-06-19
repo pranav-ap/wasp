@@ -71,3 +71,6 @@ Testing/
 logs/*
 
 third_party/*
+play/*
+*.ssa
+*.s

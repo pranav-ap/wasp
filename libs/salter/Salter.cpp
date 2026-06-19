@@ -1,11 +1,16 @@
 #include "Salter.h"
 #include "AST.h"
+#include "Doctor.h"
 #include "Expression.h"
 #include "Statement.h"
+#include "SymbolScope.h"
 #include "Token.h"
+#include "Workspace.h"
 
 #include <cstddef>
+#include <memory>
 #include <variant>
+#include <vector>
 
 namespace Wasp
 {
@@ -14,50 +19,95 @@ namespace Wasp
 // Main Entry Point
 // ============================================================================
 
-void Salter::visit(Block& block)
+void Salter::run(const std::vector<Module_ptr>& build_order)
 {
-    for (auto& statement : block.statements)
+    Doctor::get().start();
+
+    enter_scope(ScopeType::WORKSPACE);
+
+    for (const auto& mod : build_order)
     {
-        visit(statement);
+        current_module = mod;
+
+        enter_scope(ScopeType::MODULE);
+        mod->block = salt(mod->block);
+        leave_scope();
     }
+
+    leave_scope();
+
+    Doctor::get().stop();
 }
 
-void Salter::visit(Statement_ptr statement)
+void Salter::enter_scope(ScopeType scope_type)
 {
-    std::visit(
-        [&](auto& node)
-        {
-            if constexpr (requires { visit(node); })
-            {
-                visit(node);
-            }
-        },
-        statement->data
-    );
+    auto new_scope = std::make_shared<SymbolScope>(scope_type, current_scope);
+
+    current_scope = new_scope;
+}
+
+void Salter::leave_scope()
+{
+    if (current_scope != nullptr)
+    {
+        current_scope = current_scope->enclosing_scope;
+    }
 }
 
 // ============================================================================
 // Statement Visitors
 // ============================================================================
 
-void Salter::visit(FunctionDefinition& statement)
+Statement_ptr Salter::visit(Statement_ptr statement)
 {
-    visit(statement.block);
+    return std::visit(
+        [&](auto& node) -> Statement_ptr
+        {
+            if constexpr (requires { visit(node); })
+            {
+                return visit(node);
+            }
+
+            return statement;
+        },
+        statement->data
+    );
 }
 
-void Salter::visit(MethodDefinition& statement)
+Block Salter::salt(Block& block)
 {
-    visit(statement.block);
+    Block new_block;
+
+    for (auto& statement : block.statements)
+    {
+        Statement_ptr new_stmt = visit(statement);
+
+        if (new_stmt->is<Block>())
+        {
+            for (auto& stmt : new_stmt->as<Block>().statements)
+            {
+                new_block.add(stmt);
+            }
+
+            continue;
+        }
+
+        new_block.add(new_stmt);
+    }
+
+    return new_block;
 }
 
-void Salter::visit(OperatorDefinition& statement)
+Statement_ptr Salter::visit(Block& block)
 {
-    visit(statement.block);
+    Block new_block = salt(block);
+    return make_statement(new_block);
 }
 
-void Salter::visit(ExpressionStatement& statement)
+Statement_ptr Salter::visit(ExpressionStatement& statement)
 {
-    visit(statement.expression);
+    Expression_ptr expr = visit(statement.expression);
+    return make_statement(ExpressionStatement{expr});
 }
 
 // ============================================================================
@@ -73,10 +123,8 @@ Expression_ptr Salter::visit(Expression_ptr expression)
             {
                 return visit(node);
             }
-            else
-            {
-                return nullptr;
-            }
+
+            return expression;
         },
         expression->data
     );
@@ -84,6 +132,11 @@ Expression_ptr Salter::visit(Expression_ptr expression)
 
 Expression_ptr Salter::visit(InterpolatedString& binding)
 {
+    if (binding.parts.empty())
+    {
+        return make_expression(StringLiteral{""});
+    }
+
     ExpressionVector new_parts;
 
     for (auto& part : binding.parts)
@@ -92,21 +145,21 @@ Expression_ptr Salter::visit(InterpolatedString& binding)
         new_parts.push_back(new_part);
     }
 
-    // add infix
-
-    for (size_t i = 0; i < new_parts.size() - 1; i++)
+    if (new_parts.size() == 1)
     {
-        auto& left = new_parts[i];
-        auto& right = new_parts[i + 1];
-
-        auto infix_expr = make_expression(
-            Infix{left, Token(TokenType::PLUS), right}
-        );
-
-        new_parts[i + 1] = infix_expr;
+        return new_parts.front();
     }
 
-    return new_parts;
+    Expression_ptr result = new_parts.front();
+
+    for (size_t i = 1; i < new_parts.size(); i++)
+    {
+        result = make_expression(
+            Infix{result, Token(TokenType::PLUS, "+"), new_parts[i]}
+        );
+    }
+
+    return result;
 }
 
 } // namespace Wasp

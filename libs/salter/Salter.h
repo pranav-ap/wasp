@@ -2,55 +2,47 @@
 
 #include "AST.h"
 #include "Expression.h"
-#include "Phase.h"
 #include "Statement.h"
-#include "Type.h"
-
+#include "SymbolScope.h"
+#include "Workspace.h"
 #include <vector>
 
 namespace Wasp
 {
 
-class Salter : public Phase
+class Salter
 {
 public:
-    explicit Salter() : Phase()
+    explicit Salter()
     {
     }
 
+    void run(const std::vector<Module_ptr>& build_order);
+
 private:
-    Block salted_block;
+    Module_ptr current_module;
+    SymbolScope_ptr current_scope;
 
 private:
     // Statements
 
-    void visit(Block& block);
-    void visit(Statement_ptr statement);
+    Statement_ptr visit(Block& block);
+    Block salt(Block& block);
 
-    void visit(Import& statement);
+    Statement_ptr visit(Statement_ptr statement);
 
-    void visit(FunctionDefinition& statement);
-    void visit(MethodDefinition& statement);
-    void visit(OperatorDefinition& statement);
-    void visit(ClassDefinition& statement);
-    void visit(TraitDefinition& statement);
-    void visit(PrimitiveDefinition& statement);
-    void visit(EnumDefinition& statement);
-    void visit(TypeAliasDefinition& statement);
-
-    void visit(Branch& statement);
-    void visit(SimpleLoop& statement);
-    void visit(ForInLoop& statement);
-
-    void visit(Return& statement);
-
-    void visit(ExpressionStatement& statement);
+    Statement_ptr visit(ExpressionStatement& statement);
 
     // Expressions
 
     Expression_ptr visit(Expression_ptr expression);
 
     Expression_ptr visit(InterpolatedString& expr);
+
+    // Utils
+
+    void enter_scope(ScopeType scope_type);
+    void leave_scope();
 };
 
 } // namespace Wasp

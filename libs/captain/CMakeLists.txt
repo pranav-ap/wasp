@@ -9,6 +9,7 @@ target_link_libraries(CaptainLib
         ASTLib
         ParserLib
         SemanticsLib
+        SalterLib
         CompilerLib
 )
 

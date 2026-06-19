@@ -4,6 +4,7 @@
 #include "Doctor.h"
 #include "Lexer.h"
 #include "Parser.h"
+#include "Salter.h"
 #include "SemanticsAnalyzer.h"
 #include "Workspace.h"
 
@@ -95,8 +96,11 @@ void Captain::build()
 
     auto build_order = calculate_build_order();
 
-    SemanticsAnalyzer sa;
-    sa.run(build_order);
+    SemanticsAnalyzer semantics_analyzer;
+    semantics_analyzer.run(build_order);
+
+    Salter salter;
+    salter.run(build_order);
 
     Compiler compiler;
     compiler.run(build_order);

@@ -254,6 +254,8 @@ using StatementVariant = std::variant<
     TraitDefinition,
     PrimitiveDefinition,
 
+    Block,
+
     Branch,
 
     SimpleLoop,
