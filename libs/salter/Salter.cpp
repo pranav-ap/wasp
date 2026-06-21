@@ -41,7 +41,7 @@ void Salter::run(const std::vector<Module_ptr>& build_order)
         mod->block = salt(mod->block);
         leave_scope();
 
-        mod->save("salter");
+        mod->save_ast("salter");
     }
 
     leave_scope();
@@ -229,7 +229,7 @@ Statement_ptr Salter::visit(PrimitiveDefinition& def)
 Block Salter::salt(TypeDefinition& def)
 {
     RecordDefinition record{
-        def.name + "record_",
+        def.name + "_record",
         def.fields,
         def.symbol,
         def.overload_symbol

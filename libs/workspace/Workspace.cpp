@@ -72,7 +72,7 @@ std::string Module::get_qualified_name() const
     return result;
 }
 
-void Module::save(const std::string& tag)
+void Module::save_ast(const std::string& tag)
 {
     std::string wasp_file = this->absolute_filepath.string();
 

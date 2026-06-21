@@ -35,7 +35,7 @@ struct Module
 
     std::string get_qualified_name() const;
 
-    void save(const std::string& tag);
+    void save_ast(const std::string& tag);
 };
 
 // ============================================================================

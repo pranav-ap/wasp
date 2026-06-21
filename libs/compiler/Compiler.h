@@ -3,6 +3,7 @@
 #include "AST.h"
 #include "Expression.h"
 #include "Statement.h"
+#include "SymbolScope.h"
 #include "Type.h"
 #include "Workspace.h"
 
@@ -22,6 +23,9 @@ public:
     void run(const std::vector<Module_ptr>& build_order);
 
 private:
+    Module_ptr current_module;
+    SymbolScope_ptr current_scope;
+
     int string_counter = 0;
     int temp_counter = 0;
     std::map<std::string, std::string> named_values;
@@ -48,5 +52,10 @@ private:
     // Types
 
     std::string generate(Type_ptr wasp_type);
+
+    // Utils
+
+    void enter_scope(ScopeType scope_type);
+    void leave_scope();
 };
 } // namespace Wasp

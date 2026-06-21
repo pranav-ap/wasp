@@ -3,6 +3,7 @@
 #include "Doctor.h"
 #include "Expression.h"
 #include "Statement.h"
+#include "SymbolScope.h"
 #include "Token.h"
 #include "Type.h"
 #include "Workspace.h"
@@ -52,6 +53,10 @@ void save_to_file(std::stringstream& qbe_output)
 
 } // namespace
 
+// ============================================================================
+// Entry Point
+// ============================================================================
+
 void Compiler::run(const std::vector<Module_ptr>& build_order)
 {
     Doctor::get().start();
@@ -69,6 +74,8 @@ void Compiler::run(const std::vector<Module_ptr>& build_order)
     // Generate code for all modules inside main
     for (const auto& mod : build_order)
     {
+        current_module = mod;
+
         std::string module_text = generate(mod->block);
         qbe_output << module_text;
     }
@@ -349,15 +356,15 @@ std::string Compiler::generate(Type_ptr wasp_type)
         overloaded{
             [&](const IntType_ptr&) -> std::string
             {
-                return "w"; // 32-bit integer
+                return "w"; // word - 32-bit integer
             },
             [&](const FloatType_ptr&) -> std::string
             {
-                return "s"; // 32-bit float
+                return "s"; // single - 32-bit float
             },
             [&](const StringType_ptr&) -> std::string
             {
-                return "l"; // Pointer (64-bit)
+                return "l"; // long - 64-bit integer
             },
             [&](const BooleanType_ptr&) -> std::string
             {
@@ -366,11 +373,29 @@ std::string Compiler::generate(Type_ptr wasp_type)
             [&](const auto&) -> std::string
             {
                 Doctor::get().fatal("Unsupported type in code generation");
-                return "";
             }
         },
         wasp_type->data
     );
+}
+
+// ============================================================================
+// Utils
+// ============================================================================
+
+void Compiler::enter_scope(ScopeType scope_type)
+{
+    auto new_scope = std::make_shared<SymbolScope>(scope_type, current_scope);
+
+    current_scope = new_scope;
+}
+
+void Compiler::leave_scope()
+{
+    if (current_scope != nullptr)
+    {
+        current_scope = current_scope->enclosing_scope;
+    }
 }
 
 } // namespace Wasp

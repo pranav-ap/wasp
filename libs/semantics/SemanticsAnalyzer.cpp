@@ -32,7 +32,7 @@ void SemanticsAnalyzer::run(const std::vector<Module_ptr>& build_order)
 
         fin.run(mod);
 
-        mod->save("semantics");
+        mod->save_ast("semantics");
     }
 
     leave_scope();

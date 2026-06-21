@@ -103,7 +103,7 @@ void Captain::parse_module(const std::filesystem::path& file_path)
 
     auto mod = std::make_shared<Module>(abs_path, stmts);
     workspace->add_module(abs_path, mod);
-    mod->save("parser");
+    mod->save_ast("parser");
 }
 
 std::vector<Module_ptr> Captain::calculate_build_order()
