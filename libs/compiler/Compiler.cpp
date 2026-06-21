@@ -153,7 +153,7 @@ std::string Compiler::generate(const Expression_ptr expr)
             {
                 return std::to_string(lit.value);
             },
-            [&](const StringLiteral& lit) -> std::string
+            [&](const StringLiteral&) -> std::string
             {
                 std::string name = "$str_" + std::to_string(string_counter++);
                 return name;
@@ -162,7 +162,7 @@ std::string Compiler::generate(const Expression_ptr expr)
             {
                 return lit.value ? "1" : "0";
             },
-            [&](const NoneLiteral& lit) -> std::string
+            [&](const NoneLiteral&) -> std::string
             {
                 return "0";
             },

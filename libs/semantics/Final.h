@@ -7,8 +7,6 @@
 #include "Type.h"
 #include "TypeNode.h"
 
-#include <vector>
-
 namespace Wasp
 {
 
@@ -47,7 +45,7 @@ private:
     // Expressions
 
     Type_ptr visit(Expression_ptr expression);
-    TypeVector visit(std::vector<Expression_ptr>& expressions);
+    TypeVector visit(ExpressionVector& expressions);
 
     Type_ptr visit(Binding& binding);
     Type_ptr visit(Assignment& expr);

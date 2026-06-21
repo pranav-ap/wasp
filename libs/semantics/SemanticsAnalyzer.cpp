@@ -31,6 +31,8 @@ void SemanticsAnalyzer::run(const std::vector<Module_ptr>& build_order)
         auto scope_forest = collector.get_scope_forest();
 
         fin.run(mod);
+
+        mod->save("semantics");
     }
 
     leave_scope();

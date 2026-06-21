@@ -37,7 +37,7 @@ Type_ptr Final::visit(Expression_ptr expression)
     );
 }
 
-TypeVector Final::visit(std::vector<Expression_ptr>& expressions)
+TypeVector Final::visit(ExpressionVector& expressions)
 {
     TypeVector types;
 

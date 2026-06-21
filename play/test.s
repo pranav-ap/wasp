@@ -10,12 +10,7 @@ str:
 .globl main
 main:
 	endbr64
-	pushq %rbp
-	movq %rsp, %rbp
-	leaq str(%rip), %rdi
-	callq puts
-	movl $0, %eax
-	leave
+	movl $30, %eax
 	ret
 .type main, @function
 .size main, .-main

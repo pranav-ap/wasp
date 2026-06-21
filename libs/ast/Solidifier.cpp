@@ -43,6 +43,29 @@ Statement_ptr Solidifier::solidify(
 }
 
 Statement_ptr Solidifier::solidify(
+    const RecordDefinition& record,
+    const TypeNodeVector& type_arguments
+)
+{
+    auto subst_map = build_substitution_map(record.fields, type_arguments);
+    return solidify(record, subst_map);
+}
+
+Statement_ptr Solidifier::solidify(
+    const RecordDefinition& record,
+    const std::map<std::string, TypeNode_ptr>& substitution_map
+)
+{
+    RecordDefinition result;
+    result.name = record.name;
+    result.fields = solidify(record.fields, substitution_map);
+    result.symbol = record.symbol;
+    result.overload_symbol = record.overload_symbol;
+
+    return make_statement(result);
+}
+
+Statement_ptr Solidifier::solidify(
     const ClassDefinition& cls,
     const TypeNodeVector& type_arguments
 )
@@ -92,6 +115,10 @@ Statement_ptr Solidifier::solidify(
                 result.expression = solidify(s.expression, substitution_map);
                 return make_statement(result);
             },
+            [&](const Block& s) -> Statement_ptr
+            {
+                return solidify(s, substitution_map);
+            },
             [&](const TypeAliasDefinition& s) -> Statement_ptr
             {
                 TypeAliasDefinition result;
@@ -130,10 +157,14 @@ Statement_ptr Solidifier::solidify(
                 // Solidify return type
                 result.return_type = solidify(s.return_type, substitution_map);
                 // Solidify body
-                result.block = solidify(s.block, substitution_map);
+                result.block = solidify_block(s.block, substitution_map);
                 result.symbol = s.symbol; // TODO must handle symbols
                 result.overload_symbol = s.overload_symbol;
                 return make_statement(result);
+            },
+            [&](const RecordDefinition& s) -> Statement_ptr
+            {
+                return solidify(s, substitution_map);
             },
             [&](const ClassDefinition& s) -> Statement_ptr
             {
@@ -151,7 +182,7 @@ Statement_ptr Solidifier::solidify(
             {
                 Branch result;
                 result.test = solidify(s.test, substitution_map);
-                result.block = solidify(s.block, substitution_map);
+                result.block = solidify_block(s.block, substitution_map);
                 result.alternative = solidify(s.alternative, substitution_map);
                 return make_statement(result);
             },
@@ -160,7 +191,7 @@ Statement_ptr Solidifier::solidify(
                 SimpleLoop result;
                 result.style = s.style;
                 result.test = solidify(s.test, substitution_map);
-                result.block = solidify(s.block, substitution_map);
+                result.block = solidify_block(s.block, substitution_map);
                 return make_statement(result);
             },
             [&](const ForInLoop& s) -> Statement_ptr
@@ -169,7 +200,7 @@ Statement_ptr Solidifier::solidify(
                 result.lhs_is_mutable = s.lhs_is_mutable;
                 result.lhs = solidify(s.lhs, substitution_map);
                 result.iterable = solidify(s.iterable, substitution_map);
-                result.block = solidify(s.block, substitution_map);
+                result.block = solidify_block(s.block, substitution_map);
                 return make_statement(result);
             },
             [&](const LoopControl& s) -> Statement_ptr
@@ -216,7 +247,16 @@ StatementVector Solidifier::solidify(
     return result;
 }
 
-Block Solidifier::solidify(
+Statement_ptr Solidifier::solidify(
+    const Block& block,
+    const std::map<std::string, TypeNode_ptr>& substitution_map
+)
+{
+    Block result = solidify_block(block, substitution_map);
+    return make_statement(result);
+}
+
+Block Solidifier::solidify_block(
     const Block& block,
     const std::map<std::string, TypeNode_ptr>& substitution_map
 )
@@ -429,7 +469,7 @@ Statement_ptr Solidifier::solidify(
     result.return_type = solidify(func.return_type, substitution_map);
 
     // Solidify the function body
-    result.block = solidify(func.block, substitution_map);
+    result.block = solidify_block(func.block, substitution_map);
 
     return make_statement(result);
 }
@@ -457,7 +497,7 @@ Statement_ptr Solidifier::solidify(
     result.return_type = solidify(method.return_type, substitution_map);
 
     // Solidify the method body
-    result.block = solidify(method.block, substitution_map);
+    result.block = solidify_block(method.block, substitution_map);
 
     return make_statement(result);
 }

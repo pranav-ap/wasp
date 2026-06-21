@@ -43,6 +43,10 @@ Statement_ptr ASTCloner::clone(const Statement_ptr& stmt)
             {
                 return clone(s);
             },
+            [&](const Block& s)
+            {
+                return clone(s);
+            },
             [&](const TypeAliasDefinition& s)
             {
                 return clone(s);
@@ -60,6 +64,10 @@ Statement_ptr ASTCloner::clone(const Statement_ptr& stmt)
                 return clone(s);
             },
             [&](const OperatorDefinition& s)
+            {
+                return clone(s);
+            },
+            [&](const RecordDefinition& s)
             {
                 return clone(s);
             },
@@ -294,7 +302,7 @@ TypeNode_ptr ASTCloner::clone(const TypeNode_ptr& type)
     return result;
 }
 
-Block ASTCloner::clone(const Block& block)
+Block ASTCloner::clone_block(const Block& block)
 {
     Block result;
     result.statements.reserve(block.statements.size());
@@ -408,6 +416,12 @@ Statement_ptr ASTCloner::clone(const ExpressionStatement& stmt)
     return make_statement(cloned);
 }
 
+Statement_ptr ASTCloner::clone(const Block& stmt)
+{
+    Block cloned = clone_block(stmt);
+    return make_statement(cloned);
+}
+
 Statement_ptr ASTCloner::clone(const TypeAliasDefinition& stmt)
 {
     TypeAliasDefinition cloned;
@@ -445,7 +459,7 @@ Statement_ptr ASTCloner::clone(const FunctionDefinition& stmt)
     cloned.generics = clone(stmt.generics);
     cloned.parameters = clone(stmt.parameters);
     cloned.return_type = clone(stmt.return_type);
-    cloned.block = clone(stmt.block);
+    cloned.block = clone_block(stmt.block);
     cloned.is_pure = stmt.is_pure;
     return make_statement(cloned);
 }
@@ -456,7 +470,7 @@ Statement_ptr ASTCloner::clone(const MethodDefinition& stmt)
     cloned.name = stmt.name;
     cloned.parameters = clone(stmt.parameters);
     cloned.return_type = clone(stmt.return_type);
-    cloned.block = clone(stmt.block);
+    cloned.block = clone_block(stmt.block);
     cloned.is_pure = stmt.is_pure;
     cloned.is_shared = stmt.is_shared;
     return make_statement(cloned);
@@ -471,7 +485,15 @@ Statement_ptr ASTCloner::clone(const OperatorDefinition& stmt)
     cloned.fixity = stmt.fixity;
     cloned.operands = clone(stmt.operands);
     cloned.return_type = clone(stmt.return_type);
-    cloned.block = clone(stmt.block);
+    cloned.block = clone_block(stmt.block);
+    return make_statement(cloned);
+}
+
+Statement_ptr ASTCloner::clone(const RecordDefinition& stmt)
+{
+    RecordDefinition cloned;
+    cloned.name = stmt.name;
+    cloned.fields = clone(stmt.fields);
     return make_statement(cloned);
 }
 
@@ -511,7 +533,7 @@ Statement_ptr ASTCloner::clone(const PrimitiveDefinition& stmt)
 Statement_ptr ASTCloner::clone(const Branch& stmt)
 {
     Branch cloned;
-    cloned.block = clone(stmt.block);
+    cloned.block = clone_block(stmt.block);
     cloned.test = clone(stmt.test);
     cloned.alternative = clone(stmt.alternative);
     return make_statement(cloned);
@@ -522,7 +544,7 @@ Statement_ptr ASTCloner::clone(const SimpleLoop& stmt)
     SimpleLoop cloned;
     cloned.test = clone(stmt.test);
     cloned.style = stmt.style;
-    cloned.block = clone(stmt.block);
+    cloned.block = clone_block(stmt.block);
     return make_statement(cloned);
 }
 
@@ -532,7 +554,7 @@ Statement_ptr ASTCloner::clone(const ForInLoop& stmt)
     cloned.lhs_is_mutable = stmt.lhs_is_mutable;
     cloned.lhs = clone(stmt.lhs);
     cloned.iterable = clone(stmt.iterable);
-    cloned.block = clone(stmt.block);
+    cloned.block = clone_block(stmt.block);
     return make_statement(cloned);
 }
 
@@ -640,7 +662,6 @@ Expression_ptr ASTCloner::clone(const Call& expr)
     cloned.angular_nodes = clone(expr.angular_nodes);
     cloned.arguments = clone(expr.arguments);
     cloned.owner_kind = expr.owner_kind;
-    cloned.kind = expr.kind;
     cloned.overload_index = expr.overload_index;
     cloned.owner_type_id = expr.owner_type_id;
     return make_expression(cloned);

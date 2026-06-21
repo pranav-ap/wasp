@@ -127,19 +127,21 @@ struct Call
 
     enum class OwnerKind
     {
-        IDK,
+        NONE,
 
         CLASS,
         TRAIT,
         PRIMITIVE
-    } owner_kind = OwnerKind::IDK;
+    } owner_kind = OwnerKind::NONE;
 
-    enum class Kind
-    {
-        FREE,
-        INSTANCE,
-        STATIC
-    } kind = Kind::FREE;
+    // enum class Kind
+    // {
+    //     FREE,
+    //     INSTANCE,
+    //     STATIC
+    // } kind = Kind::FREE;
+
+    std::string owner_name = "";
 
     int overload_index = -1;
     int owner_type_id = -1;

@@ -45,24 +45,6 @@ Type_ptr resolve_function(
     return function_type->signature->return_type;
 }
 
-Call::Kind get_call_kind(Expression_ptr owner, SymbolScope_ptr scope)
-{
-    if (!owner->is<Identifier>())
-    {
-        return Call::Kind::FREE;
-    }
-
-    auto name = owner->as<Identifier>().name;
-    auto sym = scope->lookup_required_and_resolve(name);
-
-    if (sym->is<TypeSymbol>() || name == "our")
-    {
-        return Call::Kind::STATIC;
-    }
-
-    return Call::Kind::INSTANCE;
-}
-
 Type_ptr resolve_method(
     Call& call,
     MemberAccess& ma,
@@ -167,7 +149,7 @@ Type_ptr Final::handle_call(
             [&](ClassType_ptr class_type) -> Type_ptr
             {
                 call.owner_kind = Call::OwnerKind::CLASS;
-                call.kind = get_call_kind(access.owner, current_scope);
+                call.owner_name = class_type->name;
 
                 return resolve_method(
                     call,
@@ -183,7 +165,7 @@ Type_ptr Final::handle_call(
             [&](TraitType_ptr trait_type) -> Type_ptr
             {
                 call.owner_kind = Call::OwnerKind::TRAIT;
-                call.kind = get_call_kind(access.owner, current_scope);
+                call.owner_name = trait_type->name;
 
                 return resolve_method(
                     call,
@@ -199,7 +181,7 @@ Type_ptr Final::handle_call(
             [&](PrimitiveType_ptr primitive_type) -> Type_ptr
             {
                 call.owner_kind = Call::OwnerKind::PRIMITIVE;
-                call.kind = get_call_kind(access.owner, current_scope);
+                call.owner_name = primitive_type->name;
 
                 return resolve_method(
                     call,

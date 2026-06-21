@@ -153,8 +153,22 @@ public:
         return false;
     }
 
-    void start()
+    void start(std::string text = "")
     {
+        if (text.empty())
+        {
+            fmt::print(stdout, "Starting {} stage...\n", to_string(current_stage));
+        }
+        else
+        {
+            fmt::print(
+                stdout,
+                "Starting {} stage: {}...\n",
+                to_string(current_stage),
+                text
+            );
+        }
+
         timer_start = std::chrono::steady_clock::now();
     }
 

@@ -1,10 +1,15 @@
 #include "Workspace.h"
+#include "ASTPrinter.h"
 #include "Doctor.h"
 #include "Statement.h"
+#include "nlohmann/json_fwd.hpp"
 
 #include <cstddef>
 #include <filesystem>
+#include <fstream>
+#include <iostream>
 #include <map>
+#include <stdexcept>
 #include <string>
 #include <utility>
 
@@ -65,6 +70,43 @@ std::string Module::get_qualified_name() const
     }
 
     return result;
+}
+
+void Module::save(const std::string& tag)
+{
+    std::string wasp_file = this->absolute_filepath.string();
+
+    // TODO remove hardcoding
+    std::filesystem::path code_path = "/workspaces/wasp/code";
+    std::filesystem::path relative_path = std::filesystem::relative(
+        wasp_file,
+        code_path
+    );
+
+    // Build output path
+    std::filesystem::path output_path = std::filesystem::path(
+                                            "/workspaces/wasp/code/build/ast"
+                                        ) /
+                                        tag / relative_path;
+    output_path += ".ast.json";
+
+    // Create directories
+    std::filesystem::create_directories(output_path.parent_path());
+
+    // Generate JSON
+    nlohmann::json json = ASTPrinter::get().print(this->block);
+
+    // Write to file
+    std::ofstream file(output_path.string());
+    if (!file.is_open())
+    {
+        throw std::runtime_error("Failed to open file: " + output_path.string());
+    }
+
+    file << json.dump(4);
+    file.close();
+
+    std::cout << "AST saved to: " << output_path.string() << std::endl;
 }
 
 // ============================================================================

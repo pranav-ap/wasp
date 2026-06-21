@@ -24,6 +24,12 @@ void Final::visit(Branch& stmt)
     enter_scope(ScopeType::BRANCH);
     visit(stmt.test);
     visit(stmt.block);
+
+    if (stmt.alternative != nullptr)
+    {
+        visit(stmt.alternative);
+    }
+
     leave_scope();
 }
 

@@ -13,7 +13,7 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build." FORCE)
 endif()
 
-# Enable strict warnings to catch bugs early!
+# Enable strict warnings
 # add_compile_options(-Wall -Wextra -Wpedantic)
 
 # Use the LLD linker if available
@@ -49,18 +49,22 @@ include(FetchContent)
 FetchContent_Declare(
   cpptrace
   GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
-  GIT_TAG        v0.7.5 # Stable release
+  GIT_TAG        v0.7.5
 )
 set(CPPTRACE_GET_SYMBOLS_WITH_LIBBACKTRACE ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(cpptrace)
 
-# fmt (Modern string formatting)
+# fmt
 FetchContent_Declare(
   fmt
   GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-  GIT_TAG        11.0.2 # Latest stable release
+  GIT_TAG        11.0.2
 )
 FetchContent_MakeAvailable(fmt)
+
+# nlohmann/json for JSON support
+FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz)
+FetchContent_MakeAvailable(json)
 
 # ==========================================
 # QBE (Quick Backend)

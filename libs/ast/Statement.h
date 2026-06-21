@@ -170,6 +170,16 @@ struct OperatorDefinition
     Symbol_ptr overload_symbol = nullptr;
 };
 
+struct RecordDefinition
+{
+    std::string name;
+
+    FieldVector fields;
+
+    Symbol_ptr symbol = nullptr;
+    Symbol_ptr overload_symbol = nullptr;
+};
+
 struct TypeDefinition
 {
     std::string name;
@@ -250,6 +260,7 @@ using StatementVariant = std::variant<
 
     OperatorDefinition,
 
+    RecordDefinition,
     ClassDefinition,
     TraitDefinition,
     PrimitiveDefinition,

@@ -49,6 +49,16 @@ public:
     );
 
     Statement_ptr solidify(
+        const RecordDefinition& cls,
+        const TypeNodeVector& type_arguments
+    );
+
+    Statement_ptr solidify(
+        const RecordDefinition& cls,
+        const std::map<std::string, TypeNode_ptr>& substitution_map
+    );
+
+    Statement_ptr solidify(
         const ClassDefinition& cls,
         const TypeNodeVector& type_arguments
     );
@@ -78,7 +88,12 @@ public:
         const std::map<std::string, TypeNode_ptr>& substitution_map
     );
 
-    Block solidify(
+    Statement_ptr solidify(
+        const Block& block,
+        const std::map<std::string, TypeNode_ptr>& substitution_map
+    );
+
+    Block solidify_block(
         const Block& block,
         const std::map<std::string, TypeNode_ptr>& substitution_map
     );

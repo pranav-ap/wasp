@@ -9,6 +9,8 @@
 #include "Workspace.h"
 
 #include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <memory>
 #include <string>
 #include <vector>
@@ -21,6 +23,26 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
+
+namespace
+{
+
+std::string read_file(const std::filesystem::path& file_path)
+{
+    std::ifstream file(file_path);
+
+    Doctor::captain().check(
+        file.is_open(),
+        "Failed to open file: " + file_path.string()
+    );
+
+    return std::string(
+        (std::istreambuf_iterator<char>(file)),
+        std::istreambuf_iterator<char>()
+    );
+}
+
+} // namespace
 
 Captain::Captain(const std::filesystem::path& target_path)
 {
@@ -79,8 +101,9 @@ void Captain::parse_module(const std::filesystem::path& file_path)
     Parser parser;
     auto stmts = parser.run(tokens);
 
-    auto module = std::make_shared<Module>(abs_path, stmts);
-    workspace->add_module(abs_path, module);
+    auto mod = std::make_shared<Module>(abs_path, stmts);
+    workspace->add_module(abs_path, mod);
+    mod->save("parser");
 }
 
 std::vector<Module_ptr> Captain::calculate_build_order()

@@ -1,4 +1,4 @@
-add_library(CaptainLib Captain.cpp CaptainUtils.cpp DependencyCrawler.cpp)
+add_library(CaptainLib Captain.cpp DependencyCrawler.cpp)
 
 target_link_libraries(CaptainLib
     PUBLIC
