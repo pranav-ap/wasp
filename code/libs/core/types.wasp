@@ -93,7 +93,88 @@ class str is Printable & Truthy & Hashable & Sized
 
 type num = int | float
 
-let x = 4
-x = x + 1
+# --------------------------
+# Composites
+# --------------------------
+
+# template
+#     T: any
+# class list is Printable & Truthy & Sized & Indexable<T>
+#     fun repr() => str
+#         return "list"
+
+#     fun size() => int
+#         native
+
+#     fun is_truthy() => bool
+#         return self.size() > 0
+
+#     fun get(index: int) => T
+#         native
+
+#     fun set(index: int, value: T)
+#         native
+
+
+# template
+#     T: any
+# class set is Printable & Truthy & Sized
+#     fun repr() => str
+#         return "set"
+
+#     fun size() => int
+#         native
+
+#     fun is_truthy() => bool
+#         return self.size() > 0
+
+#     fun contains(value: T) => bool
+#         native
+
+#     fun add(value: T)
+#         native
+
+#     fun remove(value: T)
+#         native
+
+
+# template
+#     K: Hashable
+#     V: any
+# class map is Printable & Truthy & Sized
+#     fun repr() => str
+#         return "map"
+
+#     fun size() => int
+#         native
+
+#     fun is_truthy() => bool
+#         return self.size() > 0
+
+#     fun get(key: K) => V
+#         native
+
+#     fun set(key: K, value: V)
+#         native
+
+#     fun contains_key(key: K) => bool
+#         native
+
+#     fun remove(key: K)
+#         native
+
+
+
+# template
+#     ...T: any
+# class tuple is Printable & Sized
+#     fun repr() => str
+#         return "tuple"
+
+#     fun size() => int
+#         native
+
+#     fun get(index: int) => T
+#         native
 
 

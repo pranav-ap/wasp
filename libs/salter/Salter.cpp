@@ -228,12 +228,7 @@ Statement_ptr Salter::visit(PrimitiveDefinition& def)
 
 Block Salter::salt(TypeDefinition& def)
 {
-    RecordDefinition record{
-        def.name + "_record",
-        def.fields,
-        def.symbol,
-        def.overload_symbol
-    };
+    RecordDefinition record{def.name + "_record", def.fields, def.symbol};
 
     StatementVector results = {make_statement(record)};
 

@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <iterator>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -83,6 +84,19 @@ MethodOverloadType_ptr MethodMap::get_type(const std::string& name) const
 bool MethodMap::contains(const std::string& name) const
 {
     return signatures.find(name) != signatures.end();
+}
+
+MethodOverloadType_ptr MethodMap::add(const std::string& function_name)
+{
+    Doctor::captain().check(
+        !contains(function_name),
+        "Method Map already contains member '" + function_name + "'."
+    );
+
+    ordered_keys.push_back(function_name);
+    signatures[function_name] = std::make_shared<MethodOverloadType>();
+
+    return signatures[function_name];
 }
 
 // ============================================================================

@@ -428,6 +428,7 @@ Statement_ptr ASTCloner::clone(const TypeAliasDefinition& stmt)
     cloned.name = stmt.name;
     cloned.generics = clone(stmt.generics);
     cloned.ref_type = clone(stmt.ref_type);
+    cloned.symbol = stmt.symbol;
     return make_statement(cloned);
 }
 
@@ -437,6 +438,7 @@ Statement_ptr ASTCloner::clone(const EnumDefinition& stmt)
     cloned.name = stmt.name;
     cloned.generics = clone(stmt.generics);
     cloned.members = stmt.members;
+    cloned.symbol = stmt.symbol;
 
     for (const auto& nested : stmt.nested_enums)
     {
@@ -461,6 +463,8 @@ Statement_ptr ASTCloner::clone(const FunctionDefinition& stmt)
     cloned.return_type = clone(stmt.return_type);
     cloned.block = clone_block(stmt.block);
     cloned.is_pure = stmt.is_pure;
+    cloned.symbol = stmt.symbol;
+    cloned.overload_symbol = stmt.overload_symbol;
     return make_statement(cloned);
 }
 
@@ -473,6 +477,8 @@ Statement_ptr ASTCloner::clone(const MethodDefinition& stmt)
     cloned.block = clone_block(stmt.block);
     cloned.is_pure = stmt.is_pure;
     cloned.is_shared = stmt.is_shared;
+    cloned.symbol = stmt.symbol;
+    cloned.overload_symbol = stmt.overload_symbol;
     return make_statement(cloned);
 }
 
@@ -486,6 +492,7 @@ Statement_ptr ASTCloner::clone(const OperatorDefinition& stmt)
     cloned.operands = clone(stmt.operands);
     cloned.return_type = clone(stmt.return_type);
     cloned.block = clone_block(stmt.block);
+    cloned.symbol = stmt.symbol;
     return make_statement(cloned);
 }
 
@@ -494,6 +501,7 @@ Statement_ptr ASTCloner::clone(const RecordDefinition& stmt)
     RecordDefinition cloned;
     cloned.name = stmt.name;
     cloned.fields = clone(stmt.fields);
+    cloned.symbol = stmt.symbol;
     return make_statement(cloned);
 }
 
@@ -505,6 +513,7 @@ Statement_ptr ASTCloner::clone(const ClassDefinition& stmt)
     cloned.fields = clone(stmt.fields);
     cloned.methods = clone(stmt.methods);
     cloned.traits = clone(stmt.traits);
+    cloned.symbol = stmt.symbol;
     return make_statement(cloned);
 }
 
@@ -516,6 +525,7 @@ Statement_ptr ASTCloner::clone(const TraitDefinition& stmt)
     cloned.fields = clone(stmt.fields);
     cloned.methods = clone(stmt.methods);
     cloned.traits = clone(stmt.traits);
+    cloned.symbol = stmt.symbol;
     return make_statement(cloned);
 }
 
@@ -527,6 +537,7 @@ Statement_ptr ASTCloner::clone(const PrimitiveDefinition& stmt)
     cloned.fields = clone(stmt.fields);
     cloned.methods = clone(stmt.methods);
     cloned.traits = clone(stmt.traits);
+    cloned.symbol = stmt.symbol;
     return make_statement(cloned);
 }
 

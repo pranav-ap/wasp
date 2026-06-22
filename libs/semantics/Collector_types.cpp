@@ -155,7 +155,13 @@ Type_ptr Collector::visit(FunctionTypeNode& type_node)
         std::make_shared<TemplateType>()
     );
 
-    return make_shared_type<FunctionType>("", signature, false, false);
+    FunctionType_ptr function_type = std::make_shared<FunctionType>("");
+
+    function_type->signature = signature;
+    function_type->is_pure = false;
+    function_type->is_native = false;
+
+    return make_type(function_type);
 }
 
 Type_ptr Collector::visit(AngularTypeNode& type_node)

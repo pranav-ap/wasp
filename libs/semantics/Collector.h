@@ -39,6 +39,9 @@ private:
 
     // Statements
 
+    void hoist(Block& block);
+    void hoist(Statement_ptr statement);
+
     void visit(Block& block);
     void visit(Statement_ptr statement);
 

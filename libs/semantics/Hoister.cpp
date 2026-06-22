@@ -51,7 +51,7 @@ void Hoister::visit(FunctionDefinition& def)
 {
     auto symbol = SymbolFactory::create_function(
         def.name,
-        nullptr,
+        make_shared_type<FunctionType>(def.name),
         current_scope->closure_depth,
         current_scope->lexical_depth
     );
@@ -85,7 +85,7 @@ void Hoister::visit(MethodDefinition& def)
 {
     auto symbol = SymbolFactory::create_function(
         def.name,
-        nullptr,
+        make_shared_type<MethodType>(def.name),
         current_scope->closure_depth,
         current_scope->lexical_depth
     );
@@ -134,7 +134,7 @@ void Hoister::visit(OperatorDefinition& def)
     {
         auto var_symbol = SymbolFactory::create_variable(
             operand.name,
-            nullptr,
+            make_shared_type<FunctionType>(def.name),
             false,
             current_scope->closure_depth,
             current_scope->lexical_depth
@@ -153,7 +153,7 @@ void Hoister::visit(ClassDefinition& def)
 {
     auto symbol = SymbolFactory::create_type(
         def.name,
-        nullptr,
+        make_shared_type<ClassType>(def.name),
         current_scope->closure_depth,
         current_scope->lexical_depth
     );
@@ -175,7 +175,7 @@ void Hoister::visit(TraitDefinition& def)
 {
     auto symbol = SymbolFactory::create_type(
         def.name,
-        nullptr,
+        make_shared_type<TraitType>(def.name),
         current_scope->closure_depth,
         current_scope->lexical_depth
     );
@@ -197,7 +197,7 @@ void Hoister::visit(PrimitiveDefinition& def)
 {
     auto symbol = SymbolFactory::create_type(
         def.name,
-        nullptr,
+        make_shared_type<PrimitiveType>(def.name),
         current_scope->closure_depth,
         current_scope->lexical_depth
     );
@@ -219,7 +219,7 @@ void Hoister::visit(EnumDefinition& def)
 {
     auto symbol = SymbolFactory::create_type(
         def.name,
-        nullptr,
+        make_shared_type<EnumType>(def.name),
         current_scope->closure_depth,
         current_scope->lexical_depth
     );

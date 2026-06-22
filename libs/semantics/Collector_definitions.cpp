@@ -131,17 +131,13 @@ StringVector collect_enum_names(
 
 void Collector::visit(FunctionDefinition& def)
 {
-    current_scope->define_overload(def.overload_symbol);
     auto signature = extract_signature(def);
 
-    FunctionType_ptr function_type = std::make_shared<FunctionType>(
-        def.name,
-        signature,
-        def.is_pure,
-        false
-    );
-
-    def.symbol->set_type(make_type(function_type));
+    Type_ptr type = def.symbol->get_type();
+    FunctionType_ptr function_type = type->as<FunctionType_ptr>();
+    function_type->signature = signature;
+    function_type->is_pure = def.is_pure;
+    function_type->is_native = false;
 
     if (def.block.statements.size() == 1)
     {
@@ -155,11 +151,8 @@ void Collector::visit(FunctionDefinition& def)
 
     visit(def.block);
 
-    if (!def.generics.empty())
-    {
-        forest[def.symbol] = ASTCloner::get().clone(def);
-        scope_forest[def.symbol] = current_scope;
-    }
+    forest[def.symbol] = ASTCloner::get().clone(def);
+    scope_forest[def.symbol] = current_scope;
 }
 
 void Collector::visit(MethodDefinition& def)
@@ -167,16 +160,13 @@ void Collector::visit(MethodDefinition& def)
     current_scope->define_overload(def.overload_symbol);
     auto signature = extract_signature(def);
 
-    MethodType_ptr method_type = std::make_shared<MethodType>(
-        def.name,
-        signature,
-        def.is_shared,
-        def.is_pure,
-        false,
-        false
-    );
-
-    def.symbol->set_type(make_type(method_type));
+    Type_ptr type = def.symbol->get_type();
+    MethodType_ptr method_type = type->as<MethodType_ptr>();
+    method_type->signature = signature;
+    method_type->is_shared = def.is_shared;
+    method_type->is_pure = def.is_pure;
+    method_type->is_native = false;
+    method_type->is_required = false;
 
     if (def.block.statements.size() == 1)
     {
@@ -197,19 +187,13 @@ void Collector::visit(MethodDefinition& def)
 
 void Collector::visit(OperatorDefinition& def)
 {
-    current_scope->define_overload(def.overload_symbol);
     auto signature = extract_signature(def);
 
-    bool is_pure = true;
-
-    FunctionType_ptr function_type = std::make_shared<FunctionType>(
-        def.name,
-        signature,
-        is_pure,
-        false
-    );
-
-    def.symbol->set_type(make_type(function_type));
+    Type_ptr type = def.symbol->get_type();
+    FunctionType_ptr function_type = type->as<FunctionType_ptr>();
+    function_type->signature = signature;
+    function_type->is_pure = true;
+    function_type->is_native = false;
 
     if (def.block.statements.size() == 1)
     {
@@ -223,17 +207,12 @@ void Collector::visit(OperatorDefinition& def)
 
     visit(def.block);
 
-    if (!def.generics.empty())
-    {
-        forest[def.symbol] = ASTCloner::get().clone(def);
-        scope_forest[def.symbol] = current_scope;
-    }
+    forest[def.symbol] = ASTCloner::get().clone(def);
+    scope_forest[def.symbol] = current_scope;
 }
 
 void Collector::visit(ClassDefinition& def)
 {
-    current_scope->define(def.symbol);
-
     enter_scope(ScopeType::CLASS);
 
     auto template_type = create_template_type(def.generics, type_system);
@@ -244,16 +223,12 @@ void Collector::visit(ClassDefinition& def)
     TypeVector traits = track_traits(def.traits);
 
     // init class type
-
-    ClassType_ptr class_type = std::make_shared<ClassType>(
-        def.name,
-        fields,
-        methods,
-        traits,
-        template_type
-    );
-
-    def.symbol->set_type(make_type(class_type));
+    Type_ptr type = def.symbol->get_type();
+    ClassType_ptr class_type = type->as<ClassType_ptr>();
+    class_type->fields = fields;
+    class_type->methods = methods;
+    class_type->traits = traits;
+    class_type->template_type = template_type;
 
     // visit methods
 
@@ -268,37 +243,28 @@ void Collector::visit(ClassDefinition& def)
 
     // clone AST
 
-    if (!def.generics.empty())
-    {
-        forest[def.symbol] = ASTCloner::get().clone(def);
-        scope_forest[def.symbol] = current_scope;
-    }
+    forest[def.symbol] = ASTCloner::get().clone(def);
+    scope_forest[def.symbol] = current_scope;
 
     leave_scope();
 }
 
 void Collector::visit(TraitDefinition& def)
 {
-    current_scope->define(def.symbol);
-
     enter_scope(ScopeType::TRAIT);
 
     auto template_type = create_template_type(def.generics, type_system);
-    current_scope->define(template_type);
 
     FieldMap_ptr fields = track_fields(def.fields);
     MethodMap_ptr methods = track_methods(def.methods);
     TypeVector traits = track_traits(def.traits);
 
-    TraitType_ptr trait_type = std::make_shared<TraitType>(
-        def.name,
-        fields,
-        methods,
-        traits,
-        template_type
-    );
-
-    def.symbol->set_type(make_type(trait_type));
+    Type_ptr type = def.symbol->get_type();
+    TraitType_ptr trait_type = type->as<TraitType_ptr>();
+    trait_type->fields = fields;
+    trait_type->methods = methods;
+    trait_type->traits = traits;
+    trait_type->template_type = template_type;
 
     for (auto& method : def.methods)
     {
@@ -307,37 +273,28 @@ void Collector::visit(TraitDefinition& def)
 
     conform_traits(def, trait_type);
 
-    if (!def.generics.empty())
-    {
         forest[def.symbol] = ASTCloner::get().clone(def);
         scope_forest[def.symbol] = current_scope;
-    }
 
-    leave_scope();
+        leave_scope();
 }
 
 void Collector::visit(PrimitiveDefinition& def)
 {
-    current_scope->define(def.symbol);
-
     enter_scope(ScopeType::PRIMITIVE);
 
     auto template_type = create_template_type(def.generics, type_system);
-    current_scope->define(template_type);
 
     FieldMap_ptr fields = track_fields(def.fields);
     MethodMap_ptr methods = track_methods(def.methods);
     TypeVector traits = track_traits(def.traits);
 
-    PrimitiveType_ptr primitive_type = std::make_shared<PrimitiveType>(
-        def.name,
-        fields,
-        methods,
-        traits,
-        template_type
-    );
-
-    def.symbol->set_type(make_type(primitive_type));
+    Type_ptr type = def.symbol->get_type();
+    PrimitiveType_ptr primitive_type = type->as<PrimitiveType_ptr>();
+    primitive_type->fields = fields;
+    primitive_type->methods = methods;
+    primitive_type->traits = traits;
+    primitive_type->template_type = template_type;
 
     for (auto& method : def.methods)
     {
@@ -346,13 +303,10 @@ void Collector::visit(PrimitiveDefinition& def)
 
     conform_traits(def, primitive_type);
 
-    if (!def.generics.empty())
-    {
         forest[def.symbol] = ASTCloner::get().clone(def);
         scope_forest[def.symbol] = current_scope;
-    }
 
-    leave_scope();
+        leave_scope();
 }
 
 void Collector::visit(EnumDefinition& def)
@@ -370,11 +324,8 @@ void Collector::visit(EnumDefinition& def)
     auto enum_type = enum_type_obj->as<EnumType_ptr>();
     enum_type->members = std::move(full_names);
 
-    if (!def.generics.empty())
-    {
         forest[def.symbol] = ASTCloner::get().clone(def);
         scope_forest[def.symbol] = current_scope;
-    }
 }
 
 void Collector::visit(TypeAliasDefinition& def)
@@ -387,13 +338,10 @@ void Collector::visit(TypeAliasDefinition& def)
     auto alias_type = visit(def.ref_type);
     def.symbol->set_type(alias_type);
 
-    if (!def.generics.empty())
-    {
         forest[def.symbol] = ASTCloner::get().clone(def);
         scope_forest[def.symbol] = current_scope;
-    }
 
-    leave_scope();
+        leave_scope();
 }
 
 // ============================================================================
@@ -555,15 +503,15 @@ MethodMap_ptr Collector::track_methods(MethodDefinitionVector methods)
         auto signature = extract_signature(method);
 
         MethodOverloadType_ptr method_overload_type = method_map[method.name];
-        method_overload_type->add(
-            std::make_shared<MethodType>(
-                method.name,
-                signature,
-                method.is_shared,
-                method.is_pure,
-                false
-            )
-        );
+
+        Type_ptr type = method.symbol->get_type();
+        MethodType_ptr method_type = type->as<MethodType_ptr>();
+        method_type->signature = signature;
+        method_type->is_shared = method.is_shared;
+        method_type->is_pure = method.is_pure;
+        method_type->is_native = false;
+
+        method_overload_type->add(method_type);
     }
 
     return std::make_shared<MethodMap>(
@@ -760,6 +708,11 @@ void Collector::merge_trait_methods(
                                       ->as<MethodDefinition>();
 
         target_def.methods.push_back(trait_method_clone);
+
+        if (!target_type->methods->contains(trait_method.name))
+        {
+            target_type->methods->add(trait_method.name);
+        }
 
         target_type->methods->get_type(trait_method.name)->add(trait_method_type);
     }

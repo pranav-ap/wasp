@@ -1,4 +1,4 @@
-add_library(CompilerLib Compiler.cpp)
+add_library(CompilerLib Compiler.cpp CompilerScope.cpp)
 
 target_include_directories(CompilerLib
     PUBLIC

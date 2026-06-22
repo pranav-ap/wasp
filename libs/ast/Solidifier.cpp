@@ -60,7 +60,6 @@ Statement_ptr Solidifier::solidify(
     result.name = record.name;
     result.fields = solidify(record.fields, substitution_map);
     result.symbol = record.symbol;
-    result.overload_symbol = record.overload_symbol;
 
     return make_statement(result);
 }
@@ -511,7 +510,6 @@ Statement_ptr Solidifier::solidify(
 
     result.name = cls.name;
     result.symbol = cls.symbol; // TODO: Update symbol to point to instantiated
-    result.overload_symbol = cls.overload_symbol;
 
     result.generics = {};
 
@@ -553,8 +551,7 @@ Statement_ptr Solidifier::solidify(
     TraitDefinition result;
 
     result.name = trait.name;
-    result.symbol = trait.symbol; // TODO: Update symbol later
-    result.overload_symbol = trait.overload_symbol;
+    result.symbol = trait.symbol;
 
     result.generics = {};
 

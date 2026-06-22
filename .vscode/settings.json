@@ -8,7 +8,7 @@
         "logs": true,
         ".github": true,
         "third_party": true,
-        "play": true
+        "play": false
     },
     "files.associations": {
         "**/.github/workflows/*.{yml,yaml}": "yaml",

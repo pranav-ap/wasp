@@ -43,7 +43,15 @@ Statement_ptr Parser::parse_template_definition(int indent_level)
             {
                 def.generics = generics;
             },
-            [&](TypeDefinition& def)
+            [&](ClassDefinition& def)
+            {
+                def.generics = generics;
+            },
+            [&](TraitDefinition& def)
+            {
+                def.generics = generics;
+            },
+            [&](PrimitiveDefinition& def)
             {
                 def.generics = generics;
             },

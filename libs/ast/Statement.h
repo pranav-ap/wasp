@@ -177,7 +177,6 @@ struct RecordDefinition
     FieldVector fields;
 
     Symbol_ptr symbol = nullptr;
-    Symbol_ptr overload_symbol = nullptr;
 };
 
 struct TypeDefinition
@@ -190,7 +189,6 @@ struct TypeDefinition
     TypeNodeVector traits;
 
     Symbol_ptr symbol = nullptr;
-    Symbol_ptr overload_symbol = nullptr;
 
     explicit TypeDefinition() = default;
 

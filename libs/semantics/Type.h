@@ -210,6 +210,10 @@ struct FunctionType
 
     bool is_pure;
     bool is_native;
+
+    explicit FunctionType(std::string name) : name(std::move(name))
+    {
+    }
 };
 
 using FunctionType_ptr = std::shared_ptr<FunctionType>;
@@ -231,6 +235,10 @@ struct MethodType
     bool is_pure;
     bool is_native;
     bool is_required;
+
+    explicit MethodType(std::string name) : name(std::move(name))
+    {
+    }
 };
 
 using MethodType_ptr = std::shared_ptr<MethodType>;
@@ -287,6 +295,7 @@ struct MethodMap
     int get_index(const std::string& function_name) const;
     MethodOverloadType_ptr get_type(const std::string& function_name) const;
     bool contains(const std::string& function_name) const;
+    MethodOverloadType_ptr add(const std::string& function_name);
 };
 
 using MethodMap_ptr = std::shared_ptr<MethodMap>;
@@ -304,17 +313,8 @@ struct OopsType
 
     TemplateType_ptr template_type;
 
-    explicit OopsType(
-        std::string name,
-        FieldMap_ptr fields,
-        MethodMap_ptr methods,
-        TypeVector traits,
-        TemplateType_ptr template_type
-    )
-        : type_id(get_next_type_id()), name(std::move(name)),
-          fields(std::move(fields)), methods(std::move(methods)),
-          traits(std::move(traits)),
-          template_type(std::move(template_type))
+    explicit OopsType(std::string name)
+        : type_id(get_next_type_id()), name(std::move(name))
     {
     }
 

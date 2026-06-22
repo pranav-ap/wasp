@@ -38,8 +38,55 @@ void Collector::visit(Import&)
 // Statements
 // ============================================================================
 
+void Collector::hoist(Block& block)
+{
+    for (auto& statement : block.statements)
+    {
+        hoist(statement);
+    }
+}
+
+void Collector::hoist(Statement_ptr statement)
+{
+    std::visit(
+        overloaded{
+            [&](FunctionDefinition& def)
+            {
+                current_scope->define_overload(def.overload_symbol);
+            },
+            [&](ClassDefinition& def)
+            {
+                current_scope->define(def.symbol);
+            },
+            [&](TraitDefinition& def)
+            {
+                current_scope->define(def.symbol);
+            },
+            [&](PrimitiveDefinition& def)
+            {
+                current_scope->define(def.symbol);
+            },
+            [&](TypeAliasDefinition& def)
+            {
+                current_scope->define(def.symbol);
+            },
+            [&](EnumDefinition& def)
+            {
+                current_scope->define(def.symbol);
+            },
+            [&](auto& node)
+            {
+                // do nothing
+            }
+        },
+        statement->data
+    );
+}
+
 void Collector::visit(Block& block)
 {
+    hoist(block);
+
     for (auto& statement : block.statements)
     {
         visit(statement);

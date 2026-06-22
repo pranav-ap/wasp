@@ -67,10 +67,6 @@ void Compiler::run(const std::vector<Module_ptr>& build_order)
     qbe_output << "export function w $main() {\n";
     qbe_output << "@start\n";
 
-    // Reset state for main
-    temp_counter = 0;
-    named_values.clear();
-
     // Generate code for all modules inside main
     for (const auto& mod : build_order)
     {
@@ -90,7 +86,7 @@ void Compiler::run(const std::vector<Module_ptr>& build_order)
 }
 
 // ============================================================================
-// Statement Generation
+// Statement
 // ============================================================================
 
 std::string Compiler::generate(const Statement_ptr stmt)
@@ -233,7 +229,7 @@ std::string Compiler::generate(const Binding& binding)
 
     // Allocate stack space
 
-    std::string temp = "%t" + std::to_string(temp_counter++);
+    std::string temp = "%" + ident.name;
 
     std::stringstream ss;
     ss << temp << " =l alloc8 4\n"; // Allocate 4 bytes
@@ -267,15 +263,17 @@ std::string Compiler::generate(const Assignment& assignment)
     return ss.str();
 }
 
-std::string Compiler::generate(const Identifier& identity)
+std::string Compiler::generate(const Identifier& identifier)
 {
     Doctor::compiler().check(
-        named_values.contains(identity.name),
-        "Undefined variable: " + identity.name
+        named_values.contains(identifier.name),
+        "Undefined variable: " + identifier.name
     );
 
-    std::string temp = "%t" + std::to_string(temp_counter++);
-    return temp + " =w loadw " + named_values.at(identity.name);
+    std::string temp = "%" + identifier.name + "_" +
+                       std::to_string(identifier.symbol->id);
+
+    return temp + " =w loadw " + named_values.at(identifier.name);
 }
 
 // ============================================================================
