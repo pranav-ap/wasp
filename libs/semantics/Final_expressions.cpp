@@ -6,7 +6,6 @@
 
 #include <string>
 #include <variant>
-#include <vector>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -53,10 +52,22 @@ Type_ptr Final::visit(TernaryExpression& expr)
 {
     Type_ptr test_type = visit(expr.test);
 
-    Doctor::semantics().check(
-        type_system->is_boolean_type(test_type),
-        "Test expression must be of boolean type, got: " + test_type->to_string()
-    );
+    if (test_type->is<PrimitiveType_ptr>())
+    {
+        PrimitiveType_ptr primitive_type = test_type->as<PrimitiveType_ptr>();
+
+        Doctor::semantics().check(
+            primitive_type->name == "bool",
+            "Test expression must be of boolean type, got: " + test_type->to_string()
+        );
+    }
+    else
+    {
+        Doctor::semantics().check(
+            type_system->is_boolean_type(test_type),
+            "Test expression must be of boolean type, got: " + test_type->to_string()
+        );
+    }
 
     Type_ptr then_type = visit(expr.then_expr);
     Type_ptr else_type = visit(expr.else_expr);
@@ -92,6 +103,22 @@ Type_ptr Final::visit(BooleanLiteral&)
 Type_ptr Final::visit(NoneLiteral&)
 {
     return make_shared_type<NoneType>();
+}
+
+Type_ptr Final::visit(InterpolatedString& expr)
+{
+    for (auto& part : expr.parts)
+    {
+        Type_ptr part_type = visit(part);
+
+        Doctor::semantics().check(
+            type_system->implements_trait(part_type, "Printable"),
+            "Interpolated string parts must be Printable. Got : " +
+                part_type->to_string()
+        );
+    }
+
+    return make_shared_type<StringType>();
 }
 
 Type_ptr Final::visit(ListLiteral& expr)

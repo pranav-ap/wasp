@@ -7,6 +7,7 @@
 #include "Type.h"
 
 #include <memory>
+#include <string>
 #include <tuple>
 
 namespace Wasp
@@ -118,6 +119,19 @@ struct TypeSystem
         const TokenType op,
         const Type_ptr operand_type
     ) const;
+
+    // =======================================================================
+    // Traits
+    // =======================================================================
+
+    bool implements_trait(Type_ptr patient, const std::string& trait_name) const;
+    bool implements_trait(OopsType_ptr patient, const std::string& trait_name) const;
+
+    // =======================================================================
+    // Utils
+    // =======================================================================
+
+    Type_ptr unpack_primitive(Type_ptr type) const;
 };
 
 using TypeSystem_ptr = std::shared_ptr<TypeSystem>;

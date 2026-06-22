@@ -22,8 +22,11 @@ Type_ptr Final::visit(Prefix& expr)
 
     if (type_system->is_primitive_type(operand_type))
     {
-        return type_system
-            ->infer(current_scope, expr.op.type, operand_type);
+        return type_system->infer(
+            current_scope,
+            expr.op.type,
+            type_system->unpack_primitive(operand_type)
+        );
     }
 
     std::string function_name = get_operator_name(
@@ -55,8 +58,12 @@ Type_ptr Final::visit(Infix& expr)
     if (type_system->is_primitive_type(left_value) &&
         type_system->is_primitive_type(right_value))
     {
-        return type_system
-            ->infer(current_scope, left_value, expr.op.type, right_value);
+        return type_system->infer(
+            current_scope,
+            type_system->unpack_primitive(left_value),
+            expr.op.type,
+            type_system->unpack_primitive(right_value)
+        );
     }
 
     // create func call

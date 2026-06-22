@@ -61,6 +61,8 @@ private:
     Type_ptr visit(BooleanLiteral& expr);
     Type_ptr visit(NoneLiteral& expr);
 
+    Type_ptr visit(InterpolatedString& expr);
+
     Type_ptr visit(ListLiteral& expr);
     Type_ptr visit(TupleLiteral& expr);
     Type_ptr visit(MapLiteral& expr);

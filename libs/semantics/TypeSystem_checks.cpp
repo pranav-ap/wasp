@@ -100,7 +100,7 @@ bool TypeSystem::is_primitive_type(const Type_ptr type) const
            type->is<LiteralType_ptr>() || type->is<ListType_ptr>() ||
            type->is<SetType_ptr>() || type->is<MapType_ptr>() ||
            type->is<TupleType_ptr>() || type->is<VariantType_ptr>() ||
-           type->is<IntersectionType_ptr>();
+           type->is<IntersectionType_ptr>() || type->is<PrimitiveType_ptr>();
 }
 
 bool TypeSystem::is_key_type(const Type_ptr type) const

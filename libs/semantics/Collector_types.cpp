@@ -19,7 +19,7 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-Type_ptr Collector::visit(const TypeNode_ptr type_node)
+Type_ptr Collector::visit(TypeNode_ptr type_node)
 {
     Doctor::semantics().fatal_if_nullptr(type_node);
 
@@ -38,7 +38,7 @@ Type_ptr Collector::visit(const TypeNode_ptr type_node)
     );
 }
 
-TypeVector Collector::visit(const TypeNodeVector& type_nodes)
+TypeVector Collector::visit(TypeNodeVector& type_nodes)
 {
     TypeVector types;
 
@@ -90,6 +90,27 @@ Type_ptr Collector::visit(LiteralTypeNode& type_node)
 
 Type_ptr Collector::visit(TypeIdentifierNode& type_node)
 {
+    if (type_node.name == "int")
+    {
+        return make_type(std::make_shared<IntType>());
+    }
+    else if (type_node.name == "float")
+    {
+        return make_type(std::make_shared<FloatType>());
+    }
+    else if (type_node.name == "str")
+    {
+        return make_type(std::make_shared<StringType>());
+    }
+    else if (type_node.name == "bool")
+    {
+        return make_type(std::make_shared<BooleanType>());
+    }
+    else if (type_node.name == "any")
+    {
+        return make_type(std::make_shared<AnyType>());
+    }
+
     auto symbol = current_scope->lookup(type_node.name);
 
     Doctor::semantics().fatal_if_nullptr(

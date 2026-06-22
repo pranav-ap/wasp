@@ -37,8 +37,14 @@ void Final::visit(MethodDefinition& def)
     current_scope->define_overload(def.overload_symbol);
 
     ScopeType scope_type = def.is_pure ? ScopeType::PURE_METHOD : ScopeType::METHOD;
-
     enter_scope(scope_type);
+
+    current_scope->define(def.our_context_symbol);
+
+    if (def.self_context_symbol != nullptr)
+    {
+        current_scope->define(def.self_context_symbol);
+    }
 
     for (const auto& parameter : def.parameters)
     {
@@ -46,15 +52,14 @@ void Final::visit(MethodDefinition& def)
     }
 
     visit(def.block);
-
     leave_scope();
 }
 
 void Final::visit(OperatorDefinition& def)
 {
-    enter_scope(ScopeType::PURE_FUNCTION);
-
     current_scope->define_overload(def.overload_symbol);
+
+    enter_scope(ScopeType::PURE_FUNCTION);
 
     for (const auto& operand : def.operands)
     {

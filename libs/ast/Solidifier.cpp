@@ -125,7 +125,6 @@ Statement_ptr Solidifier::solidify(
                 result.generics = {}; // No generics after instantiation
                 result.ref_type = solidify(s.ref_type, substitution_map);
                 result.symbol = s.symbol;
-                result.overload_symbol = s.overload_symbol;
                 return make_statement(result);
             },
             [&](const EnumDefinition& s) -> Statement_ptr

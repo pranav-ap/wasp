@@ -142,8 +142,6 @@ Type_ptr Final::handle_call(
     Type_ptr left_type = visit(access.owner);
     left_type = left_type->unwrap_alias();
 
-    argument_types.insert(argument_types.begin(), left_type);
-
     return std::visit(
         overloaded{
             [&](ClassType_ptr class_type) -> Type_ptr

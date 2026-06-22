@@ -90,6 +90,27 @@ Type_ptr Final::visit(LiteralTypeNode& type_node)
 
 Type_ptr Final::visit(TypeIdentifierNode& type_node)
 {
+    if (type_node.name == "int")
+    {
+        return make_type(std::make_shared<IntType>());
+    }
+    else if (type_node.name == "float")
+    {
+        return make_type(std::make_shared<FloatType>());
+    }
+    else if (type_node.name == "str")
+    {
+        return make_type(std::make_shared<StringType>());
+    }
+    else if (type_node.name == "bool")
+    {
+        return make_type(std::make_shared<BooleanType>());
+    }
+    else if (type_node.name == "any")
+    {
+        return make_type(std::make_shared<AnyType>());
+    }
+
     auto symbol = current_scope->lookup(type_node.name);
 
     Doctor::semantics().fatal_if_nullptr(

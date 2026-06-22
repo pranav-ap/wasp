@@ -87,6 +87,10 @@ struct GenericType
     std::string name;
     Type_ptr constraint_type;
     bool is_variadic;
+
+    explicit GenericType(std::string name) : name(std::move(name))
+    {
+    }
 };
 
 using GenericType_ptr = std::shared_ptr<GenericType>;

@@ -102,7 +102,6 @@ struct TypeAliasDefinition
     TypeNode_ptr ref_type;
 
     Symbol_ptr symbol = nullptr;
-    Symbol_ptr overload_symbol = nullptr;
 };
 
 struct EnumDefinition
@@ -114,7 +113,6 @@ struct EnumDefinition
     std::vector<EnumDefinition> nested_enums;
 
     Symbol_ptr symbol = nullptr;
-    Symbol_ptr overload_symbol = nullptr;
 };
 
 struct FunctionDefinition
@@ -149,6 +147,11 @@ struct MethodDefinition
 
     Symbol_ptr symbol = nullptr;
     Symbol_ptr overload_symbol = nullptr;
+
+    Symbol_ptr class_symbol = nullptr;
+
+    Symbol_ptr self_context_symbol = nullptr;
+    Symbol_ptr our_context_symbol = nullptr;
 };
 
 using MethodDefinitionVector = std::vector<MethodDefinition>;

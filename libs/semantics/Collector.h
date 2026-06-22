@@ -58,8 +58,8 @@ private:
 
     // Types
 
-    Type_ptr visit(const TypeNode_ptr type_node);
-    TypeVector visit(const TypeNodeVector& type_nodes);
+    Type_ptr visit(TypeNode_ptr type_node);
+    TypeVector visit(TypeNodeVector& type_nodes);
 
     Type_ptr visit(NoneTypeNode& type_node);
     Type_ptr visit(LiteralTypeNode& type_node);
@@ -82,7 +82,6 @@ private:
     std::tuple<Statement_ptr, SymbolScope_ptr> get_tree(Symbol_ptr symbol);
 
     Signature_ptr extract_signature(FunctionDefinition& def);
-    Signature_ptr extract_signature(MethodDefinition& def);
     Signature_ptr extract_signature(OperatorDefinition& def);
 
     FieldMap_ptr track_fields(FieldVector fields);
@@ -111,6 +110,8 @@ private:
         TraitDefinition& trait_def,
         SymbolScope_ptr definition_scope
     );
+
+    TemplateType_ptr create_template_type(FieldVector& generics);
 };
 
 } // namespace Wasp

@@ -7,6 +7,7 @@
 #include "SymbolScope.h"
 #include "Type.h"
 
+#include <string>
 #include <variant>
 
 template <class... Ts> struct overloaded : Ts...
@@ -17,6 +18,30 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
+
+namespace
+{
+
+void hoist_generic_types(FieldVector& generics, SymbolScope_ptr current_scope)
+{
+    for (Field& generic : generics)
+    {
+        Type_ptr generic_type = make_shared_type<GenericType>(generic.name);
+
+        Symbol_ptr symbol = SymbolFactory::create_type(
+            generic.name,
+            generic_type,
+            current_scope->closure_depth,
+            current_scope->lexical_depth
+        );
+
+        generic.symbol = symbol;
+        current_scope->define(symbol);
+    }
+}
+
+} // namespace
+
 // ============================================================================
 // Statements
 // ============================================================================
@@ -62,6 +87,8 @@ void Hoister::visit(FunctionDefinition& def)
 
     enter_scope(ScopeType::FUNCTION);
 
+    hoist_generic_types(def.generics, current_scope);
+
     for (auto& param : def.parameters)
     {
         auto var_symbol = SymbolFactory::create_variable(
@@ -73,7 +100,7 @@ void Hoister::visit(FunctionDefinition& def)
         );
 
         current_scope->define(var_symbol);
-        param.symbol = symbol;
+        param.symbol = var_symbol;
     }
 
     visit(def.block);
@@ -96,6 +123,33 @@ void Hoister::visit(MethodDefinition& def)
 
     enter_scope(ScopeType::METHOD);
 
+    Type_ptr context_type = def.class_symbol->get_type();
+
+    Symbol_ptr our_context_symbol = SymbolFactory::create_variable(
+        "our",
+        context_type,
+        false,
+        current_scope->closure_depth,
+        current_scope->lexical_depth
+    );
+
+    current_scope->define(our_context_symbol);
+    def.our_context_symbol = our_context_symbol;
+
+    if (!def.is_shared)
+    {
+        Symbol_ptr self_context_symbol = SymbolFactory::create_variable(
+            "self",
+            context_type,
+            false,
+            current_scope->closure_depth,
+            current_scope->lexical_depth
+        );
+
+        current_scope->define(self_context_symbol);
+        def.self_context_symbol = self_context_symbol;
+    }
+
     for (auto& param : def.parameters)
     {
         auto var_symbol = SymbolFactory::create_variable(
@@ -107,7 +161,7 @@ void Hoister::visit(MethodDefinition& def)
         );
 
         current_scope->define(var_symbol);
-        param.symbol = symbol;
+        param.symbol = var_symbol;
     }
 
     visit(def.block);
@@ -129,6 +183,8 @@ void Hoister::visit(OperatorDefinition& def)
     def.overload_symbol = overload_symbol;
 
     enter_scope(ScopeType::FUNCTION);
+
+    hoist_generic_types(def.generics, current_scope);
 
     for (auto& operand : def.operands)
     {
@@ -163,8 +219,11 @@ void Hoister::visit(ClassDefinition& def)
 
     enter_scope(ScopeType::CLASS);
 
+    hoist_generic_types(def.generics, current_scope);
+
     for (auto& method : def.methods)
     {
+        method.class_symbol = symbol;
         visit(method);
     }
 
@@ -183,10 +242,13 @@ void Hoister::visit(TraitDefinition& def)
     current_scope->define(symbol);
     def.symbol = symbol;
 
-    enter_scope(ScopeType::CLASS);
+    enter_scope(ScopeType::TRAIT);
+
+    hoist_generic_types(def.generics, current_scope);
 
     for (auto& method : def.methods)
     {
+        method.class_symbol = symbol;
         visit(method);
     }
 
@@ -205,10 +267,13 @@ void Hoister::visit(PrimitiveDefinition& def)
     current_scope->define(symbol);
     def.symbol = symbol;
 
-    enter_scope(ScopeType::CLASS);
+    enter_scope(ScopeType::PRIMITIVE);
+
+    hoist_generic_types(def.generics, current_scope);
 
     for (auto& method : def.methods)
     {
+        method.class_symbol = symbol;
         visit(method);
     }
 
@@ -226,6 +291,10 @@ void Hoister::visit(EnumDefinition& def)
 
     current_scope->define(symbol);
     def.symbol = symbol;
+
+    enter_scope(ScopeType::CLASS);
+    hoist_generic_types(def.generics, current_scope);
+    leave_scope();
 }
 
 void Hoister::visit(TypeAliasDefinition& def)
@@ -239,6 +308,10 @@ void Hoister::visit(TypeAliasDefinition& def)
 
     current_scope->define(symbol);
     def.symbol = symbol;
+
+    enter_scope(ScopeType::CLASS);
+    hoist_generic_types(def.generics, current_scope);
+    leave_scope();
 }
 
 void Hoister::visit(Branch& stmt)

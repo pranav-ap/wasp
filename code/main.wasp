@@ -38,7 +38,7 @@ trait Indexable
 # The Core Four
 # --------------------------
 
-class bool is Printable & Truthy & Hashable
+primitive bool is Printable & Truthy & Hashable
     fun repr() => str
         return if self then "true" else "false"
 
@@ -49,7 +49,7 @@ class bool is Printable & Truthy & Hashable
         return if self then 1 else 0
 
 
-class int is Printable & Truthy & Hashable
+primitive int is Printable & Truthy & Hashable
     fun repr() => str
         return "{self}"
 
@@ -60,7 +60,7 @@ class int is Printable & Truthy & Hashable
         return self
 
 
-class float is Printable & Truthy
+primitive float is Printable & Truthy
     fun repr() => str
         return "{self}"
 
@@ -68,7 +68,7 @@ class float is Printable & Truthy
         return self > 0
 
 
-class str is Printable & Truthy & Hashable & Sized
+primitive str is Printable & Truthy & Hashable & Sized
     fun repr() => str
         return self
 

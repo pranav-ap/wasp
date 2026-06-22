@@ -24,6 +24,8 @@ add_library(
     TypeSystem_checks.cpp
     TypeSystem_equality.cpp
     TypeSystem_operators.cpp
+    TypeSystem_traits.cpp
+    TypeSystem_utils.cpp
 )
 
 target_link_libraries(SemanticsLib PUBLIC ASTLib TokenLib WorkspaceLib DoctorLib)

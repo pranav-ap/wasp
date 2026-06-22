@@ -97,19 +97,22 @@ std::string Compiler::generate(const Statement_ptr stmt)
     );
 
     std::string text = std::visit(
-        overloaded{
-            [&](const ExpressionStatement& s) -> std::string
+        [&](auto& node) -> std::string
+        {
+            if constexpr (requires { visit(node); })
             {
-                return generate(s.expression);
-            },
-            [&](const auto&) -> std::string
-            {
-                Doctor::compiler().fatal(
-                    "Unsupported statement type in code generation"
-                );
+                return visit(node);
             }
+            Doctor::compiler().fatal(
+                "Unsupported statement type in code generation"
+            );
         },
         stmt->data
+    );
+
+    Doctor::compiler().fatal_if_empty_string(
+        text,
+        "Statement code generation resulted in an empty string"
     );
 
     return text;

@@ -5,7 +5,6 @@
 #include "Statement.h"
 #include "SymbolScope.h"
 #include "Type.h"
-#include "TypeSystem.h"
 
 #include <map>
 #include <memory>
@@ -25,77 +24,6 @@ namespace Wasp
 
 namespace
 {
-TemplateType_ptr create_template_type(
-    const FieldVector& generics,
-    TypeSystem_ptr type_system
-)
-{
-    TypeStringMap generics_map;
-    StringVector ordered_names;
-    bool seen_variadic_generic = false;
-
-    for (const auto& generic : generics)
-    {
-        Type_ptr constraint_type = make_shared_type<GenericType>(
-            generic.name
-        );
-
-        if (constraint_type->is<IntersectionType_ptr>())
-        {
-            auto types = constraint_type->as<IntersectionType_ptr>()
-                             ->types;
-
-            for (auto& inner_type : types)
-            {
-                Doctor::semantics().check(
-                    inner_type->is<TraitType_ptr>(),
-                    "Only an interesection of traits is supported"
-                );
-            }
-        }
-        else if (constraint_type->is<VariantType_ptr>())
-        {
-            auto types = constraint_type->as<VariantType_ptr>()->types;
-
-            for (auto& inner_type : types)
-            {
-                Doctor::semantics().check(
-                    type_system->is_primitive_type(inner_type),
-                    "Only an union of primitives is supported"
-                );
-            }
-        }
-
-        Doctor::semantics().check(
-            !generics_map.contains(generic.name),
-            "Duplicate generic parameter name: " + generic.name
-        );
-
-        if (generic.is_variadic)
-        {
-            Doctor::semantics().check(
-                !seen_variadic_generic,
-                "Only one variadic generic parameter is allowed"
-            );
-
-            seen_variadic_generic = true;
-        }
-
-        auto generic_type = make_shared_type<GenericType>(
-            generic.name,
-            constraint_type,
-            generic.is_variadic
-        );
-
-        generics_map[generic.name] = generic_type;
-        ordered_names.push_back(generic.name);
-    }
-
-    return std::make_shared<TemplateType>(
-        std::move(generics_map),
-        std::move(ordered_names)
-    );
-}
 
 StringVector collect_enum_names(
     const EnumDefinition& def,
@@ -149,8 +77,6 @@ void Collector::visit(FunctionDefinition& def)
         }
     }
 
-    visit(def.block);
-
     forest[def.symbol] = ASTCloner::get().clone(def);
     scope_forest[def.symbol] = current_scope;
 }
@@ -158,7 +84,44 @@ void Collector::visit(FunctionDefinition& def)
 void Collector::visit(MethodDefinition& def)
 {
     current_scope->define_overload(def.overload_symbol);
-    auto signature = extract_signature(def);
+
+    ScopeType scope_type = def.is_pure ? ScopeType::PURE_METHOD : ScopeType::METHOD;
+
+    enter_scope(scope_type);
+
+    FieldVector generics = {};
+    auto template_type = create_template_type(generics);
+    current_scope->define(template_type);
+
+    Type_ptr return_type = make_shared_type<NoneType>();
+
+    if (def.return_type)
+    {
+        return_type = visit(def.return_type);
+    }
+
+    current_scope->define(def.our_context_symbol);
+
+    if (def.self_context_symbol != nullptr)
+    {
+        current_scope->define(def.self_context_symbol);
+    }
+
+    TypeVector param_types;
+
+    for (const auto& param : def.parameters)
+    {
+        auto type = visit(param.type);
+        param_types.push_back(type);
+
+        param.symbol->set_type(type);
+    }
+
+    Signature_ptr signature = std::make_shared<Signature>(
+        param_types,
+        return_type,
+        template_type
+    );
 
     Type_ptr type = def.symbol->get_type();
     MethodType_ptr method_type = type->as<MethodType_ptr>();
@@ -183,6 +146,8 @@ void Collector::visit(MethodDefinition& def)
     }
 
     visit(def.block);
+
+    leave_scope();
 }
 
 void Collector::visit(OperatorDefinition& def)
@@ -205,8 +170,6 @@ void Collector::visit(OperatorDefinition& def)
         }
     }
 
-    visit(def.block);
-
     forest[def.symbol] = ASTCloner::get().clone(def);
     scope_forest[def.symbol] = current_scope;
 }
@@ -215,7 +178,7 @@ void Collector::visit(ClassDefinition& def)
 {
     enter_scope(ScopeType::CLASS);
 
-    auto template_type = create_template_type(def.generics, type_system);
+    auto template_type = create_template_type(def.generics);
     current_scope->define(template_type);
 
     FieldMap_ptr fields = track_fields(def.fields);
@@ -241,19 +204,20 @@ void Collector::visit(ClassDefinition& def)
 
     conform_traits(def, class_type);
 
+    leave_scope();
+
     // clone AST
 
     forest[def.symbol] = ASTCloner::get().clone(def);
     scope_forest[def.symbol] = current_scope;
-
-    leave_scope();
 }
 
 void Collector::visit(TraitDefinition& def)
 {
     enter_scope(ScopeType::TRAIT);
 
-    auto template_type = create_template_type(def.generics, type_system);
+    auto template_type = create_template_type(def.generics);
+    current_scope->define(template_type);
 
     FieldMap_ptr fields = track_fields(def.fields);
     MethodMap_ptr methods = track_methods(def.methods);
@@ -273,17 +237,18 @@ void Collector::visit(TraitDefinition& def)
 
     conform_traits(def, trait_type);
 
-        forest[def.symbol] = ASTCloner::get().clone(def);
-        scope_forest[def.symbol] = current_scope;
+    leave_scope();
 
-        leave_scope();
+    forest[def.symbol] = ASTCloner::get().clone(def);
+    scope_forest[def.symbol] = current_scope;
 }
 
 void Collector::visit(PrimitiveDefinition& def)
 {
     enter_scope(ScopeType::PRIMITIVE);
 
-    auto template_type = create_template_type(def.generics, type_system);
+    auto template_type = create_template_type(def.generics);
+    current_scope->define(template_type);
 
     FieldMap_ptr fields = track_fields(def.fields);
     MethodMap_ptr methods = track_methods(def.methods);
@@ -303,14 +268,18 @@ void Collector::visit(PrimitiveDefinition& def)
 
     conform_traits(def, primitive_type);
 
-        forest[def.symbol] = ASTCloner::get().clone(def);
-        scope_forest[def.symbol] = current_scope;
+    leave_scope();
 
-        leave_scope();
+    forest[def.symbol] = ASTCloner::get().clone(def);
+    scope_forest[def.symbol] = current_scope;
 }
 
 void Collector::visit(EnumDefinition& def)
 {
+    enter_scope(ScopeType::CLASS);
+    TemplateType_ptr template_type = create_template_type(def.generics);
+    current_scope->define(template_type);
+
     StringVector full_names = collect_enum_names(def, "");
 
     auto enum_type_obj = def.symbol->get_type();
@@ -324,24 +293,26 @@ void Collector::visit(EnumDefinition& def)
     auto enum_type = enum_type_obj->as<EnumType_ptr>();
     enum_type->members = std::move(full_names);
 
-        forest[def.symbol] = ASTCloner::get().clone(def);
-        scope_forest[def.symbol] = current_scope;
+    leave_scope();
+
+    forest[def.symbol] = ASTCloner::get().clone(def);
+    scope_forest[def.symbol] = current_scope;
 }
 
 void Collector::visit(TypeAliasDefinition& def)
 {
     enter_scope(ScopeType::CLASS);
 
-    auto template_type = create_template_type(def.generics, type_system);
+    auto template_type = create_template_type(def.generics);
     current_scope->define(template_type);
 
     auto alias_type = visit(def.ref_type);
     def.symbol->set_type(alias_type);
 
-        forest[def.symbol] = ASTCloner::get().clone(def);
-        scope_forest[def.symbol] = current_scope;
+    forest[def.symbol] = ASTCloner::get().clone(def);
+    scope_forest[def.symbol] = current_scope;
 
-        leave_scope();
+    leave_scope();
 }
 
 // ============================================================================
@@ -355,46 +326,7 @@ Signature_ptr Collector::extract_signature(FunctionDefinition& def)
 
     enter_scope(scope_type);
 
-    auto template_type = create_template_type(def.generics, type_system);
-    current_scope->define(template_type);
-
-    Type_ptr return_type = make_shared_type<NoneType>();
-
-    if (def.return_type)
-    {
-        return_type = visit(def.return_type);
-    }
-
-    TypeVector param_types;
-
-    for (const auto& param : def.parameters)
-    {
-        auto type = visit(param.type);
-        param_types.push_back(type);
-
-        param.symbol->set_type(type);
-    }
-
-    visit(def.block);
-
-    leave_scope();
-
-    auto signature = std::make_shared<Signature>(
-        param_types,
-        return_type,
-        template_type
-    );
-
-    return signature;
-}
-
-Signature_ptr Collector::extract_signature(MethodDefinition& def)
-{
-    ScopeType scope_type = def.is_pure ? ScopeType::PURE_METHOD : ScopeType::METHOD;
-
-    enter_scope(scope_type);
-
-    auto template_type = create_template_type({}, type_system);
+    TemplateType_ptr template_type = create_template_type(def.generics);
     current_scope->define(template_type);
 
     Type_ptr return_type = make_shared_type<NoneType>();
@@ -431,7 +363,7 @@ Signature_ptr Collector::extract_signature(OperatorDefinition& def)
 {
     enter_scope(ScopeType::PURE_FUNCTION);
 
-    auto template_type = create_template_type(def.generics, type_system);
+    auto template_type = create_template_type(def.generics);
     current_scope->define(template_type);
 
     Type_ptr return_type = make_shared_type<NoneType>();
@@ -500,16 +432,12 @@ MethodMap_ptr Collector::track_methods(MethodDefinitionVector methods)
             method_map[method.name] = std::make_shared<MethodOverloadType>();
         }
 
-        auto signature = extract_signature(method);
+        visit(method);
 
         MethodOverloadType_ptr method_overload_type = method_map[method.name];
 
         Type_ptr type = method.symbol->get_type();
         MethodType_ptr method_type = type->as<MethodType_ptr>();
-        method_type->signature = signature;
-        method_type->is_shared = method.is_shared;
-        method_type->is_pure = method.is_pure;
-        method_type->is_native = false;
 
         method_overload_type->add(method_type);
     }
@@ -716,6 +644,72 @@ void Collector::merge_trait_methods(
 
         target_type->methods->get_type(trait_method.name)->add(trait_method_type);
     }
+}
+
+TemplateType_ptr Collector::create_template_type(FieldVector& generics)
+{
+    TypeStringMap generics_map;
+    StringVector ordered_names;
+    bool seen_variadic_generic = false;
+
+    for (Field& generic : generics)
+    {
+        Type_ptr type = generic.symbol->get_type();
+        GenericType_ptr generic_type = type->as<GenericType_ptr>();
+
+        Type_ptr declared_constraint_type = visit(generic.type);
+
+        if (declared_constraint_type->is<IntersectionType_ptr>())
+        {
+            auto types = declared_constraint_type->as<IntersectionType_ptr>()->types;
+
+            for (auto& inner_type : types)
+            {
+                Doctor::semantics().check(
+                    inner_type->is<TraitType_ptr>(),
+                    "Only an interesection of traits is supported"
+                );
+            }
+        }
+        else if (declared_constraint_type->is<VariantType_ptr>())
+        {
+            auto types = declared_constraint_type->as<VariantType_ptr>()->types;
+
+            for (auto& inner_type : types)
+            {
+                Doctor::semantics().check(
+                    type_system->is_primitive_type(inner_type),
+                    "Only an union of primitives is supported"
+                );
+            }
+        }
+
+        Doctor::semantics().check(
+            !generics_map.contains(generic.name),
+            "Duplicate generic parameter name: " + generic.name
+        );
+
+        if (generic.is_variadic)
+        {
+            Doctor::semantics().check(
+                !seen_variadic_generic,
+                "Only one variadic generic parameter is allowed"
+            );
+
+            seen_variadic_generic = true;
+        }
+
+        generic_type->constraint_type = declared_constraint_type;
+        generic_type->is_variadic = generic.is_variadic;
+
+        generics_map[generic.name] = type;
+        ordered_names.push_back(generic.name);
+    }
+
+    return std::make_shared<TemplateType>(
+        std::move(generics_map),
+        std::move(ordered_names)
+    );
 }
 
 } // namespace Wasp
