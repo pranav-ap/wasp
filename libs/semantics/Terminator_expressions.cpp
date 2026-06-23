@@ -1,7 +1,7 @@
 #include "AST.h"
 #include "Doctor.h"
 #include "Expression.h"
-#include "Final.h"
+#include "Terminator.h"
 #include "Type.h"
 
 #include <string>
@@ -16,7 +16,7 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-Type_ptr Final::visit(Expression_ptr expression)
+Type_ptr Terminator::visit(Expression_ptr expression)
 {
     return std::visit(
         [&](auto& node) -> Type_ptr
@@ -36,7 +36,7 @@ Type_ptr Final::visit(Expression_ptr expression)
     );
 }
 
-TypeVector Final::visit(ExpressionVector& expressions)
+TypeVector Terminator::visit(ExpressionVector& expressions)
 {
     TypeVector types;
 
@@ -48,7 +48,7 @@ TypeVector Final::visit(ExpressionVector& expressions)
     return types;
 }
 
-Type_ptr Final::visit(TernaryExpression& expr)
+Type_ptr Terminator::visit(TernaryExpression& expr)
 {
     Type_ptr test_type = visit(expr.test);
 
@@ -80,32 +80,32 @@ Type_ptr Final::visit(TernaryExpression& expr)
     return result;
 }
 
-Type_ptr Final::visit(IntegerLiteral&)
+Type_ptr Terminator::visit(IntegerLiteral&)
 {
     return make_shared_type<IntType>();
 }
 
-Type_ptr Final::visit(FloatLiteral&)
+Type_ptr Terminator::visit(FloatLiteral&)
 {
     return make_shared_type<FloatType>();
 }
 
-Type_ptr Final::visit(StringLiteral&)
+Type_ptr Terminator::visit(StringLiteral&)
 {
     return make_shared_type<StringType>();
 }
 
-Type_ptr Final::visit(BooleanLiteral&)
+Type_ptr Terminator::visit(BooleanLiteral&)
 {
     return make_shared_type<BooleanType>();
 }
 
-Type_ptr Final::visit(NoneLiteral&)
+Type_ptr Terminator::visit(NoneLiteral&)
 {
     return make_shared_type<NoneType>();
 }
 
-Type_ptr Final::visit(InterpolatedString& expr)
+Type_ptr Terminator::visit(InterpolatedString& expr)
 {
     for (auto& part : expr.parts)
     {
@@ -121,7 +121,7 @@ Type_ptr Final::visit(InterpolatedString& expr)
     return make_shared_type<StringType>();
 }
 
-Type_ptr Final::visit(ListLiteral& expr)
+Type_ptr Terminator::visit(ListLiteral& expr)
 {
     TypeVector element_types = visit(expr.expressions);
 
@@ -133,13 +133,13 @@ Type_ptr Final::visit(ListLiteral& expr)
     return make_shared_type<ListType>(unified_element_type);
 }
 
-Type_ptr Final::visit(TupleLiteral& expr)
+Type_ptr Terminator::visit(TupleLiteral& expr)
 {
     TypeVector element_types = visit(expr.expressions);
     return make_shared_type<TupleType>(element_types);
 }
 
-Type_ptr Final::visit(SetLiteral& expr)
+Type_ptr Terminator::visit(SetLiteral& expr)
 {
     TypeVector element_types = visit(expr.expressions);
 
@@ -159,7 +159,7 @@ Type_ptr Final::visit(SetLiteral& expr)
     return make_shared_type<SetType>(unified_element_type);
 }
 
-Type_ptr Final::visit(MapLiteral& expr)
+Type_ptr Terminator::visit(MapLiteral& expr)
 {
     TypeVector key_types, val_types;
 

@@ -101,7 +101,7 @@ void Captain::parse_module(const std::filesystem::path& file_path)
     Parser parser;
     auto stmts = parser.run(tokens);
 
-    auto mod = std::make_shared<Module>(abs_path, stmts);
+    Module_ptr mod = std::make_shared<Module>(abs_path, stmts);
     workspace->add_module(abs_path, mod);
     mod->save_ast("parser");
 }
@@ -109,7 +109,7 @@ void Captain::parse_module(const std::filesystem::path& file_path)
 std::vector<Module_ptr> Captain::calculate_build_order()
 {
     DependencyCrawler crawler(workspace);
-    auto build_order = crawler.calculate_build_order(entry_file);
+    std::vector<Module_ptr> build_order = crawler.calculate_build_order(entry_file);
     return build_order;
 }
 

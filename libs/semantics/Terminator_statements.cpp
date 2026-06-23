@@ -1,7 +1,7 @@
 #include "AST.h"
-#include "Final.h"
 #include "Statement.h"
 #include "SymbolScope.h"
+#include "Terminator.h"
 
 #include <variant>
 
@@ -14,12 +14,12 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-void Final::visit(Import&)
+void Terminator::visit(Import&)
 {
     // TODO: Implement
 }
 
-void Final::visit(Branch& stmt)
+void Terminator::visit(Branch& stmt)
 {
     enter_scope(ScopeType::BRANCH);
     visit(stmt.test);
@@ -33,7 +33,7 @@ void Final::visit(Branch& stmt)
     leave_scope();
 }
 
-void Final::visit(SimpleLoop& stmt)
+void Terminator::visit(SimpleLoop& stmt)
 {
     enter_scope(ScopeType::LOOP);
     visit(stmt.test);
@@ -41,7 +41,7 @@ void Final::visit(SimpleLoop& stmt)
     leave_scope();
 }
 
-void Final::visit(ForInLoop& stmt)
+void Terminator::visit(ForInLoop& stmt)
 {
     enter_scope(ScopeType::LOOP);
     visit(stmt.lhs);
@@ -49,7 +49,7 @@ void Final::visit(ForInLoop& stmt)
     leave_scope();
 }
 
-void Final::visit(Return& stmt)
+void Terminator::visit(Return& stmt)
 {
     if (stmt.expression.has_value())
     {
@@ -57,7 +57,7 @@ void Final::visit(Return& stmt)
     }
 }
 
-void Final::visit(ExpressionStatement& stmt)
+void Terminator::visit(ExpressionStatement& stmt)
 {
     visit(stmt.expression);
 }
@@ -66,7 +66,7 @@ void Final::visit(ExpressionStatement& stmt)
 // Statements
 // ============================================================================
 
-void Final::visit(Block& block)
+void Terminator::visit(Block& block)
 {
     for (auto& statement : block.statements)
     {
@@ -74,7 +74,7 @@ void Final::visit(Block& block)
     }
 }
 
-void Final::visit(Statement_ptr statement)
+void Terminator::visit(Statement_ptr statement)
 {
     std::visit(
         [&](auto& node)

@@ -380,6 +380,11 @@ struct ModuleType
     TypeStringMap member_types;
     StringVector ordered_keys;
 
+    explicit ModuleType(std::string name)
+        : type_id(get_next_type_id()), name(std::move(name))
+    {
+    }
+
     int get_member_index(const std::string& member_name) const;
     Type_ptr get_member(const std::string& member_name) const;
 };

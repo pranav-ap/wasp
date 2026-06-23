@@ -10,10 +10,10 @@
 namespace Wasp
 {
 
-class Final : public Phase
+class Terminator : public Phase
 {
 public:
-    explicit Final() : Phase()
+    explicit Terminator() : Phase()
     {
     }
 
@@ -102,10 +102,7 @@ private:
         Expression_ptr assigned_expr
     );
 
-    Type_ptr mutate_member(
-        Expression_ptr lhs_expr,
-        Expression_ptr rhs_expr
-    );
+    Type_ptr mutate_member(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
 
     Type_ptr handle_call(
         Call& call,

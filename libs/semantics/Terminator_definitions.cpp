@@ -1,7 +1,7 @@
 #include "AST.h"
-#include "Final.h"
 #include "Statement.h"
 #include "SymbolScope.h"
+#include "Terminator.h"
 #include "Type.h"
 
 template <class... Ts> struct overloaded : Ts...
@@ -13,7 +13,7 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-void Final::visit(FunctionDefinition& def)
+void Terminator::visit(FunctionDefinition& def)
 {
     current_scope->define_overload(def.overload_symbol);
 
@@ -32,7 +32,7 @@ void Final::visit(FunctionDefinition& def)
     leave_scope();
 }
 
-void Final::visit(MethodDefinition& def)
+void Terminator::visit(MethodDefinition& def)
 {
     current_scope->define_overload(def.overload_symbol);
 
@@ -55,7 +55,7 @@ void Final::visit(MethodDefinition& def)
     leave_scope();
 }
 
-void Final::visit(OperatorDefinition& def)
+void Terminator::visit(OperatorDefinition& def)
 {
     current_scope->define_overload(def.overload_symbol);
 
@@ -71,7 +71,7 @@ void Final::visit(OperatorDefinition& def)
     leave_scope();
 }
 
-void Final::visit(ClassDefinition& def)
+void Terminator::visit(ClassDefinition& def)
 {
     current_scope->define(def.symbol);
 
@@ -89,7 +89,7 @@ void Final::visit(ClassDefinition& def)
     leave_scope();
 }
 
-void Final::visit(TraitDefinition& def)
+void Terminator::visit(TraitDefinition& def)
 {
     current_scope->define(def.symbol);
 
@@ -107,7 +107,7 @@ void Final::visit(TraitDefinition& def)
     leave_scope();
 }
 
-void Final::visit(PrimitiveDefinition& def)
+void Terminator::visit(PrimitiveDefinition& def)
 {
     current_scope->define(def.symbol);
 
@@ -125,12 +125,12 @@ void Final::visit(PrimitiveDefinition& def)
     leave_scope();
 }
 
-void Final::visit(EnumDefinition& def)
+void Terminator::visit(EnumDefinition& def)
 {
     current_scope->define(def.symbol);
 }
 
-void Final::visit(TypeAliasDefinition& def)
+void Terminator::visit(TypeAliasDefinition& def)
 {
     current_scope->define(def.symbol);
 }

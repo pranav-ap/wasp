@@ -1,9 +1,9 @@
 #include "AST.h"
 #include "Doctor.h"
 #include "Expression.h"
-#include "Final.h"
 #include "Symbol.h"
 #include "SymbolScope.h"
+#include "Terminator.h"
 #include "Type.h"
 #include "TypeSystem.h"
 
@@ -72,7 +72,7 @@ Type_ptr resolve_method(
 
 } // namespace
 
-Type_ptr Final::visit(Call& call)
+Type_ptr Terminator::visit(Call& call)
 {
     TypeVector argument_types = visit(call.arguments);
     TypeVector generic_types = visit(call.angular_nodes);
@@ -106,7 +106,7 @@ Type_ptr Final::visit(Call& call)
     );
 }
 
-Type_ptr Final::handle_call(
+Type_ptr Terminator::handle_call(
     Call& call,
     Identifier& identifier,
     const TypeVector& generic_types,
@@ -132,7 +132,7 @@ Type_ptr Final::handle_call(
     );
 }
 
-Type_ptr Final::handle_call(
+Type_ptr Terminator::handle_call(
     Call& call,
     MemberAccess& access,
     TypeVector& generic_types,

@@ -1,10 +1,10 @@
 #include "AST.h"
 #include "Doctor.h"
 #include "Expression.h"
-#include "Final.h"
 #include "Symbol.h"
 #include "SymbolFactory.h"
 #include "SymbolScope.h"
+#include "Terminator.h"
 #include "Type.h"
 #include "TypeSystem.h"
 
@@ -218,7 +218,7 @@ Type_ptr resolve_member_access(
 // Binding
 // ===============================================================================
 
-Type_ptr Final::visit(Binding& binding)
+Type_ptr Terminator::visit(Binding& binding)
 {
     Doctor::semantics().check(
         binding.lhs->is<Identifier>(),
@@ -260,7 +260,7 @@ Type_ptr Final::visit(Binding& binding)
 // Assignment
 // ===============================================================================
 
-Type_ptr Final::visit(Assignment& expr)
+Type_ptr Terminator::visit(Assignment& expr)
 {
     if (expr.lhs->is<Identifier>())
     {
@@ -275,7 +275,7 @@ Type_ptr Final::visit(Assignment& expr)
     Doctor::semantics().fatal("Unexpected in Assignment LHS");
 }
 
-Type_ptr Final::mutate_variable(
+Type_ptr Terminator::mutate_variable(
     Expression_ptr expr,
     Expression_ptr assigned_expr
 )
@@ -306,10 +306,7 @@ Type_ptr Final::mutate_variable(
     return expected_type;
 }
 
-Type_ptr Final::mutate_member(
-    Expression_ptr lhs_expr,
-    Expression_ptr rhs_expr
-)
+Type_ptr Terminator::mutate_member(Expression_ptr lhs_expr, Expression_ptr rhs_expr)
 {
     auto& access = lhs_expr->as<MemberAccess>();
     Type_ptr expected_type = visit(access);
@@ -329,7 +326,7 @@ Type_ptr Final::mutate_member(
 // Identifier
 // ===============================================================================
 
-Type_ptr Final::visit(Identifier& expr)
+Type_ptr Terminator::visit(Identifier& expr)
 {
     auto symbol = current_scope->lookup_variable(expr.name);
     expr.symbol = symbol;
@@ -340,7 +337,7 @@ Type_ptr Final::visit(Identifier& expr)
 // Member Access
 // ===============================================================================
 
-Type_ptr Final::visit(MemberAccess& access)
+Type_ptr Terminator::visit(MemberAccess& access)
 {
     Doctor::semantics().check(
         access.member->is<Identifier>(),

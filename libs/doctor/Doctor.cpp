@@ -17,17 +17,17 @@ std::string to_string(WaspStage stage)
     switch (stage)
     {
     case WaspStage::Lexer:
-        return "Lexer Error";
+        return "Lexer";
     case WaspStage::Parser:
-        return "Parser Error";
+        return "Parser";
     case WaspStage::Semantics:
-        return "Semantic Error";
+        return "Semantics";
     case WaspStage::Captain:
-        return "Captain Error";
+        return "Captain";
     case WaspStage::Compiler:
-        return "Compiler Error";
+        return "Compiler";
     default:
-        return "Unknown Error";
+        return "Unknown";
     }
 }
 

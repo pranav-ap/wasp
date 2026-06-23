@@ -1,9 +1,9 @@
 #include "SemanticsAnalyzer.h"
 #include "Collector.h"
 #include "Doctor.h"
-#include "Final.h"
 #include "Hoister.h"
 #include "SymbolScope.h"
+#include "Terminator.h"
 #include "Workspace.h"
 
 #include <memory>
@@ -12,7 +12,7 @@
 namespace Wasp
 {
 
-void SemanticsAnalyzer::run(const std::vector<Module_ptr>& build_order)
+void SemanticsAnalyzer::run(std::vector<Module_ptr>& build_order)
 {
     Doctor::get().start();
 
@@ -20,9 +20,9 @@ void SemanticsAnalyzer::run(const std::vector<Module_ptr>& build_order)
 
     Hoister hoister;
     Collector collector;
-    Final fin;
+    Terminator terminator;
 
-    for (const auto& mod : build_order)
+    for (Module_ptr& mod : build_order)
     {
         hoister.run(mod);
         collector.run(mod);
@@ -30,7 +30,7 @@ void SemanticsAnalyzer::run(const std::vector<Module_ptr>& build_order)
         auto ast_forest = collector.get_forest();
         auto scope_forest = collector.get_scope_forest();
 
-        fin.run(mod);
+        terminator.run(mod);
 
         mod->save_ast("semantics");
     }

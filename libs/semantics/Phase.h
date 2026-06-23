@@ -18,7 +18,7 @@ public:
     {
     }
 
-    void run(Module_ptr mod);
+    virtual void run(Module_ptr mod);
 
     Module_ptr current_module;
     SymbolScope_ptr current_scope;

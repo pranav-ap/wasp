@@ -1,7 +1,7 @@
 #include "AST.h"
 #include "Doctor.h"
 #include "Expression.h"
-#include "Final.h"
+#include "Terminator.h"
 #include "Token.h"
 #include "Type.h"
 
@@ -16,7 +16,7 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-Type_ptr Final::visit(Prefix& expr)
+Type_ptr Terminator::visit(Prefix& expr)
 {
     auto operand_type = visit(expr.operand);
 
@@ -50,7 +50,7 @@ Type_ptr Final::visit(Prefix& expr)
     return resolved_type;
 }
 
-Type_ptr Final::visit(Infix& expr)
+Type_ptr Terminator::visit(Infix& expr)
 {
     Type_ptr left_value = visit(expr.left);
     Type_ptr right_value = visit(expr.right);

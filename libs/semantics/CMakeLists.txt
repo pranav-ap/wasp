@@ -3,14 +3,14 @@ add_library(
     Collector_definitions.cpp
     Collector_types.cpp
     Collector.cpp
-    Final_call.cpp
-    Final_constructor.cpp
-    Final_definitions.cpp
-    Final_expressions.cpp
-    Final_operators.cpp
-    Final_statements.cpp
-    Final_types.cpp
-    Final_variables.cpp
+    Terminator_call.cpp
+    Terminator_constructor.cpp
+    Terminator_definitions.cpp
+    Terminator_expressions.cpp
+    Terminator_operators.cpp
+    Terminator_statements.cpp
+    Terminator_types.cpp
+    Terminator_variables.cpp
     Hoister.cpp
     Phase.cpp
     SemanticsAnalyzer.cpp
