@@ -29,7 +29,7 @@ namespace Wasp
 
 void Salter::run(const std::vector<Module_ptr>& build_order)
 {
-    Doctor::get().start();
+    Doctor::salter().start();
 
     enter_scope(ScopeType::WORKSPACE);
 
@@ -46,7 +46,7 @@ void Salter::run(const std::vector<Module_ptr>& build_order)
 
     leave_scope();
 
-    Doctor::get().stop();
+    Doctor::salter().stop();
 }
 
 void Salter::enter_scope(ScopeType scope_type)

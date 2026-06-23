@@ -38,7 +38,6 @@ void DependencyCrawler::traverse_edges(const std::filesystem::path& file_path)
     );
 
     auto mod = workspace->get_module(abs_path);
-    Doctor::captain().fatal_if_nullptr(mod);
 
     currently_visiting.insert(abs_path);
 
@@ -49,14 +48,16 @@ void DependencyCrawler::traverse_edges(const std::filesystem::path& file_path)
         {
             auto& import_stmt = stmt_ptr->as<Import>();
 
-            auto full_filepath = resolve_import_path(
+            auto module_path = resolve_import_path(
                 import_stmt.access_modifier,
                 import_stmt.jumps,
                 import_stmt.path,
                 abs_path
             );
 
-            traverse_edges(full_filepath);
+            import_stmt.module_path = module_path;
+
+            traverse_edges(module_path);
         }
     }
 

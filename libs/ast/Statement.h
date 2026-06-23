@@ -4,6 +4,7 @@
 #include "Token.h"
 
 #include <cctype>
+#include <filesystem>
 #include <memory>
 #include <optional>
 #include <string>
@@ -240,9 +241,14 @@ struct Import
     StringVector path;
 
     std::optional<std::string> module_alias;
+
     bool expose_all;
     std::vector<ImportAsPair> exposed_names;
-    StringVector excluded_names;
+
+    Symbol_ptr module_symbol = nullptr;
+
+    // filled by DependencyCrawler
+    std::filesystem::path module_path = std::filesystem::path();
 };
 
 // --- Variant  ---

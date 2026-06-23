@@ -1,5 +1,6 @@
 #include "Doctor.h"
 #include "fmt/base.h"
+#include "fmt/color.h"
 
 #include <cpptrace/basic.hpp>
 #include <cpptrace/cpptrace.hpp>
@@ -22,12 +23,14 @@ std::string to_string(WaspStage stage)
         return "Parser";
     case WaspStage::Semantics:
         return "Semantics";
+    case WaspStage::Salter:
+        return "Salter";
     case WaspStage::Captain:
         return "Captain";
     case WaspStage::Compiler:
         return "Compiler";
     default:
-        return "Unknown";
+        Doctor::get().fatal("Unknown WaspStage encountered in to_string()");
     }
 }
 
@@ -35,8 +38,11 @@ void Doctor::print_error(const WaspError& err) const
 {
     fmt::print(
         stderr,
-        "\033[31m{}\033[0m : {}\n",
-        to_string(err.stage),
+        "{} : {}\n",
+        fmt::styled(
+            to_string(err.stage),
+            fmt::emphasis::bold | fmt::fg(fmt::color::red)
+        ),
         err.message
     );
 

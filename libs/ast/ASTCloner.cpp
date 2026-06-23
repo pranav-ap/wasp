@@ -405,7 +405,6 @@ Statement_ptr ASTCloner::clone(const Import& stmt)
     cloned.module_alias = stmt.module_alias;
     cloned.expose_all = stmt.expose_all;
     cloned.exposed_names = stmt.exposed_names;
-    cloned.excluded_names = stmt.excluded_names;
     return make_statement(cloned);
 }
 

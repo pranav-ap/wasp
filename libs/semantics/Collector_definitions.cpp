@@ -59,6 +59,8 @@ StringVector collect_enum_names(
 
 void Collector::visit(FunctionDefinition& def)
 {
+    current_scope->define_function_overload(def.overload_symbol);
+
     auto signature = extract_signature(def);
 
     Type_ptr type = def.symbol->get_type();
@@ -83,7 +85,7 @@ void Collector::visit(FunctionDefinition& def)
 
 void Collector::visit(MethodDefinition& def)
 {
-    current_scope->define_overload(def.overload_symbol);
+    current_scope->define_method_overload(def.overload_symbol);
 
     ScopeType scope_type = def.is_pure ? ScopeType::PURE_METHOD : ScopeType::METHOD;
 
@@ -152,6 +154,8 @@ void Collector::visit(MethodDefinition& def)
 
 void Collector::visit(OperatorDefinition& def)
 {
+    current_scope->define_function_overload(def.overload_symbol);
+
     auto signature = extract_signature(def);
 
     Type_ptr type = def.symbol->get_type();

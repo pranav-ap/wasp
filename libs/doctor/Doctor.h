@@ -1,7 +1,9 @@
 #pragma once
 
 #include "fmt/base.h"
+#include "fmt/format.h"
 #include <chrono>
+#include <fmt/color.h>
 #include <fmt/core.h>
 #include <optional>
 #include <source_location>
@@ -14,6 +16,7 @@ enum class WaspStage
     Lexer,
     Parser,
     Semantics,
+    Salter,
     Captain,
     Compiler
 };
@@ -72,6 +75,12 @@ public:
     static Doctor& captain()
     {
         current_stage = WaspStage::Captain;
+        return get();
+    }
+
+    static Doctor& salter()
+    {
+        current_stage = WaspStage::Salter;
         return get();
     }
 
@@ -150,24 +159,17 @@ public:
         if (!opt.has_value()) {
             return true;
         }
+
         return false;
     }
 
-    void start(std::string text = "")
+    void start()
     {
-        if (text.empty())
-        {
-            fmt::print(stdout, "Starting {} stage...\n", to_string(current_stage));
-        }
-        else
-        {
-            fmt::print(
-                stdout,
-                "Starting {} stage: {}...\n",
-                to_string(current_stage),
-                text
-            );
-        }
+        fmt::print(
+            stdout,
+            "Running {}...\n",
+            fmt::styled(to_string(current_stage), fmt::fg(fmt::color::cyan))
+        );
 
         timer_start = std::chrono::steady_clock::now();
     }
@@ -185,8 +187,12 @@ public:
 
         fmt::print(
             stdout,
-            "Completed in {:.2f} ms ({:.3f} s).\n",
-            elapsed_ms,
+            "{} finished in {} ms ({:.3f} s).\n\n",
+            fmt::styled(to_string(current_stage), fmt::fg(fmt::color::cyan)),
+            fmt::styled(
+                fmt::format("{:.2f}", elapsed_ms),
+                fmt::fg(fmt::color::yellow)
+            ),
             elapsed_s
         );
     }

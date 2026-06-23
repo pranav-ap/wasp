@@ -54,22 +54,30 @@ void Hoister::visit(Block& block)
     }
 }
 
+template <class... Ts> struct overloaded : Ts...
+{
+    using Ts::operator()...;
+};
+template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+
 void Hoister::visit(Statement_ptr statement)
 {
     std::visit(
-        [&](auto& node)
-        {
-            if constexpr (requires { visit(node); })
+        overloaded{
+            [&](Import& imp)
             {
-                visit(node);
+                import_symbols(imp);
+            },
+            [&](auto& node)
+            {
+                if constexpr (requires { visit(node); })
+                {
+                    visit(node);
+                }
             }
         },
         statement->data
     );
-}
-
-void Hoister::visit(Import&)
-{
 }
 
 void Hoister::visit(FunctionDefinition& def)
@@ -81,7 +89,7 @@ void Hoister::visit(FunctionDefinition& def)
         current_scope->lexical_depth
     );
 
-    auto overload_symbol = current_scope->overload(symbol);
+    auto overload_symbol = current_scope->overload_function(symbol);
     def.symbol = symbol;
     def.overload_symbol = overload_symbol;
 
@@ -110,14 +118,14 @@ void Hoister::visit(FunctionDefinition& def)
 
 void Hoister::visit(MethodDefinition& def)
 {
-    auto symbol = SymbolFactory::create_function(
+    auto symbol = SymbolFactory::create_method(
         def.name,
         make_shared_type<MethodType>(def.name),
         current_scope->closure_depth,
         current_scope->lexical_depth
     );
 
-    auto overload_symbol = current_scope->overload(symbol);
+    auto overload_symbol = current_scope->overload_method(symbol);
     def.symbol = symbol;
     def.overload_symbol = overload_symbol;
 
@@ -178,7 +186,7 @@ void Hoister::visit(OperatorDefinition& def)
         current_scope->lexical_depth
     );
 
-    auto overload_symbol = current_scope->overload(symbol);
+    auto overload_symbol = current_scope->overload_function(symbol);
     def.symbol = symbol;
     def.overload_symbol = overload_symbol;
 
@@ -363,7 +371,7 @@ void Hoister::visit(Expression_ptr expression)
 
 void Hoister::visit(Binding& binding)
 {
-    Doctor::parser().check(
+    Doctor::semantics().check(
         binding.lhs->is<Identifier>(),
         "Left-hand side of a binding must be an identifier"
     );

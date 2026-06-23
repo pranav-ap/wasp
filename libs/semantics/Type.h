@@ -221,11 +221,12 @@ struct FunctionType
 };
 
 using FunctionType_ptr = std::shared_ptr<FunctionType>;
+using FunctionTypeVector = std::vector<FunctionType_ptr>;
 
 struct FunctionOverloadType
 {
     std::string name;
-    std::vector<FunctionType> function_types;
+    std::vector<FunctionType_ptr> function_types;
 };
 
 using FunctionOverloadType_ptr = std::shared_ptr<FunctionOverloadType>;
@@ -374,14 +375,12 @@ using TypeAlias_ptr = std::shared_ptr<TypeAlias>;
 
 struct ModuleType
 {
-    int type_id;
     std::string name;
 
     TypeStringMap member_types;
     StringVector ordered_keys;
 
-    explicit ModuleType(std::string name)
-        : type_id(get_next_type_id()), name(std::move(name))
+    explicit ModuleType(std::string name) : name(std::move(name))
     {
     }
 

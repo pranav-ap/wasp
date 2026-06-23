@@ -14,9 +14,36 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-void Terminator::visit(Import&)
+// ============================================================================
+// Statements
+// ============================================================================
+
+void Terminator::visit(Block& block)
 {
-    // TODO: Implement
+    for (auto& statement : block.statements)
+    {
+        visit(statement);
+    }
+}
+
+void Terminator::visit(Statement_ptr statement)
+{
+    std::visit(
+        overloaded{
+            [&](Import& imp)
+            {
+                import_symbols(imp);
+            },
+            [&](auto& node)
+            {
+                if constexpr (requires { visit(node); })
+                {
+                    visit(node);
+                }
+            }
+        },
+        statement->data
+    );
 }
 
 void Terminator::visit(Branch& stmt)
@@ -60,32 +87,6 @@ void Terminator::visit(Return& stmt)
 void Terminator::visit(ExpressionStatement& stmt)
 {
     visit(stmt.expression);
-}
-
-// ============================================================================
-// Statements
-// ============================================================================
-
-void Terminator::visit(Block& block)
-{
-    for (auto& statement : block.statements)
-    {
-        visit(statement);
-    }
-}
-
-void Terminator::visit(Statement_ptr statement)
-{
-    std::visit(
-        [&](auto& node)
-        {
-            if constexpr (requires { visit(node); })
-            {
-                visit(node);
-            }
-        },
-        statement->data
-    );
 }
 
 } // namespace Wasp

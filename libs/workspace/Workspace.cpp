@@ -7,7 +7,6 @@
 #include <cstddef>
 #include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <map>
 #include <stdexcept>
 #include <string>
@@ -32,6 +31,11 @@ std::string Module::get_name() const
 
 std::string Module::get_path() const
 {
+    Doctor::semantics().fatal_if_empty_string(
+        absolute_filepath,
+        "Module file path cannot be empty"
+    );
+
     return absolute_filepath.string();
 }
 
@@ -106,7 +110,7 @@ void Module::save_ast(const std::string& tag)
     file << json.dump(4);
     file.close();
 
-    std::cout << "AST saved to: " << output_path.string() << std::endl;
+    // std::cout << "AST saved to: " << output_path.string() << std::endl;
 }
 
 // ============================================================================
@@ -122,63 +126,38 @@ Workspace::Workspace(std::filesystem::path root)
 Module_ptr Workspace::get_module(const std::filesystem::path& path)
 {
     auto it = module_registry.find(path);
+
     if (it != module_registry.end())
     {
         return it->second;
     }
 
-    return nullptr;
+    Doctor::captain().fatal("Module not found: " + path.string());
 }
 
-Module_ptr Workspace::get_module(int module_index)
+Symbol_ptr Workspace::get_module_symbol(const std::filesystem::path& path)
 {
-    for (const auto& [path, module] : module_registry)
+    auto it = module_symbols.find(path);
+
+    if (it != module_symbols.end())
     {
-        if (get_module_index(path) == module_index)
-        {
-            return module;
-        }
+        return it->second;
     }
 
-    return nullptr;
+    Doctor::captain().fatal("Module symbol not found: " + path.string());
 }
 
-const std::map<std::filesystem::path, Module_ptr>& Workspace::get_all_modules() const
+void Workspace::add_module(const std::filesystem::path& path, Module_ptr mod)
 {
-    return module_registry;
+    module_registry[path] = mod;
 }
 
-void Workspace::add_module(const std::filesystem::path& path, Module_ptr module)
+void Workspace::add_module_symbol(
+    const std::filesystem::path& path,
+    Symbol_ptr module_symbol
+)
 {
-    module_registry[path] = module;
-}
-
-int Workspace::get_module_index(const std::filesystem::path& path) const
-{
-    int index = 0;
-    for (const auto& [p, _] : module_registry)
-    {
-        if (p == path)
-        {
-            return index;
-        }
-        ++index;
-    }
-    return -1;
-}
-
-std::string Workspace::get_module_path(int module_index) const
-{
-    int index = 0;
-    for (const auto& [path, _] : module_registry)
-    {
-        if (index == module_index)
-        {
-            return path.string();
-        }
-        ++index;
-    }
-    return "";
+    module_symbols[path] = module_symbol;
 }
 
 } // namespace Wasp

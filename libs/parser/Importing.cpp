@@ -79,7 +79,6 @@ Statement_ptr Parser::parse_import()
     std::optional<std::string> module_alias = std::nullopt;
     bool expose_all = false;
     std::vector<ImportAsPair> exposed_names;
-    StringVector excluded_names;
 
     // Check for module alias (import X as x)
     if (token_pipe.consume_optional_in_line(TokenType::AS))
@@ -94,18 +93,6 @@ Statement_ptr Parser::parse_import()
         if (token_pipe.consume_optional_in_line(TokenType::STAR))
         {
             expose_all = true;
-
-            // Expose everything EXCEPT specific symbols
-            if (token_pipe.consume_optional_in_line(TokenType::EXCEPT))
-            {
-                do
-                {
-                    excluded_names.push_back(
-                        token_pipe.require_in_line(TokenType::IDENTIFIER).lexeme
-                    );
-                }
-                while (token_pipe.consume_optional_in_line(TokenType::COMMA));
-            }
         }
         // Expose specific symbols explicitly
         else
@@ -128,8 +115,7 @@ Statement_ptr Parser::parse_import()
 
         std::move(module_alias),
         expose_all,
-        std::move(exposed_names),
-        std::move(excluded_names)
+        std::move(exposed_names)
     ));
 }
 

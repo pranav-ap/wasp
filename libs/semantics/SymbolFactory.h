@@ -2,6 +2,7 @@
 
 #include "Symbol.h"
 #include "Type.h"
+#include "Workspace.h"
 
 #include <string>
 
@@ -43,6 +44,15 @@ public:
 
     static Symbol_ptr create_function_overloads(const std::string& name);
 
+    static Symbol_ptr create_method(
+        const std::string& name,
+        Type_ptr type,
+        int closure_depth = 0,
+        int lexical_depth = 0
+    );
+
+    static Symbol_ptr create_method_overloads(const std::string& name);
+
     static Symbol_ptr create_type(
         const std::string& name,
         Type_ptr type = nullptr,
@@ -60,6 +70,13 @@ public:
     static Symbol_ptr create_symbol_alias(
         const std::string& name,
         Symbol_ptr target,
+        int closure_depth = 0,
+        int lexical_depth = 0
+    );
+
+    static Symbol_ptr create_module(
+        const std::string& name,
+        Type_ptr type,
         int closure_depth = 0,
         int lexical_depth = 0
     );

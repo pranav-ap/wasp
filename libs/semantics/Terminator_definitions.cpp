@@ -15,7 +15,7 @@ namespace Wasp
 
 void Terminator::visit(FunctionDefinition& def)
 {
-    current_scope->define_overload(def.overload_symbol);
+    current_scope->define_function_overload(def.overload_symbol);
 
     ScopeType scope_type = def.is_pure ? ScopeType::PURE_FUNCTION
                                        : ScopeType::FUNCTION;
@@ -34,7 +34,7 @@ void Terminator::visit(FunctionDefinition& def)
 
 void Terminator::visit(MethodDefinition& def)
 {
-    current_scope->define_overload(def.overload_symbol);
+    current_scope->define_method_overload(def.overload_symbol);
 
     ScopeType scope_type = def.is_pure ? ScopeType::PURE_METHOD : ScopeType::METHOD;
     enter_scope(scope_type);
@@ -57,7 +57,7 @@ void Terminator::visit(MethodDefinition& def)
 
 void Terminator::visit(OperatorDefinition& def)
 {
-    current_scope->define_overload(def.overload_symbol);
+    current_scope->define_function_overload(def.overload_symbol);
 
     enter_scope(ScopeType::PURE_FUNCTION);
 

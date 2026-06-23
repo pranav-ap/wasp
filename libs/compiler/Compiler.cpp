@@ -59,7 +59,7 @@ void save_to_file(std::stringstream& qbe_output)
 
 void Compiler::run(const std::vector<Module_ptr>& build_order)
 {
-    Doctor::get().start();
+    Doctor::compiler().start();
 
     std::stringstream qbe_output;
 
@@ -82,7 +82,7 @@ void Compiler::run(const std::vector<Module_ptr>& build_order)
 
     save_to_file(qbe_output);
 
-    Doctor::get().stop();
+    Doctor::compiler().stop();
 }
 
 // ============================================================================

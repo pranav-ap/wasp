@@ -407,7 +407,6 @@ nlohmann::json ASTPrinter::print(const Import& stmt)
         }
         node["exposed_names"] = names;
     }
-    node["excluded_names"] = stmt.excluded_names;
     return node;
 }
 

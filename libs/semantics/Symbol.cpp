@@ -4,7 +4,9 @@
 #include "Type.h"
 
 #include <string>
+#include <type_traits>
 #include <utility>
+#include <variant>
 
 namespace Wasp
 {
@@ -31,62 +33,52 @@ Symbol::Symbol(
 
 Type_ptr Symbol::get_type() const
 {
-    if (is<VariableSymbol>())
-    {
-        return as<VariableSymbol>().type;
-    }
+    return std::visit(
+        [this](auto&& arg) -> Type_ptr
+        {
+            using T = std::decay_t<decltype(arg)>;
 
-    if (is<FunctionSymbol>())
-    {
-        return as<FunctionSymbol>().type;
-    }
-
-    if (is<TypeSymbol>())
-    {
-        return as<TypeSymbol>().type;
-    }
-
-    if (is<TypeAliasSymbol>())
-    {
-        return as<TypeAliasSymbol>().type;
-    }
-
-    if (is<SymbolAliasSymbol>())
-    {
-        return as<SymbolAliasSymbol>().target->get_type();
-    }
-
-    Doctor::semantics().fatal(
-        "Symbol does not have a type attribute : " + name
+            if constexpr (std::is_same_v<T, SymbolAliasSymbol>)
+            {
+                return arg.target->get_type();
+            }
+            else if constexpr (requires { arg.type; })
+            {
+                return arg.type;
+            }
+            else
+            {
+                Doctor::semantics().fatal(
+                    "Symbol '" + name + "' does not have a type attribute"
+                );
+            }
+        },
+        payload
     );
 }
 
 void Symbol::set_type(Type_ptr new_type)
 {
-    if (is<VariableSymbol>())
-    {
-        as<VariableSymbol>().type = new_type;
-    }
-    else if (is<FunctionSymbol>())
-    {
-        as<FunctionSymbol>().type = new_type;
-    }
-    else if (is<TypeSymbol>())
-    {
-        as<TypeSymbol>().type = new_type;
-    }
-    else if (is<TypeAliasSymbol>())
-    {
-        as<TypeAliasSymbol>().type = new_type;
-    }
-    else if (is<SymbolAliasSymbol>())
-    {
-        as<SymbolAliasSymbol>().target->set_type(new_type);
-    }
-    else
-    {
-        Doctor::semantics().fatal("Cannot set type for symbol: " + name);
-    }
+    std::visit(
+        [this, new_type](auto&& arg)
+        {
+            using T = std::decay_t<decltype(arg)>;
+
+            if constexpr (std::is_same_v<T, SymbolAliasSymbol>)
+            {
+                arg.target->set_type(new_type);
+            }
+            else if constexpr (requires { arg.type; })
+            {
+                arg.type = new_type;
+            }
+            else
+            {
+                Doctor::semantics().fatal("Cannot set type for symbol: " + name);
+            }
+        },
+        payload
+    );
 }
 
 Symbol_ptr Symbol::resolve()
@@ -131,6 +123,27 @@ void FunctionOverloadsSymbol::add_overload(Symbol_ptr function_symbol)
     );
 
     overloads.push_back(function_symbol);
+
+    FunctionOverloadType_ptr overload_type = type->as<FunctionOverloadType_ptr>();
+    overload_type->function_types.push_back(
+        function_symbol->get_type()->as<FunctionType_ptr>()
+    );
+}
+
+void MethodOverloadsSymbol::add_overload(Symbol_ptr method_symbol)
+{
+    Doctor::semantics().check(
+        method_symbol->is<MethodSymbol>(),
+        "Only FunctionSymbol can be added as an overload"
+    );
+
+    overloads.push_back(method_symbol);
+
+    MethodOverloadType_ptr overload_type = type->as<MethodOverloadType_ptr>();
+
+    overload_type->method_types.push_back(
+        method_symbol->get_type()->as<MethodType_ptr>()
+    );
 }
 
 } // namespace Wasp

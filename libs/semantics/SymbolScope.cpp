@@ -181,8 +181,8 @@ void SymbolScope::define(Symbol_ptr symbol)
     );
 
     Doctor::semantics().check(
-        !symbol->is<FunctionSymbol>(),
-        "Cannot directly define a function symbol. Use overload() instead."
+        !symbol->is<FunctionSymbol>() && !symbol->is<MethodSymbol>(),
+        "Cannot directly define a function or method symbol. Use overload() instead."
     );
 
     Doctor::semantics().check(
@@ -193,7 +193,7 @@ void SymbolScope::define(Symbol_ptr symbol)
     symbols[symbol->name] = symbol;
 }
 
-void SymbolScope::define_overload(Symbol_ptr symbol)
+void SymbolScope::define_function_overload(Symbol_ptr symbol)
 {
     Doctor::semantics().fatal_if_nullptr(
         symbol,
@@ -211,7 +211,22 @@ void SymbolScope::define_overload(Symbol_ptr symbol)
     }
 }
 
-Symbol_ptr SymbolScope::overload(Symbol_ptr symbol)
+void SymbolScope::define_method_overload(Symbol_ptr symbol)
+{
+    Doctor::semantics().fatal_if_nullptr(symbol, "Cannot define a null symbol");
+
+    Doctor::semantics().check(
+        symbol->is<MethodOverloadsSymbol>(),
+        "Expected a MethodOverloadsSymbol for overload definition"
+    );
+
+    if (!symbols.contains(symbol->name))
+    {
+        symbols[symbol->name] = symbol;
+    }
+}
+
+Symbol_ptr SymbolScope::overload_function(Symbol_ptr symbol)
 {
     Doctor::semantics().fatal_if_nullptr(
         symbol,
@@ -233,6 +248,29 @@ Symbol_ptr SymbolScope::overload(Symbol_ptr symbol)
     }
 
     overload_symbol->as<FunctionOverloadsSymbol>().add_overload(symbol);
+
+    symbols[symbol->name] = overload_symbol;
+
+    return overload_symbol;
+}
+
+Symbol_ptr SymbolScope::overload_method(Symbol_ptr symbol)
+{
+    Doctor::semantics().fatal_if_nullptr(symbol, "Cannot define a null symbol");
+
+    Doctor::semantics().check(
+        symbol->is<MethodSymbol>(),
+        "Only Method Symbol can be overloaded. Use define() instead."
+    );
+
+    auto overload_symbol = this->lookup(symbol->name);
+
+    if (!overload_symbol)
+    {
+        overload_symbol = SymbolFactory::create_method_overloads(symbol->name);
+    }
+
+    overload_symbol->as<MethodOverloadsSymbol>().add_overload(symbol);
 
     symbols[symbol->name] = overload_symbol;
 

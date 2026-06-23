@@ -6,12 +6,20 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace Wasp
 {
 
+struct Symbol;
+using Symbol_ptr = std::shared_ptr<Symbol>;
+using SymbolVector = std::vector<Symbol_ptr>;
+
 struct Module;
 using Module_ptr = std::shared_ptr<Module>;
+
+struct ModuleType;
+using ModuleType_ptr = std::shared_ptr<ModuleType>;
 
 class Workspace;
 using Workspace_ptr = std::shared_ptr<Workspace>;
@@ -25,6 +33,8 @@ struct Module
     const std::filesystem::path absolute_filepath;
 
     Block block;
+    ModuleType_ptr type = nullptr;
+    SymbolVector exported_symbols;
 
     Module() = default;
 
@@ -32,7 +42,6 @@ struct Module
 
     std::string get_name() const;
     std::string get_path() const;
-
     std::string get_qualified_name() const;
 
     void save_ast(const std::string& tag);
@@ -44,25 +53,21 @@ struct Module
 
 class Workspace
 {
-private:
-    std::map<std::filesystem::path, Module_ptr> module_registry;
-
 public:
     const std::filesystem::path root_path;
     const std::filesystem::path build_path;
     const std::filesystem::path libs_path;
 
+    std::map<std::filesystem::path, Module_ptr> module_registry;
+    std::map<std::filesystem::path, Symbol_ptr> module_symbols;
+
     explicit Workspace(std::filesystem::path root);
 
     Module_ptr get_module(const std::filesystem::path& path);
-    Module_ptr get_module(int module_index);
+    Symbol_ptr get_module_symbol(const std::filesystem::path& path);
 
-    const std::map<std::filesystem::path, Module_ptr>& get_all_modules() const;
-
-    void add_module(const std::filesystem::path& path, Module_ptr module);
-
-    int get_module_index(const std::filesystem::path& path) const;
-    std::string get_module_path(int module_index) const;
+    void add_module(const std::filesystem::path&, Module_ptr);
+    void add_module_symbol(const std::filesystem::path&, Symbol_ptr);
 };
 
 } // namespace Wasp

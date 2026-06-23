@@ -13,17 +13,25 @@ namespace Wasp
 class Phase
 {
 public:
-    explicit Phase()
-        : current_scope(nullptr), type_system(std::make_shared<TypeSystem>())
-    {
-    }
-
-    virtual void run(Module_ptr mod);
-
+    Workspace_ptr workspace;
     Module_ptr current_module;
     SymbolScope_ptr current_scope;
     TypeSystem_ptr type_system;
 
+public:
+    explicit Phase(
+        Workspace_ptr workspace,
+        Module_ptr current_module,
+        SymbolScope_ptr current_scope
+    )
+        : workspace(workspace), current_module(current_module),
+          current_scope(current_scope), type_system(std::make_shared<TypeSystem>())
+    {
+    }
+
+    virtual void run();
+
+    void import_symbols(Import& statement);
     virtual void visit(Block& block) = 0;
 
     // Utils

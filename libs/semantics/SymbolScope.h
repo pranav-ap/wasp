@@ -46,9 +46,13 @@ struct SymbolScope : public std::enable_shared_from_this<SymbolScope>
     // define
 
     void define(Symbol_ptr);
-    void define_overload(Symbol_ptr);
-    Symbol_ptr overload(Symbol_ptr);
     void define(TemplateType_ptr);
+
+    void define_function_overload(Symbol_ptr);
+    void define_method_overload(Symbol_ptr);
+
+    Symbol_ptr overload_function(Symbol_ptr);
+    Symbol_ptr overload_method(Symbol_ptr);
 
     // Lookup
     Symbol_ptr lookup_local(const std::string& name) const;

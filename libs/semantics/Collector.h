@@ -6,6 +6,7 @@
 #include "SymbolScope.h"
 #include "Type.h"
 #include "TypeNode.h"
+#include "Workspace.h"
 
 #include <map>
 #include <tuple>
@@ -17,7 +18,12 @@ namespace Wasp
 class Collector : public Phase
 {
 public:
-    explicit Collector() : Phase()
+    explicit Collector(
+        Workspace_ptr workspace,
+        Module_ptr current_module,
+        SymbolScope_ptr current_scope
+    )
+        : Phase(workspace, current_module, current_scope)
     {
     }
 
@@ -44,8 +50,6 @@ private:
 
     void visit(Block& block);
     void visit(Statement_ptr statement);
-
-    void visit(Import& statement);
 
     void visit(FunctionDefinition& statement);
     void visit(MethodDefinition& statement);

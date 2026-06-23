@@ -81,7 +81,7 @@ Symbol_ptr SymbolFactory::create_function(
 
     return create_symbol(
         name,
-        FunctionSymbol{type, false, false, false},
+        FunctionSymbol{type, false},
         closure_depth,
         lexical_depth
     );
@@ -91,7 +91,31 @@ Symbol_ptr SymbolFactory::create_function_overloads(
     const std::string& name
 )
 {
-    return create_symbol(name, FunctionOverloadsSymbol{{}});
+    Type_ptr function_overload_type = make_shared_type<FunctionOverloadType>(name);
+
+    return create_symbol(name, FunctionOverloadsSymbol{{}, function_overload_type});
+}
+
+Symbol_ptr SymbolFactory::create_method(
+    const std::string& name,
+    Type_ptr type,
+    int closure_depth,
+    int lexical_depth
+)
+{
+    return create_symbol(
+        name,
+        MethodSymbol{type, false, false, false},
+        closure_depth,
+        lexical_depth
+    );
+}
+
+Symbol_ptr SymbolFactory::create_method_overloads(const std::string& name)
+{
+    Type_ptr method_overload_type = make_shared_type<MethodOverloadType>(name);
+
+    return create_symbol(name, MethodOverloadsSymbol{{}, method_overload_type});
 }
 
 Symbol_ptr SymbolFactory::create_type(
@@ -132,6 +156,16 @@ Symbol_ptr SymbolFactory::create_symbol_alias(
         closure_depth,
         lexical_depth
     );
+}
+
+Symbol_ptr SymbolFactory::create_module(
+    const std::string& name,
+    Type_ptr type,
+    int closure_depth,
+    int lexical_depth
+)
+{
+    return create_symbol(name, ModuleSymbol{type}, closure_depth, lexical_depth);
 }
 
 } // namespace Wasp

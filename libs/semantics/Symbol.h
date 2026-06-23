@@ -20,6 +20,9 @@ using SymbolStringMap = std::map<std::string, Symbol_ptr>;
 using SymbolIntMap = std::map<int, Symbol_ptr>;
 using OptionalSymbol = std::optional<Symbol_ptr>;
 
+struct Module;
+using Module_ptr = std::shared_ptr<Module>;
+
 // ============================================================================
 // Symbol Payloads
 // ============================================================================
@@ -34,16 +37,31 @@ struct FunctionSymbol
 {
     Type_ptr type;
     bool is_native;
-
-    bool required_in_class;
-    bool is_static_method;
 };
 
 struct FunctionOverloadsSymbol
 {
     SymbolVector overloads;
+    Type_ptr type;
 
     void add_overload(Symbol_ptr function_symbol);
+};
+
+struct MethodSymbol
+{
+    Type_ptr type;
+    bool is_native;
+
+    bool required_in_class;
+    bool is_static_method;
+};
+
+struct MethodOverloadsSymbol
+{
+    SymbolVector overloads;
+    Type_ptr type;
+
+    void add_overload(Symbol_ptr method_symbol);
 };
 
 struct TypeSymbol
@@ -61,6 +79,11 @@ struct SymbolAliasSymbol
     Symbol_ptr target;
 };
 
+struct ModuleSymbol
+{
+    Type_ptr type;
+};
+
 // ============================================================================
 // Symbol
 // ============================================================================
@@ -71,13 +94,17 @@ using SymbolVariant = std::variant<
     VariableSymbol,
     FunctionSymbol,
     FunctionOverloadsSymbol,
+    MethodSymbol,
+    MethodOverloadsSymbol,
     TypeSymbol,
     TypeAliasSymbol,
-    SymbolAliasSymbol>;
+    SymbolAliasSymbol,
+    ModuleSymbol>;
 
 struct Symbol : public std::enable_shared_from_this<Symbol>
 {
     std::string name;
+    std::string module_path = "";
 
     int id = -1;
     int closure_depth = 0;

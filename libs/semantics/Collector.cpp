@@ -29,11 +29,6 @@ std::tuple<Statement_ptr, SymbolScope_ptr> Collector::get_tree(Symbol_ptr symbol
     return {it->second, scope_forest[symbol]};
 }
 
-void Collector::visit(Import&)
-{
-    // TODO: Implement
-}
-
 // ============================================================================
 // Statements
 // ============================================================================
@@ -52,7 +47,7 @@ void Collector::hoist(Statement_ptr statement)
         overloaded{
             [&](FunctionDefinition& def)
             {
-                current_scope->define_overload(def.overload_symbol);
+                current_scope->define_function_overload(def.overload_symbol);
             },
             [&](ClassDefinition& def)
             {
@@ -96,11 +91,17 @@ void Collector::visit(Block& block)
 void Collector::visit(Statement_ptr statement)
 {
     std::visit(
-        [&](auto& node)
-        {
-            if constexpr (requires { visit(node); })
+        overloaded{
+            [&](Import& imp)
             {
-                visit(node);
+                import_symbols(imp);
+            },
+            [&](auto& node)
+            {
+                if constexpr (requires { visit(node); })
+                {
+                    visit(node);
+                }
             }
         },
         statement->data

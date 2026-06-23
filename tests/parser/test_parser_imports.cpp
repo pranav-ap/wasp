@@ -118,13 +118,12 @@ TEST(ParseImports, ExposeWildcard)
     EXPECT_EQ(stmt.path[0], "math3d");
 
     EXPECT_TRUE(stmt.expose_all);
-    EXPECT_TRUE(stmt.excluded_names.empty());
     EXPECT_TRUE(stmt.exposed_names.empty());
 }
 
 TEST(ParseImports, ExposeWildcardWithExceptions)
 {
-    auto block = parse("import math3d expose * except tan, cos");
+    auto block = parse("import math3d expose *");
 
     auto& stmt = check<Wasp::Import>(block.get(0));
 
@@ -133,8 +132,4 @@ TEST(ParseImports, ExposeWildcardWithExceptions)
 
     EXPECT_TRUE(stmt.expose_all);
     EXPECT_TRUE(stmt.exposed_names.empty());
-
-    ASSERT_EQ(stmt.excluded_names.size(), 2);
-    EXPECT_EQ(stmt.excluded_names[0], "tan");
-    EXPECT_EQ(stmt.excluded_names[1], "cos");
 }

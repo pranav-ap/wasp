@@ -66,6 +66,8 @@ Captain::Captain(const std::filesystem::path& target_path)
 
 void Captain::parse_modules()
 {
+    Doctor::parser().start();
+
     auto it = std::filesystem::recursive_directory_iterator(workspace->root_path);
     auto end = std::filesystem::recursive_directory_iterator();
 
@@ -82,13 +84,15 @@ void Captain::parse_modules()
             parse_module(it->path());
         }
     }
+
+    Doctor::parser().stop();
 }
 
 void Captain::parse_module(const std::filesystem::path& file_path)
 {
     auto abs_path = std::filesystem::absolute(file_path).lexically_normal();
 
-    if (workspace->get_module(abs_path) != nullptr)
+    if (workspace->module_registry.contains(abs_path))
     {
         return;
     }
@@ -102,24 +106,19 @@ void Captain::parse_module(const std::filesystem::path& file_path)
     auto stmts = parser.run(tokens);
 
     Module_ptr mod = std::make_shared<Module>(abs_path, stmts);
-    workspace->add_module(abs_path, mod);
     mod->save_ast("parser");
-}
 
-std::vector<Module_ptr> Captain::calculate_build_order()
-{
-    DependencyCrawler crawler(workspace);
-    std::vector<Module_ptr> build_order = crawler.calculate_build_order(entry_file);
-    return build_order;
+    workspace->add_module(abs_path, mod);
 }
 
 void Captain::build()
 {
     parse_modules();
 
-    auto build_order = calculate_build_order();
+    DependencyCrawler crawler(workspace);
+    std::vector<Module_ptr> build_order = crawler.calculate_build_order(entry_file);
 
-    SemanticsAnalyzer semantics_analyzer;
+    SemanticsAnalyzer semantics_analyzer(workspace);
     semantics_analyzer.run(build_order);
 
     Salter salter;
@@ -132,7 +131,6 @@ void Captain::build()
 void Captain::execute()
 {
     auto main_module = workspace->get_module(entry_file);
-    Doctor::captain().fatal_if_nullptr(main_module);
 }
 
 } // namespace Wasp
