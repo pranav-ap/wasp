@@ -8,6 +8,8 @@
 #include "Type.h"
 #include "TypeNode.h"
 #include "Workspace.h"
+#include <map>
+#include <utility>
 
 namespace Wasp
 {
@@ -18,11 +20,18 @@ public:
     explicit Terminator(
         Workspace_ptr workspace,
         Module_ptr current_module,
-        SymbolScope_ptr current_scope
+        SymbolScope_ptr current_scope,
+        std::map<Symbol_ptr, Statement_ptr> forest
     )
-        : Phase(workspace, current_module, current_scope)
+        : Phase(workspace, current_module, current_scope), forest(std::move(forest))
     {
     }
+
+private:
+    // Forest
+
+    std::map<Symbol_ptr, Statement_ptr> forest;
+    std::map<Symbol_ptr, SymbolScope_ptr> scope_forest;
 
 private:
     // Statements

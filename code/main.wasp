@@ -1,3 +1,8 @@
 import core.io expose *
 import core.types expose *
 
+print(3)
+let x: [int] = [1, 2, 3]
+
+# must add template support again
+# print(x)

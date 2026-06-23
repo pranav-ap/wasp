@@ -59,7 +59,8 @@ StringVector collect_enum_names(
 
 void Collector::visit(FunctionDefinition& def)
 {
-    current_scope->define_function_overload(def.overload_symbol);
+    // already hoisted in Collector::hoist
+    // current_scope->define_function_overload(def.overload_symbol);
 
     auto signature = extract_signature(def);
 
@@ -80,7 +81,6 @@ void Collector::visit(FunctionDefinition& def)
     }
 
     forest[def.symbol] = ASTCloner::get().clone(def);
-    scope_forest[def.symbol] = current_scope;
 }
 
 void Collector::visit(MethodDefinition& def)
@@ -154,7 +154,8 @@ void Collector::visit(MethodDefinition& def)
 
 void Collector::visit(OperatorDefinition& def)
 {
-    current_scope->define_function_overload(def.overload_symbol);
+    // already hoisted in Collector::hoist
+    // current_scope->define_function_overload(def.overload_symbol);
 
     auto signature = extract_signature(def);
 
@@ -175,7 +176,6 @@ void Collector::visit(OperatorDefinition& def)
     }
 
     forest[def.symbol] = ASTCloner::get().clone(def);
-    scope_forest[def.symbol] = current_scope;
 }
 
 void Collector::visit(ClassDefinition& def)
@@ -213,7 +213,6 @@ void Collector::visit(ClassDefinition& def)
     // clone AST
 
     forest[def.symbol] = ASTCloner::get().clone(def);
-    scope_forest[def.symbol] = current_scope;
 }
 
 void Collector::visit(TraitDefinition& def)
@@ -244,7 +243,6 @@ void Collector::visit(TraitDefinition& def)
     leave_scope();
 
     forest[def.symbol] = ASTCloner::get().clone(def);
-    scope_forest[def.symbol] = current_scope;
 }
 
 void Collector::visit(PrimitiveDefinition& def)
@@ -275,7 +273,6 @@ void Collector::visit(PrimitiveDefinition& def)
     leave_scope();
 
     forest[def.symbol] = ASTCloner::get().clone(def);
-    scope_forest[def.symbol] = current_scope;
 }
 
 void Collector::visit(EnumDefinition& def)
@@ -300,7 +297,6 @@ void Collector::visit(EnumDefinition& def)
     leave_scope();
 
     forest[def.symbol] = ASTCloner::get().clone(def);
-    scope_forest[def.symbol] = current_scope;
 }
 
 void Collector::visit(TypeAliasDefinition& def)
@@ -314,7 +310,6 @@ void Collector::visit(TypeAliasDefinition& def)
     def.symbol->set_type(alias_type);
 
     forest[def.symbol] = ASTCloner::get().clone(def);
-    scope_forest[def.symbol] = current_scope;
 
     leave_scope();
 }
@@ -481,7 +476,7 @@ void Collector::conform_traits(TypeDefinition& def, OopsType_ptr target_type)
     );
 
     validate_required_methods(def, required_method_types);
-    merge_trait_methods(def, target_type, current_scope);
+    merge_trait_methods(def, target_type);
 }
 
 std::vector<MethodType_ptr> Collector::collect_required_methods(
@@ -565,8 +560,7 @@ void Collector::validate_required_methods(
 
 void Collector::merge_trait_methods(
     TypeDefinition& target_def,
-    OopsType_ptr target_type,
-    SymbolScope_ptr // definition_scope
+    OopsType_ptr target_type
 )
 {
     for (const auto& trait_obj : target_type->traits)
@@ -574,19 +568,18 @@ void Collector::merge_trait_methods(
         auto trait_type = trait_obj->as<TraitType_ptr>();
 
         Symbol_ptr trait_symbol = current_scope->lookup_required(trait_type->name);
-        auto [ast, definition_scope] = get_tree(trait_symbol);
+        auto ast = get_tree(trait_symbol);
 
         auto trait_def = ast->as<TraitDefinition>();
 
-        merge_trait_methods(target_def, target_type, trait_def, definition_scope);
+        merge_trait_methods(target_def, target_type, trait_def);
     }
 }
 
 void Collector::merge_trait_methods(
     TypeDefinition& target_def,
     OopsType_ptr target_type,
-    TraitDefinition& trait_def,
-    SymbolScope_ptr // definition_scope
+    TraitDefinition& trait_def
 )
 {
     for (const auto& trait_method : trait_def.methods)

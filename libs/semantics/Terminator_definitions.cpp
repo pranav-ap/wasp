@@ -30,6 +30,8 @@ void Terminator::visit(FunctionDefinition& def)
     visit(def.block);
 
     leave_scope();
+
+    scope_forest[def.symbol] = current_scope;
 }
 
 void Terminator::visit(MethodDefinition& def)
@@ -69,6 +71,8 @@ void Terminator::visit(OperatorDefinition& def)
     visit(def.block);
 
     leave_scope();
+
+    scope_forest[def.symbol] = current_scope;
 }
 
 void Terminator::visit(ClassDefinition& def)
@@ -87,6 +91,8 @@ void Terminator::visit(ClassDefinition& def)
     }
 
     leave_scope();
+
+    scope_forest[def.symbol] = current_scope;
 }
 
 void Terminator::visit(TraitDefinition& def)
@@ -105,6 +111,8 @@ void Terminator::visit(TraitDefinition& def)
     }
 
     leave_scope();
+
+    scope_forest[def.symbol] = current_scope;
 }
 
 void Terminator::visit(PrimitiveDefinition& def)
@@ -123,16 +131,22 @@ void Terminator::visit(PrimitiveDefinition& def)
     }
 
     leave_scope();
+
+    scope_forest[def.symbol] = current_scope;
 }
 
 void Terminator::visit(EnumDefinition& def)
 {
     current_scope->define(def.symbol);
+
+    scope_forest[def.symbol] = current_scope;
 }
 
 void Terminator::visit(TypeAliasDefinition& def)
 {
     current_scope->define(def.symbol);
+
+    scope_forest[def.symbol] = current_scope;
 }
 
 } // namespace Wasp

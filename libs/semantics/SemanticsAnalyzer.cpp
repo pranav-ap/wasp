@@ -130,11 +130,10 @@ void SemanticsAnalyzer::run(std::vector<Module_ptr>& build_order)
         leave_scope();
 
         auto ast_forest = collector.get_forest();
-        auto scope_forest = collector.get_scope_forest();
 
         enter_scope(ScopeType::MODULE);
 
-        Terminator terminator(workspace, current_module, current_scope);
+        Terminator terminator(workspace, current_module, current_scope, ast_forest);
         terminator.run();
 
         current_module->save_ast("semantics");

@@ -2,9 +2,7 @@
 #include "AST.h"
 #include "Doctor.h"
 #include "Statement.h"
-#include "SymbolScope.h"
 
-#include <tuple>
 #include <variant>
 
 template <class... Ts> struct overloaded : Ts...
@@ -17,7 +15,7 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-std::tuple<Statement_ptr, SymbolScope_ptr> Collector::get_tree(Symbol_ptr symbol)
+Statement_ptr Collector::get_tree(Symbol_ptr symbol)
 {
     auto it = forest.find(symbol);
 
@@ -26,7 +24,7 @@ std::tuple<Statement_ptr, SymbolScope_ptr> Collector::get_tree(Symbol_ptr symbol
         "No AST found for symbol '" + symbol->name + "'"
     );
 
-    return {it->second, scope_forest[symbol]};
+    return it->second;
 }
 
 // ============================================================================
@@ -46,6 +44,10 @@ void Collector::hoist(Statement_ptr statement)
     std::visit(
         overloaded{
             [&](FunctionDefinition& def)
+            {
+                current_scope->define_function_overload(def.overload_symbol);
+            },
+            [&](OperatorDefinition& def)
             {
                 current_scope->define_function_overload(def.overload_symbol);
             },

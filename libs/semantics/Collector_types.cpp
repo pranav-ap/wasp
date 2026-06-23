@@ -111,14 +111,14 @@ Type_ptr Collector::visit(TypeIdentifierNode& type_node)
         return make_type(std::make_shared<AnyType>());
     }
 
-    auto symbol = current_scope->lookup(type_node.name);
+    Symbol_ptr symbol = current_scope->lookup(type_node.name);
 
     Doctor::semantics().fatal_if_nullptr(
         symbol,
         "Undefined type: " + type_node.name
     );
 
-    auto type = symbol->get_type();
+    Type_ptr type = symbol->get_type();
 
     Doctor::semantics().fatal_if_nullptr(
         type,

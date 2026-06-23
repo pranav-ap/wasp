@@ -32,16 +32,10 @@ public:
         return forest;
     }
 
-    std::map<Symbol_ptr, SymbolScope_ptr> get_scope_forest() const
-    {
-        return scope_forest;
-    }
-
 private:
     // Forest
 
     std::map<Symbol_ptr, Statement_ptr> forest;
-    std::map<Symbol_ptr, SymbolScope_ptr> scope_forest;
 
     // Statements
 
@@ -83,7 +77,7 @@ private:
 
     // Utils
 
-    std::tuple<Statement_ptr, SymbolScope_ptr> get_tree(Symbol_ptr symbol);
+    Statement_ptr get_tree(Symbol_ptr symbol);
 
     Signature_ptr extract_signature(FunctionDefinition& def);
     Signature_ptr extract_signature(OperatorDefinition& def);
@@ -102,17 +96,12 @@ private:
         const std::vector<MethodType_ptr>& required_method_types
     );
 
-    void merge_trait_methods(
-        TypeDefinition& target_def,
-        OopsType_ptr target_type,
-        SymbolScope_ptr definition_scope
-    );
+    void merge_trait_methods(TypeDefinition& target_def, OopsType_ptr target_type);
 
     void merge_trait_methods(
         TypeDefinition& target_def,
         OopsType_ptr target_type,
-        TraitDefinition& trait_def,
-        SymbolScope_ptr definition_scope
+        TraitDefinition& trait_def
     );
 
     TemplateType_ptr create_template_type(FieldVector& generics);
