@@ -1,8 +1,7 @@
 #include "AST.h"
+#include "SemanticsAnalyzer.h"
 #include "Statement.h"
 #include "SymbolScope.h"
-#include "Terminator.h"
-#include "Type.h"
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -13,10 +12,8 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-void Terminator::visit(FunctionDefinition& def)
+void SemanticsAnalyzer::visit(FunctionDefinition& def)
 {
-    current_scope->define_function_overload(def.overload_symbol);
-
     ScopeType scope_type = def.is_pure ? ScopeType::PURE_FUNCTION
                                        : ScopeType::FUNCTION;
 
@@ -34,10 +31,8 @@ void Terminator::visit(FunctionDefinition& def)
     scope_forest[def.symbol] = current_scope;
 }
 
-void Terminator::visit(MethodDefinition& def)
+void SemanticsAnalyzer::visit(MethodDefinition& def)
 {
-    current_scope->define_method_overload(def.overload_symbol);
-
     ScopeType scope_type = def.is_pure ? ScopeType::PURE_METHOD : ScopeType::METHOD;
     enter_scope(scope_type);
 
@@ -57,10 +52,8 @@ void Terminator::visit(MethodDefinition& def)
     leave_scope();
 }
 
-void Terminator::visit(OperatorDefinition& def)
+void SemanticsAnalyzer::visit(OperatorDefinition& def)
 {
-    current_scope->define_function_overload(def.overload_symbol);
-
     enter_scope(ScopeType::PURE_FUNCTION);
 
     for (const auto& operand : def.operands)
@@ -75,16 +68,10 @@ void Terminator::visit(OperatorDefinition& def)
     scope_forest[def.symbol] = current_scope;
 }
 
-void Terminator::visit(ClassDefinition& def)
+void SemanticsAnalyzer::visit(ClassDefinition& def)
 {
-    current_scope->define(def.symbol);
-
     enter_scope(ScopeType::CLASS);
 
-    current_scope->define(
-        def.symbol->get_type()->as<ClassType_ptr>()->template_type
-    );
-
     for (auto& method : def.methods)
     {
         visit(method);
@@ -95,16 +82,10 @@ void Terminator::visit(ClassDefinition& def)
     scope_forest[def.symbol] = current_scope;
 }
 
-void Terminator::visit(TraitDefinition& def)
+void SemanticsAnalyzer::visit(TraitDefinition& def)
 {
-    current_scope->define(def.symbol);
-
     enter_scope(ScopeType::TRAIT);
 
-    current_scope->define(
-        def.symbol->get_type()->as<TraitType_ptr>()->template_type
-    );
-
     for (auto& method : def.methods)
     {
         visit(method);
@@ -115,16 +96,10 @@ void Terminator::visit(TraitDefinition& def)
     scope_forest[def.symbol] = current_scope;
 }
 
-void Terminator::visit(PrimitiveDefinition& def)
+void SemanticsAnalyzer::visit(PrimitiveDefinition& def)
 {
-    current_scope->define(def.symbol);
-
     enter_scope(ScopeType::PRIMITIVE);
 
-    current_scope->define(
-        def.symbol->get_type()->as<PrimitiveType_ptr>()->template_type
-    );
-
     for (auto& method : def.methods)
     {
         visit(method);
@@ -135,17 +110,13 @@ void Terminator::visit(PrimitiveDefinition& def)
     scope_forest[def.symbol] = current_scope;
 }
 
-void Terminator::visit(EnumDefinition& def)
+void SemanticsAnalyzer::visit(EnumDefinition& def)
 {
-    current_scope->define(def.symbol);
-
     scope_forest[def.symbol] = current_scope;
 }
 
-void Terminator::visit(TypeAliasDefinition& def)
+void SemanticsAnalyzer::visit(TypeAliasDefinition& def)
 {
-    current_scope->define(def.symbol);
-
     scope_forest[def.symbol] = current_scope;
 }
 

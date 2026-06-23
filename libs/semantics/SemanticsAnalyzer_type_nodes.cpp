@@ -1,7 +1,7 @@
 #include "AST.h"
-#include "Collector.h"
 #include "Doctor.h"
 #include "Expression.h"
+#include "SemanticsAnalyzer.h"
 #include "Type.h"
 #include "TypeNode.h"
 
@@ -19,7 +19,7 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-Type_ptr Collector::visit(TypeNode_ptr type_node)
+Type_ptr SemanticsAnalyzer::visit(TypeNode_ptr type_node)
 {
     Doctor::semantics().fatal_if_nullptr(type_node);
 
@@ -31,14 +31,14 @@ Type_ptr Collector::visit(TypeNode_ptr type_node)
             },
             [&](auto& node) -> Type_ptr
             {
-                return this->visit(node);
+                return visit(node);
             }
         },
         type_node->data
     );
 }
 
-TypeVector Collector::visit(TypeNodeVector& type_nodes)
+TypeVector SemanticsAnalyzer::visit(TypeNodeVector& type_nodes)
 {
     TypeVector types;
 
@@ -50,12 +50,12 @@ TypeVector Collector::visit(TypeNodeVector& type_nodes)
     return types;
 }
 
-Type_ptr Collector::visit(NoneTypeNode&)
+Type_ptr SemanticsAnalyzer::visit(NoneTypeNode&)
 {
     return make_shared_type<NoneType>();
 }
 
-Type_ptr Collector::visit(LiteralTypeNode& type_node)
+Type_ptr SemanticsAnalyzer::visit(LiteralTypeNode& type_node)
 {
     return std::visit(
         overloaded{
@@ -88,7 +88,7 @@ Type_ptr Collector::visit(LiteralTypeNode& type_node)
     );
 }
 
-Type_ptr Collector::visit(TypeIdentifierNode& type_node)
+Type_ptr SemanticsAnalyzer::visit(TypeIdentifierNode& type_node)
 {
     if (type_node.name == "int")
     {
@@ -128,44 +128,44 @@ Type_ptr Collector::visit(TypeIdentifierNode& type_node)
     return type;
 }
 
-Type_ptr Collector::visit(ListTypeNode& type_node)
+Type_ptr SemanticsAnalyzer::visit(ListTypeNode& type_node)
 {
     Type_ptr element_type = visit(type_node.element_type);
     return make_shared_type<ListType>(element_type);
 }
 
-Type_ptr Collector::visit(TupleTypeNode& type_node)
+Type_ptr SemanticsAnalyzer::visit(TupleTypeNode& type_node)
 {
     TypeVector element_types = visit(type_node.element_types);
     return make_shared_type<TupleType>(element_types);
 }
 
-Type_ptr Collector::visit(SetTypeNode& type_node)
+Type_ptr SemanticsAnalyzer::visit(SetTypeNode& type_node)
 {
     Type_ptr element_type = visit(type_node.element_type);
     return make_shared_type<SetType>(element_type);
 }
 
-Type_ptr Collector::visit(MapTypeNode& type_node)
+Type_ptr SemanticsAnalyzer::visit(MapTypeNode& type_node)
 {
     Type_ptr key_type = visit(type_node.key_type);
     Type_ptr value_type = visit(type_node.value_type);
     return make_shared_type<MapType>(key_type, value_type);
 }
 
-Type_ptr Collector::visit(VariantTypeNode& type_node)
+Type_ptr SemanticsAnalyzer::visit(VariantTypeNode& type_node)
 {
     TypeVector options = visit(type_node.options);
     return make_shared_type<VariantType>(options);
 }
 
-Type_ptr Collector::visit(IntersectionTypeNode& type_node)
+Type_ptr SemanticsAnalyzer::visit(IntersectionTypeNode& type_node)
 {
     TypeVector types = visit(type_node.types);
     return make_shared_type<IntersectionType>(types);
 }
 
-Type_ptr Collector::visit(FunctionTypeNode& type_node)
+Type_ptr SemanticsAnalyzer::visit(FunctionTypeNode& type_node)
 {
     TypeVector input_types = visit(type_node.input_types);
     Type_ptr return_type = visit(type_node.return_type);
@@ -185,7 +185,7 @@ Type_ptr Collector::visit(FunctionTypeNode& type_node)
     return make_type(function_type);
 }
 
-Type_ptr Collector::visit(AngularTypeNode& type_node)
+Type_ptr SemanticsAnalyzer::visit(AngularTypeNode& type_node)
 {
     TypeVector type_arguments = visit(type_node.type_arguments);
 

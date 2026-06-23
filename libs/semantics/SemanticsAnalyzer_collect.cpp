@@ -1,7 +1,7 @@
 #include "AST.h"
 #include "ASTCloner.h"
-#include "Collector.h"
 #include "Doctor.h"
+#include "SemanticsAnalyzer.h"
 #include "Statement.h"
 #include "SymbolScope.h"
 #include "Type.h"
@@ -25,13 +25,9 @@ namespace Wasp
 namespace
 {
 
-StringVector collect_enum_names(
-    const EnumDefinition& def,
-    const std::string& prefix
-)
+StringVector collect_enum_names(const EnumDefinition& def, const std::string& prefix)
 {
-    std::string current_prefix = prefix.empty() ? def.name
-                                                : prefix + "." + def.name;
+    std::string current_prefix = prefix.empty() ? def.name : prefix + "." + def.name;
 
     StringVector out_list;
 
@@ -45,11 +41,7 @@ StringVector collect_enum_names(
     for (const auto& nested : def.nested_enums)
     {
         auto nested_names = collect_enum_names(nested, current_prefix);
-        out_list.insert(
-            out_list.end(),
-            nested_names.begin(),
-            nested_names.end()
-        );
+        out_list.insert(out_list.end(), nested_names.begin(), nested_names.end());
     }
 
     return out_list;
@@ -57,11 +49,8 @@ StringVector collect_enum_names(
 
 } // namespace
 
-void Collector::visit(FunctionDefinition& def)
+void SemanticsAnalyzer::collect(FunctionDefinition& def)
 {
-    // already hoisted in Collector::hoist
-    // current_scope->define_function_overload(def.overload_symbol);
-
     auto signature = extract_signature(def);
 
     Type_ptr type = def.symbol->get_type();
@@ -83,7 +72,7 @@ void Collector::visit(FunctionDefinition& def)
     forest[def.symbol] = ASTCloner::get().clone(def);
 }
 
-void Collector::visit(MethodDefinition& def)
+void SemanticsAnalyzer::collect(MethodDefinition& def)
 {
     current_scope->define_method_overload(def.overload_symbol);
 
@@ -152,9 +141,9 @@ void Collector::visit(MethodDefinition& def)
     leave_scope();
 }
 
-void Collector::visit(OperatorDefinition& def)
+void SemanticsAnalyzer::collect(OperatorDefinition& def)
 {
-    // already hoisted in Collector::hoist
+    // already hoisted in SemanticsAnalyzer::hoist
     // current_scope->define_function_overload(def.overload_symbol);
 
     auto signature = extract_signature(def);
@@ -178,7 +167,7 @@ void Collector::visit(OperatorDefinition& def)
     forest[def.symbol] = ASTCloner::get().clone(def);
 }
 
-void Collector::visit(ClassDefinition& def)
+void SemanticsAnalyzer::collect(ClassDefinition& def)
 {
     enter_scope(ScopeType::CLASS);
 
@@ -215,7 +204,7 @@ void Collector::visit(ClassDefinition& def)
     forest[def.symbol] = ASTCloner::get().clone(def);
 }
 
-void Collector::visit(TraitDefinition& def)
+void SemanticsAnalyzer::collect(TraitDefinition& def)
 {
     enter_scope(ScopeType::TRAIT);
 
@@ -245,7 +234,7 @@ void Collector::visit(TraitDefinition& def)
     forest[def.symbol] = ASTCloner::get().clone(def);
 }
 
-void Collector::visit(PrimitiveDefinition& def)
+void SemanticsAnalyzer::collect(PrimitiveDefinition& def)
 {
     enter_scope(ScopeType::PRIMITIVE);
 
@@ -275,7 +264,7 @@ void Collector::visit(PrimitiveDefinition& def)
     forest[def.symbol] = ASTCloner::get().clone(def);
 }
 
-void Collector::visit(EnumDefinition& def)
+void SemanticsAnalyzer::collect(EnumDefinition& def)
 {
     enter_scope(ScopeType::CLASS);
     TemplateType_ptr template_type = create_template_type(def.generics);
@@ -299,7 +288,7 @@ void Collector::visit(EnumDefinition& def)
     forest[def.symbol] = ASTCloner::get().clone(def);
 }
 
-void Collector::visit(TypeAliasDefinition& def)
+void SemanticsAnalyzer::collect(TypeAliasDefinition& def)
 {
     enter_scope(ScopeType::CLASS);
 
@@ -318,7 +307,7 @@ void Collector::visit(TypeAliasDefinition& def)
 // Utils
 // ============================================================================
 
-Signature_ptr Collector::extract_signature(FunctionDefinition& def)
+Signature_ptr SemanticsAnalyzer::extract_signature(FunctionDefinition& def)
 {
     ScopeType scope_type = def.is_pure ? ScopeType::PURE_FUNCTION
                                        : ScopeType::FUNCTION;
@@ -358,7 +347,7 @@ Signature_ptr Collector::extract_signature(FunctionDefinition& def)
     return signature;
 }
 
-Signature_ptr Collector::extract_signature(OperatorDefinition& def)
+Signature_ptr SemanticsAnalyzer::extract_signature(OperatorDefinition& def)
 {
     enter_scope(ScopeType::PURE_FUNCTION);
 
@@ -395,7 +384,7 @@ Signature_ptr Collector::extract_signature(OperatorDefinition& def)
     return signature;
 }
 
-FieldMap_ptr Collector::track_fields(FieldVector fields)
+FieldMap_ptr SemanticsAnalyzer::track_fields(FieldVector fields)
 {
     TypeStringMap field_map;
     StringVector ordered_keys;
@@ -412,13 +401,10 @@ FieldMap_ptr Collector::track_fields(FieldVector fields)
         ordered_keys.push_back(field.name);
     }
 
-    return std::make_shared<FieldMap>(
-        std::move(field_map),
-        std::move(ordered_keys)
-    );
+    return std::make_shared<FieldMap>(std::move(field_map), std::move(ordered_keys));
 }
 
-MethodMap_ptr Collector::track_methods(MethodDefinitionVector methods)
+MethodMap_ptr SemanticsAnalyzer::track_methods(MethodDefinitionVector methods)
 {
     std::map<std::string, MethodOverloadType_ptr> method_map;
     StringVector ordered_keys;
@@ -447,7 +433,7 @@ MethodMap_ptr Collector::track_methods(MethodDefinitionVector methods)
     );
 }
 
-TypeVector Collector::track_traits(TypeNodeVector traits)
+TypeVector SemanticsAnalyzer::track_traits(TypeNodeVector traits)
 {
     TypeVector trait_types;
 
@@ -464,7 +450,7 @@ TypeVector Collector::track_traits(TypeNodeVector traits)
 // Trait Conformance
 // ============================================================================
 
-void Collector::conform_traits(TypeDefinition& def, OopsType_ptr target_type)
+void SemanticsAnalyzer::conform_traits(TypeDefinition& def, OopsType_ptr target_type)
 {
     if (target_type->traits.empty())
     {
@@ -479,7 +465,7 @@ void Collector::conform_traits(TypeDefinition& def, OopsType_ptr target_type)
     merge_trait_methods(def, target_type);
 }
 
-std::vector<MethodType_ptr> Collector::collect_required_methods(
+std::vector<MethodType_ptr> SemanticsAnalyzer::collect_required_methods(
     OopsType_ptr target_type
 )
 {
@@ -500,7 +486,7 @@ std::vector<MethodType_ptr> Collector::collect_required_methods(
     return required_method_types;
 }
 
-std::vector<MethodType_ptr> Collector::collect_required_methods(
+std::vector<MethodType_ptr> SemanticsAnalyzer::collect_required_methods(
     TraitType_ptr trait_type
 )
 {
@@ -520,7 +506,7 @@ std::vector<MethodType_ptr> Collector::collect_required_methods(
     return required_method_types;
 }
 
-void Collector::validate_required_methods(
+void SemanticsAnalyzer::validate_required_methods(
     const TypeDefinition& def,
     const std::vector<MethodType_ptr>& required_method_types
 )
@@ -558,7 +544,7 @@ void Collector::validate_required_methods(
     }
 }
 
-void Collector::merge_trait_methods(
+void SemanticsAnalyzer::merge_trait_methods(
     TypeDefinition& target_def,
     OopsType_ptr target_type
 )
@@ -576,7 +562,7 @@ void Collector::merge_trait_methods(
     }
 }
 
-void Collector::merge_trait_methods(
+void SemanticsAnalyzer::merge_trait_methods(
     TypeDefinition& target_def,
     OopsType_ptr target_type,
     TraitDefinition& trait_def
@@ -643,7 +629,7 @@ void Collector::merge_trait_methods(
     }
 }
 
-TemplateType_ptr Collector::create_template_type(FieldVector& generics)
+TemplateType_ptr SemanticsAnalyzer::create_template_type(FieldVector& generics)
 {
     TypeStringMap generics_map;
     StringVector ordered_names;

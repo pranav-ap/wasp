@@ -1,10 +1,9 @@
 #include "AST.h"
 #include "Doctor.h"
 #include "Expression.h"
-#include "Terminator.h"
+#include "SemanticsAnalyzer.h"
 #include "Type.h"
 
-#include <string>
 #include <variant>
 
 template <class... Ts> struct overloaded : Ts...
@@ -16,7 +15,7 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-Type_ptr Terminator::visit(Expression_ptr expression)
+Type_ptr SemanticsAnalyzer::visit(Expression_ptr expression)
 {
     return std::visit(
         [&](auto& node) -> Type_ptr
@@ -36,7 +35,7 @@ Type_ptr Terminator::visit(Expression_ptr expression)
     );
 }
 
-TypeVector Terminator::visit(ExpressionVector& expressions)
+TypeVector SemanticsAnalyzer::visit(ExpressionVector& expressions)
 {
     TypeVector types;
 
@@ -48,7 +47,7 @@ TypeVector Terminator::visit(ExpressionVector& expressions)
     return types;
 }
 
-Type_ptr Terminator::visit(TernaryExpression& expr)
+Type_ptr SemanticsAnalyzer::visit(TernaryExpression& expr)
 {
     Type_ptr test_type = visit(expr.test);
 
@@ -80,32 +79,32 @@ Type_ptr Terminator::visit(TernaryExpression& expr)
     return result;
 }
 
-Type_ptr Terminator::visit(IntegerLiteral&)
+Type_ptr SemanticsAnalyzer::visit(IntegerLiteral&)
 {
     return make_shared_type<IntType>();
 }
 
-Type_ptr Terminator::visit(FloatLiteral&)
+Type_ptr SemanticsAnalyzer::visit(FloatLiteral&)
 {
     return make_shared_type<FloatType>();
 }
 
-Type_ptr Terminator::visit(StringLiteral&)
+Type_ptr SemanticsAnalyzer::visit(StringLiteral&)
 {
     return make_shared_type<StringType>();
 }
 
-Type_ptr Terminator::visit(BooleanLiteral&)
+Type_ptr SemanticsAnalyzer::visit(BooleanLiteral&)
 {
     return make_shared_type<BooleanType>();
 }
 
-Type_ptr Terminator::visit(NoneLiteral&)
+Type_ptr SemanticsAnalyzer::visit(NoneLiteral&)
 {
     return make_shared_type<NoneType>();
 }
 
-Type_ptr Terminator::visit(InterpolatedString& expr)
+Type_ptr SemanticsAnalyzer::visit(InterpolatedString& expr)
 {
     for (auto& part : expr.parts)
     {
@@ -121,7 +120,7 @@ Type_ptr Terminator::visit(InterpolatedString& expr)
     return make_shared_type<StringType>();
 }
 
-Type_ptr Terminator::visit(ListLiteral& expr)
+Type_ptr SemanticsAnalyzer::visit(ListLiteral& expr)
 {
     TypeVector element_types = visit(expr.expressions);
 
@@ -133,13 +132,13 @@ Type_ptr Terminator::visit(ListLiteral& expr)
     return make_shared_type<ListType>(unified_element_type);
 }
 
-Type_ptr Terminator::visit(TupleLiteral& expr)
+Type_ptr SemanticsAnalyzer::visit(TupleLiteral& expr)
 {
     TypeVector element_types = visit(expr.expressions);
     return make_shared_type<TupleType>(element_types);
 }
 
-Type_ptr Terminator::visit(SetLiteral& expr)
+Type_ptr SemanticsAnalyzer::visit(SetLiteral& expr)
 {
     TypeVector element_types = visit(expr.expressions);
 
@@ -159,7 +158,7 @@ Type_ptr Terminator::visit(SetLiteral& expr)
     return make_shared_type<SetType>(unified_element_type);
 }
 
-Type_ptr Terminator::visit(MapLiteral& expr)
+Type_ptr SemanticsAnalyzer::visit(MapLiteral& expr)
 {
     TypeVector key_types, val_types;
 

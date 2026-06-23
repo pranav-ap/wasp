@@ -4,7 +4,7 @@
 #include "Symbol.h"
 #include "SymbolFactory.h"
 #include "SymbolScope.h"
-#include "Terminator.h"
+#include "SemanticsAnalyzer.h"
 #include "Type.h"
 #include "TypeSystem.h"
 
@@ -22,10 +22,6 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
-
-// ===============================================================================
-// Utils
-// ===============================================================================
 
 namespace
 {
@@ -218,7 +214,7 @@ Type_ptr resolve_member_access(
 // Binding
 // ===============================================================================
 
-Type_ptr Terminator::visit(Binding& binding)
+Type_ptr SemanticsAnalyzer::visit(Binding& binding)
 {
     Doctor::semantics().check(
         binding.lhs->is<Identifier>(),
@@ -260,7 +256,7 @@ Type_ptr Terminator::visit(Binding& binding)
 // Assignment
 // ===============================================================================
 
-Type_ptr Terminator::visit(Assignment& expr)
+Type_ptr SemanticsAnalyzer::visit(Assignment& expr)
 {
     if (expr.lhs->is<Identifier>())
     {
@@ -275,7 +271,7 @@ Type_ptr Terminator::visit(Assignment& expr)
     Doctor::semantics().fatal("Unexpected in Assignment LHS");
 }
 
-Type_ptr Terminator::mutate_variable(
+Type_ptr SemanticsAnalyzer::mutate_variable(
     Expression_ptr expr,
     Expression_ptr assigned_expr
 )
@@ -306,7 +302,7 @@ Type_ptr Terminator::mutate_variable(
     return expected_type;
 }
 
-Type_ptr Terminator::mutate_member(Expression_ptr lhs_expr, Expression_ptr rhs_expr)
+Type_ptr SemanticsAnalyzer::mutate_member(Expression_ptr lhs_expr, Expression_ptr rhs_expr)
 {
     auto& access = lhs_expr->as<MemberAccess>();
     Type_ptr expected_type = visit(access);
@@ -326,7 +322,7 @@ Type_ptr Terminator::mutate_member(Expression_ptr lhs_expr, Expression_ptr rhs_e
 // Identifier
 // ===============================================================================
 
-Type_ptr Terminator::visit(Identifier& expr)
+Type_ptr SemanticsAnalyzer::visit(Identifier& expr)
 {
     auto symbol = current_scope->lookup_variable(expr.name);
     expr.symbol = symbol;
@@ -337,7 +333,7 @@ Type_ptr Terminator::visit(Identifier& expr)
 // Member Access
 // ===============================================================================
 
-Type_ptr Terminator::visit(MemberAccess& access)
+Type_ptr SemanticsAnalyzer::visit(MemberAccess& access)
 {
     Doctor::semantics().check(
         access.member->is<Identifier>(),

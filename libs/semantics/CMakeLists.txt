@@ -1,19 +1,18 @@
 add_library(
     SemanticsLib
-    Collector_definitions.cpp
-    Collector_types.cpp
-    Collector.cpp
-    Terminator_call.cpp
-    Terminator_constructor.cpp
-    Terminator_definitions.cpp
-    Terminator_expressions.cpp
-    Terminator_operators.cpp
-    Terminator_statements.cpp
-    Terminator_types.cpp
-    Terminator_variables.cpp
-    Hoister.cpp
-    Phase.cpp
-    SemanticsAnalyzer.cpp
+    SemanticsAnalyzer_call.cpp
+    SemanticsAnalyzer_collect.cpp
+    SemanticsAnalyzer_constructor.cpp
+    SemanticsAnalyzer_definitions.cpp
+    SemanticsAnalyzer_exports.cpp
+    SemanticsAnalyzer_expressions.cpp
+    SemanticsAnalyzer_hoist.cpp
+    SemanticsAnalyzer_operators.cpp
+    SemanticsAnalyzer_resolvers.cpp
+    SemanticsAnalyzer_run.cpp
+    SemanticsAnalyzer_statements.cpp
+    SemanticsAnalyzer_type_nodes.cpp
+    SemanticsAnalyzer_utils.cpp
     Symbol.cpp
     SymbolFactory.cpp
     SymbolScope.cpp

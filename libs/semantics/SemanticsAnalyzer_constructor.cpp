@@ -1,7 +1,7 @@
 #include "AST.h"
 #include "Doctor.h"
 #include "Expression.h"
-#include "Terminator.h"
+#include "SemanticsAnalyzer.h"
 #include "Type.h"
 
 #include <cstddef>
@@ -16,7 +16,7 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-Type_ptr Terminator::visit(Constructor& expr)
+Type_ptr SemanticsAnalyzer::visit(Constructor& expr)
 {
     Type_ptr target_type = visit(expr.constructible);
     target_type = target_type->unwrap_alias();

@@ -1,7 +1,5 @@
-#include "Hoister.h"
 #include "AST.h"
-#include "Doctor.h"
-#include "Expression.h"
+#include "SemanticsAnalyzer.h"
 #include "Statement.h"
 #include "SymbolFactory.h"
 #include "SymbolScope.h"
@@ -46,15 +44,15 @@ void hoist_generic_types(FieldVector& generics, SymbolScope_ptr current_scope)
 // Statements
 // ============================================================================
 
-void Hoister::visit(Block& block)
+void SemanticsAnalyzer::hoist(Block& block)
 {
     for (auto& statement : block.statements)
     {
-        visit(statement);
+        hoist(statement);
     }
 }
 
-void Hoister::visit(Statement_ptr statement)
+void SemanticsAnalyzer::hoist(Statement_ptr statement)
 {
     std::visit(
         overloaded{
@@ -64,9 +62,9 @@ void Hoister::visit(Statement_ptr statement)
             },
             [&](auto& node)
             {
-                if constexpr (requires { visit(node); })
+                if constexpr (requires { hoist(node); })
                 {
-                    visit(node);
+                    hoist(node);
                 }
             }
         },
@@ -74,7 +72,7 @@ void Hoister::visit(Statement_ptr statement)
     );
 }
 
-void Hoister::visit(FunctionDefinition& def)
+void SemanticsAnalyzer::hoist(FunctionDefinition& def)
 {
     auto symbol = SymbolFactory::create_function(
         def.name,
@@ -105,12 +103,10 @@ void Hoister::visit(FunctionDefinition& def)
         param.symbol = var_symbol;
     }
 
-    visit(def.block);
-
     leave_scope();
 }
 
-void Hoister::visit(MethodDefinition& def)
+void SemanticsAnalyzer::hoist(MethodDefinition& def)
 {
     auto symbol = SymbolFactory::create_method(
         def.name,
@@ -166,12 +162,10 @@ void Hoister::visit(MethodDefinition& def)
         param.symbol = var_symbol;
     }
 
-    visit(def.block);
-
     leave_scope();
 }
 
-void Hoister::visit(OperatorDefinition& def)
+void SemanticsAnalyzer::hoist(OperatorDefinition& def)
 {
     auto symbol = SymbolFactory::create_function(
         def.name,
@@ -202,12 +196,10 @@ void Hoister::visit(OperatorDefinition& def)
         operand.symbol = var_symbol;
     }
 
-    visit(def.block);
-
     leave_scope();
 }
 
-void Hoister::visit(ClassDefinition& def)
+void SemanticsAnalyzer::hoist(ClassDefinition& def)
 {
     auto symbol = SymbolFactory::create_type(
         def.name,
@@ -226,13 +218,13 @@ void Hoister::visit(ClassDefinition& def)
     for (auto& method : def.methods)
     {
         method.class_symbol = symbol;
-        visit(method);
+        hoist(method);
     }
 
     leave_scope();
 }
 
-void Hoister::visit(TraitDefinition& def)
+void SemanticsAnalyzer::hoist(TraitDefinition& def)
 {
     auto symbol = SymbolFactory::create_type(
         def.name,
@@ -251,13 +243,13 @@ void Hoister::visit(TraitDefinition& def)
     for (auto& method : def.methods)
     {
         method.class_symbol = symbol;
-        visit(method);
+        hoist(method);
     }
 
     leave_scope();
 }
 
-void Hoister::visit(PrimitiveDefinition& def)
+void SemanticsAnalyzer::hoist(PrimitiveDefinition& def)
 {
     auto symbol = SymbolFactory::create_type(
         def.name,
@@ -276,13 +268,13 @@ void Hoister::visit(PrimitiveDefinition& def)
     for (auto& method : def.methods)
     {
         method.class_symbol = symbol;
-        visit(method);
+        hoist(method);
     }
 
     leave_scope();
 }
 
-void Hoister::visit(EnumDefinition& def)
+void SemanticsAnalyzer::hoist(EnumDefinition& def)
 {
     auto symbol = SymbolFactory::create_type(
         def.name,
@@ -299,7 +291,7 @@ void Hoister::visit(EnumDefinition& def)
     leave_scope();
 }
 
-void Hoister::visit(TypeAliasDefinition& def)
+void SemanticsAnalyzer::hoist(TypeAliasDefinition& def)
 {
     auto symbol = SymbolFactory::create_type_alias(
         def.name,
@@ -313,83 +305,6 @@ void Hoister::visit(TypeAliasDefinition& def)
 
     enter_scope(ScopeType::CLASS);
     hoist_generic_types(def.generics, current_scope);
-    leave_scope();
-}
-
-void Hoister::visit(Branch& stmt)
-{
-    enter_scope(ScopeType::BRANCH);
-    visit(stmt.test);
-    visit(stmt.block);
-    leave_scope();
-}
-
-void Hoister::visit(SimpleLoop& stmt)
-{
-    enter_scope(ScopeType::LOOP);
-    visit(stmt.test);
-    visit(stmt.block);
-    leave_scope();
-}
-
-void Hoister::visit(ForInLoop& stmt)
-{
-    enter_scope(ScopeType::LOOP);
-    visit(stmt.lhs);
-    visit(stmt.block);
-    leave_scope();
-}
-
-void Hoister::visit(ExpressionStatement& statement)
-{
-    visit(statement.expression);
-}
-
-// ============================================================================
-// Expressions
-// ============================================================================
-
-void Hoister::visit(Expression_ptr expression)
-{
-    std::visit(
-        [&](auto& node)
-        {
-            if constexpr (requires { visit(node); })
-            {
-                visit(node);
-            }
-        },
-        expression->data
-    );
-}
-
-void Hoister::visit(Binding& binding)
-{
-    Doctor::semantics().check(
-        binding.lhs->is<Identifier>(),
-        "Left-hand side of a binding must be an identifier"
-    );
-
-    auto& id = binding.lhs->as<Identifier>();
-
-    auto var_symbol = SymbolFactory::create_variable(
-        id.name,
-        nullptr,
-        binding.is_mutable,
-        current_scope->closure_depth,
-        current_scope->lexical_depth
-    );
-
-    current_scope->define(var_symbol);
-    id.symbol = var_symbol;
-}
-
-void Hoister::visit(TernaryExpression& expr)
-{
-    enter_scope(ScopeType::BRANCH);
-    visit(expr.test);
-    visit(expr.then_expr);
-    visit(expr.else_expr);
     leave_scope();
 }
 

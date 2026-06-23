@@ -1,7 +1,7 @@
 #include "AST.h"
+#include "SemanticsAnalyzer.h"
 #include "Statement.h"
 #include "SymbolScope.h"
-#include "Terminator.h"
 
 #include <variant>
 
@@ -13,40 +13,31 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
-
-// ============================================================================
-// Statements
-// ============================================================================
-
-void Terminator::visit(Block& block)
+void SemanticsAnalyzer::visit(Block& block)
 {
+    hoist(block);
+
     for (auto& statement : block.statements)
     {
         visit(statement);
     }
 }
 
-void Terminator::visit(Statement_ptr statement)
+void SemanticsAnalyzer::visit(Statement_ptr statement)
 {
     std::visit(
-        overloaded{
-            [&](Import& imp)
-            {
-                import_symbols(imp);
-            },
-            [&](auto& node)
-            {
-                if constexpr (requires { visit(node); })
-                {
-                    visit(node);
-                }
-            }
-        },
+        overloaded{[&](auto& node)
+                   {
+                       if constexpr (requires { visit(node); })
+                       {
+                           visit(node);
+                       }
+                   }},
         statement->data
     );
 }
 
-void Terminator::visit(Branch& stmt)
+void SemanticsAnalyzer::visit(Branch& stmt)
 {
     enter_scope(ScopeType::BRANCH);
     visit(stmt.test);
@@ -60,7 +51,7 @@ void Terminator::visit(Branch& stmt)
     leave_scope();
 }
 
-void Terminator::visit(SimpleLoop& stmt)
+void SemanticsAnalyzer::visit(SimpleLoop& stmt)
 {
     enter_scope(ScopeType::LOOP);
     visit(stmt.test);
@@ -68,7 +59,7 @@ void Terminator::visit(SimpleLoop& stmt)
     leave_scope();
 }
 
-void Terminator::visit(ForInLoop& stmt)
+void SemanticsAnalyzer::visit(ForInLoop& stmt)
 {
     enter_scope(ScopeType::LOOP);
     visit(stmt.lhs);
@@ -76,7 +67,7 @@ void Terminator::visit(ForInLoop& stmt)
     leave_scope();
 }
 
-void Terminator::visit(Return& stmt)
+void SemanticsAnalyzer::visit(Return& stmt)
 {
     if (stmt.expression.has_value())
     {
@@ -84,7 +75,7 @@ void Terminator::visit(Return& stmt)
     }
 }
 
-void Terminator::visit(ExpressionStatement& stmt)
+void SemanticsAnalyzer::visit(ExpressionStatement& stmt)
 {
     visit(stmt.expression);
 }

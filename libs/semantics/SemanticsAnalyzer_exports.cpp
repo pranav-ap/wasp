@@ -1,12 +1,9 @@
-#include "SemanticsAnalyzer.h"
 #include "AST.h"
-#include "Collector.h"
 #include "Doctor.h"
-#include "Hoister.h"
+#include "SemanticsAnalyzer.h"
+#include "Statement.h"
 #include "Symbol.h"
 #include "SymbolFactory.h"
-#include "SymbolScope.h"
-#include "Terminator.h"
 #include "Type.h"
 #include "Workspace.h"
 
@@ -20,6 +17,7 @@ template <class... Ts> struct overloaded : Ts...
 {
     using Ts::operator()...;
 };
+
 template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
@@ -107,62 +105,69 @@ void SemanticsAnalyzer::init_module(Module_ptr current_module)
     workspace->add_module_symbol(current_module->absolute_filepath, module_symbol);
 }
 
-void SemanticsAnalyzer::run(std::vector<Module_ptr>& build_order)
+void SemanticsAnalyzer::import_symbols(Import& imp)
 {
-    Doctor::semantics().start();
+    Module_ptr imported_module = workspace->get_module(imp.module_path);
 
-    enter_scope(ScopeType::WORKSPACE);
-
-    for (Module_ptr& current_module : build_order)
-    {
-        enter_scope(ScopeType::MODULE);
-
-        Hoister hoister(workspace, current_module, current_scope);
-        hoister.run();
-
-        leave_scope();
-
-        enter_scope(ScopeType::MODULE);
-
-        Collector collector(workspace, current_module, current_scope);
-        collector.run();
-
-        leave_scope();
-
-        auto ast_forest = collector.get_forest();
-
-        enter_scope(ScopeType::MODULE);
-
-        Terminator terminator(workspace, current_module, current_scope, ast_forest);
-        terminator.run();
-
-        current_module->save_ast("semantics");
-
-        init_module(current_module);
-
-        leave_scope();
-    }
-
-    leave_scope();
-
-    Doctor::semantics().stop();
-}
-
-void SemanticsAnalyzer::enter_scope(ScopeType scope_type)
-{
-    auto new_scope = std::make_shared<SymbolScope>(
-        scope_type,
-        current_scope
+    Symbol_ptr imported_module_symbol = workspace->get_module_symbol(
+        imp.module_path
     );
 
-    current_scope = new_scope;
-}
-
-void SemanticsAnalyzer::leave_scope()
-{
-    if (current_scope != nullptr)
+    if (imp.module_alias.has_value())
     {
-        current_scope = current_scope->enclosing_scope;
+        Symbol_ptr alias_symbol = SymbolFactory::create_symbol_alias(
+            imp.module_alias.value(),
+            imported_module_symbol
+        );
+
+        imp.module_symbol = alias_symbol;
+        current_scope->define(alias_symbol);
+    }
+    else
+    {
+        imp.module_symbol = imported_module_symbol;
+
+        if (!imp.expose_all)
+        {
+            current_scope->define(imported_module_symbol);
+        }
+    }
+
+    if (imp.expose_all)
+    {
+        for (Symbol_ptr& exported_symbol : imported_module->exported_symbols)
+        {
+            ImportAsPair pair = {exported_symbol->name};
+            imp.exposed_names.push_back(pair);
+        }
+    }
+
+    imp.expose_all = false;
+
+    for (ImportAsPair& pair : imp.exposed_names)
+    {
+        int symbol_index = imported_module->type->get_member_index(pair.name);
+        Symbol_ptr exported_symbol = imported_module->exported_symbols[symbol_index];
+
+        Doctor::semantics().fatal_if_nullptr(
+            exported_symbol,
+            "Module " + imported_module->get_name() + " does not export " + pair.name
+        );
+
+        if (pair.alias.has_value())
+        {
+            Symbol_ptr alias_symbol = SymbolFactory::create_symbol_alias(
+                pair.alias.value(),
+                exported_symbol
+            );
+
+            alias_symbol->module_path = imported_module->get_path();
+            current_scope->define(alias_symbol);
+        }
+        else
+        {
+            current_scope->define(exported_symbol);
+        }
     }
 }
 
