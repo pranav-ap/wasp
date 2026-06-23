@@ -59,11 +59,6 @@ FetchContent_MakeAvailable(fmt)
 FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz)
 FetchContent_MakeAvailable(json)
 
-# ==========================================
-# QBE (Quick Backend)
-# ==========================================
-
-find_program(QBE_EXECUTABLE qbe REQUIRED)
 
 # ==========================================
 # Wasp Modules

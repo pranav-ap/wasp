@@ -17,6 +17,7 @@ private:
     SymbolScope_ptr current_scope;
     Workspace_ptr workspace;
 
+private:
     void init_module(Module_ptr current_module);
 
     void enter_scope(ScopeType scope_type);

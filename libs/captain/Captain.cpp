@@ -1,11 +1,12 @@
 #include "Captain.h"
-#include "Compiler.h"
 #include "DependencyCrawler.h"
 #include "Doctor.h"
 #include "Lexer.h"
 #include "Parser.h"
 #include "Salter.h"
 #include "SemanticsAnalyzer.h"
+#include "Statement.h"
+#include "Token.h"
 #include "Workspace.h"
 
 #include <filesystem>
@@ -100,10 +101,10 @@ void Captain::parse_module(const std::filesystem::path& file_path)
     std::string code = read_file(abs_path);
 
     Lexer lexer;
-    auto tokens = lexer.run(code);
+    std::vector<Token> tokens = lexer.run(code);
 
     Parser parser;
-    auto stmts = parser.run(tokens);
+    Block stmts = parser.run(tokens);
 
     Module_ptr mod = std::make_shared<Module>(abs_path, stmts);
     mod->save_ast("parser");
@@ -123,9 +124,6 @@ void Captain::build()
 
     Salter salter;
     salter.run(build_order);
-
-    Compiler compiler;
-    compiler.run(build_order);
 }
 
 void Captain::execute()
