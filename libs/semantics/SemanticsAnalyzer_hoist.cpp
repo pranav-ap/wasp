@@ -82,10 +82,8 @@ void SemanticsAnalyzer::hoist(FunctionDefinition& def)
         current_scope->lexical_depth
     );
 
-    Symbol_ptr overload_symbol = current_scope->overload_function(symbol);
-
+    current_scope->define(symbol);
     def.symbol = symbol;
-    def.overload_symbol = overload_symbol;
 }
 
 void SemanticsAnalyzer::hoist(OperatorDefinition& def)
@@ -97,10 +95,8 @@ void SemanticsAnalyzer::hoist(OperatorDefinition& def)
         current_scope->lexical_depth
     );
 
-    Symbol_ptr overload_symbol = current_scope->overload_function(symbol);
-
+    current_scope->define(symbol);
     def.symbol = symbol;
-    def.overload_symbol = overload_symbol;
 }
 
 void SemanticsAnalyzer::hoist(MethodDefinition& def)
@@ -112,10 +108,8 @@ void SemanticsAnalyzer::hoist(MethodDefinition& def)
         current_scope->lexical_depth
     );
 
-    Symbol_ptr overload_symbol = current_scope->overload_method(symbol);
-
+    current_scope->define(symbol);
     def.symbol = symbol;
-    def.overload_symbol = overload_symbol;
 }
 
 void SemanticsAnalyzer::hoist(MethodDefinitionVector& methods)

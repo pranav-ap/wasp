@@ -463,7 +463,7 @@ Statement_ptr ASTCloner::clone(const FunctionDefinition& stmt)
     cloned.block = clone_block(stmt.block);
     cloned.is_pure = stmt.is_pure;
     cloned.symbol = stmt.symbol;
-    cloned.overload_symbol = stmt.overload_symbol;
+
     return make_statement(cloned);
 }
 
@@ -477,7 +477,7 @@ Statement_ptr ASTCloner::clone(const MethodDefinition& stmt)
     cloned.is_pure = stmt.is_pure;
     cloned.is_shared = stmt.is_shared;
     cloned.symbol = stmt.symbol;
-    cloned.overload_symbol = stmt.overload_symbol;
+
     cloned.owner_symbol = stmt.owner_symbol;
     cloned.our_context_symbol = stmt.our_context_symbol;
     cloned.self_context_symbol = stmt.self_context_symbol;

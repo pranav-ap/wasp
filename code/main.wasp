@@ -12,3 +12,4 @@ fun foo(a: T)
     return
 
 foo<int>(3)
+

@@ -217,16 +217,6 @@ struct FunctionType
 using FunctionType_ptr = std::shared_ptr<FunctionType>;
 using FunctionTypeVector = std::vector<FunctionType_ptr>;
 
-struct FunctionOverloadType
-{
-    std::string name;
-    std::vector<FunctionType_ptr> function_types;
-
-    void add(FunctionType_ptr);
-};
-
-using FunctionOverloadType_ptr = std::shared_ptr<FunctionOverloadType>;
-
 struct MethodType
 {
     std::string name;
@@ -246,16 +236,7 @@ struct MethodType
 };
 
 using MethodType_ptr = std::shared_ptr<MethodType>;
-
-struct MethodOverloadType
-{
-    std::string name;
-    std::vector<MethodType_ptr> method_types;
-
-    void add(MethodType_ptr);
-};
-
-using MethodOverloadType_ptr = std::shared_ptr<MethodOverloadType>;
+using MethodTypeVector = std::vector<MethodType_ptr>;
 
 // ============================================================================
 // I Table
@@ -293,13 +274,13 @@ using FieldMap_ptr = std::shared_ptr<FieldMap>;
 
 struct MethodMap
 {
-    std::map<std::string, MethodOverloadType_ptr> method_overload_types;
+    std::map<std::string, MethodTypeVector> method_overload_types;
     StringVector ordered_keys;
 
     int get_index(const std::string& function_name) const;
-    MethodOverloadType_ptr get_type(const std::string& function_name) const;
+    MethodTypeVector get_type(const std::string& function_name) const;
     bool contains(const std::string& function_name) const;
-    MethodOverloadType_ptr add(const std::string& function_name);
+    MethodTypeVector add(const std::string& function_name);
 };
 
 using MethodMap_ptr = std::shared_ptr<MethodMap>;
@@ -423,8 +404,6 @@ using TypeVariant = std::variant<
 
     FunctionType_ptr,
     MethodType_ptr,
-    FunctionOverloadType_ptr,
-    MethodOverloadType_ptr,
 
     ClassType_ptr,
     TraitType_ptr,

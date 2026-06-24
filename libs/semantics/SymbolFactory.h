@@ -42,7 +42,7 @@ public:
         int lexical_depth = 0
     );
 
-    static Symbol_ptr create_type_overloads(const std::string& name, Type_ptr overload_type);
+    static Symbol_ptr create_overloads(const std::string& name);
 
     static Symbol_ptr create_type_alias(
         const std::string& name,

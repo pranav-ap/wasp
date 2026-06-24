@@ -9,6 +9,7 @@
 
 #include <map>
 #include <memory>
+#include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -100,27 +101,25 @@ private:
         const TypeVector& argument_types
     );
 
-    Type_ptr visit(
-        Call& call,
-        MemberAccess& access,
-        TypeVector& generic_types,
-        TypeVector& argument_types
-    );
+    Type_ptr visit(Call& call, Identifier& identifier, const TypeVector& argument_types);
 
-    Type_ptr resolve_method(
+    Type_ptr visit(Call& call, MemberAccess& access, const TypeVector& argument_types);
+
+    Type_ptr visit(
         Call& call,
         MemberAccess& ma,
         const TypeVector& argument_types,
-        OopsType_ptr owner_type
+        const OopsType_ptr owner_type
     );
 
     std::tuple<Symbol_ptr, int> resolve_function(
-        const Symbol_ptr symbol,
+        const std::string& name,
+        const SymbolVector& candidates,
         const TypeVector& argument_types
     ) const;
 
     std::tuple<MethodType_ptr, int> resolve_method(
-        const MethodOverloadType_ptr method_overload_type,
+        const MethodTypeVector& method_types,
         const TypeVector& argument_types
     ) const;
 
@@ -201,6 +200,10 @@ private:
     // Collect Utils
 
     TemplateType_ptr create_template_type(FieldVector& generics);
+
+    void validate_new_function_type(Symbol_ptr);
+    void validate_new_function_type_friends(Symbol_ptr, Symbol_ptr, FunctionType_ptr);
+    void shadow_new_function_type_parents(Symbol_ptr, Symbol_ptr, FunctionType_ptr);
 
     FieldMap_ptr collect(FieldVector& fields);
     MethodType_ptr collect(MethodDefinition& statement, Symbol_ptr owner_symbol);

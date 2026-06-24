@@ -129,7 +129,6 @@ struct FunctionDefinition
     bool is_pure;
 
     Symbol_ptr symbol = nullptr;
-    Symbol_ptr overload_symbol = nullptr;
 };
 
 using FunctionDefinitionVector = std::vector<FunctionDefinition>;
@@ -147,7 +146,6 @@ struct MethodDefinition
     bool is_shared;
 
     Symbol_ptr symbol = nullptr;
-    Symbol_ptr overload_symbol = nullptr;
 
     Symbol_ptr owner_symbol = nullptr;
 
@@ -171,7 +169,6 @@ struct OperatorDefinition
     Block block;
 
     Symbol_ptr symbol = nullptr;
-    Symbol_ptr overload_symbol = nullptr;
 };
 
 struct RecordDefinition

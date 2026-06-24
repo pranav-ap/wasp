@@ -38,12 +38,6 @@ struct TypeSymbol
     Type_ptr type;
 };
 
-struct TypeOverloadsSymbol
-{
-    SymbolVector overloads;
-    Type_ptr type;
-};
-
 struct TypeAliasSymbol
 {
     Type_ptr type;
@@ -59,6 +53,11 @@ struct ModuleSymbol
     Type_ptr type;
 };
 
+struct OverloadSymbol
+{
+    SymbolVector overloads;
+};
+
 // ============================================================================
 // Symbol
 // ============================================================================
@@ -67,11 +66,11 @@ using SymbolVariant = std::variant<
     std::monostate,
 
     VariableSymbol,
-    TypeOverloadsSymbol,
     TypeSymbol,
     TypeAliasSymbol,
     SymbolAliasSymbol,
-    ModuleSymbol>;
+    ModuleSymbol,
+    OverloadSymbol>;
 
 struct Symbol : public std::enable_shared_from_this<Symbol>
 {

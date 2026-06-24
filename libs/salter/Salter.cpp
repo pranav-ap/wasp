@@ -174,8 +174,7 @@ Statement_ptr Salter::visit(FunctionDefinition& def)
             def.return_type,
             new_block,
             def.is_pure,
-            def.symbol,
-            def.overload_symbol
+            def.symbol
         }
     );
 }
@@ -193,8 +192,7 @@ Statement_ptr Salter::visit(OperatorDefinition& def)
             def.return_type,
             new_block,
             true,
-            def.symbol,
-            def.overload_symbol
+            def.symbol
         }
     );
 }
@@ -243,8 +241,7 @@ Block Salter::salt(TypeDefinition& def)
             method.return_type,
             new_block,
             method.is_pure,
-            method.symbol,
-            method.overload_symbol
+            method.symbol
         };
 
         results.push_back(make_statement(func_def));

@@ -100,12 +100,59 @@ Symbol_ptr SymbolScope::lookup_variable(const std::string& name) const
 {
     Symbol_ptr symbol = this->lookup_required_and_resolve(name);
 
-    Doctor::semantics().check(
-        symbol->is<VariableSymbol>(),
-        "Expected variable symbol for '" + name + "'"
-    );
+    Doctor::semantics().check(symbol->is<VariableSymbol>(), "Expected variable symbol for '" + name + "'");
 
     return symbol;
+}
+
+Symbol_ptr SymbolScope::lookup_overload(const std::string& name) const
+{
+    Symbol_ptr symbol = this->lookup_required_and_resolve(name);
+
+    Doctor::semantics().check(symbol->is<OverloadSymbol>(), "Expected overload symbol for '" + name + "'");
+
+    return symbol;
+}
+
+Symbol_ptr SymbolScope::lookup_overload_maybe(const std::string& name) const
+{
+    Symbol_ptr symbol = this->lookup(name);
+
+    if (symbol)
+    {
+        Doctor::semantics().check(
+            symbol->is<OverloadSymbol>(),
+            "Expected overload symbol for '" + name + "'"
+        );
+
+        return symbol;
+    }
+
+    return nullptr;
+}
+
+Symbol_ptr SymbolScope::lookup_parent_overload(const std::string& name) const
+{
+    const SymbolScope* current = this->enclosing_scope.get();
+
+    while (current)
+    {
+        Symbol_ptr symbol = current->lookup_local(name);
+
+        if (!symbol)
+        {
+            current = current->enclosing_scope.get();
+        }
+
+        Doctor::semantics().check(
+            symbol->is<OverloadSymbol>(),
+            "Expected overload symbol for '" + name + "'"
+        );
+
+        return symbol;
+    }
+
+    return nullptr;
 }
 
 bool SymbolScope::contains_in_current_scope(const std::string& name) const
@@ -146,6 +193,7 @@ bool SymbolScope::enclosed_in(const std::vector<ScopeType>& types) const
                 return true;
             }
         }
+
         current = current->enclosing_scope.get();
     }
 
@@ -167,6 +215,20 @@ void SymbolScope::define(Symbol_ptr symbol)
         symbol,
         "Cannot define a null symbol"
     );
+
+    Type_ptr symbol_type = symbol->get_type();
+
+    if (symbol_type->is<FunctionType_ptr>())
+    {
+        overload_function(symbol);
+        return;
+    }
+
+    if (symbol_type->is<MethodType_ptr>())
+    {
+        overload_method(symbol);
+        return;
+    }
 
     Doctor::semantics().check(
         !contains_in_current_scope(symbol->name),
@@ -192,13 +254,14 @@ void SymbolScope::define(TemplateType_ptr template_type)
     }
 }
 
-Symbol_ptr SymbolScope::overload_function(Symbol_ptr new_symbol)
+// ------------------------------------------
+// Overload
+// ------------------------------------------
+
+void SymbolScope::overload_function(Symbol_ptr new_symbol)
 {
-    // Inspect new symbol
-
     Doctor::semantics().fatal_if_nullptr(new_symbol, "Cannot define a null symbol");
-
-    Doctor::semantics().check(new_symbol->is<TypeSymbol>(), "Only Function can be overloaded");
+    Doctor::semantics().check(new_symbol->is<TypeSymbol>(), "Only callables can be overloaded");
 
     Type_ptr new_symbol_type = new_symbol->get_type();
 
@@ -207,88 +270,42 @@ Symbol_ptr SymbolScope::overload_function(Symbol_ptr new_symbol)
         "Expected FunctionType for symbol: " + new_symbol->name
     );
 
-    FunctionType_ptr new_function_type = new_symbol_type->as<FunctionType_ptr>();
-
-    // Inspect existing overload symbol
-
-    Symbol_ptr overload_symbol = this->lookup(new_symbol->name);
-
-    if (!overload_symbol)
-    {
-        overload_symbol = SymbolFactory::create_type_overloads(
-            new_symbol->name,
-            make_shared_type<FunctionOverloadType>(new_symbol->name)
-        );
-    }
-
-    Doctor::semantics().check(
-        overload_symbol->is<TypeOverloadsSymbol>(),
-        "Expected TypeOverloadsSymbol for symbol: " + overload_symbol->name
-    );
-
-    TypeOverloadsSymbol& s = overload_symbol->as<TypeOverloadsSymbol>();
-    s.overloads.push_back(new_symbol);
-    Type_ptr overload_type = s.type;
-
-    Doctor::semantics().check(
-        overload_type->is<FunctionOverloadType_ptr>(),
-        "Expected FunctionOverloadType for symbol: " + new_symbol->name
-    );
-
-    FunctionOverloadType_ptr overload_function_type = overload_type->as<FunctionOverloadType_ptr>();
-    overload_function_type->add(new_function_type);
-
-    symbols[new_symbol->name] = overload_symbol;
-
-    return overload_symbol;
+    overload(new_symbol);
 }
 
-Symbol_ptr SymbolScope::overload_method(Symbol_ptr symbol)
+void SymbolScope::overload_method(Symbol_ptr new_symbol)
 {
-    Doctor::semantics().fatal_if_nullptr(symbol, "Cannot define a null symbol");
+    Doctor::semantics().fatal_if_nullptr(new_symbol, "Cannot define a null symbol");
+    Doctor::semantics().check(new_symbol->is<TypeSymbol>(), "Only callables can be overloaded");
 
-    Doctor::semantics().check(symbol->is<TypeSymbol>(), "Only Method can be overloaded");
-
-    Type_ptr symbol_type = symbol->get_type();
+    Type_ptr new_symbol_type = new_symbol->get_type();
 
     Doctor::semantics().check(
-        symbol_type->is<MethodType_ptr>(),
-        "Expected MethodType for symbol: " + symbol->name
+        new_symbol_type->is<MethodType_ptr>(),
+        "Expected MethodType for symbol: " + new_symbol->name
     );
 
-    MethodType_ptr method_type = symbol_type->as<MethodType_ptr>();
+    overload(new_symbol);
+}
 
-    Symbol_ptr overload_symbol = this->lookup(symbol->name);
+void SymbolScope::overload(Symbol_ptr new_symbol)
+{
+    Symbol_ptr overload_symbol = this->lookup_local(new_symbol->name);
 
     if (!overload_symbol)
     {
-        overload_symbol = SymbolFactory::create_type_overloads(
-            symbol->name,
-            make_shared_type<MethodOverloadType>(symbol->name)
-        );
+        overload_symbol = SymbolFactory::create_overloads(new_symbol->name);
     }
 
     Doctor::semantics().check(
-        overload_symbol->is<TypeOverloadsSymbol>(),
-        "Expected TypeOverloadsSymbol for symbol: " + overload_symbol->name
+        overload_symbol->is<OverloadSymbol>(),
+        "Expected OverloadSymbol for symbol: " + overload_symbol->name
     );
 
-    TypeOverloadsSymbol& s = overload_symbol->as<TypeOverloadsSymbol>();
+    OverloadSymbol& os = overload_symbol->as<OverloadSymbol>();
+    os.overloads.push_back(new_symbol);
 
-    s.overloads.push_back(symbol);
-    Type_ptr overload_type = s.type;
-
-    Doctor::semantics().check(
-        overload_type->is<MethodOverloadType_ptr>(),
-        "Expected MethodOverloadType for symbol: " + symbol->name
-    );
-
-    MethodOverloadType_ptr overload_method_type = overload_type->as<MethodOverloadType_ptr>();
-    overload_method_type->add(method_type);
-
-    symbols[symbol->name] = overload_symbol;
-
-    return overload_symbol;
+    symbols[new_symbol->name] = overload_symbol;
 }
 
 } // namespace Wasp

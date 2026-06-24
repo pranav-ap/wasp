@@ -69,7 +69,7 @@ int MethodMap::get_index(const std::string& name) const
     return static_cast<int>(std::distance(ordered_keys.begin(), it));
 }
 
-MethodOverloadType_ptr MethodMap::get_type(const std::string& name) const
+MethodTypeVector MethodMap::get_type(const std::string& name) const
 {
     auto it = method_overload_types.find(name);
 
@@ -86,7 +86,7 @@ bool MethodMap::contains(const std::string& name) const
     return method_overload_types.find(name) != method_overload_types.end();
 }
 
-MethodOverloadType_ptr MethodMap::add(const std::string& function_name)
+MethodTypeVector MethodMap::add(const std::string& function_name)
 {
     Doctor::captain().check(
         !contains(function_name),
@@ -94,7 +94,7 @@ MethodOverloadType_ptr MethodMap::add(const std::string& function_name)
     );
 
     ordered_keys.push_back(function_name);
-    method_overload_types[function_name] = std::make_shared<MethodOverloadType>();
+    method_overload_types[function_name] = {};
 
     return method_overload_types[function_name];
 }
@@ -222,24 +222,6 @@ Type_ptr TemplateType::get_generic_type(const std::string& name) const
     );
 
     return it->second;
-}
-
-// ============================================================================
-// FunctionOverloadType
-// ============================================================================
-
-void FunctionOverloadType::add(FunctionType_ptr function_type)
-{
-    function_types.push_back(function_type);
-}
-
-// ============================================================================
-// MethodOverloadType
-// ============================================================================
-
-void MethodOverloadType::add(MethodType_ptr method_type)
-{
-    method_types.push_back(method_type);
 }
 
 // ============================================================================

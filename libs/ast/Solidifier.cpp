@@ -157,7 +157,6 @@ Statement_ptr Solidifier::solidify(
                 // Solidify body
                 result.block = solidify_block(s.block, substitution_map);
                 result.symbol = s.symbol; // TODO must handle symbols
-                result.overload_symbol = s.overload_symbol;
                 return make_statement(result);
             },
             [&](const RecordDefinition& s) -> Statement_ptr
@@ -452,7 +451,6 @@ Statement_ptr Solidifier::solidify(
     result.name = func.name;
     result.is_pure = func.is_pure;
     result.symbol = func.symbol; // TODO: Update symbol later
-    result.overload_symbol = func.overload_symbol;
 
     // Remove generics after instantiation
     result.generics = {};
@@ -483,7 +481,6 @@ Statement_ptr Solidifier::solidify(
     result.is_pure = method.is_pure;
     result.is_shared = method.is_shared;
     result.symbol = method.symbol; // TODO: Update symbol later
-    result.overload_symbol = method.overload_symbol;
 
     // Solidify parameters
     for (const auto& param : method.parameters)

@@ -3,6 +3,7 @@
 #include "Doctor.h"
 #include "SemanticsAnalyzer.h"
 #include "Statement.h"
+#include "Symbol.h"
 #include "SymbolFactory.h"
 #include "SymbolScope.h"
 #include "Type.h"
@@ -341,7 +342,7 @@ MethodMap_ptr SemanticsAnalyzer::collect(
     Symbol_ptr owner_symbol
 )
 {
-    std::map<std::string, MethodOverloadType_ptr> method_map;
+    std::map<std::string, MethodTypeVector> method_map;
     StringVector ordered_keys;
 
     for (MethodDefinition& method : methods)
@@ -349,13 +350,13 @@ MethodMap_ptr SemanticsAnalyzer::collect(
         if (!method_map.contains(method.name))
         {
             ordered_keys.push_back(method.name);
-            method_map[method.name] = std::make_shared<MethodOverloadType>();
+            method_map[method.name] = {};
         }
 
         MethodType_ptr method_type = collect(method, owner_symbol);
 
-        MethodOverloadType_ptr method_overload_type = method_map[method.name];
-        method_overload_type->add(method_type);
+        MethodTypeVector& method_types = method_map[method.name];
+        method_types.push_back(method_type);
     }
 
     return std::make_shared<MethodMap>(
@@ -517,6 +518,100 @@ TemplateType_ptr SemanticsAnalyzer::create_template_type(FieldVector& generics)
 }
 
 // ============================================================================
+// Validate New Callables
+// ============================================================================
+
+void SemanticsAnalyzer::validate_new_function_type(Symbol_ptr candidate)
+{
+    Symbol_ptr friends = current_scope->lookup_local(candidate->name);
+    Symbol_ptr parents = current_scope->lookup_parent_overload(candidate->name);
+
+    Type_ptr candidate_type = candidate->get_type();
+
+    Doctor::semantics().check(
+        candidate_type->is<FunctionType_ptr>(),
+        "Expected FunctionType for symbol: " + candidate->name
+    );
+
+    FunctionType_ptr candidate_function_type = candidate_type->as<FunctionType_ptr>();
+
+    if (friends)
+    {
+        validate_new_function_type_friends(candidate, friends, candidate_function_type);
+    }
+
+    if (parents)
+    {
+        shadow_new_function_type_parents(candidate, parents, candidate_function_type);
+    }
+}
+
+void SemanticsAnalyzer::validate_new_function_type_friends(
+    Symbol_ptr candidate,
+    Symbol_ptr friends,
+    FunctionType_ptr candidate_function_type
+)
+{
+    OverloadSymbol& friends_overload = friends->as<OverloadSymbol>();
+
+    for (const Symbol_ptr& friend_symbol : friends_overload.overloads)
+    {
+        Type_ptr friend_type = friend_symbol->get_type();
+
+        Doctor::semantics().check(
+            friend_type->is<FunctionType_ptr>(),
+            "Expected FunctionType for symbol: " + friend_symbol->name
+        );
+
+        FunctionType_ptr friend_function_type = friend_type->as<FunctionType_ptr>();
+
+        bool signatures_match = type_system->signatures_match(
+            current_scope,
+            friend_function_type,
+            candidate_function_type
+        );
+
+        Doctor::semantics().check(
+            !signatures_match,
+            "Function '" + candidate->name + "' has a duplicate signature"
+        );
+    }
+}
+
+void SemanticsAnalyzer::shadow_new_function_type_parents(
+    Symbol_ptr candidate,
+    Symbol_ptr parents,
+    FunctionType_ptr candidate_function_type
+)
+{
+    OverloadSymbol& parents_overload = parents->as<OverloadSymbol>();
+
+    for (const Symbol_ptr& parent_symbol : parents_overload.overloads)
+    {
+        Type_ptr parent_type = parent_symbol->get_type();
+
+        Doctor::semantics().check(
+            parent_type->is<FunctionType_ptr>(),
+            "Expected FunctionType for symbol: " + parent_symbol->name
+        );
+
+        FunctionType_ptr parent_function_type = parent_type->as<FunctionType_ptr>();
+
+        bool signatures_match = type_system->signatures_match(
+            current_scope,
+            parent_function_type,
+            candidate_function_type
+        );
+
+        if (!signatures_match)
+        {
+            OverloadSymbol& candidate_overload = candidate->as<OverloadSymbol>();
+            candidate_overload.overloads.push_back(parent_symbol);
+        }
+    }
+}
+
+// ============================================================================
 // Trait Conformance
 // ============================================================================
 
@@ -563,16 +658,14 @@ std::vector<MethodType_ptr> SemanticsAnalyzer::collect_required_methods(
     return required_method_types;
 }
 
-std::vector<MethodType_ptr> SemanticsAnalyzer::collect_required_methods(
-    TraitType_ptr trait_type
-)
+MethodTypeVector SemanticsAnalyzer::collect_required_methods(TraitType_ptr trait_type)
 {
-    std::vector<MethodType_ptr> required_method_types;
+    MethodTypeVector required_method_types;
 
     for (auto [method_name, method_overload_types] :
          trait_type->methods->method_overload_types)
     {
-        for (const MethodType_ptr& method_type : method_overload_types->method_types)
+        for (const MethodType_ptr& method_type : method_overload_types)
         {
             if (method_type->is_required)
             {
@@ -704,7 +797,7 @@ void SemanticsAnalyzer::merge_trait_methods(
             target_type->methods->add(trait_method.name);
         }
 
-        target_type->methods->get_type(trait_method.name)->add(trait_method_type);
+        target_type->methods->get_type(trait_method.name).push_back(trait_method_type);
     }
 }
 
