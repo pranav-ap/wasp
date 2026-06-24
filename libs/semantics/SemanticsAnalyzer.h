@@ -9,6 +9,7 @@
 
 #include <map>
 #include <memory>
+#include <utility>
 #include <vector>
 
 namespace Wasp
@@ -31,8 +32,10 @@ private:
 
 private:
     // Forest
-    std::map<Symbol_ptr, Statement_ptr> forest;
-    std::map<Symbol_ptr, SymbolScope_ptr> scope_forest;
+    std::map<Symbol_ptr, std::pair<Statement_ptr, SymbolScope_ptr>> forest;
+
+    std::pair<Statement_ptr, SymbolScope_ptr> get_tree(Symbol_ptr symbol);
+    void add_tree(Symbol_ptr symbol, Statement_ptr tree, SymbolScope_ptr scope);
 
 private:
     // Types
@@ -126,13 +129,14 @@ private:
     void visit(Statement_ptr statement);
 
     void visit(FunctionDefinition& statement);
-    void visit(MethodDefinition& statement);
     void visit(OperatorDefinition& statement);
+
+    void visit(MethodDefinition& statement);
+    void visit(MethodDefinitionVector& statement);
+
     void visit(ClassDefinition& statement);
     void visit(TraitDefinition& statement);
     void visit(PrimitiveDefinition& statement);
-    void visit(EnumDefinition& statement);
-    void visit(TypeAliasDefinition& statement);
 
     void visit(Branch& statement);
     void visit(SimpleLoop& statement);
@@ -147,15 +151,18 @@ private:
     void hoist(Block& block);
     void hoist(Statement_ptr statement);
 
+    void hoist(EnumDefinition& statement);
+    void hoist(TypeAliasDefinition& statement);
+
     void hoist(FunctionDefinition& statement);
-    void hoist(MethodDefinition& statement);
     void hoist(OperatorDefinition& statement);
+
+    void hoist(MethodDefinitionVector& def);
+    void hoist(MethodDefinition& def);
 
     void hoist(ClassDefinition& statement);
     void hoist(TraitDefinition& statement);
     void hoist(PrimitiveDefinition& statement);
-    void hoist(EnumDefinition& statement);
-    void hoist(TypeAliasDefinition& statement);
 
 private:
     // Collect
@@ -163,25 +170,25 @@ private:
     void collect(Block& block);
     void collect(Statement_ptr statement);
 
-    void collect(FunctionDefinition& statement);
-    void collect(MethodDefinition& statement);
-    void collect(OperatorDefinition& statement);
-    void collect(ClassDefinition& statement);
-    void collect(TraitDefinition& statement);
-    void collect(PrimitiveDefinition& statement);
     void collect(EnumDefinition& statement);
     void collect(TypeAliasDefinition& statement);
 
+    void collect(FunctionDefinition& statement);
+    void collect(OperatorDefinition& statement);
+
+    void collect(ClassDefinition& statement);
+    void collect(TraitDefinition& statement);
+    void collect(PrimitiveDefinition& statement);
+
     // Collect Utils
 
-    Signature_ptr extract_signature(FunctionDefinition& def);
-    Signature_ptr extract_signature(OperatorDefinition& def);
+    TemplateType_ptr create_template_type(FieldVector& generics);
 
-    FieldMap_ptr track_fields(FieldVector fields);
-    MethodMap_ptr track_methods(MethodDefinitionVector methods);
-    TypeVector track_traits(TypeNodeVector traits);
+    FieldMap_ptr collect(FieldVector& fields);
+    MethodType_ptr collect(MethodDefinition& statement, Symbol_ptr owner_symbol);
+    MethodMap_ptr collect(MethodDefinitionVector& methods, Symbol_ptr owner_symbol);
 
-    void conform_traits(TypeDefinition& def, OopsType_ptr oop_type);
+    void conform_to_traits(TypeDefinition& def, OopsType_ptr oop_type);
 
     std::vector<MethodType_ptr> collect_required_methods(OopsType_ptr target_type);
     std::vector<MethodType_ptr> collect_required_methods(TraitType_ptr trait_type);
@@ -199,15 +206,14 @@ private:
         TraitDefinition& trait_def
     );
 
-    TemplateType_ptr create_template_type(FieldVector& generics);
-
 private:
+    // Exports
+
     void import_symbols(Import& statement);
     void init_module(Module_ptr current_module);
 
 private:
     // Utils
-    Statement_ptr get_tree(Symbol_ptr symbol);
 
     void enter_scope(ScopeType scope_type);
     void leave_scope();

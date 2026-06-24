@@ -18,13 +18,19 @@ enum class ScopeType
 {
     WORKSPACE,
     MODULE,
+
     CLASS,
     TRAIT,
     PRIMITIVE,
+
+    ENUM,
+    TYPE_ALIAS,
+
     FUNCTION,
     PURE_FUNCTION,
     METHOD,
     PURE_METHOD,
+
     LOOP,
     BRANCH
 };

@@ -149,7 +149,7 @@ struct MethodDefinition
     Symbol_ptr symbol = nullptr;
     Symbol_ptr overload_symbol = nullptr;
 
-    Symbol_ptr class_symbol = nullptr;
+    Symbol_ptr owner_symbol = nullptr;
 
     Symbol_ptr self_context_symbol = nullptr;
     Symbol_ptr our_context_symbol = nullptr;

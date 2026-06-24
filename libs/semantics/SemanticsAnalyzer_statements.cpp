@@ -16,8 +16,9 @@ namespace Wasp
 void SemanticsAnalyzer::visit(Block& block)
 {
     hoist(block);
+    collect(block);
 
-    for (auto& statement : block.statements)
+    for (Statement_ptr& statement : block.statements)
     {
         visit(statement);
     }

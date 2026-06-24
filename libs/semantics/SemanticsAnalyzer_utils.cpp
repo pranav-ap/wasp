@@ -6,6 +6,7 @@
 #include "Workspace.h"
 
 #include <memory>
+#include <utility>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -31,7 +32,9 @@ void SemanticsAnalyzer::leave_scope()
     }
 }
 
-Statement_ptr SemanticsAnalyzer::get_tree(Symbol_ptr symbol)
+std::pair<Statement_ptr, SymbolScope_ptr> SemanticsAnalyzer::get_tree(
+    Symbol_ptr symbol
+)
 {
     auto it = forest.find(symbol);
 
@@ -40,7 +43,21 @@ Statement_ptr SemanticsAnalyzer::get_tree(Symbol_ptr symbol)
         "No AST found for symbol '" + symbol->name + "'"
     );
 
-    return it->second;
+    return {it->second.first, it->second.second};
+}
+
+void SemanticsAnalyzer::add_tree(
+    Symbol_ptr symbol,
+    Statement_ptr tree,
+    SymbolScope_ptr scope
+)
+{
+    Doctor::semantics().check(
+        forest.find(symbol) == forest.end(),
+        "AST already exists for symbol '" + symbol->name + "'"
+    );
+
+    forest[symbol] = {tree, scope};
 }
 
 } // namespace Wasp

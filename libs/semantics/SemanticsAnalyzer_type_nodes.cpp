@@ -42,9 +42,10 @@ TypeVector SemanticsAnalyzer::visit(TypeNodeVector& type_nodes)
 {
     TypeVector types;
 
-    for (const auto& node : type_nodes)
+    for (const TypeNode_ptr& node : type_nodes)
     {
-        types.push_back(visit(node));
+        Type_ptr type = visit(node);
+        types.push_back(type);
     }
 
     return types;

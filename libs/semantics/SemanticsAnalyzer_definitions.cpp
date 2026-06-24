@@ -19,7 +19,7 @@ void SemanticsAnalyzer::visit(FunctionDefinition& def)
 
     enter_scope(scope_type);
 
-    for (const auto& parameter : def.parameters)
+    for (const Field& parameter : def.parameters)
     {
         current_scope->define(parameter.symbol);
     }
@@ -27,8 +27,49 @@ void SemanticsAnalyzer::visit(FunctionDefinition& def)
     visit(def.block);
 
     leave_scope();
+}
 
-    scope_forest[def.symbol] = current_scope;
+void SemanticsAnalyzer::visit(OperatorDefinition& def)
+{
+    enter_scope(ScopeType::PURE_FUNCTION);
+
+    for (const Field& operand : def.operands)
+    {
+        current_scope->define(operand.symbol);
+    }
+
+    visit(def.block);
+
+    leave_scope();
+}
+
+void SemanticsAnalyzer::visit(ClassDefinition& def)
+{
+    enter_scope(ScopeType::CLASS);
+    visit(def.methods);
+    leave_scope();
+}
+
+void SemanticsAnalyzer::visit(TraitDefinition& def)
+{
+    enter_scope(ScopeType::TRAIT);
+    visit(def.methods);
+    leave_scope();
+}
+
+void SemanticsAnalyzer::visit(PrimitiveDefinition& def)
+{
+    enter_scope(ScopeType::PRIMITIVE);
+    visit(def.methods);
+    leave_scope();
+}
+
+void SemanticsAnalyzer::visit(MethodDefinitionVector& methods)
+{
+    for (auto& method : methods)
+    {
+        visit(method);
+    }
 }
 
 void SemanticsAnalyzer::visit(MethodDefinition& def)
@@ -38,86 +79,19 @@ void SemanticsAnalyzer::visit(MethodDefinition& def)
 
     current_scope->define(def.our_context_symbol);
 
-    if (def.self_context_symbol != nullptr)
+    if (def.self_context_symbol)
     {
         current_scope->define(def.self_context_symbol);
     }
 
-    for (const auto& parameter : def.parameters)
+    for (const Field& parameter : def.parameters)
     {
         current_scope->define(parameter.symbol);
     }
 
     visit(def.block);
-    leave_scope();
-}
-
-void SemanticsAnalyzer::visit(OperatorDefinition& def)
-{
-    enter_scope(ScopeType::PURE_FUNCTION);
-
-    for (const auto& operand : def.operands)
-    {
-        current_scope->define(operand.symbol);
-    }
-
-    visit(def.block);
 
     leave_scope();
-
-    scope_forest[def.symbol] = current_scope;
-}
-
-void SemanticsAnalyzer::visit(ClassDefinition& def)
-{
-    enter_scope(ScopeType::CLASS);
-
-    for (auto& method : def.methods)
-    {
-        visit(method);
-    }
-
-    leave_scope();
-
-    scope_forest[def.symbol] = current_scope;
-}
-
-void SemanticsAnalyzer::visit(TraitDefinition& def)
-{
-    enter_scope(ScopeType::TRAIT);
-
-    for (auto& method : def.methods)
-    {
-        visit(method);
-    }
-
-    leave_scope();
-
-    scope_forest[def.symbol] = current_scope;
-}
-
-void SemanticsAnalyzer::visit(PrimitiveDefinition& def)
-{
-    enter_scope(ScopeType::PRIMITIVE);
-
-    for (auto& method : def.methods)
-    {
-        visit(method);
-    }
-
-    leave_scope();
-
-    scope_forest[def.symbol] = current_scope;
-}
-
-void SemanticsAnalyzer::visit(EnumDefinition& def)
-{
-    scope_forest[def.symbol] = current_scope;
-}
-
-void SemanticsAnalyzer::visit(TypeAliasDefinition& def)
-{
-    scope_forest[def.symbol] = current_scope;
 }
 
 } // namespace Wasp

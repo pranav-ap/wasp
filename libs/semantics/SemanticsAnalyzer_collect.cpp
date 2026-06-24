@@ -3,6 +3,7 @@
 #include "Doctor.h"
 #include "SemanticsAnalyzer.h"
 #include "Statement.h"
+#include "SymbolFactory.h"
 #include "SymbolScope.h"
 #include "Type.h"
 
@@ -10,6 +11,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 template <class... Ts> struct overloaded : Ts...
@@ -49,11 +51,116 @@ StringVector collect_enum_names(const EnumDefinition& def, const std::string& pr
 
 } // namespace
 
+// ============================================================================
+// Statements
+// ============================================================================
+
+void SemanticsAnalyzer::collect(Block& block)
+{
+    for (Statement_ptr& statement : block.statements)
+    {
+        collect(statement);
+    }
+}
+
+void SemanticsAnalyzer::collect(Statement_ptr statement)
+{
+    std::visit(
+        overloaded{[&](auto& node)
+                   {
+                       if constexpr (requires { collect(node); })
+                       {
+                           collect(node);
+                       }
+                   }},
+        statement->data
+    );
+}
+
+void SemanticsAnalyzer::collect(EnumDefinition& def)
+{
+    enter_scope(ScopeType::ENUM);
+
+    TemplateType_ptr template_type = create_template_type(def.generics);
+    current_scope->define(template_type);
+
+    // TODO : template type not yet supported in enum
+
+    StringVector full_names = collect_enum_names(def, "");
+
+    Type_ptr enum_type_obj = def.symbol->get_type();
+    Doctor::semantics().fatal_if_nullptr(enum_type_obj);
+
+    Doctor::semantics().check(
+        enum_type_obj->is<EnumType_ptr>(),
+        "Expected EnumType_ptr for enum definition"
+    );
+
+    EnumType_ptr enum_type = enum_type_obj->as<EnumType_ptr>();
+    enum_type->members = std::move(full_names);
+
+    leave_scope();
+
+    add_tree(def.symbol, ASTCloner::get().clone(def), current_scope);
+}
+
+void SemanticsAnalyzer::collect(TypeAliasDefinition& def)
+{
+    enter_scope(ScopeType::TYPE_ALIAS);
+
+    TemplateType_ptr template_type = create_template_type(def.generics);
+    current_scope->define(template_type);
+
+    // TODO : template type not yet supported in type alias
+
+    auto alias_type = visit(def.ref_type);
+    def.symbol->set_type(alias_type);
+
+    add_tree(def.symbol, ASTCloner::get().clone(def), current_scope);
+
+    leave_scope();
+}
+
 void SemanticsAnalyzer::collect(FunctionDefinition& def)
 {
-    auto signature = extract_signature(def);
+    ScopeType scope_type = def.is_pure ? ScopeType::PURE_FUNCTION
+                                       : ScopeType::FUNCTION;
+
+    enter_scope(scope_type);
+
+    TemplateType_ptr template_type = create_template_type(def.generics);
+
+    Type_ptr return_type = make_shared_type<NoneType>();
+
+    if (def.return_type)
+    {
+        return_type = visit(def.return_type);
+    }
+
+    TypeVector param_types;
+
+    for (Field& param : def.parameters)
+    {
+        auto param_type = visit(param.type);
+        param_types.push_back(param_type);
+
+        param.symbol = SymbolFactory::create_variable(
+            param.name,
+            param_type,
+            false, // TODO : immutable by default?
+            current_scope->closure_depth,
+            current_scope->lexical_depth
+        );
+    }
+
+    Signature_ptr signature = std::make_shared<Signature>(
+        param_types,
+        return_type,
+        template_type
+    );
 
     Type_ptr type = def.symbol->get_type();
+
     FunctionType_ptr function_type = type->as<FunctionType_ptr>();
     function_type->signature = signature;
     function_type->is_pure = def.is_pure;
@@ -69,20 +176,16 @@ void SemanticsAnalyzer::collect(FunctionDefinition& def)
         }
     }
 
-    forest[def.symbol] = ASTCloner::get().clone(def);
+    leave_scope();
+
+    add_tree(def.symbol, ASTCloner::get().clone(def), current_scope);
 }
 
-void SemanticsAnalyzer::collect(MethodDefinition& def)
+void SemanticsAnalyzer::collect(OperatorDefinition& def)
 {
-    current_scope->define_method_overload(def.overload_symbol);
+    enter_scope(ScopeType::PURE_FUNCTION);
 
-    ScopeType scope_type = def.is_pure ? ScopeType::PURE_METHOD : ScopeType::METHOD;
-
-    enter_scope(scope_type);
-
-    FieldVector generics = {};
-    auto template_type = create_template_type(generics);
-    current_scope->define(template_type);
+    TemplateType_ptr template_type = create_template_type(def.generics);
 
     Type_ptr return_type = make_shared_type<NoneType>();
 
@@ -91,27 +194,239 @@ void SemanticsAnalyzer::collect(MethodDefinition& def)
         return_type = visit(def.return_type);
     }
 
-    current_scope->define(def.our_context_symbol);
-
-    if (def.self_context_symbol != nullptr)
-    {
-        current_scope->define(def.self_context_symbol);
-    }
-
     TypeVector param_types;
 
-    for (const auto& param : def.parameters)
+    for (Field& operand : def.operands)
     {
-        auto type = visit(param.type);
-        param_types.push_back(type);
+        auto operand_type = visit(operand.type);
+        param_types.push_back(operand_type);
 
-        param.symbol->set_type(type);
+        operand.symbol = SymbolFactory::create_variable(
+            operand.name,
+            operand_type,
+            false,
+            current_scope->closure_depth,
+            current_scope->lexical_depth
+        );
     }
 
     Signature_ptr signature = std::make_shared<Signature>(
         param_types,
         return_type,
         template_type
+    );
+
+    Type_ptr type = def.symbol->get_type();
+
+    FunctionType_ptr function_type = type->as<FunctionType_ptr>();
+    function_type->signature = signature;
+    function_type->is_pure = true;
+    function_type->is_native = false;
+
+    if (def.block.statements.size() == 1)
+    {
+        auto lonely = def.block.statements[0];
+
+        if (lonely->is<Native>())
+        {
+            function_type->is_native = true;
+        }
+    }
+
+    leave_scope();
+
+    add_tree(def.symbol, ASTCloner::get().clone(def), current_scope);
+}
+
+void SemanticsAnalyzer::collect(ClassDefinition& def)
+{
+    enter_scope(ScopeType::CLASS);
+
+    TemplateType_ptr template_type = create_template_type(def.generics);
+    current_scope->define(template_type);
+
+    FieldMap_ptr fields = collect(def.fields);
+
+    hoist(def.methods);
+    MethodMap_ptr methods = collect(def.methods, def.symbol);
+
+    TypeVector traits = visit(def.traits);
+
+    Type_ptr type = def.symbol->get_type();
+    ClassType_ptr class_type = type->as<ClassType_ptr>();
+    class_type->fields = fields;
+    class_type->methods = methods;
+    class_type->traits = traits;
+    class_type->template_type = template_type;
+
+    conform_to_traits(def, class_type);
+
+    leave_scope();
+
+    add_tree(def.symbol, ASTCloner::get().clone(def), current_scope);
+}
+
+void SemanticsAnalyzer::collect(TraitDefinition& def)
+{
+    enter_scope(ScopeType::TRAIT);
+
+    TemplateType_ptr template_type = create_template_type(def.generics);
+    current_scope->define(template_type);
+
+    FieldMap_ptr fields = collect(def.fields);
+
+    hoist(def.methods);
+    MethodMap_ptr methods = collect(def.methods, def.symbol);
+
+    TypeVector traits = visit(def.traits);
+
+    Type_ptr type = def.symbol->get_type();
+    TraitType_ptr trait_type = type->as<TraitType_ptr>();
+    trait_type->fields = fields;
+    trait_type->methods = methods;
+    trait_type->traits = traits;
+    trait_type->template_type = template_type;
+
+    conform_to_traits(def, trait_type);
+
+    leave_scope();
+
+    add_tree(def.symbol, ASTCloner::get().clone(def), current_scope);
+}
+
+void SemanticsAnalyzer::collect(PrimitiveDefinition& def)
+{
+    enter_scope(ScopeType::PRIMITIVE);
+
+    TemplateType_ptr template_type = create_template_type(def.generics);
+    current_scope->define(template_type);
+
+    FieldMap_ptr fields = collect(def.fields);
+
+    hoist(def.methods);
+    MethodMap_ptr methods = collect(def.methods, def.symbol);
+
+    TypeVector traits = visit(def.traits);
+
+    Type_ptr type = def.symbol->get_type();
+    PrimitiveType_ptr primitive_type = type->as<PrimitiveType_ptr>();
+    primitive_type->fields = fields;
+    primitive_type->methods = methods;
+    primitive_type->traits = traits;
+    primitive_type->template_type = template_type;
+
+    conform_to_traits(def, primitive_type);
+
+    leave_scope();
+
+    add_tree(def.symbol, ASTCloner::get().clone(def), current_scope);
+}
+
+FieldMap_ptr SemanticsAnalyzer::collect(FieldVector& fields)
+{
+    TypeStringMap field_map;
+    StringVector ordered_keys;
+
+    for (const auto& field : fields)
+    {
+        Doctor::semantics().check(
+            !field_map.contains(field.name),
+            "Duplicate field name: " + field.name
+        );
+
+        Type_ptr field_type = visit(field.type);
+        field_map[field.name] = field_type;
+        ordered_keys.push_back(field.name);
+    }
+
+    return std::make_shared<FieldMap>(std::move(field_map), std::move(ordered_keys));
+}
+
+MethodMap_ptr SemanticsAnalyzer::collect(
+    MethodDefinitionVector& methods,
+    Symbol_ptr owner_symbol
+)
+{
+    std::map<std::string, MethodOverloadType_ptr> method_map;
+    StringVector ordered_keys;
+
+    for (MethodDefinition& method : methods)
+    {
+        if (!method_map.contains(method.name))
+        {
+            ordered_keys.push_back(method.name);
+            method_map[method.name] = std::make_shared<MethodOverloadType>();
+        }
+
+        MethodType_ptr method_type = collect(method, owner_symbol);
+
+        MethodOverloadType_ptr method_overload_type = method_map[method.name];
+        method_overload_type->add(method_type);
+    }
+
+    return std::make_shared<MethodMap>(
+        std::move(method_map),
+        std::move(ordered_keys)
+    );
+}
+
+MethodType_ptr SemanticsAnalyzer::collect(
+    MethodDefinition& def,
+    Symbol_ptr owner_symbol
+)
+{
+    ScopeType scope_type = def.is_pure ? ScopeType::PURE_METHOD : ScopeType::METHOD;
+
+    enter_scope(scope_type);
+
+    Type_ptr return_type = make_shared_type<NoneType>();
+
+    if (def.return_type)
+    {
+        return_type = visit(def.return_type);
+    }
+
+    def.our_context_symbol = SymbolFactory::create_variable(
+        "our",
+        owner_symbol->get_type(),
+        false, // TODO : immutable by default?
+        current_scope->closure_depth,
+        current_scope->lexical_depth
+    );
+
+    if (!def.is_shared)
+    {
+        def.self_context_symbol = SymbolFactory::create_variable(
+            "self",
+            owner_symbol->get_type(),
+            true, // TODO : immutable by default?
+            current_scope->closure_depth,
+            current_scope->lexical_depth
+        );
+    }
+
+    TypeVector param_types;
+
+    for (Field& param : def.parameters)
+    {
+        auto param_type = visit(param.type);
+        param_types.push_back(param_type);
+
+        param.symbol = SymbolFactory::create_variable(
+            param.name,
+            param_type,
+            false, // TODO : immutable by default?
+            current_scope->closure_depth,
+            current_scope->lexical_depth
+        );
+    }
+
+    TemplateType_ptr empty_template_type = std::make_shared<TemplateType>();
+
+    Signature_ptr signature = std::make_shared<Signature>(
+        param_types,
+        return_type,
+        empty_template_type
     );
 
     Type_ptr type = def.symbol->get_type();
@@ -136,498 +451,14 @@ void SemanticsAnalyzer::collect(MethodDefinition& def)
         }
     }
 
-    visit(def.block);
-
-    leave_scope();
-}
-
-void SemanticsAnalyzer::collect(OperatorDefinition& def)
-{
-    // already hoisted in SemanticsAnalyzer::hoist
-    // current_scope->define_function_overload(def.overload_symbol);
-
-    auto signature = extract_signature(def);
-
-    Type_ptr type = def.symbol->get_type();
-    FunctionType_ptr function_type = type->as<FunctionType_ptr>();
-    function_type->signature = signature;
-    function_type->is_pure = true;
-    function_type->is_native = false;
-
-    if (def.block.statements.size() == 1)
-    {
-        auto lonely = def.block.statements[0];
-
-        if (lonely->is<Native>())
-        {
-            function_type->is_native = true;
-        }
-    }
-
-    forest[def.symbol] = ASTCloner::get().clone(def);
-}
-
-void SemanticsAnalyzer::collect(ClassDefinition& def)
-{
-    enter_scope(ScopeType::CLASS);
-
-    auto template_type = create_template_type(def.generics);
-    current_scope->define(template_type);
-
-    FieldMap_ptr fields = track_fields(def.fields);
-    MethodMap_ptr methods = track_methods(def.methods);
-    TypeVector traits = track_traits(def.traits);
-
-    // init class type
-    Type_ptr type = def.symbol->get_type();
-    ClassType_ptr class_type = type->as<ClassType_ptr>();
-    class_type->fields = fields;
-    class_type->methods = methods;
-    class_type->traits = traits;
-    class_type->template_type = template_type;
-
-    // visit methods
-
-    for (auto& method : def.methods)
-    {
-        visit(method);
-    }
-
-    // conform traits
-
-    conform_traits(def, class_type);
-
     leave_scope();
 
-    // clone AST
-
-    forest[def.symbol] = ASTCloner::get().clone(def);
-}
-
-void SemanticsAnalyzer::collect(TraitDefinition& def)
-{
-    enter_scope(ScopeType::TRAIT);
-
-    auto template_type = create_template_type(def.generics);
-    current_scope->define(template_type);
-
-    FieldMap_ptr fields = track_fields(def.fields);
-    MethodMap_ptr methods = track_methods(def.methods);
-    TypeVector traits = track_traits(def.traits);
-
-    Type_ptr type = def.symbol->get_type();
-    TraitType_ptr trait_type = type->as<TraitType_ptr>();
-    trait_type->fields = fields;
-    trait_type->methods = methods;
-    trait_type->traits = traits;
-    trait_type->template_type = template_type;
-
-    for (auto& method : def.methods)
-    {
-        visit(method);
-    }
-
-    conform_traits(def, trait_type);
-
-    leave_scope();
-
-    forest[def.symbol] = ASTCloner::get().clone(def);
-}
-
-void SemanticsAnalyzer::collect(PrimitiveDefinition& def)
-{
-    enter_scope(ScopeType::PRIMITIVE);
-
-    auto template_type = create_template_type(def.generics);
-    current_scope->define(template_type);
-
-    FieldMap_ptr fields = track_fields(def.fields);
-    MethodMap_ptr methods = track_methods(def.methods);
-    TypeVector traits = track_traits(def.traits);
-
-    Type_ptr type = def.symbol->get_type();
-    PrimitiveType_ptr primitive_type = type->as<PrimitiveType_ptr>();
-    primitive_type->fields = fields;
-    primitive_type->methods = methods;
-    primitive_type->traits = traits;
-    primitive_type->template_type = template_type;
-
-    for (auto& method : def.methods)
-    {
-        visit(method);
-    }
-
-    conform_traits(def, primitive_type);
-
-    leave_scope();
-
-    forest[def.symbol] = ASTCloner::get().clone(def);
-}
-
-void SemanticsAnalyzer::collect(EnumDefinition& def)
-{
-    enter_scope(ScopeType::CLASS);
-    TemplateType_ptr template_type = create_template_type(def.generics);
-    current_scope->define(template_type);
-
-    StringVector full_names = collect_enum_names(def, "");
-
-    auto enum_type_obj = def.symbol->get_type();
-    Doctor::semantics().fatal_if_nullptr(enum_type_obj);
-
-    Doctor::semantics().check(
-        enum_type_obj->is<EnumType_ptr>(),
-        "Expected EnumType_ptr for enum definition"
-    );
-
-    auto enum_type = enum_type_obj->as<EnumType_ptr>();
-    enum_type->members = std::move(full_names);
-
-    leave_scope();
-
-    forest[def.symbol] = ASTCloner::get().clone(def);
-}
-
-void SemanticsAnalyzer::collect(TypeAliasDefinition& def)
-{
-    enter_scope(ScopeType::CLASS);
-
-    auto template_type = create_template_type(def.generics);
-    current_scope->define(template_type);
-
-    auto alias_type = visit(def.ref_type);
-    def.symbol->set_type(alias_type);
-
-    forest[def.symbol] = ASTCloner::get().clone(def);
-
-    leave_scope();
+    return method_type;
 }
 
 // ============================================================================
-// Utils
+// Template Type
 // ============================================================================
-
-Signature_ptr SemanticsAnalyzer::extract_signature(FunctionDefinition& def)
-{
-    ScopeType scope_type = def.is_pure ? ScopeType::PURE_FUNCTION
-                                       : ScopeType::FUNCTION;
-
-    enter_scope(scope_type);
-
-    TemplateType_ptr template_type = create_template_type(def.generics);
-    current_scope->define(template_type);
-
-    Type_ptr return_type = make_shared_type<NoneType>();
-
-    if (def.return_type)
-    {
-        return_type = visit(def.return_type);
-    }
-
-    TypeVector param_types;
-
-    for (const auto& param : def.parameters)
-    {
-        auto type = visit(param.type);
-        param_types.push_back(type);
-
-        param.symbol->set_type(type);
-    }
-
-    visit(def.block);
-
-    leave_scope();
-
-    auto signature = std::make_shared<Signature>(
-        param_types,
-        return_type,
-        template_type
-    );
-
-    return signature;
-}
-
-Signature_ptr SemanticsAnalyzer::extract_signature(OperatorDefinition& def)
-{
-    enter_scope(ScopeType::PURE_FUNCTION);
-
-    auto template_type = create_template_type(def.generics);
-    current_scope->define(template_type);
-
-    Type_ptr return_type = make_shared_type<NoneType>();
-
-    if (def.return_type)
-    {
-        return_type = visit(def.return_type);
-    }
-
-    TypeVector param_types;
-
-    for (const auto& param : def.operands)
-    {
-        auto type = visit(param.type);
-        param_types.push_back(type);
-
-        param.symbol->set_type(type);
-    }
-
-    visit(def.block);
-
-    leave_scope();
-
-    auto signature = std::make_shared<Signature>(
-        param_types,
-        return_type,
-        template_type
-    );
-
-    return signature;
-}
-
-FieldMap_ptr SemanticsAnalyzer::track_fields(FieldVector fields)
-{
-    TypeStringMap field_map;
-    StringVector ordered_keys;
-
-    for (const auto& field : fields)
-    {
-        Doctor::semantics().check(
-            !field_map.contains(field.name),
-            "Duplicate field name: " + field.name
-        );
-
-        auto field_type = visit(field.type);
-        field_map[field.name] = field_type;
-        ordered_keys.push_back(field.name);
-    }
-
-    return std::make_shared<FieldMap>(std::move(field_map), std::move(ordered_keys));
-}
-
-MethodMap_ptr SemanticsAnalyzer::track_methods(MethodDefinitionVector methods)
-{
-    std::map<std::string, MethodOverloadType_ptr> method_map;
-    StringVector ordered_keys;
-
-    for (auto& method : methods)
-    {
-        if (!method_map.contains(method.name))
-        {
-            ordered_keys.push_back(method.name);
-            method_map[method.name] = std::make_shared<MethodOverloadType>();
-        }
-
-        visit(method);
-
-        MethodOverloadType_ptr method_overload_type = method_map[method.name];
-
-        Type_ptr type = method.symbol->get_type();
-        MethodType_ptr method_type = type->as<MethodType_ptr>();
-
-        method_overload_type->add(method_type);
-    }
-
-    return std::make_shared<MethodMap>(
-        std::move(method_map),
-        std::move(ordered_keys)
-    );
-}
-
-TypeVector SemanticsAnalyzer::track_traits(TypeNodeVector traits)
-{
-    TypeVector trait_types;
-
-    for (const auto& trait : traits)
-    {
-        Type_ptr trait_type = visit(trait);
-        trait_types.push_back(trait_type);
-    }
-
-    return trait_types;
-}
-
-// ============================================================================
-// Trait Conformance
-// ============================================================================
-
-void SemanticsAnalyzer::conform_traits(TypeDefinition& def, OopsType_ptr target_type)
-{
-    if (target_type->traits.empty())
-    {
-        return;
-    }
-
-    std::vector<MethodType_ptr> required_method_types = collect_required_methods(
-        target_type
-    );
-
-    validate_required_methods(def, required_method_types);
-    merge_trait_methods(def, target_type);
-}
-
-std::vector<MethodType_ptr> SemanticsAnalyzer::collect_required_methods(
-    OopsType_ptr target_type
-)
-{
-    std::vector<MethodType_ptr> required_method_types;
-
-    for (const auto& trait_obj : target_type->traits)
-    {
-        auto trait_type = trait_obj->as<TraitType_ptr>();
-
-        auto trait_required_methods = collect_required_methods(trait_type);
-        required_method_types.insert(
-            required_method_types.end(),
-            trait_required_methods.begin(),
-            trait_required_methods.end()
-        );
-    }
-
-    return required_method_types;
-}
-
-std::vector<MethodType_ptr> SemanticsAnalyzer::collect_required_methods(
-    TraitType_ptr trait_type
-)
-{
-    std::vector<MethodType_ptr> required_method_types;
-
-    for (auto [method_name, signatures] : trait_type->methods->signatures)
-    {
-        for (const auto& method_type : signatures->method_types)
-        {
-            if (method_type->is_required)
-            {
-                required_method_types.push_back(method_type);
-            }
-        }
-    }
-
-    return required_method_types;
-}
-
-void SemanticsAnalyzer::validate_required_methods(
-    const TypeDefinition& def,
-    const std::vector<MethodType_ptr>& required_method_types
-)
-{
-    for (const auto& required_method_type : required_method_types)
-    {
-        bool found_the_required_method = false;
-
-        for (const auto& method : def.methods)
-        {
-            if (method.name == required_method_type->name)
-            {
-                Signature_ptr candidate_signature = method.symbol->get_type()
-                                                        ->as<MethodType_ptr>()
-                                                        ->signature;
-
-                found_the_required_method = type_system->signatures_match(
-                    current_scope,
-                    required_method_type->signature,
-                    candidate_signature
-                );
-
-                if (found_the_required_method)
-                {
-                    break;
-                }
-            }
-        }
-
-        Doctor::semantics().check(
-            found_the_required_method,
-            "Class '" + def.name + "' does not implement required method '" +
-                required_method_type->name + "' from trait"
-        );
-    }
-}
-
-void SemanticsAnalyzer::merge_trait_methods(
-    TypeDefinition& target_def,
-    OopsType_ptr target_type
-)
-{
-    for (const auto& trait_obj : target_type->traits)
-    {
-        auto trait_type = trait_obj->as<TraitType_ptr>();
-
-        Symbol_ptr trait_symbol = current_scope->lookup_required(trait_type->name);
-        auto ast = get_tree(trait_symbol);
-
-        auto trait_def = ast->as<TraitDefinition>();
-
-        merge_trait_methods(target_def, target_type, trait_def);
-    }
-}
-
-void SemanticsAnalyzer::merge_trait_methods(
-    TypeDefinition& target_def,
-    OopsType_ptr target_type,
-    TraitDefinition& trait_def
-)
-{
-    for (const auto& trait_method : trait_def.methods)
-    {
-        MethodType_ptr trait_method_type = trait_method.symbol->get_type()
-                                               ->as<MethodType_ptr>();
-
-        if (trait_method_type->is_required)
-        {
-            // already checked for conformance, so we can skip required methods
-            continue;
-        }
-
-        bool already_exists = false;
-
-        for (const MethodDefinition& target_method : target_def.methods)
-        {
-            if (target_method.name != trait_method.name)
-            {
-                continue;
-            }
-
-            MethodType_ptr target_method_type = target_method.symbol->get_type()
-                                                    ->as<MethodType_ptr>();
-
-            already_exists = type_system->signatures_match(
-                current_scope,
-                trait_method_type->signature,
-                target_method_type->signature
-            );
-
-            if (already_exists)
-            {
-                break;
-            }
-        }
-
-        if (already_exists)
-        {
-            continue;
-        }
-
-        auto trait_method_statement_clone = ASTCloner::get().clone(trait_method);
-
-        Doctor::semantics().check(
-            trait_method_statement_clone->is<MethodDefinition>(),
-            "Expected MethodDefinition when cloning trait method"
-        );
-
-        auto trait_method_clone = trait_method_statement_clone
-                                      ->as<MethodDefinition>();
-
-        target_def.methods.push_back(trait_method_clone);
-
-        if (!target_type->methods->contains(trait_method.name))
-        {
-            target_type->methods->add(trait_method.name);
-        }
-
-        target_type->methods->get_type(trait_method.name)->add(trait_method_type);
-    }
-}
 
 TemplateType_ptr SemanticsAnalyzer::create_template_type(FieldVector& generics)
 {
@@ -637,10 +468,11 @@ TemplateType_ptr SemanticsAnalyzer::create_template_type(FieldVector& generics)
 
     for (Field& generic : generics)
     {
-        Type_ptr type = generic.symbol->get_type();
-        GenericType_ptr generic_type = type->as<GenericType_ptr>();
+        GenericType_ptr generic_type = std::make_shared<GenericType>(generic.name);
 
         Type_ptr declared_constraint_type = visit(generic.type);
+
+        // TODO tpp restrictive?
 
         if (declared_constraint_type->is<IntersectionType_ptr>())
         {
@@ -685,7 +517,7 @@ TemplateType_ptr SemanticsAnalyzer::create_template_type(FieldVector& generics)
         generic_type->constraint_type = declared_constraint_type;
         generic_type->is_variadic = generic.is_variadic;
 
-        generics_map[generic.name] = type;
+        generics_map[generic.name] = make_type(generic_type);
         ordered_names.push_back(generic.name);
     }
 
@@ -693,6 +525,198 @@ TemplateType_ptr SemanticsAnalyzer::create_template_type(FieldVector& generics)
         std::move(generics_map),
         std::move(ordered_names)
     );
+}
+
+// ============================================================================
+// Trait Conformance
+// ============================================================================
+
+void SemanticsAnalyzer::conform_to_traits(
+    TypeDefinition& def,
+    OopsType_ptr target_type
+)
+{
+    if (target_type->traits.empty())
+    {
+        return;
+    }
+
+    std::vector<MethodType_ptr> required_method_types = collect_required_methods(
+        target_type
+    );
+
+    validate_required_methods(def, required_method_types);
+    merge_trait_methods(def, target_type);
+}
+
+std::vector<MethodType_ptr> SemanticsAnalyzer::collect_required_methods(
+    OopsType_ptr target_type
+)
+{
+    std::vector<MethodType_ptr> required_method_types;
+
+    for (const Type_ptr& trait_obj : target_type->traits)
+    {
+        TraitType_ptr trait_type = trait_obj->as<TraitType_ptr>();
+
+        std::vector<MethodType_ptr>
+            current_trait_required_method_types = collect_required_methods(
+                trait_type
+            );
+
+        required_method_types.insert(
+            required_method_types.end(),
+            current_trait_required_method_types.begin(),
+            current_trait_required_method_types.end()
+        );
+    }
+
+    return required_method_types;
+}
+
+std::vector<MethodType_ptr> SemanticsAnalyzer::collect_required_methods(
+    TraitType_ptr trait_type
+)
+{
+    std::vector<MethodType_ptr> required_method_types;
+
+    for (auto [method_name, signatures] : trait_type->methods->signatures)
+    {
+        for (const MethodType_ptr& method_type : signatures->method_types)
+        {
+            if (method_type->is_required)
+            {
+                required_method_types.push_back(method_type);
+            }
+        }
+    }
+
+    return required_method_types;
+}
+
+void SemanticsAnalyzer::validate_required_methods(
+    const TypeDefinition& def,
+    const std::vector<MethodType_ptr>& required_method_types
+)
+{
+    for (const MethodType_ptr& required_method_type : required_method_types)
+    {
+        bool found_the_required_method = false;
+
+        for (const MethodDefinition& method : def.methods)
+        {
+            if (method.name == required_method_type->name)
+            {
+                Signature_ptr candidate_signature = method.symbol->get_type()
+                                                        ->as<MethodType_ptr>()
+                                                        ->signature;
+
+                found_the_required_method = type_system->signatures_match(
+                    current_scope,
+                    required_method_type->signature,
+                    candidate_signature
+                );
+
+                if (found_the_required_method)
+                {
+                    break;
+                }
+            }
+        }
+
+        Doctor::semantics().check(
+            found_the_required_method,
+            "Class '" + def.name + "' does not implement required method '" +
+                required_method_type->name + "' from trait"
+        );
+    }
+}
+
+void SemanticsAnalyzer::merge_trait_methods(
+    TypeDefinition& target_def,
+    OopsType_ptr target_type
+)
+{
+    for (const Type_ptr& trait_obj : target_type->traits)
+    {
+        TraitType_ptr trait_type = trait_obj->as<TraitType_ptr>();
+
+        Symbol_ptr trait_symbol = current_scope->lookup_required(trait_type->name);
+        auto [ast, definition_scope] = get_tree(trait_symbol);
+
+        TraitDefinition& trait_def = ast->as<TraitDefinition>();
+
+        merge_trait_methods(target_def, target_type, trait_def);
+    }
+}
+
+void SemanticsAnalyzer::merge_trait_methods(
+    TypeDefinition& target_def,
+    OopsType_ptr target_type,
+    TraitDefinition& trait_def
+)
+{
+    for (const MethodDefinition& trait_method : trait_def.methods)
+    {
+        MethodType_ptr trait_method_type = trait_method.symbol->get_type()
+                                               ->as<MethodType_ptr>();
+
+        if (trait_method_type->is_required)
+        {
+            // already checked for conformance, so we can skip required methods
+            continue;
+        }
+
+        bool already_exists = false;
+
+        for (const MethodDefinition& target_method : target_def.methods)
+        {
+            if (target_method.name != trait_method.name)
+            {
+                continue;
+            }
+
+            MethodType_ptr target_method_type = target_method.symbol->get_type()
+                                                    ->as<MethodType_ptr>();
+
+            already_exists = type_system->signatures_match(
+                current_scope,
+                trait_method_type->signature,
+                target_method_type->signature
+            );
+
+            if (already_exists)
+            {
+                break;
+            }
+        }
+
+        if (already_exists)
+        {
+            continue;
+        }
+
+        Statement_ptr trait_method_statement_clone = ASTCloner::get().clone(
+            trait_method
+        );
+
+        Doctor::semantics().check(
+            trait_method_statement_clone->is<MethodDefinition>(),
+            "Expected MethodDefinition when cloning trait method"
+        );
+
+        MethodDefinition& trait_method_clone = trait_method_statement_clone
+                                                   ->as<MethodDefinition>();
+
+        target_def.methods.push_back(trait_method_clone);
+
+        if (!target_type->methods->contains(trait_method.name))
+        {
+            target_type->methods->add(trait_method.name);
+        }
+
+        target_type->methods->get_type(trait_method.name)->add(trait_method_type);
+    }
 }
 
 } // namespace Wasp

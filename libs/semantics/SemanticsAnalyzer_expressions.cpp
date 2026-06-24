@@ -24,12 +24,10 @@ Type_ptr SemanticsAnalyzer::visit(Expression_ptr expression)
             {
                 return visit(node);
             }
-            else
-            {
-                Doctor::semantics().fatal(
-                    "Unsupported expression type for type inference"
-                );
-            }
+
+            Doctor::semantics().fatal(
+                "Unsupported expression type for type inference"
+            );
         },
         expression->data
     );
