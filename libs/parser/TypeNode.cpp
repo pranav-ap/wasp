@@ -110,7 +110,8 @@ TypeNode_ptr Parser::parse_base_type()
 
             do
             {
-                generic_args.push_back(parse_type());
+                TypeNode_ptr type_node = parse_type();
+                generic_args.push_back(type_node);
             }
             while (token_pipe.consume_optional_in_line(TokenType::COMMA));
 

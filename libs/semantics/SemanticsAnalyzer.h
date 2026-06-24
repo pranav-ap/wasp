@@ -92,18 +92,25 @@ private:
 
     Type_ptr visit(Call& expr);
 
-    Type_ptr handle_call(
+    Type_ptr visit(
         Call& call,
         Identifier& identifier,
         const TypeVector& generic_types,
         const TypeVector& argument_types
     );
 
-    Type_ptr handle_call(
+    Type_ptr visit(
         Call& call,
         MemberAccess& access,
         TypeVector& generic_types,
         TypeVector& argument_types
+    );
+
+    Type_ptr resolve_method(
+        Call& call,
+        MemberAccess& ma,
+        const TypeVector& argument_types,
+        OopsType_ptr owner_type
     );
 
 private:

@@ -68,8 +68,6 @@ struct AngularTypeNode
 {
     std::string name;
     TypeNodeVector type_arguments;
-
-    Symbol_ptr symbol = nullptr;
 };
 
 using TypeNodeVariant = std::variant<
@@ -78,6 +76,7 @@ using TypeNodeVariant = std::variant<
     NoneTypeNode,
     LiteralTypeNode,
     TypeIdentifierNode,
+    AngularTypeNode,
 
     ListTypeNode,
     TupleTypeNode,
@@ -87,9 +86,7 @@ using TypeNodeVariant = std::variant<
     VariantTypeNode,
     IntersectionTypeNode,
 
-    FunctionTypeNode,
-
-    AngularTypeNode>;
+    FunctionTypeNode>;
 
 struct TypeNode : public AstNode<TypeNodeVariant>
 {

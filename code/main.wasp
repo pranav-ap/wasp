@@ -4,5 +4,11 @@ import core.types expose *
 print(3)
 let x: [int] = [1, 2, 3]
 
-# must add template support again
-# print(x)
+# "sam ".trim()
+
+template
+    T: any
+fun foo(a: T)
+    return
+
+foo<int>(3)

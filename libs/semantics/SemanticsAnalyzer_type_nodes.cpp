@@ -195,8 +195,6 @@ Type_ptr SemanticsAnalyzer::visit(AngularTypeNode& type_node)
         type_arguments
     );
 
-    type_node.symbol->set_type(type);
-
     return type;
 }
 

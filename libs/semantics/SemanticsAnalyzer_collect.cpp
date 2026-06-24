@@ -129,6 +129,7 @@ void SemanticsAnalyzer::collect(FunctionDefinition& def)
     enter_scope(scope_type);
 
     TemplateType_ptr template_type = create_template_type(def.generics);
+    current_scope->define(template_type);
 
     Type_ptr return_type = make_shared_type<NoneType>();
 
@@ -186,6 +187,7 @@ void SemanticsAnalyzer::collect(OperatorDefinition& def)
     enter_scope(ScopeType::PURE_FUNCTION);
 
     TemplateType_ptr template_type = create_template_type(def.generics);
+    current_scope->define(template_type);
 
     Type_ptr return_type = make_shared_type<NoneType>();
 

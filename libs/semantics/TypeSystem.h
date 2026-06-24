@@ -87,7 +87,6 @@ struct TypeSystem
     std::tuple<Symbol_ptr, int> get_best_function(
         SymbolScope_ptr scope,
         const Symbol_ptr symbol,
-        const TypeVector& generic_types,
         const TypeVector& argument_types
     ) const;
 
@@ -132,6 +131,9 @@ struct TypeSystem
     // =======================================================================
 
     Type_ptr unpack_primitive(Type_ptr type) const;
+
+    std::string mangle_name(const Type_ptr& type) const;
+    std::string mangle_name(const TypeVector& generic_types) const;
 };
 
 using TypeSystem_ptr = std::shared_ptr<TypeSystem>;

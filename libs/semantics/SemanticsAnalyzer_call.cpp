@@ -5,7 +5,6 @@
 #include "Symbol.h"
 #include "SymbolScope.h"
 #include "Type.h"
-#include "TypeSystem.h"
 
 #include <string>
 #include <variant>
@@ -19,59 +18,6 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-namespace
-{
-
-Type_ptr resolve_function(
-    Call& call,
-    Symbol_ptr functions_symbol,
-    const TypeVector& generic_types,
-    const TypeVector& argument_types,
-    SymbolScope_ptr scope,
-    TypeSystem_ptr type_system
-)
-{
-    auto [function_symbol, raw_index] = type_system->get_best_function(
-        scope,
-        functions_symbol,
-        generic_types,
-        argument_types
-    );
-
-    auto function_type = function_symbol->get_type()->as<FunctionType_ptr>();
-
-    call.overload_index = raw_index;
-
-    return function_type->signature->return_type;
-}
-
-Type_ptr resolve_method(
-    Call& call,
-    MemberAccess& ma,
-    const TypeVector& generic_types,
-    const TypeVector& argument_types,
-    OopsType_ptr owner_type,
-    SymbolScope_ptr scope,
-    TypeSystem_ptr type_system
-)
-{
-    auto method_name = ma.member->as<Identifier>().name;
-    auto method_overload_type = owner_type->methods->get_type(method_name);
-
-    auto [method_type, overload] = type_system->get_best_method(
-        scope,
-        method_overload_type,
-        argument_types
-    );
-
-    ma.member_index = owner_type->methods->get_index(method_name);
-    call.overload_index = overload;
-
-    return method_type->signature->return_type;
-}
-
-} // namespace
-
 Type_ptr SemanticsAnalyzer::visit(Call& call)
 {
     TypeVector argument_types = visit(call.arguments);
@@ -81,21 +27,11 @@ Type_ptr SemanticsAnalyzer::visit(Call& call)
         overloaded{
             [&](Identifier& id)
             {
-                return handle_call(
-                    call,
-                    id,
-                    generic_types,
-                    argument_types
-                );
+                return visit(call, id, generic_types, argument_types);
             },
             [&](MemberAccess& ma)
             {
-                return handle_call(
-                    call,
-                    ma,
-                    generic_types,
-                    argument_types
-                );
+                return visit(call, ma, generic_types, argument_types);
             },
             [&](auto&) -> Type_ptr
             {
@@ -106,33 +42,46 @@ Type_ptr SemanticsAnalyzer::visit(Call& call)
     );
 }
 
-Type_ptr SemanticsAnalyzer::handle_call(
+Type_ptr SemanticsAnalyzer::visit(
     Call& call,
     Identifier& identifier,
-    const TypeVector& generic_types,
+    const TypeVector& soild_types,
     const TypeVector& argument_types
 )
 {
     identifier.symbol = current_scope->lookup_functions(identifier.name);
 
-    if (identifier.symbol->should_be_captured(
-            current_scope->closure_depth
-        ))
+    bool should_capture = identifier.symbol->should_be_captured(current_scope->closure_depth);
+
+    if (should_capture)
     {
         identifier.must_be_captured = true;
     }
 
-    return resolve_function(
-        call,
-        identifier.symbol,
-        generic_types,
-        argument_types,
-        current_scope,
-        type_system
-    );
+    if (soild_types.empty())
+    {
+        auto [function_symbol, raw_index] = type_system->get_best_function(
+            current_scope,
+            identifier.symbol,
+            argument_types
+        );
+
+        FunctionType_ptr function_type = function_symbol->get_type()->as<FunctionType_ptr>();
+
+        call.overload_index = raw_index;
+
+        return function_type->signature->return_type;
+    }
+
+    std::string mangled_name = type_system->mangle_name(soild_types);
+    mangled_name = identifier.name + "_" + mangled_name;
+
+    Symbol_ptr symbol = current_scope->lookup_functions(mangled_name);
+
+    Doctor::semantics().fatal("Generic function calls are not yet supported");
 }
 
-Type_ptr SemanticsAnalyzer::handle_call(
+Type_ptr SemanticsAnalyzer::visit(
     Call& call,
     MemberAccess& access,
     TypeVector& generic_types,
@@ -149,15 +98,7 @@ Type_ptr SemanticsAnalyzer::handle_call(
                 call.owner_kind = Call::OwnerKind::CLASS;
                 call.owner_name = class_type->name;
 
-                return resolve_method(
-                    call,
-                    access,
-                    generic_types,
-                    argument_types,
-                    class_type,
-                    current_scope,
-                    type_system
-                );
+                return resolve_method(call, access, argument_types, class_type);
             },
 
             [&](TraitType_ptr trait_type) -> Type_ptr
@@ -165,15 +106,7 @@ Type_ptr SemanticsAnalyzer::handle_call(
                 call.owner_kind = Call::OwnerKind::TRAIT;
                 call.owner_name = trait_type->name;
 
-                return resolve_method(
-                    call,
-                    access,
-                    generic_types,
-                    argument_types,
-                    trait_type,
-                    current_scope,
-                    type_system
-                );
+                return resolve_method(call, access, argument_types, trait_type);
             },
 
             [&](PrimitiveType_ptr primitive_type) -> Type_ptr
@@ -181,15 +114,7 @@ Type_ptr SemanticsAnalyzer::handle_call(
                 call.owner_kind = Call::OwnerKind::PRIMITIVE;
                 call.owner_name = primitive_type->name;
 
-                return resolve_method(
-                    call,
-                    access,
-                    generic_types,
-                    argument_types,
-                    primitive_type,
-                    current_scope,
-                    type_system
-                );
+                return resolve_method(call, access, argument_types, primitive_type);
             },
 
             [&](auto&) -> Type_ptr
@@ -199,6 +124,29 @@ Type_ptr SemanticsAnalyzer::handle_call(
         },
         left_type->data
     );
+}
+
+Type_ptr SemanticsAnalyzer::resolve_method(
+    Call& call,
+    MemberAccess& ma,
+    const TypeVector& argument_types,
+    OopsType_ptr owner_type
+)
+{
+    std::string method_name = ma.member->as<Identifier>().name;
+
+    MethodOverloadType_ptr method_overload_type = owner_type->methods->get_type(method_name);
+
+    auto [method_type, overload] = type_system->get_best_method(
+        current_scope,
+        method_overload_type,
+        argument_types
+    );
+
+    ma.member_index = owner_type->methods->get_index(method_name);
+    call.overload_index = overload;
+
+    return method_type->signature->return_type;
 }
 
 } // namespace Wasp
