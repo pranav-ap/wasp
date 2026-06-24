@@ -1,14 +1,11 @@
 #pragma once
 
-#include "AST.h"
-#include "Symbol.h"
 #include "SymbolScope.h"
 #include "Token.h"
 #include "Type.h"
 
 #include <memory>
 #include <string>
-#include <tuple>
 
 namespace Wasp
 {
@@ -84,22 +81,16 @@ struct TypeSystem
     // Function Call Resolution
     // =========================================================================
 
-    std::tuple<Symbol_ptr, int> get_best_function(
+    bool signatures_match(
         SymbolScope_ptr scope,
-        const Symbol_ptr symbol,
-        const TypeVector& argument_types
-    ) const;
-
-    std::tuple<MethodType_ptr, int> get_best_method(
-        SymbolScope_ptr scope,
-        const MethodOverloadType_ptr method_overload_type,
-        const TypeVector& argument_types
+        const FunctionType_ptr a,
+        const FunctionType_ptr b
     ) const;
 
     bool signatures_match(
         SymbolScope_ptr scope,
-        const Signature_ptr a,
-        const Signature_ptr b
+        const MethodType_ptr a,
+        const MethodType_ptr b
     ) const;
 
     // =========================================================================

@@ -111,39 +111,4 @@ std::string Symbol::to_string() const
     return name + " (id=" + std::to_string(id) + ")";
 }
 
-// ============================================================================
-// Payload Functions
-// ============================================================================
-
-void FunctionOverloadsSymbol::add_overload(Symbol_ptr function_symbol)
-{
-    Doctor::semantics().check(
-        function_symbol->is<FunctionSymbol>(),
-        "Only FunctionSymbol can be added as an overload"
-    );
-
-    overloads.push_back(function_symbol);
-
-    FunctionOverloadType_ptr overload_type = type->as<FunctionOverloadType_ptr>();
-    overload_type->function_types.push_back(
-        function_symbol->get_type()->as<FunctionType_ptr>()
-    );
-}
-
-void MethodOverloadsSymbol::add_overload(Symbol_ptr method_symbol)
-{
-    Doctor::semantics().check(
-        method_symbol->is<MethodSymbol>(),
-        "Only FunctionSymbol can be added as an overload"
-    );
-
-    overloads.push_back(method_symbol);
-
-    MethodOverloadType_ptr overload_type = type->as<MethodOverloadType_ptr>();
-
-    overload_type->method_types.push_back(
-        method_symbol->get_type()->as<MethodType_ptr>()
-    );
-}
-
 } // namespace Wasp

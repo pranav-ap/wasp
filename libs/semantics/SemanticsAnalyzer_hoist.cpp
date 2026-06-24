@@ -75,7 +75,7 @@ void SemanticsAnalyzer::hoist(TypeAliasDefinition& def)
 
 void SemanticsAnalyzer::hoist(FunctionDefinition& def)
 {
-    Symbol_ptr symbol = SymbolFactory::create_function(
+    Symbol_ptr symbol = SymbolFactory::create_type(
         def.name,
         make_shared_type<FunctionType>(def.name),
         current_scope->closure_depth,
@@ -90,7 +90,7 @@ void SemanticsAnalyzer::hoist(FunctionDefinition& def)
 
 void SemanticsAnalyzer::hoist(OperatorDefinition& def)
 {
-    Symbol_ptr symbol = SymbolFactory::create_function(
+    Symbol_ptr symbol = SymbolFactory::create_type(
         def.name,
         make_shared_type<FunctionType>(def.name),
         current_scope->closure_depth,
@@ -105,7 +105,7 @@ void SemanticsAnalyzer::hoist(OperatorDefinition& def)
 
 void SemanticsAnalyzer::hoist(MethodDefinition& def)
 {
-    Symbol_ptr symbol = SymbolFactory::create_method(
+    Symbol_ptr symbol = SymbolFactory::create_type(
         def.name,
         make_shared_type<MethodType>(def.name),
         current_scope->closure_depth,

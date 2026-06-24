@@ -4,7 +4,7 @@ IndentWidth: 4
 TabWidth: 4
 UseTab: Never
 
-ColumnLimit: 95
+ColumnLimit: 110
 
 PointerAlignment: Left
 

@@ -154,16 +154,12 @@ void SemanticsAnalyzer::collect(FunctionDefinition& def)
         );
     }
 
-    Signature_ptr signature = std::make_shared<Signature>(
-        param_types,
-        return_type,
-        template_type
-    );
-
     Type_ptr type = def.symbol->get_type();
 
     FunctionType_ptr function_type = type->as<FunctionType_ptr>();
-    function_type->signature = signature;
+    function_type->parameter_types = param_types;
+    function_type->return_type = return_type;
+    function_type->template_type = template_type;
     function_type->is_pure = def.is_pure;
     function_type->is_native = false;
 
@@ -212,16 +208,12 @@ void SemanticsAnalyzer::collect(OperatorDefinition& def)
         );
     }
 
-    Signature_ptr signature = std::make_shared<Signature>(
-        param_types,
-        return_type,
-        template_type
-    );
-
     Type_ptr type = def.symbol->get_type();
 
     FunctionType_ptr function_type = type->as<FunctionType_ptr>();
-    function_type->signature = signature;
+    function_type->parameter_types = param_types;
+    function_type->return_type = return_type;
+    function_type->template_type = template_type;
     function_type->is_pure = true;
     function_type->is_native = false;
 
@@ -423,17 +415,12 @@ MethodType_ptr SemanticsAnalyzer::collect(
         );
     }
 
-    TemplateType_ptr empty_template_type = std::make_shared<TemplateType>();
-
-    Signature_ptr signature = std::make_shared<Signature>(
-        param_types,
-        return_type,
-        empty_template_type
-    );
-
     Type_ptr type = def.symbol->get_type();
+
     MethodType_ptr method_type = type->as<MethodType_ptr>();
-    method_type->signature = signature;
+    method_type->parameter_types = param_types;
+    method_type->return_type = return_type;
+    method_type->template_type = std::make_shared<TemplateType>();
     method_type->is_shared = def.is_shared;
     method_type->is_pure = def.is_pure;
     method_type->is_native = false;
@@ -582,9 +569,10 @@ std::vector<MethodType_ptr> SemanticsAnalyzer::collect_required_methods(
 {
     std::vector<MethodType_ptr> required_method_types;
 
-    for (auto [method_name, signatures] : trait_type->methods->signatures)
+    for (auto [method_name, method_overload_types] :
+         trait_type->methods->method_overload_types)
     {
-        for (const MethodType_ptr& method_type : signatures->method_types)
+        for (const MethodType_ptr& method_type : method_overload_types->method_types)
         {
             if (method_type->is_required)
             {
@@ -609,14 +597,13 @@ void SemanticsAnalyzer::validate_required_methods(
         {
             if (method.name == required_method_type->name)
             {
-                Signature_ptr candidate_signature = method.symbol->get_type()
-                                                        ->as<MethodType_ptr>()
-                                                        ->signature;
+                MethodType_ptr candidate_method_type = method.symbol->get_type()
+                                                           ->as<MethodType_ptr>();
 
                 found_the_required_method = type_system->signatures_match(
                     current_scope,
-                    required_method_type->signature,
-                    candidate_signature
+                    required_method_type,
+                    candidate_method_type
                 );
 
                 if (found_the_required_method)
@@ -683,8 +670,8 @@ void SemanticsAnalyzer::merge_trait_methods(
 
             already_exists = type_system->signatures_match(
                 current_scope,
-                trait_method_type->signature,
-                target_method_type->signature
+                trait_method_type,
+                target_method_type
             );
 
             if (already_exists)

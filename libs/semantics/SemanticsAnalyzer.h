@@ -9,6 +9,7 @@
 
 #include <map>
 #include <memory>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -112,6 +113,16 @@ private:
         const TypeVector& argument_types,
         OopsType_ptr owner_type
     );
+
+    std::tuple<Symbol_ptr, int> resolve_function(
+        const Symbol_ptr symbol,
+        const TypeVector& argument_types
+    ) const;
+
+    std::tuple<MethodType_ptr, int> resolve_method(
+        const MethodOverloadType_ptr method_overload_type,
+        const TypeVector& argument_types
+    ) const;
 
 private:
     // Variables

@@ -1,6 +1,5 @@
 #include "SymbolFactory.h"
 #include "AST.h"
-#include "Doctor.h"
 #include "Symbol.h"
 #include "Type.h"
 
@@ -66,58 +65,6 @@ Symbol_ptr SymbolFactory::create_variable(
     );
 }
 
-Symbol_ptr SymbolFactory::create_function(
-    const std::string& name,
-    Type_ptr type,
-    int closure_depth,
-    int lexical_depth
-)
-{
-    Doctor::semantics().check(
-        name != "main",
-        "Cannot define a function named 'main'. The 'main' function is reserved as "
-        "the program entry point."
-    );
-
-    return create_symbol(
-        name,
-        FunctionSymbol{type, false},
-        closure_depth,
-        lexical_depth
-    );
-}
-
-Symbol_ptr SymbolFactory::create_function_overloads(
-    const std::string& name
-)
-{
-    Type_ptr function_overload_type = make_shared_type<FunctionOverloadType>(name);
-
-    return create_symbol(name, FunctionOverloadsSymbol{{}, function_overload_type});
-}
-
-Symbol_ptr SymbolFactory::create_method(
-    const std::string& name,
-    Type_ptr type,
-    int closure_depth,
-    int lexical_depth
-)
-{
-    return create_symbol(
-        name,
-        MethodSymbol{type, false, false, false},
-        closure_depth,
-        lexical_depth
-    );
-}
-
-Symbol_ptr SymbolFactory::create_method_overloads(const std::string& name)
-{
-    Type_ptr method_overload_type = make_shared_type<MethodOverloadType>(name);
-
-    return create_symbol(name, MethodOverloadsSymbol{{}, method_overload_type});
-}
-
 Symbol_ptr SymbolFactory::create_type(
     const std::string& name,
     Type_ptr type,
@@ -126,6 +73,14 @@ Symbol_ptr SymbolFactory::create_type(
 )
 {
     return create_symbol(name, TypeSymbol{type}, closure_depth, lexical_depth);
+}
+
+Symbol_ptr SymbolFactory::create_type_overloads(
+    const std::string& name,
+    Type_ptr overload_type
+)
+{
+    return create_symbol(name, TypeOverloadsSymbol{{}, overload_type});
 }
 
 Symbol_ptr SymbolFactory::create_type_alias(

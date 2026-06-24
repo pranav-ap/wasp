@@ -107,34 +107,18 @@ bool TypeSystem::equal(
 
             [&](FunctionType_ptr l, FunctionType_ptr r)
             {
-                bool lhs_result = equal(
-                    scope,
-                    l->signature->parameter_types,
-                    r->signature->parameter_types
-                );
+                bool lhs_result = equal(scope, l->parameter_types, r->parameter_types);
 
-                bool rhs_result = equal(
-                    scope,
-                    l->signature->return_type,
-                    r->signature->return_type
-                );
+                bool rhs_result = equal(scope, l->return_type, r->return_type);
 
                 return lhs_result && rhs_result;
             },
 
             [&](MethodType_ptr l, MethodType_ptr r)
             {
-                bool lhs_result = equal(
-                    scope,
-                    l->signature->parameter_types,
-                    r->signature->parameter_types
-                );
+                bool lhs_result = equal(scope, l->parameter_types, r->parameter_types);
 
-                bool rhs_result = equal(
-                    scope,
-                    l->signature->return_type,
-                    r->signature->return_type
-                );
+                bool rhs_result = equal(scope, l->return_type, r->return_type);
 
                 return lhs_result && rhs_result;
             },
@@ -184,6 +168,54 @@ bool TypeSystem::equal(
         t1->data,
         t2->data
     );
+}
+
+bool TypeSystem::signatures_match(
+    SymbolScope_ptr scope,
+    const FunctionType_ptr a,
+    const FunctionType_ptr b
+) const
+{
+    if (a->parameter_types.size() != b->parameter_types.size())
+    {
+        return false;
+    }
+
+    for (size_t i = 0; i < a->parameter_types.size(); ++i)
+    {
+        bool is_assignable = assignable(scope, a->parameter_types[i], b->parameter_types[i]);
+
+        if (!is_assignable)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool TypeSystem::signatures_match(
+    SymbolScope_ptr scope,
+    const MethodType_ptr a,
+    const MethodType_ptr b
+) const
+{
+    if (a->parameter_types.size() != b->parameter_types.size())
+    {
+        return false;
+    }
+
+    for (size_t i = 0; i < a->parameter_types.size(); ++i)
+    {
+        bool is_assignable = assignable(scope, a->parameter_types[i], b->parameter_types[i]);
+
+        if (!is_assignable)
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 } // namespace Wasp

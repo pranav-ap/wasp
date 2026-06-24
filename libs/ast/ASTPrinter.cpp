@@ -815,7 +815,7 @@ nlohmann::json ASTPrinter::print(const FunctionTypeNode& type)
 {
     return make_node(
         "FunctionType",
-        {{"input_types", print(type.input_types)},
+        {{"input_types", print(type.parameter_types)},
          {"return_type", print(type.return_type)}}
     );
 }

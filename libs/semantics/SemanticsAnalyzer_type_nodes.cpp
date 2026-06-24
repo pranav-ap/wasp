@@ -168,18 +168,14 @@ Type_ptr SemanticsAnalyzer::visit(IntersectionTypeNode& type_node)
 
 Type_ptr SemanticsAnalyzer::visit(FunctionTypeNode& type_node)
 {
-    TypeVector input_types = visit(type_node.input_types);
+    TypeVector parameter_types = visit(type_node.parameter_types);
     Type_ptr return_type = visit(type_node.return_type);
-
-    Signature_ptr signature = std::make_shared<Signature>(
-        input_types,
-        return_type,
-        std::make_shared<TemplateType>()
-    );
 
     FunctionType_ptr function_type = std::make_shared<FunctionType>("");
 
-    function_type->signature = signature;
+    function_type->parameter_types = parameter_types;
+    function_type->return_type = return_type;
+    function_type->template_type = std::make_shared<TemplateType>();
     function_type->is_pure = false;
     function_type->is_native = false;
 

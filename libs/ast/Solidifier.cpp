@@ -380,9 +380,9 @@ TypeNode_ptr Solidifier::solidify(
             [&](const FunctionTypeNode& func) -> TypeNode_ptr
             {
                 FunctionTypeNode result;
-                for (const auto& input : func.input_types)
+                for (const auto& input : func.parameter_types)
                 {
-                    result.input_types.push_back(solidify(input, substitution_map));
+                    result.parameter_types.push_back(solidify(input, substitution_map));
                 }
                 result.return_type = solidify(func.return_type, substitution_map);
                 return make_type_node(result);

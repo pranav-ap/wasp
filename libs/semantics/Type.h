@@ -195,22 +195,16 @@ struct EnumMemberType
 using EnumMemberType_ptr = std::shared_ptr<EnumMemberType>;
 
 // ============================================================================
-// Signature
+// Signatures
 // ============================================================================
-
-struct Signature
-{
-    TypeVector parameter_types;
-    Type_ptr return_type;
-    TemplateType_ptr template_type;
-};
-
-using Signature_ptr = std::shared_ptr<Signature>;
 
 struct FunctionType
 {
     std::string name;
-    Signature_ptr signature;
+
+    TypeVector parameter_types;
+    Type_ptr return_type;
+    TemplateType_ptr template_type;
 
     bool is_pure;
     bool is_native;
@@ -227,6 +221,8 @@ struct FunctionOverloadType
 {
     std::string name;
     std::vector<FunctionType_ptr> function_types;
+
+    void add(FunctionType_ptr);
 };
 
 using FunctionOverloadType_ptr = std::shared_ptr<FunctionOverloadType>;
@@ -234,7 +230,10 @@ using FunctionOverloadType_ptr = std::shared_ptr<FunctionOverloadType>;
 struct MethodType
 {
     std::string name;
-    Signature_ptr signature;
+
+    TypeVector parameter_types;
+    Type_ptr return_type;
+    TemplateType_ptr template_type;
 
     bool is_shared;
     bool is_pure;
@@ -253,7 +252,7 @@ struct MethodOverloadType
     std::string name;
     std::vector<MethodType_ptr> method_types;
 
-    void add(MethodType_ptr method_type);
+    void add(MethodType_ptr);
 };
 
 using MethodOverloadType_ptr = std::shared_ptr<MethodOverloadType>;
@@ -294,7 +293,7 @@ using FieldMap_ptr = std::shared_ptr<FieldMap>;
 
 struct MethodMap
 {
-    std::map<std::string, MethodOverloadType_ptr> signatures;
+    std::map<std::string, MethodOverloadType_ptr> method_overload_types;
     StringVector ordered_keys;
 
     int get_index(const std::string& function_name) const;

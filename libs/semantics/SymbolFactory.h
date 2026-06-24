@@ -35,30 +35,14 @@ public:
         int lexical_depth = 0
     );
 
-    static Symbol_ptr create_function(
-        const std::string& name,
-        Type_ptr type,
-        int closure_depth = 0,
-        int lexical_depth = 0
-    );
-
-    static Symbol_ptr create_function_overloads(const std::string& name);
-
-    static Symbol_ptr create_method(
-        const std::string& name,
-        Type_ptr type,
-        int closure_depth = 0,
-        int lexical_depth = 0
-    );
-
-    static Symbol_ptr create_method_overloads(const std::string& name);
-
     static Symbol_ptr create_type(
         const std::string& name,
-        Type_ptr type = nullptr,
+        Type_ptr type,
         int closure_depth = 0,
         int lexical_depth = 0
     );
+
+    static Symbol_ptr create_type_overloads(const std::string& name, Type_ptr overload_type);
 
     static Symbol_ptr create_type_alias(
         const std::string& name,

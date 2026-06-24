@@ -59,7 +59,7 @@ struct IntersectionTypeNode
 
 struct FunctionTypeNode
 {
-    TypeNodeVector input_types;
+    TypeNodeVector parameter_types;
     TypeNode_ptr return_type;
 };
 

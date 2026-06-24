@@ -848,9 +848,9 @@ TypeNode_ptr ASTCloner::clone(const IntersectionTypeNode& type)
 TypeNode_ptr ASTCloner::clone(const FunctionTypeNode& type)
 {
     FunctionTypeNode cloned;
-    for (const auto& t : type.input_types)
+    for (const auto& t : type.parameter_types)
     {
-        cloned.input_types.push_back(clone(t));
+        cloned.parameter_types.push_back(clone(t));
     }
     cloned.return_type = clone(type.return_type);
     return make_type_node(cloned);

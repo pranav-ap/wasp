@@ -6,8 +6,11 @@
 #include "SymbolScope.h"
 #include "Type.h"
 
+#include <cstddef>
 #include <string>
+#include <tuple>
 #include <variant>
+#include <vector>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -21,17 +24,17 @@ namespace Wasp
 Type_ptr SemanticsAnalyzer::visit(Call& call)
 {
     TypeVector argument_types = visit(call.arguments);
-    TypeVector generic_types = visit(call.angular_nodes);
+    TypeVector solid_types = visit(call.angular_nodes);
 
     return std::visit(
         overloaded{
             [&](Identifier& id)
             {
-                return visit(call, id, generic_types, argument_types);
+                return visit(call, id, solid_types, argument_types);
             },
             [&](MemberAccess& ma)
             {
-                return visit(call, ma, generic_types, argument_types);
+                return visit(call, ma, solid_types, argument_types);
             },
             [&](auto&) -> Type_ptr
             {
@@ -49,34 +52,38 @@ Type_ptr SemanticsAnalyzer::visit(
     const TypeVector& argument_types
 )
 {
-    identifier.symbol = current_scope->lookup_functions(identifier.name);
-
-    bool should_capture = identifier.symbol->should_be_captured(current_scope->closure_depth);
-
-    if (should_capture)
-    {
-        identifier.must_be_captured = true;
-    }
-
     if (soild_types.empty())
     {
-        auto [function_symbol, raw_index] = type_system->get_best_function(
-            current_scope,
-            identifier.symbol,
-            argument_types
+        identifier.symbol = current_scope->lookup_required_and_resolve(identifier.name);
+
+        Doctor::semantics().check(
+            identifier.symbol->is<TypeOverloadsSymbol>(),
+            "Symbol '" + identifier.name + "' is not an overloaded function"
         );
 
-        FunctionType_ptr function_type = function_symbol->get_type()->as<FunctionType_ptr>();
+        bool should_capture = identifier.symbol->should_be_captured(current_scope->closure_depth);
 
+        if (should_capture)
+        {
+            identifier.must_be_captured = true;
+        }
+
+        auto [function_symbol, raw_index] = resolve_function(identifier.symbol, argument_types);
+
+        FunctionType_ptr function_type = function_symbol->get_type()->as<FunctionType_ptr>();
         call.overload_index = raw_index;
 
-        return function_type->signature->return_type;
+        return function_type->return_type;
     }
 
     std::string mangled_name = type_system->mangle_name(soild_types);
     mangled_name = identifier.name + "_" + mangled_name;
 
-    Symbol_ptr symbol = current_scope->lookup_functions(mangled_name);
+    Symbol_ptr symbol = current_scope->lookup(mangled_name);
+
+    if (symbol)
+    {
+    }
 
     Doctor::semantics().fatal("Generic function calls are not yet supported");
 }
@@ -84,7 +91,7 @@ Type_ptr SemanticsAnalyzer::visit(
 Type_ptr SemanticsAnalyzer::visit(
     Call& call,
     MemberAccess& access,
-    TypeVector& generic_types,
+    TypeVector& solid_types,
     TypeVector& argument_types
 )
 {
@@ -137,16 +144,144 @@ Type_ptr SemanticsAnalyzer::resolve_method(
 
     MethodOverloadType_ptr method_overload_type = owner_type->methods->get_type(method_name);
 
-    auto [method_type, overload] = type_system->get_best_method(
-        current_scope,
-        method_overload_type,
-        argument_types
-    );
+    auto [method_type, overload] = resolve_method(method_overload_type, argument_types);
 
     ma.member_index = owner_type->methods->get_index(method_name);
     call.overload_index = overload;
 
-    return method_type->signature->return_type;
+    return method_type->return_type;
+}
+
+std::tuple<Symbol_ptr, int> SemanticsAnalyzer::resolve_function(
+    const Symbol_ptr symbol,
+    const TypeVector& argument_types
+) const
+{
+    Doctor::semantics().check(
+        symbol->is<TypeOverloadsSymbol>(),
+        "Symbol '" + symbol->name + "' is not an overloaded function"
+    );
+
+    const SymbolVector& candidates = symbol->as<TypeOverloadsSymbol>().overloads;
+
+    struct Candidate
+    {
+        Symbol_ptr symbol;
+        int index;
+        FunctionType_ptr function_type;
+    };
+
+    std::vector<Candidate> viable;
+
+    for (size_t i = 0; i < candidates.size(); ++i)
+    {
+        const Symbol_ptr& function_symbol_obj = candidates[i];
+        const TypeSymbol& function_symbol = function_symbol_obj->as<TypeSymbol>();
+        const FunctionType_ptr function_type = function_symbol.type->as<FunctionType_ptr>();
+
+        // Skip template functions
+        if (!function_type->template_type->empty())
+        {
+            continue;
+        }
+
+        // Skip if arity doesn't match
+        if (function_type->parameter_types.size() != argument_types.size())
+        {
+            continue;
+        }
+
+        // Check if arguments are assignable to parameters
+        bool found_any_unassignable = false;
+
+        for (size_t j = 0; j < argument_types.size(); ++j)
+        {
+            found_any_unassignable = !type_system->assignable(
+                current_scope,
+                function_type->parameter_types[j],
+                argument_types[j]
+            );
+
+            if (found_any_unassignable)
+            {
+                break;
+            }
+        }
+
+        if (!found_any_unassignable)
+        {
+            viable.push_back({function_symbol_obj, static_cast<int>(i), function_type});
+        }
+    }
+
+    Doctor::semantics().check(!viable.empty(), "No viable candidates for function " + symbol->name);
+
+    // Only one candidate. Return it.
+    if (viable.size() == 1)
+    {
+        return {viable[0].symbol, viable[0].index};
+    }
+
+    Doctor::semantics().fatal("Ambiguous call to '" + symbol->name + "'");
+}
+
+std::tuple<MethodType_ptr, int> SemanticsAnalyzer::resolve_method(
+    const MethodOverloadType_ptr method_overload_type,
+    const TypeVector& argument_types
+) const
+{
+    struct Candidate
+    {
+        MethodType_ptr method_type;
+        int index;
+    };
+
+    std::vector<Candidate> viable;
+
+    for (size_t i = 0; i < method_overload_type->method_types.size(); ++i)
+    {
+        auto& method_type = method_overload_type->method_types[i];
+
+        // Skip if arity doesn't match
+        if (method_type->parameter_types.size() != argument_types.size())
+        {
+            continue;
+        }
+
+        // Check if arguments are assignable to parameters
+        bool all_assignable = true;
+
+        for (size_t j = 0; j < argument_types.size(); ++j)
+        {
+            bool is_assignable = type_system->assignable(
+                current_scope,
+                method_type->parameter_types[j],
+                argument_types[j]
+            );
+
+            if (!is_assignable)
+            {
+                all_assignable = false;
+                break;
+            }
+        }
+
+        if (all_assignable)
+        {
+            viable.push_back({method_type, static_cast<int>(i)});
+        }
+    }
+
+    Doctor::semantics().check(!viable.empty(), "No viable candidates for function call");
+
+    // Only one candidate.
+    // Return it.
+    if (viable.size() == 1)
+    {
+        return {viable[0].method_type, viable[0].index};
+    }
+
+    Doctor::semantics().fatal("Ambiguous method call");
 }
 
 } // namespace Wasp

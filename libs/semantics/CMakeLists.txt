@@ -19,7 +19,6 @@ add_library(
     Type.cpp
     TypeSystem_assignable.cpp
     TypeSystem_calculate.cpp
-    TypeSystem_calls.cpp
     TypeSystem_checks.cpp
     TypeSystem_equality.cpp
     TypeSystem_operators.cpp

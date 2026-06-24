@@ -89,10 +89,8 @@ TEST(ParseDefinitions, FunTypeDefinition)
     // Check (int) => int
     auto& func_type_ptr = check<Wasp::FunctionTypeNode>(binding.declared_type);
 
-    ASSERT_EQ(func_type_ptr.input_types.size(), 1);
-    auto& input_type = check<Wasp::TypeIdentifierNode>(
-        func_type_ptr.input_types[0]
-    );
+    ASSERT_EQ(func_type_ptr.parameter_types.size(), 1);
+    auto& input_type = check<Wasp::TypeIdentifierNode>(func_type_ptr.parameter_types[0]);
     EXPECT_EQ(input_type.name, "int");
 
     auto& return_type = check<Wasp::TypeIdentifierNode>(

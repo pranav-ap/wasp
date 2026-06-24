@@ -123,28 +123,28 @@ std::string TypeSystem::mangle_name(const Type_ptr& type) const
             [&](FunctionType_ptr func) -> std::string
             {
                 std::string result = "F";
-                if (func->signature)
+
+                for (const auto& param : func->parameter_types)
                 {
-                    for (const auto& param : func->signature->parameter_types)
-                    {
-                        result += mangle_name(param);
-                    }
-                    result += "_" + mangle_name(func->signature->return_type);
+                    result += mangle_name(param);
                 }
+
+                result += "_" + mangle_name(func->return_type);
+
                 return result;
             },
 
             [&](MethodType_ptr method) -> std::string
             {
                 std::string result = "M";
-                if (method->signature)
+
+                for (const auto& param : method->parameter_types)
                 {
-                    for (const auto& param : method->signature->parameter_types)
-                    {
-                        result += mangle_name(param);
-                    }
-                    result += "_" + mangle_name(method->signature->return_type);
+                    result += mangle_name(param);
                 }
+
+                result += "_" + mangle_name(method->return_type);
+
                 return result;
             },
 

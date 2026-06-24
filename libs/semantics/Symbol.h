@@ -33,39 +33,14 @@ struct VariableSymbol
     bool is_mutable;
 };
 
-struct FunctionSymbol
-{
-    Type_ptr type;
-    bool is_native;
-};
-
-struct FunctionOverloadsSymbol
-{
-    SymbolVector overloads;
-    Type_ptr type;
-
-    void add_overload(Symbol_ptr function_symbol);
-};
-
-struct MethodSymbol
-{
-    Type_ptr type;
-    bool is_native;
-
-    bool required_in_class;
-    bool is_static_method;
-};
-
-struct MethodOverloadsSymbol
-{
-    SymbolVector overloads;
-    Type_ptr type;
-
-    void add_overload(Symbol_ptr method_symbol);
-};
-
 struct TypeSymbol
 {
+    Type_ptr type;
+};
+
+struct TypeOverloadsSymbol
+{
+    SymbolVector overloads;
     Type_ptr type;
 };
 
@@ -92,10 +67,7 @@ using SymbolVariant = std::variant<
     std::monostate,
 
     VariableSymbol,
-    FunctionSymbol,
-    FunctionOverloadsSymbol,
-    MethodSymbol,
-    MethodOverloadsSymbol,
+    TypeOverloadsSymbol,
     TypeSymbol,
     TypeAliasSymbol,
     SymbolAliasSymbol,
