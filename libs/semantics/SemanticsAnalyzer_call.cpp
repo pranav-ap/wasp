@@ -2,6 +2,7 @@
 #include "Doctor.h"
 #include "Expression.h"
 #include "SemanticsAnalyzer.h"
+#include "Solidifier.h"
 #include "Statement.h"
 #include "Symbol.h"
 #include "SymbolScope.h"
@@ -94,6 +95,10 @@ Type_ptr SemanticsAnalyzer::visit(
             template_ast->is<FunctionDefinition>(),
             "Expected a FunctionDefinition for the template function"
         );
+
+        auto x = Solidifier::get().solidify(template_ast, substitutions);
+
+        return function_type->return_type;
     }
 
     return function_type->return_type;
