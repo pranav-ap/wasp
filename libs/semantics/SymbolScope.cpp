@@ -218,16 +218,19 @@ void SymbolScope::define(Symbol_ptr symbol)
 
     Type_ptr symbol_type = symbol->get_type();
 
-    if (symbol_type->is<FunctionType_ptr>())
+    if (symbol_type)
     {
-        overload_function(symbol);
-        return;
-    }
+        if (symbol_type->is<FunctionType_ptr>())
+        {
+            overload_function(symbol);
+            return;
+        }
 
-    if (symbol_type->is<MethodType_ptr>())
-    {
-        overload_method(symbol);
-        return;
+        if (symbol_type->is<MethodType_ptr>())
+        {
+            overload_method(symbol);
+            return;
+        }
     }
 
     Doctor::semantics().check(
@@ -270,7 +273,26 @@ void SymbolScope::overload_function(Symbol_ptr new_symbol)
         "Expected FunctionType for symbol: " + new_symbol->name
     );
 
-    overload(new_symbol);
+    FunctionType_ptr new_function_type = new_symbol_type->as<FunctionType_ptr>();
+
+    Symbol_ptr overload_symbol = this->lookup_local(new_symbol->name);
+
+    if (!overload_symbol)
+    {
+        Type_ptr function_type = make_type(FunctionTypeVector{});
+        overload_symbol = SymbolFactory::create_overloads(new_symbol->name, function_type);
+    }
+
+    Doctor::semantics().check(
+        overload_symbol->is<OverloadSymbol>(),
+        "Expected OverloadSymbol for symbol: " + overload_symbol->name
+    );
+
+    OverloadSymbol& os = overload_symbol->as<OverloadSymbol>();
+    os.overloads.push_back(new_symbol);
+    os.type->as<FunctionTypeVector>().push_back(new_function_type);
+
+    symbols[new_symbol->name] = overload_symbol;
 }
 
 void SymbolScope::overload_method(Symbol_ptr new_symbol)
@@ -285,16 +307,14 @@ void SymbolScope::overload_method(Symbol_ptr new_symbol)
         "Expected MethodType for symbol: " + new_symbol->name
     );
 
-    overload(new_symbol);
-}
+    MethodType_ptr new_method_type = new_symbol_type->as<MethodType_ptr>();
 
-void SymbolScope::overload(Symbol_ptr new_symbol)
-{
     Symbol_ptr overload_symbol = this->lookup_local(new_symbol->name);
 
     if (!overload_symbol)
     {
-        overload_symbol = SymbolFactory::create_overloads(new_symbol->name);
+        Type_ptr function_type = make_type(MethodTypeVector{});
+        overload_symbol = SymbolFactory::create_overloads(new_symbol->name, function_type);
     }
 
     Doctor::semantics().check(
@@ -304,6 +324,7 @@ void SymbolScope::overload(Symbol_ptr new_symbol)
 
     OverloadSymbol& os = overload_symbol->as<OverloadSymbol>();
     os.overloads.push_back(new_symbol);
+    os.type->as<MethodTypeVector>().push_back(new_method_type);
 
     symbols[new_symbol->name] = overload_symbol;
 }

@@ -75,9 +75,9 @@ Symbol_ptr SymbolFactory::create_type(
     return create_symbol(name, TypeSymbol{type}, closure_depth, lexical_depth);
 }
 
-Symbol_ptr SymbolFactory::create_overloads(const std::string& name)
+Symbol_ptr SymbolFactory::create_overloads(const std::string& name, Type_ptr type)
 {
-    return create_symbol(name, OverloadSymbol{{}});
+    return create_symbol(name, OverloadSymbol{{}, type});
 }
 
 Symbol_ptr SymbolFactory::create_type_alias(

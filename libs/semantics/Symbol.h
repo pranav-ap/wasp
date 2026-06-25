@@ -55,7 +55,10 @@ struct ModuleSymbol
 
 struct OverloadSymbol
 {
+    // is local to a scope
+    // contains all overloads of a function name in local scope
     SymbolVector overloads;
+    Type_ptr type;
 };
 
 // ============================================================================

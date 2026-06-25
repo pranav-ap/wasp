@@ -101,8 +101,6 @@ private:
         const TypeVector& argument_types
     );
 
-    Type_ptr visit(Call& call, Identifier& identifier, const TypeVector& argument_types);
-
     Type_ptr visit(Call& call, MemberAccess& access, const TypeVector& argument_types);
 
     Type_ptr visit(
@@ -115,6 +113,7 @@ private:
     std::tuple<Symbol_ptr, int> resolve_function(
         const std::string& name,
         const SymbolVector& candidates,
+        const TypeVector& soild_types,
         const TypeVector& argument_types
     ) const;
 
@@ -122,6 +121,14 @@ private:
         const MethodTypeVector& method_types,
         const TypeVector& argument_types
     ) const;
+
+    bool is_assignable_template_function(
+        FunctionType_ptr function_type,
+        const TypeVector& solid_types,
+        const TypeVector& argument_types
+    ) const;
+
+    Type_ptr substitute_type(Type_ptr type, const std::map<std::string, Type_ptr>& substitutions) const;
 
 private:
     // Variables

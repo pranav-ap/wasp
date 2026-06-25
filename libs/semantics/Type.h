@@ -404,6 +404,8 @@ using TypeVariant = std::variant<
 
     FunctionType_ptr,
     MethodType_ptr,
+    FunctionTypeVector,
+    MethodTypeVector,
 
     ClassType_ptr,
     TraitType_ptr,

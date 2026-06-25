@@ -34,7 +34,7 @@ Symbol::Symbol(
 Type_ptr Symbol::get_type() const
 {
     return std::visit(
-        [this](auto&& arg) -> Type_ptr
+        [&](auto&& arg) -> Type_ptr
         {
             using T = std::decay_t<decltype(arg)>;
 
@@ -42,16 +42,13 @@ Type_ptr Symbol::get_type() const
             {
                 return arg.target->get_type();
             }
-            else if constexpr (requires { arg.type; })
+
+            if constexpr (requires { arg.type; })
             {
                 return arg.type;
             }
-            else
-            {
-                Doctor::semantics().fatal(
-                    "Symbol '" + name + "' does not have a type attribute"
-                );
-            }
+
+            Doctor::semantics().fatal("Symbol '" + name + "' does not have a type attribute");
         },
         payload
     );
