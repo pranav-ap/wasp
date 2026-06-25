@@ -113,7 +113,7 @@ private:
     std::tuple<Symbol_ptr, int, std::map<std::string, Type_ptr>> resolve_function(
         const std::string& name,
         const SymbolVector& candidates,
-        const TypeVector& soild_types,
+        const TypeVector& solid_types,
         const TypeVector& argument_types
     ) const;
 

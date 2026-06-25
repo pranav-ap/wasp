@@ -6,7 +6,6 @@
 
 #include <map>
 #include <string>
-#include <unordered_map>
 
 namespace Wasp
 {
@@ -20,7 +19,6 @@ public:
         return instance;
     }
 
-    // Public API – all take semantic Type maps
     Statement_ptr solidify(
         const FunctionDefinition& func,
         const std::map<std::string, Type_ptr>& substitution_map
@@ -51,7 +49,6 @@ public:
         const std::map<std::string, Type_ptr>& substitution_map
     );
 
-    // Generic entry for any statement
     Statement_ptr solidify(
         const Statement_ptr& stmt,
         const std::map<std::string, Type_ptr>& substitution_map
@@ -88,23 +85,11 @@ public:
 
     FieldVector solidify(const FieldVector& fields, const std::map<std::string, Type_ptr>& substitution_map);
 
-    // Access solidified instances for code generation
-    const std::unordered_map<std::string, Statement_ptr>& get_solidified() const
-    {
-        return solidified_instances;
-    }
-
-    void clear()
-    {
-        solidified_instances.clear();
-    }
+    Type_ptr substitute_type(Type_ptr type, const std::map<std::string, Type_ptr>& substitutions) const;
 
 private:
     Solidifier() = default;
 
-    std::unordered_map<std::string, Statement_ptr> solidified_instances;
-
-    // --- Private helpers that work with TypeNode maps ---
     Statement_ptr solidify_node(
         const FunctionDefinition& func,
         const std::map<std::string, TypeNode_ptr>& typenode_map
@@ -174,14 +159,13 @@ private:
         const std::map<std::string, TypeNode_ptr>& typenode_map
     );
 
-    // --- Type → TypeNode conversion helpers ---
     TypeNode_ptr type_to_typenode(Type_ptr type);
     TypeNodeVector types_to_typenodes(const TypeVector& types);
+
     std::map<std::string, TypeNode_ptr> make_typenode_substitutions(
         const std::map<std::string, Type_ptr>& substitutions
     );
 
-    // --- Name mangling ---
     std::string mangle(const Type_ptr& type);
     std::string mangle(const TypeVector& types);
     std::string get_solidified_name(const std::string& base_name, const TypeVector& type_arguments);

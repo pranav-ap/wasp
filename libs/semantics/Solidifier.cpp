@@ -6,6 +6,7 @@
 #include "Type.h"
 #include "TypeNode.h"
 
+#include <cstddef>
 #include <map>
 #include <string>
 #include <variant>
@@ -19,9 +20,6 @@ template <class... Ts> struct overloaded : Ts...
 };
 template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
-// ============================================================================
-// Helper: Extract types from substitution map (for mangling)
-// ============================================================================
 static TypeVector extract_types(const std::map<std::string, Type_ptr>& subs)
 {
     TypeVector result;
@@ -31,10 +29,6 @@ static TypeVector extract_types(const std::map<std::string, Type_ptr>& subs)
     }
     return result;
 }
-
-// ============================================================================
-// Type → TypeNode conversion
-// ============================================================================
 
 TypeNode_ptr Solidifier::type_to_typenode(Type_ptr type)
 {
@@ -173,6 +167,64 @@ std::map<std::string, TypeNode_ptr> Solidifier::make_typenode_substitutions(
     return result;
 }
 
+Type_ptr Solidifier::substitute_type(
+    Type_ptr type,
+    const std::map<std::string, Type_ptr>& substitutions
+) const
+{
+    if (!type)
+    {
+        return nullptr;
+    }
+
+    if (type->is<GenericType_ptr>())
+    {
+        auto generic = type->as<GenericType_ptr>();
+        auto it = substitutions.find(generic->name);
+        if (it != substitutions.end())
+        {
+            return it->second;
+        }
+        return type;
+    }
+
+    // Handle composite types
+    if (type->is<ListType_ptr>())
+    {
+        auto list = type->as<ListType_ptr>();
+        auto new_element = substitute_type(list->element_type, substitutions);
+        return make_shared_type<ListType>(new_element);
+    }
+
+    if (type->is<SetType_ptr>())
+    {
+        auto set = type->as<SetType_ptr>();
+        auto new_element = substitute_type(set->element_type, substitutions);
+        return make_shared_type<SetType>(new_element);
+    }
+
+    if (type->is<MapType_ptr>())
+    {
+        auto map = type->as<MapType_ptr>();
+        auto new_key = substitute_type(map->key_type, substitutions);
+        auto new_value = substitute_type(map->value_type, substitutions);
+        return make_shared_type<MapType>(new_key, new_value);
+    }
+
+    if (type->is<TupleType_ptr>())
+    {
+        auto tuple = type->as<TupleType_ptr>();
+        TypeVector new_elements;
+        for (const auto& elem : tuple->element_types)
+        {
+            new_elements.push_back(substitute_type(elem, substitutions));
+        }
+        return make_shared_type<TupleType>(new_elements);
+    }
+
+    return type;
+}
+
 // ============================================================================
 // Name mangling
 // ============================================================================
@@ -281,7 +333,6 @@ Statement_ptr Solidifier::solidify(
     if (!substitution_map.empty())
     {
         std::string name = get_solidified_name(func.name, extract_types(substitution_map));
-        solidified_instances[name] = stmt;
     }
     return stmt;
 }
@@ -296,7 +347,6 @@ Statement_ptr Solidifier::solidify(
     if (!substitution_map.empty())
     {
         std::string name = get_solidified_name(method.name, extract_types(substitution_map));
-        solidified_instances[name] = stmt;
     }
     return stmt;
 }
@@ -311,7 +361,6 @@ Statement_ptr Solidifier::solidify(
     if (!substitution_map.empty())
     {
         std::string name = get_solidified_name(cls.name, extract_types(substitution_map));
-        solidified_instances[name] = stmt;
     }
     return stmt;
 }
@@ -326,7 +375,6 @@ Statement_ptr Solidifier::solidify(
     if (!substitution_map.empty())
     {
         std::string name = get_solidified_name(trait.name, extract_types(substitution_map));
-        solidified_instances[name] = stmt;
     }
     return stmt;
 }
@@ -341,7 +389,6 @@ Statement_ptr Solidifier::solidify(
     if (!substitution_map.empty())
     {
         std::string name = get_solidified_name(record.name, extract_types(substitution_map));
-        solidified_instances[name] = stmt;
     }
     return stmt;
 }
@@ -356,7 +403,6 @@ Statement_ptr Solidifier::solidify(
     if (!substitution_map.empty())
     {
         std::string name = get_solidified_name(op.name, extract_types(substitution_map));
-        solidified_instances[name] = stmt;
     }
     return stmt;
 }
@@ -450,7 +496,6 @@ Statement_ptr Solidifier::solidify_node(
     result.is_pure = func.is_pure;
     result.generics = {}; // generics removed after instantiation
     result.symbol = func.symbol;
-    result.return_type = nullptr;
 
     for (const auto& param : func.parameters)
     {
@@ -460,6 +505,10 @@ Statement_ptr Solidifier::solidify_node(
     if (func.return_type)
     {
         result.return_type = solidify_node(func.return_type, typenode_map);
+    }
+    else
+    {
+        result.return_type = nullptr;
     }
 
     result.block = solidify_node(func.block, typenode_map);

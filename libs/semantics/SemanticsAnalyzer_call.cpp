@@ -53,7 +53,7 @@ Type_ptr SemanticsAnalyzer::visit(Call& call)
 Type_ptr SemanticsAnalyzer::visit(
     Call& call,
     Identifier& identifier,
-    const TypeVector& soild_types,
+    const TypeVector& solid_types,
     const TypeVector& argument_types
 )
 {
@@ -71,7 +71,7 @@ Type_ptr SemanticsAnalyzer::visit(
     auto [function_symbol, raw_index, substitutions] = resolve_function(
         symbol->name,
         candidates,
-        soild_types,
+        solid_types,
         argument_types
     );
 
@@ -82,7 +82,7 @@ Type_ptr SemanticsAnalyzer::visit(
 
     if (!function_type->template_type->empty())
     {
-        std::string mangled_name = symbol->name + "_" + type_system->mangle_name(soild_types);
+        std::string mangled_name = symbol->name + "_" + type_system->mangle_name(solid_types);
 
         auto [template_ast, definition_scope] = get_tree(function_symbol);
 
@@ -107,7 +107,7 @@ Type_ptr SemanticsAnalyzer::visit(
 std::tuple<Symbol_ptr, int, std::map<std::string, Type_ptr>> SemanticsAnalyzer::resolve_function(
     const std::string& name,
     const SymbolVector& candidates,
-    const TypeVector& soild_types,
+    const TypeVector& solid_types,
     const TypeVector& argument_types
 ) const
 {
@@ -160,9 +160,28 @@ std::tuple<Symbol_ptr, int, std::map<std::string, Type_ptr>> SemanticsAnalyzer::
     std::map<std::string, Type_ptr> substitutions = {};
 
     // Only one candidate. Return it.
+    // Only one candidate.
     if (viable.size() == 1)
     {
-        return {viable[0].symbol, viable[0].index, substitutions};
+        const auto& candidate = viable[0];
+
+        // If it's a template, we need to compute substitutions
+        if (candidate.function_type->template_type && !candidate.function_type->template_type->empty())
+        {
+            // Check if this template is assignable with the given explicit types
+            auto [ok, subs] = is_assignable_template_function(
+                candidate.function_type,
+                solid_types,
+                argument_types
+            );
+
+            Doctor::semantics().check(ok, "Template function not assignable");
+
+            return {candidate.symbol, candidate.index, subs};
+        }
+
+        // Non-template: return empty substitutions
+        return {candidate.symbol, candidate.index, substitutions};
     }
 
     // Possibilities
@@ -191,7 +210,7 @@ std::tuple<Symbol_ptr, int, std::map<std::string, Type_ptr>> SemanticsAnalyzer::
     {
         auto [yes, subs] = is_assignable_template_function(
             candidate.function_type,
-            soild_types,
+            solid_types,
             argument_types
         );
 
