@@ -3,7 +3,6 @@ add_library(
     Statement.cpp
     ASTCloner.cpp
     ASTPrinter.cpp
-    Solidifier.cpp
 )
 
 target_link_libraries(ASTLib PUBLIC nlohmann_json::nlohmann_json TokenLib DoctorLib)

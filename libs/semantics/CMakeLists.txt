@@ -13,6 +13,7 @@ add_library(
     SemanticsAnalyzer_statements.cpp
     SemanticsAnalyzer_type_nodes.cpp
     SemanticsAnalyzer_utils.cpp
+    Solidifier.cpp
     Symbol.cpp
     SymbolFactory.cpp
     SymbolScope.cpp

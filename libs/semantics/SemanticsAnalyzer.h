@@ -110,7 +110,7 @@ private:
         const OopsType_ptr owner_type
     );
 
-    std::tuple<Symbol_ptr, int> resolve_function(
+    std::tuple<Symbol_ptr, int, std::map<std::string, Type_ptr>> resolve_function(
         const std::string& name,
         const SymbolVector& candidates,
         const TypeVector& soild_types,
@@ -122,7 +122,7 @@ private:
         const TypeVector& argument_types
     ) const;
 
-    bool is_assignable_template_function(
+    std::pair<bool, std::map<std::string, Type_ptr>> is_assignable_template_function(
         FunctionType_ptr function_type,
         const TypeVector& solid_types,
         const TypeVector& argument_types

@@ -2,6 +2,7 @@
 #include "Doctor.h"
 #include "Expression.h"
 #include "SemanticsAnalyzer.h"
+#include "Statement.h"
 #include "Symbol.h"
 #include "SymbolScope.h"
 #include "Type.h"
@@ -10,6 +11,7 @@
 #include <map>
 #include <string>
 #include <tuple>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -65,7 +67,7 @@ Type_ptr SemanticsAnalyzer::visit(
 
     SymbolVector& candidates = symbol->as<OverloadSymbol>().overloads;
 
-    auto [function_symbol, raw_index] = resolve_function(
+    auto [function_symbol, raw_index, substitutions] = resolve_function(
         symbol->name,
         candidates,
         soild_types,
@@ -77,12 +79,27 @@ Type_ptr SemanticsAnalyzer::visit(
     FunctionType_ptr function_type = function_symbol->get_type()->as<FunctionType_ptr>();
     call.overload_index = raw_index;
 
-    std::string mangled_name = symbol->name + "_" + type_system->mangle_name(soild_types);
+    if (!function_type->template_type->empty())
+    {
+        std::string mangled_name = symbol->name + "_" + type_system->mangle_name(soild_types);
+
+        auto [template_ast, definition_scope] = get_tree(function_symbol);
+
+        Doctor::semantics().fatal_if_nullptr(
+            template_ast,
+            "Template function AST not found for " + mangled_name
+        );
+
+        Doctor::semantics().check(
+            template_ast->is<FunctionDefinition>(),
+            "Expected a FunctionDefinition for the template function"
+        );
+    }
 
     return function_type->return_type;
 }
 
-std::tuple<Symbol_ptr, int> SemanticsAnalyzer::resolve_function(
+std::tuple<Symbol_ptr, int, std::map<std::string, Type_ptr>> SemanticsAnalyzer::resolve_function(
     const std::string& name,
     const SymbolVector& candidates,
     const TypeVector& soild_types,
@@ -135,10 +152,12 @@ std::tuple<Symbol_ptr, int> SemanticsAnalyzer::resolve_function(
 
     Doctor::semantics().check(!viable.empty(), "No viable candidates for function " + name);
 
+    std::map<std::string, Type_ptr> substitutions = {};
+
     // Only one candidate. Return it.
     if (viable.size() == 1)
     {
-        return {viable[0].symbol, viable[0].index};
+        return {viable[0].symbol, viable[0].index, substitutions};
     }
 
     // Possibilities
@@ -165,7 +184,11 @@ std::tuple<Symbol_ptr, int> SemanticsAnalyzer::resolve_function(
 
     for (const Candidate& candidate : template_candidates)
     {
-        bool yes = is_assignable_template_function(candidate.function_type, soild_types, argument_types);
+        auto [yes, subs] = is_assignable_template_function(
+            candidate.function_type,
+            soild_types,
+            argument_types
+        );
 
         if (yes)
         {
@@ -176,6 +199,7 @@ std::tuple<Symbol_ptr, int> SemanticsAnalyzer::resolve_function(
 
             found_valid_template_function = true;
             viable.push_back(candidate);
+            substitutions = subs;
         }
     }
 
@@ -183,10 +207,10 @@ std::tuple<Symbol_ptr, int> SemanticsAnalyzer::resolve_function(
 
     Doctor::semantics().check(viable.size() == 1, "Ambiguous call to template function '" + name + "'");
 
-    return {viable[0].symbol, viable[0].index};
+    return {viable[0].symbol, viable[0].index, substitutions};
 }
 
-bool SemanticsAnalyzer::is_assignable_template_function(
+std::pair<bool, std::map<std::string, Type_ptr>> SemanticsAnalyzer::is_assignable_template_function(
     FunctionType_ptr function_type,
     const TypeVector& solid_types,
     const TypeVector& argument_types
@@ -197,9 +221,12 @@ bool SemanticsAnalyzer::is_assignable_template_function(
     // 2. The number of solid types matches the template parameters
     // 3. After substituting, the arguments are assignable to parameters
 
+    // Build substitution map from solid types
+    std::map<std::string, Type_ptr> substitutions;
+
     if (!function_type->template_type)
     {
-        return false;
+        return {false, substitutions};
     }
 
     const StringVector& template_params = function_type->template_type->ordered_parameter_names;
@@ -207,11 +234,8 @@ bool SemanticsAnalyzer::is_assignable_template_function(
     // Check if solid_types count matches template parameters
     if (solid_types.size() != template_params.size())
     {
-        return false;
+        return {false, substitutions};
     }
-
-    // Build substitution map from solid types
-    std::map<std::string, Type_ptr> substitutions;
 
     for (size_t i = 0; i < solid_types.size(); ++i)
     {
@@ -233,11 +257,11 @@ bool SemanticsAnalyzer::is_assignable_template_function(
 
         if (!is_assignable)
         {
-            return false;
+            return {false, substitutions};
         }
     }
 
-    return true;
+    return {true, substitutions};
 }
 
 Type_ptr SemanticsAnalyzer::substitute_type(
