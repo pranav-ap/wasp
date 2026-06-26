@@ -212,6 +212,20 @@ struct FunctionType
     explicit FunctionType(std::string name) : name(std::move(name))
     {
     }
+
+    explicit FunctionType(
+        std::string name,
+        TypeVector parameter_types,
+        Type_ptr return_type,
+        TemplateType_ptr template_type = nullptr,
+        bool is_pure = false,
+        bool is_native = false
+    )
+        : name(std::move(name)), parameter_types(std::move(parameter_types)),
+          return_type(std::move(return_type)), template_type(std::move(template_type)), is_pure(is_pure),
+          is_native(is_native)
+    {
+    }
 };
 
 using FunctionType_ptr = std::shared_ptr<FunctionType>;
@@ -231,6 +245,22 @@ struct MethodType
     bool is_required;
 
     explicit MethodType(std::string name) : name(std::move(name))
+    {
+    }
+
+    explicit MethodType(
+        std::string name,
+        TypeVector parameter_types,
+        Type_ptr return_type,
+        TemplateType_ptr template_type = nullptr,
+        bool is_shared = false,
+        bool is_pure = false,
+        bool is_native = false,
+        bool is_required = false
+    )
+        : name(std::move(name)), parameter_types(std::move(parameter_types)),
+          return_type(std::move(return_type)), template_type(std::move(template_type)), is_shared(is_shared),
+          is_pure(is_pure), is_native(is_native), is_required(is_required)
     {
     }
 };

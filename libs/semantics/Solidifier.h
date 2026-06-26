@@ -19,158 +19,36 @@ public:
         return instance;
     }
 
-    Statement_ptr solidify(
-        const FunctionDefinition& func,
-        const std::map<std::string, Type_ptr>& substitution_map
-    );
-
-    Statement_ptr solidify(
-        const MethodDefinition& method,
-        const std::map<std::string, Type_ptr>& substitution_map
-    );
-
-    Statement_ptr solidify(
-        const ClassDefinition& cls,
-        const std::map<std::string, Type_ptr>& substitution_map
-    );
-
-    Statement_ptr solidify(
-        const TraitDefinition& trait,
-        const std::map<std::string, Type_ptr>& substitution_map
-    );
-
-    Statement_ptr solidify(
-        const RecordDefinition& record,
-        const std::map<std::string, Type_ptr>& substitution_map
-    );
-
-    Statement_ptr solidify(
-        const OperatorDefinition& op,
-        const std::map<std::string, Type_ptr>& substitution_map
-    );
-
-    Statement_ptr solidify(
-        const Statement_ptr& stmt,
-        const std::map<std::string, Type_ptr>& substitution_map
-    );
-
-    StatementVector solidify(
-        const StatementVector& statements,
-        const std::map<std::string, Type_ptr>& substitution_map
-    );
-
-    Block solidify_block(const Block& block, const std::map<std::string, Type_ptr>& substitution_map);
-
-    Expression_ptr solidify(
-        const Expression_ptr& expr,
-        const std::map<std::string, Type_ptr>& substitution_map
-    );
-
-    ExpressionVector solidify(
-        const ExpressionVector& expressions,
-        const std::map<std::string, Type_ptr>& substitution_map
-    );
-
-    TypeNode_ptr solidify(
-        const TypeNode_ptr& type_node,
-        const std::map<std::string, Type_ptr>& substitution_map
-    );
-
-    TypeNodeVector solidify(
-        const TypeNodeVector& types,
-        const std::map<std::string, Type_ptr>& substitution_map
-    );
-
-    Field solidify(const Field& field, const std::map<std::string, Type_ptr>& substitution_map);
-
-    FieldVector solidify(const FieldVector& fields, const std::map<std::string, Type_ptr>& substitution_map);
-
-    Type_ptr substitute_type(Type_ptr type, const std::map<std::string, Type_ptr>& substitutions) const;
+    Statement_ptr visit(Statement_ptr& stmt, const std::map<std::string, Type_ptr>& substitution_map);
+    Statement_ptr visit(FunctionDefinition& func, const std::map<std::string, Type_ptr>& substitution_map);
+    Type_ptr substitute_type(Type_ptr type, std::map<std::string, Type_ptr>& substitutions) const;
 
 private:
     Solidifier() = default;
 
-    Statement_ptr solidify_node(
-        const FunctionDefinition& func,
+    Statement_ptr visit(Statement_ptr& stmt, const std::map<std::string, TypeNode_ptr>& typenode_map);
+
+    StatementVector visit(
+        StatementVector& statements,
         const std::map<std::string, TypeNode_ptr>& typenode_map
     );
 
-    Statement_ptr solidify_node(
-        const MethodDefinition& method,
-        const std::map<std::string, TypeNode_ptr>& typenode_map
-    );
+    Statement_ptr visit(FunctionDefinition& func, const std::map<std::string, TypeNode_ptr>& typenode_map);
 
-    Statement_ptr solidify_node(
-        const ClassDefinition& cls,
-        const std::map<std::string, TypeNode_ptr>& typenode_map
-    );
+    Block solidify(Block& block, const std::map<std::string, TypeNode_ptr>& typenode_map);
 
-    Statement_ptr solidify_node(
-        const TraitDefinition& trait,
-        const std::map<std::string, TypeNode_ptr>& typenode_map
-    );
+    TypeNode_ptr visit(TypeNode_ptr& type_node, const std::map<std::string, TypeNode_ptr>& typenode_map);
+    TypeNodeVector visit(TypeNodeVector& types, const std::map<std::string, TypeNode_ptr>& typenode_map);
 
-    Statement_ptr solidify_node(
-        const RecordDefinition& record,
-        const std::map<std::string, TypeNode_ptr>& typenode_map
-    );
-
-    Statement_ptr solidify_node(
-        const OperatorDefinition& op,
-        const std::map<std::string, TypeNode_ptr>& typenode_map
-    );
-
-    Statement_ptr solidify_node(
-        const Statement_ptr& stmt,
-        const std::map<std::string, TypeNode_ptr>& typenode_map
-    );
-
-    StatementVector solidify_node(
-        const StatementVector& statements,
-        const std::map<std::string, TypeNode_ptr>& typenode_map
-    );
-
-    Block solidify_node(const Block& block, const std::map<std::string, TypeNode_ptr>& typenode_map);
-
-    Expression_ptr solidify_node(
-        const Expression_ptr& expr,
-        const std::map<std::string, TypeNode_ptr>& typenode_map
-    );
-
-    ExpressionVector solidify_node(
-        const ExpressionVector& expressions,
-        const std::map<std::string, TypeNode_ptr>& typenode_map
-    );
-
-    TypeNode_ptr solidify_node(
-        const TypeNode_ptr& type_node,
-        const std::map<std::string, TypeNode_ptr>& typenode_map
-    );
-
-    TypeNodeVector solidify_node(
-        const TypeNodeVector& types,
-        const std::map<std::string, TypeNode_ptr>& typenode_map
-    );
-
-    Field solidify_node(const Field& field, const std::map<std::string, TypeNode_ptr>& typenode_map);
-
-    FieldVector solidify_node(
-        const FieldVector& fields,
-        const std::map<std::string, TypeNode_ptr>& typenode_map
-    );
+    Field visit(Field& field, const std::map<std::string, TypeNode_ptr>& typenode_map);
+    FieldVector visit(FieldVector& fields, const std::map<std::string, TypeNode_ptr>& typenode_map);
 
     TypeNode_ptr type_to_typenode(Type_ptr type);
-    TypeNodeVector types_to_typenodes(const TypeVector& types);
+    TypeNodeVector types_to_typenodes(TypeVector& types);
 
     std::map<std::string, TypeNode_ptr> make_typenode_substitutions(
         const std::map<std::string, Type_ptr>& substitutions
     );
-
-    std::string mangle(const Type_ptr& type);
-    std::string mangle(const TypeVector& types);
-    std::string get_solidified_name(const std::string& base_name, const TypeVector& type_arguments);
-
-    bool is_generic(const FieldVector& generics) const;
 };
 
 } // namespace Wasp

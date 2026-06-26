@@ -53,7 +53,7 @@ Type_ptr TypeSystem::unpack_primitive(const Type_ptr type) const
     );
 }
 
-std::string TypeSystem::mangle_name(const Type_ptr& type) const
+std::string TypeSystem::mangle(const Type_ptr& type)
 {
     return std::visit(
         overloaded{
@@ -101,7 +101,7 @@ std::string TypeSystem::mangle_name(const Type_ptr& type) const
 
             [&](ListType_ptr list) -> std::string
             {
-                return "L" + mangle_name(list->element_type);
+                return "L" + mangle(list->element_type);
             },
 
             [&](TupleType_ptr tuple) -> std::string
@@ -109,15 +109,14 @@ std::string TypeSystem::mangle_name(const Type_ptr& type) const
                 std::string result = "T";
                 for (const auto& elem : tuple->element_types)
                 {
-                    result += mangle_name(elem);
+                    result += mangle(elem);
                 }
                 return result;
             },
 
             [&](MapType_ptr map) -> std::string
             {
-                return "M" + mangle_name(map->key_type) +
-                       mangle_name(map->value_type);
+                return "M" + mangle(map->key_type) + mangle(map->value_type);
             },
 
             [&](FunctionType_ptr func) -> std::string
@@ -126,10 +125,10 @@ std::string TypeSystem::mangle_name(const Type_ptr& type) const
 
                 for (const auto& param : func->parameter_types)
                 {
-                    result += mangle_name(param);
+                    result += mangle(param);
                 }
 
-                result += "_" + mangle_name(func->return_type);
+                result += "_" + mangle(func->return_type);
 
                 return result;
             },
@@ -140,10 +139,10 @@ std::string TypeSystem::mangle_name(const Type_ptr& type) const
 
                 for (const auto& param : method->parameter_types)
                 {
-                    result += mangle_name(param);
+                    result += mangle(param);
                 }
 
-                result += "_" + mangle_name(method->return_type);
+                result += "_" + mangle(method->return_type);
 
                 return result;
             },
@@ -181,13 +180,13 @@ std::string TypeSystem::mangle_name(const Type_ptr& type) const
     );
 }
 
-std::string TypeSystem::mangle_name(const TypeVector& generic_types) const
+std::string TypeSystem::mangle(const TypeVector& generic_types)
 {
     std::string result = "";
 
     for (const auto& type : generic_types)
     {
-        result += mangle_name(type);
+        result += mangle(type);
     }
 
     return result;

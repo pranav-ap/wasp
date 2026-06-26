@@ -5,14 +5,13 @@
 #include "Statement.h"
 #include "Type.h"
 #include "TypeNode.h"
+#include "TypeSystem.h"
 
-#include <cstddef>
 #include <map>
+#include <memory>
 #include <string>
+#include <type_traits>
 #include <variant>
-
-namespace Wasp
-{
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -20,22 +19,306 @@ template <class... Ts> struct overloaded : Ts...
 };
 template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
-static TypeVector extract_types(const std::map<std::string, Type_ptr>& subs)
+namespace Wasp
+{
+
+namespace
+{
+
+TypeVector extract_types(const std::map<std::string, Type_ptr>& subs)
 {
     TypeVector result;
-    for (const auto& [_, type] : subs)
+
+    for (auto& [_, type] : subs)
     {
         result.push_back(type);
     }
+
+    return result;
+}
+
+std::string get_solid_name(const std::string& base_name, const TypeVector& type_arguments)
+{
+    if (type_arguments.empty())
+    {
+        return base_name;
+    }
+
+    return base_name + "_" + TypeSystem::mangle(type_arguments);
+}
+
+} // namespace
+
+// ============================================================================
+// Public API
+// ============================================================================
+
+Statement_ptr Solidifier::visit(
+    FunctionDefinition& func,
+    const std::map<std::string, Type_ptr>& substitution_map
+)
+{
+    auto typenode_map = make_typenode_substitutions(substitution_map);
+    Statement_ptr stmt = visit(func, typenode_map);
+
+    if (!substitution_map.empty())
+    {
+        std::string name = get_solid_name(func.name, extract_types(substitution_map));
+    }
+
+    return stmt;
+}
+
+Statement_ptr Solidifier::visit(Statement_ptr& stmt, const std::map<std::string, Type_ptr>& substitution_map)
+{
+    auto typenode_map = make_typenode_substitutions(substitution_map);
+    return visit(stmt, typenode_map);
+}
+
+// ============================================================================
+// Private
+// ============================================================================
+
+Statement_ptr Solidifier::visit(Statement_ptr& stmt, const std::map<std::string, TypeNode_ptr>& typenode_map)
+{
+    Doctor::semantics().fatal_if_nullptr(stmt, "Attempted to visit a null Statement");
+
+    return std::visit(
+        overloaded{
+            [&](auto&& node) -> Statement_ptr
+            {
+                if constexpr (requires { visit(node, typenode_map); })
+                {
+                    return visit(node, typenode_map);
+                }
+
+                return stmt;
+            }
+        },
+        stmt->data
+    );
+}
+
+StatementVector Solidifier::visit(
+    StatementVector& statements,
+    const std::map<std::string, TypeNode_ptr>& typenode_map
+)
+{
+    StatementVector result;
+    result.reserve(statements.size());
+
+    for (auto& stmt : statements)
+    {
+        result.push_back(visit(stmt, typenode_map));
+    }
+
+    return result;
+}
+
+Statement_ptr Solidifier::visit(
+    FunctionDefinition& func,
+    const std::map<std::string, TypeNode_ptr>& typenode_map
+)
+{
+    func.generics = {};
+    func.symbol = nullptr;
+
+    FieldVector solid_fields;
+
+    for (Field& param : func.parameters)
+    {
+        solid_fields.push_back(visit(param, typenode_map));
+    }
+
+    func.parameters = solid_fields;
+
+    if (func.return_type)
+    {
+        func.return_type = visit(func.return_type, typenode_map);
+    }
+
+    func.block = solidify(func.block, typenode_map);
+
+    return make_statement(func);
+}
+
+Block Solidifier::solidify(Block& block, const std::map<std::string, TypeNode_ptr>& typenode_map)
+{
+    Block b;
+    b.statements = visit(block.statements, typenode_map);
+    return b;
+}
+
+TypeNode_ptr Solidifier::visit(
+    TypeNode_ptr& type_node,
+    const std::map<std::string, TypeNode_ptr>& typenode_map
+)
+{
+    Doctor::semantics().fatal_if_nullptr(type_node, "Attempted to visit a null TypeNode");
+
+    return std::visit(
+        overloaded{
+            [&](TypeIdentifierNode& ident) -> TypeNode_ptr
+            {
+                // replace if we have a substitution
+                auto it = typenode_map.find(ident.name);
+                if (it != typenode_map.end())
+                {
+                    return ASTCloner::get().clone(it->second);
+                }
+
+                // send back original
+
+                return type_node;
+            },
+            [&](AngularTypeNode& angular) -> TypeNode_ptr
+            {
+                // Solidify type arguments and create a concrete type name
+                TypeNodeVector solidified_args;
+                for (auto& arg : angular.type_arguments)
+                {
+                    solidified_args.push_back(visit(arg, typenode_map));
+                }
+                // For now, produce a mangled identifier
+                std::string mangled_name = angular.name;
+                for (auto& arg : solidified_args)
+                {
+                    if (arg->is<TypeIdentifierNode>())
+                    {
+                        mangled_name += "_" + arg->as<TypeIdentifierNode>().name;
+                    }
+                }
+                TypeIdentifierNode result;
+                result.name = mangled_name;
+                return make_type_node(result);
+            },
+            [&](ListTypeNode& list) -> TypeNode_ptr
+            {
+                list.element_type = visit(list.element_type, typenode_map);
+                return make_type_node(list);
+            },
+            [&](TupleTypeNode& tuple) -> TypeNode_ptr
+            {
+                for (auto& elem : tuple.element_types)
+                {
+                    tuple.element_types.push_back(visit(elem, typenode_map));
+                }
+                return make_type_node(tuple);
+            },
+            [&](SetTypeNode& set) -> TypeNode_ptr
+            {
+                set.element_type = visit(set.element_type, typenode_map);
+                return make_type_node(set);
+            },
+            [&](MapTypeNode& map) -> TypeNode_ptr
+            {
+                map.key_type = visit(map.key_type, typenode_map);
+                map.value_type = visit(map.value_type, typenode_map);
+                return make_type_node(map);
+            },
+            [&](VariantTypeNode& variant) -> TypeNode_ptr
+            {
+                for (auto& opt : variant.options)
+                {
+                    variant.options.push_back(visit(opt, typenode_map));
+                }
+
+                return make_type_node(variant);
+            },
+            [&](IntersectionTypeNode& inter) -> TypeNode_ptr
+            {
+                for (auto& t : inter.types)
+                {
+                    inter.types.push_back(visit(t, typenode_map));
+                }
+
+                return make_type_node(inter);
+            },
+            [&](FunctionTypeNode& func) -> TypeNode_ptr
+            {
+                for (auto& param : func.parameter_types)
+                {
+                    func.parameter_types.push_back(visit(param, typenode_map));
+                }
+
+                func.return_type = visit(func.return_type, typenode_map);
+                return make_type_node(func);
+            },
+            [&](auto&) -> TypeNode_ptr
+            {
+                return type_node;
+            }
+        },
+        type_node->data
+    );
+}
+
+TypeNodeVector Solidifier::visit(
+    TypeNodeVector& types,
+    const std::map<std::string, TypeNode_ptr>& typenode_map
+)
+{
+    TypeNodeVector result;
+    result.reserve(types.size());
+
+    for (TypeNode_ptr& type : types)
+    {
+        result.push_back(visit(type, typenode_map));
+    }
+
+    return result;
+}
+
+Field Solidifier::visit(Field& field, const std::map<std::string, TypeNode_ptr>& typenode_map)
+{
+    field.type = visit(field.type, typenode_map);
+    field.symbol = nullptr;
+    return field;
+}
+
+FieldVector Solidifier::visit(FieldVector& fields, const std::map<std::string, TypeNode_ptr>& typenode_map)
+{
+    FieldVector result;
+    result.reserve(fields.size());
+
+    for (auto& field : fields)
+    {
+        result.push_back(visit(field, typenode_map));
+    }
+
+    return result;
+}
+
+std::map<std::string, TypeNode_ptr> Solidifier::make_typenode_substitutions(
+    const std::map<std::string, Type_ptr>& substitutions
+)
+{
+    std::map<std::string, TypeNode_ptr> result;
+
+    for (auto& [name, type] : substitutions)
+    {
+        result[name] = type_to_typenode(type);
+    }
+
+    return result;
+}
+
+TypeNodeVector Solidifier::types_to_typenodes(TypeVector& types)
+{
+    TypeNodeVector result;
+    result.reserve(types.size());
+
+    for (Type_ptr& t : types)
+    {
+        result.push_back(type_to_typenode(t));
+    }
+
     return result;
 }
 
 TypeNode_ptr Solidifier::type_to_typenode(Type_ptr type)
 {
-    if (!type)
-    {
-        return nullptr;
-    }
+    Doctor::semantics().fatal_if_nullptr(type, "Attempted to substitute a null Type");
 
     return std::visit(
         overloaded{
@@ -84,7 +367,7 @@ TypeNode_ptr Solidifier::type_to_typenode(Type_ptr type)
             [&](TupleType_ptr tuple) -> TypeNode_ptr
             {
                 TupleTypeNode result;
-                for (const auto& elem : tuple->element_types)
+                for (const Type_ptr& elem : tuple->element_types)
                 {
                     result.element_types.push_back(type_to_typenode(elem));
                 }
@@ -106,19 +389,23 @@ TypeNode_ptr Solidifier::type_to_typenode(Type_ptr type)
             [&](VariantType_ptr variant) -> TypeNode_ptr
             {
                 VariantTypeNode result;
-                for (const auto& opt : variant->types)
+
+                for (auto& opt : variant->types)
                 {
                     result.options.push_back(type_to_typenode(opt));
                 }
+
                 return make_type_node(result);
             },
             [&](IntersectionType_ptr inter) -> TypeNode_ptr
             {
                 IntersectionTypeNode result;
-                for (const auto& t : inter->types)
+
+                for (auto& t : inter->types)
                 {
                     result.types.push_back(type_to_typenode(t));
                 }
+
                 return make_type_node(result);
             },
             [](EnumType_ptr enum_type) -> TypeNode_ptr
@@ -129,10 +416,12 @@ TypeNode_ptr Solidifier::type_to_typenode(Type_ptr type)
             {
                 AngularTypeNode result;
                 result.name = angular->name;
-                for (const auto& arg : angular->type_arguments)
+
+                for (const Type_ptr& arg : angular->type_arguments)
                 {
                     result.type_arguments.push_back(type_to_typenode(arg));
                 }
+
                 return make_type_node(result);
             },
             [](auto&) -> TypeNode_ptr
@@ -144,814 +433,289 @@ TypeNode_ptr Solidifier::type_to_typenode(Type_ptr type)
     );
 }
 
-TypeNodeVector Solidifier::types_to_typenodes(const TypeVector& types)
+Type_ptr Solidifier::substitute_type(Type_ptr type, std::map<std::string, Type_ptr>& substitutions) const
 {
-    TypeNodeVector result;
-    result.reserve(types.size());
-    for (const auto& t : types)
-    {
-        result.push_back(type_to_typenode(t));
-    }
-    return result;
-}
+    Doctor::semantics().fatal_if_nullptr(type, "Attempted to substitute a null Type");
 
-std::map<std::string, TypeNode_ptr> Solidifier::make_typenode_substitutions(
-    const std::map<std::string, Type_ptr>& substitutions
-)
-{
-    std::map<std::string, TypeNode_ptr> result;
-    for (const auto& [name, type] : substitutions)
-    {
-        result[name] = type_to_typenode(type);
-    }
-    return result;
-}
-
-Type_ptr Solidifier::substitute_type(
-    Type_ptr type,
-    const std::map<std::string, Type_ptr>& substitutions
-) const
-{
-    if (!type)
-    {
-        return nullptr;
-    }
-
-    if (type->is<GenericType_ptr>())
-    {
-        auto generic = type->as<GenericType_ptr>();
-        auto it = substitutions.find(generic->name);
-        if (it != substitutions.end())
-        {
-            return it->second;
-        }
-        return type;
-    }
-
-    // Handle composite types
-    if (type->is<ListType_ptr>())
-    {
-        auto list = type->as<ListType_ptr>();
-        auto new_element = substitute_type(list->element_type, substitutions);
-        return make_shared_type<ListType>(new_element);
-    }
-
-    if (type->is<SetType_ptr>())
-    {
-        auto set = type->as<SetType_ptr>();
-        auto new_element = substitute_type(set->element_type, substitutions);
-        return make_shared_type<SetType>(new_element);
-    }
-
-    if (type->is<MapType_ptr>())
-    {
-        auto map = type->as<MapType_ptr>();
-        auto new_key = substitute_type(map->key_type, substitutions);
-        auto new_value = substitute_type(map->value_type, substitutions);
-        return make_shared_type<MapType>(new_key, new_value);
-    }
-
-    if (type->is<TupleType_ptr>())
-    {
-        auto tuple = type->as<TupleType_ptr>();
-        TypeVector new_elements;
-        for (const auto& elem : tuple->element_types)
-        {
-            new_elements.push_back(substitute_type(elem, substitutions));
-        }
-        return make_shared_type<TupleType>(new_elements);
-    }
-
-    return type;
-}
-
-// ============================================================================
-// Name mangling
-// ============================================================================
-
-std::string Solidifier::mangle(const Type_ptr& type)
-{
     return std::visit(
         overloaded{
-            [](IntType_ptr) -> std::string
+            [&](GenericType_ptr t) -> Type_ptr
             {
-                return "int";
-            },
-            [](FloatType_ptr) -> std::string
-            {
-                return "float";
-            },
-            [](StringType_ptr) -> std::string
-            {
-                return "str";
-            },
-            [](BooleanType_ptr) -> std::string
-            {
-                return "bool";
-            },
-            [](ClassType_ptr cls) -> std::string
-            {
-                return cls->name;
-            },
-            [](TraitType_ptr trait) -> std::string
-            {
-                return trait->name;
-            },
-            [](PrimitiveType_ptr prim) -> std::string
-            {
-                return prim->name;
-            },
-            [&](ListType_ptr list) -> std::string
-            {
-                return "list_" + mangle(list->element_type);
-            },
-            [&](TupleType_ptr tuple) -> std::string
-            {
-                std::string result = "tuple";
-                for (const auto& elem : tuple->element_types)
+                auto it = substitutions.find(t->name);
+                if (it != substitutions.end())
                 {
-                    result += "_" + mangle(elem);
+                    return it->second;
                 }
-                return result;
+
+                return type;
             },
-            [&](SetType_ptr set) -> std::string
+
+            // ============================================================================
+            // Composite Types
+            // ============================================================================
+            [&](ListType_ptr t) -> Type_ptr
             {
-                return "set_" + mangle(set->element_type);
+                Type_ptr new_element = substitute_type(t->element_type, substitutions);
+                return make_shared_type<ListType>(new_element);
             },
-            [&](MapType_ptr map) -> std::string
+            [&](SetType_ptr t) -> Type_ptr
             {
-                return "map_" + mangle(map->key_type) + "_" + mangle(map->value_type);
+                Type_ptr new_element = substitute_type(t->element_type, substitutions);
+                return make_shared_type<SetType>(new_element);
             },
-            [](auto&) -> std::string
+            [&](TupleType_ptr t) -> Type_ptr
             {
-                return "unknown";
+                TypeVector new_elements;
+                for (const Type_ptr& elem : t->element_types)
+                {
+                    new_elements.push_back(substitute_type(elem, substitutions));
+                }
+                return make_shared_type<TupleType>(new_elements);
+            },
+            [&](MapType_ptr t) -> Type_ptr
+            {
+                Type_ptr new_key = substitute_type(t->key_type, substitutions);
+                Type_ptr new_value = substitute_type(t->value_type, substitutions);
+                return make_shared_type<MapType>(new_key, new_value);
+            },
+
+            // ============================================================================
+            // Algebraic Types
+            // ============================================================================
+            [&](VariantType_ptr t) -> Type_ptr
+            {
+                TypeVector new_types;
+                for (const Type_ptr& opt : t->types)
+                {
+                    new_types.push_back(substitute_type(opt, substitutions));
+                }
+                return make_shared_type<VariantType>(new_types);
+            },
+            [&](IntersectionType_ptr t) -> Type_ptr
+            {
+                TypeVector new_types;
+                for (const Type_ptr& opt : t->types)
+                {
+                    new_types.push_back(substitute_type(opt, substitutions));
+                }
+                return make_shared_type<IntersectionType>(new_types);
+            },
+
+            // ============================================================================
+            // Callable Types
+            // ============================================================================
+
+            [&](FunctionType_ptr t) -> Type_ptr
+            {
+                TypeVector new_params;
+                for (const Type_ptr& param : t->parameter_types)
+                {
+                    new_params.push_back(substitute_type(param, substitutions));
+                }
+
+                Type_ptr new_return = substitute_type(t->return_type, substitutions);
+
+                return make_shared_type<FunctionType>(
+                    t->name,
+                    new_params,
+                    new_return,
+                    t->template_type,
+                    t->is_pure,
+                    t->is_native
+                );
+            },
+
+            [&](MethodType_ptr t) -> Type_ptr
+            {
+                TypeVector new_params;
+                for (const Type_ptr& param : t->parameter_types)
+                {
+                    new_params.push_back(substitute_type(param, substitutions));
+                }
+
+                Type_ptr new_return = substitute_type(t->return_type, substitutions);
+
+                return make_shared_type<MethodType>(
+                    t->name,
+                    new_params,
+                    new_return,
+                    t->template_type,
+                    t->is_shared,
+                    t->is_pure,
+                    t->is_native,
+                    t->is_required
+                );
+            },
+
+            [&](FunctionTypeVector vec) -> Type_ptr
+            {
+                FunctionTypeVector new_vec;
+                for (auto& func : vec)
+                {
+                    auto substituted = substitute_type(make_type(func), substitutions);
+                    new_vec.push_back(substituted->as<FunctionType_ptr>());
+                }
+                return make_type(new_vec);
+            },
+
+            [&](MethodTypeVector vec) -> Type_ptr
+            {
+                MethodTypeVector new_vec;
+                for (auto& method : vec)
+                {
+                    auto substituted = substitute_type(make_type(method), substitutions);
+                    new_vec.push_back(substituted->as<MethodType_ptr>());
+                }
+                return make_type(new_vec);
+            },
+
+            // ============================================================================
+            // OOP Types
+            // ============================================================================
+            [&](ClassType_ptr t) -> Type_ptr
+            {
+                FieldMap_ptr new_fields = std::make_shared<FieldMap>();
+                if (t->fields)
+                {
+                    for (auto& [name, field_type] : t->fields->types)
+                    {
+                        new_fields->types[name] = substitute_type(field_type, substitutions);
+                        new_fields->ordered_keys.push_back(name);
+                    }
+                }
+
+                MethodMap_ptr new_methods = std::make_shared<MethodMap>();
+                if (t->methods)
+                {
+                    for (auto& [name, method_vec] : t->methods->method_overload_types)
+                    {
+                        MethodTypeVector new_vec;
+                        for (auto& method : method_vec)
+                        {
+                            auto substituted = substitute_type(make_type(method), substitutions);
+                            new_vec.push_back(substituted->as<MethodType_ptr>());
+                        }
+                        new_methods->method_overload_types[name] = new_vec;
+                        new_methods->ordered_keys.push_back(name);
+                    }
+                }
+
+                ClassType_ptr new_class = std::make_shared<ClassType>(t->name);
+                new_class->fields = new_fields;
+                new_class->methods = new_methods;
+                new_class->itables = t->itables;
+
+                // Substitute traits
+                TypeVector new_traits;
+                for (auto& trait : t->traits)
+                {
+                    new_traits.push_back(substitute_type(trait, substitutions));
+                }
+                new_class->traits = new_traits;
+
+                new_class->template_type = t->template_type;
+
+                return make_type(new_class);
+            },
+            [&](TraitType_ptr t) -> Type_ptr
+            {
+                FieldMap_ptr new_fields = std::make_shared<FieldMap>();
+                if (t->fields)
+                {
+                    for (auto& [name, field_type] : t->fields->types)
+                    {
+                        new_fields->types[name] = substitute_type(field_type, substitutions);
+                        new_fields->ordered_keys.push_back(name);
+                    }
+                }
+
+                MethodMap_ptr new_methods = std::make_shared<MethodMap>();
+                if (t->methods)
+                {
+                    for (auto& [name, method_vec] : t->methods->method_overload_types)
+                    {
+                        MethodTypeVector new_vec;
+                        for (auto& method : method_vec)
+                        {
+                            auto substituted = substitute_type(make_type(method), substitutions);
+                            new_vec.push_back(substituted->as<MethodType_ptr>());
+                        }
+                        new_methods->method_overload_types[name] = new_vec;
+                        new_methods->ordered_keys.push_back(name);
+                    }
+                }
+
+                TraitType_ptr new_trait = std::make_shared<TraitType>(t->name);
+                new_trait->fields = new_fields;
+                new_trait->methods = new_methods;
+                new_trait->itables = t->itables;
+
+                TypeVector new_traits;
+                for (auto& trait : t->traits)
+                {
+                    new_traits.push_back(substitute_type(trait, substitutions));
+                }
+                new_trait->traits = new_traits;
+
+                new_trait->template_type = t->template_type;
+
+                return make_type(new_trait);
+            },
+            [&](PrimitiveType_ptr t) -> Type_ptr
+            {
+                FieldMap_ptr new_fields = std::make_shared<FieldMap>();
+                if (t->fields)
+                {
+                    for (auto& [name, field_type] : t->fields->types)
+                    {
+                        new_fields->types[name] = substitute_type(field_type, substitutions);
+                        new_fields->ordered_keys.push_back(name);
+                    }
+                }
+
+                MethodMap_ptr new_methods = std::make_shared<MethodMap>();
+                if (t->methods)
+                {
+                    for (auto& [name, method_vec] : t->methods->method_overload_types)
+                    {
+                        MethodTypeVector new_vec;
+                        for (auto& method : method_vec)
+                        {
+                            auto substituted = substitute_type(make_type(method), substitutions);
+                            new_vec.push_back(substituted->as<MethodType_ptr>());
+                        }
+                        new_methods->method_overload_types[name] = new_vec;
+                        new_methods->ordered_keys.push_back(name);
+                    }
+                }
+
+                PrimitiveType_ptr new_trait = std::make_shared<PrimitiveType>(t->name);
+                new_trait->fields = new_fields;
+                new_trait->methods = new_methods;
+                new_trait->itables = t->itables;
+
+                TypeVector new_traits;
+                for (auto& trait : t->traits)
+                {
+                    new_traits.push_back(substitute_type(trait, substitutions));
+                }
+                new_trait->traits = new_traits;
+
+                new_trait->template_type = t->template_type;
+
+                return make_type(new_trait);
+            },
+
+            // ============================================================================
+            // Simple types don't need subs
+            // ============================================================================
+            [&](auto&) -> Type_ptr
+            {
+                return type;
             }
         },
         type->data
     );
-}
-
-std::string Solidifier::mangle(const TypeVector& types)
-{
-    std::string result;
-    for (size_t i = 0; i < types.size(); ++i)
-    {
-        if (i > 0)
-        {
-            result += "_";
-        }
-        result += mangle(types[i]);
-    }
-    return result;
-}
-
-std::string Solidifier::get_solidified_name(const std::string& base_name, const TypeVector& type_arguments)
-{
-    if (type_arguments.empty())
-    {
-        return base_name;
-    }
-    return base_name + "_" + mangle(type_arguments);
-}
-
-bool Solidifier::is_generic(const FieldVector& generics) const
-{
-    return !generics.empty();
-}
-
-// ============================================================================
-// Public API – forward to private solidify_node
-// ============================================================================
-
-Statement_ptr Solidifier::solidify(
-    const FunctionDefinition& func,
-    const std::map<std::string, Type_ptr>& substitution_map
-)
-{
-    auto typenode_map = make_typenode_substitutions(substitution_map);
-    auto stmt = solidify_node(func, typenode_map);
-    if (!substitution_map.empty())
-    {
-        std::string name = get_solidified_name(func.name, extract_types(substitution_map));
-    }
-    return stmt;
-}
-
-Statement_ptr Solidifier::solidify(
-    const MethodDefinition& method,
-    const std::map<std::string, Type_ptr>& substitution_map
-)
-{
-    auto typenode_map = make_typenode_substitutions(substitution_map);
-    auto stmt = solidify_node(method, typenode_map);
-    if (!substitution_map.empty())
-    {
-        std::string name = get_solidified_name(method.name, extract_types(substitution_map));
-    }
-    return stmt;
-}
-
-Statement_ptr Solidifier::solidify(
-    const ClassDefinition& cls,
-    const std::map<std::string, Type_ptr>& substitution_map
-)
-{
-    auto typenode_map = make_typenode_substitutions(substitution_map);
-    auto stmt = solidify_node(cls, typenode_map);
-    if (!substitution_map.empty())
-    {
-        std::string name = get_solidified_name(cls.name, extract_types(substitution_map));
-    }
-    return stmt;
-}
-
-Statement_ptr Solidifier::solidify(
-    const TraitDefinition& trait,
-    const std::map<std::string, Type_ptr>& substitution_map
-)
-{
-    auto typenode_map = make_typenode_substitutions(substitution_map);
-    auto stmt = solidify_node(trait, typenode_map);
-    if (!substitution_map.empty())
-    {
-        std::string name = get_solidified_name(trait.name, extract_types(substitution_map));
-    }
-    return stmt;
-}
-
-Statement_ptr Solidifier::solidify(
-    const RecordDefinition& record,
-    const std::map<std::string, Type_ptr>& substitution_map
-)
-{
-    auto typenode_map = make_typenode_substitutions(substitution_map);
-    auto stmt = solidify_node(record, typenode_map);
-    if (!substitution_map.empty())
-    {
-        std::string name = get_solidified_name(record.name, extract_types(substitution_map));
-    }
-    return stmt;
-}
-
-Statement_ptr Solidifier::solidify(
-    const OperatorDefinition& op,
-    const std::map<std::string, Type_ptr>& substitution_map
-)
-{
-    auto typenode_map = make_typenode_substitutions(substitution_map);
-    auto stmt = solidify_node(op, typenode_map);
-    if (!substitution_map.empty())
-    {
-        std::string name = get_solidified_name(op.name, extract_types(substitution_map));
-    }
-    return stmt;
-}
-
-Statement_ptr Solidifier::solidify(
-    const Statement_ptr& stmt,
-    const std::map<std::string, Type_ptr>& substitution_map
-)
-{
-    auto typenode_map = make_typenode_substitutions(substitution_map);
-    return solidify_node(stmt, typenode_map);
-}
-
-StatementVector Solidifier::solidify(
-    const StatementVector& statements,
-    const std::map<std::string, Type_ptr>& substitution_map
-)
-{
-    auto typenode_map = make_typenode_substitutions(substitution_map);
-    return solidify_node(statements, typenode_map);
-}
-
-Block Solidifier::solidify_block(const Block& block, const std::map<std::string, Type_ptr>& substitution_map)
-{
-    auto typenode_map = make_typenode_substitutions(substitution_map);
-    return solidify_node(block, typenode_map);
-}
-
-Expression_ptr Solidifier::solidify(
-    const Expression_ptr& expr,
-    const std::map<std::string, Type_ptr>& substitution_map
-)
-{
-    auto typenode_map = make_typenode_substitutions(substitution_map);
-    return solidify_node(expr, typenode_map);
-}
-
-ExpressionVector Solidifier::solidify(
-    const ExpressionVector& expressions,
-    const std::map<std::string, Type_ptr>& substitution_map
-)
-{
-    auto typenode_map = make_typenode_substitutions(substitution_map);
-    return solidify_node(expressions, typenode_map);
-}
-
-TypeNode_ptr Solidifier::solidify(
-    const TypeNode_ptr& type_node,
-    const std::map<std::string, Type_ptr>& substitution_map
-)
-{
-    auto typenode_map = make_typenode_substitutions(substitution_map);
-    return solidify_node(type_node, typenode_map);
-}
-
-TypeNodeVector Solidifier::solidify(
-    const TypeNodeVector& types,
-    const std::map<std::string, Type_ptr>& substitution_map
-)
-{
-    auto typenode_map = make_typenode_substitutions(substitution_map);
-    return solidify_node(types, typenode_map);
-}
-
-Field Solidifier::solidify(const Field& field, const std::map<std::string, Type_ptr>& substitution_map)
-{
-    auto typenode_map = make_typenode_substitutions(substitution_map);
-    return solidify_node(field, typenode_map);
-}
-
-FieldVector Solidifier::solidify(
-    const FieldVector& fields,
-    const std::map<std::string, Type_ptr>& substitution_map
-)
-{
-    auto typenode_map = make_typenode_substitutions(substitution_map);
-    return solidify_node(fields, typenode_map);
-}
-
-// ============================================================================
-// Private helpers – do the actual work with TypeNode maps
-// ============================================================================
-
-Statement_ptr Solidifier::solidify_node(
-    const FunctionDefinition& func,
-    const std::map<std::string, TypeNode_ptr>& typenode_map
-)
-{
-    FunctionDefinition result;
-    result.name = func.name;
-    result.is_pure = func.is_pure;
-    result.generics = {}; // generics removed after instantiation
-    result.symbol = func.symbol;
-
-    for (const auto& param : func.parameters)
-    {
-        result.parameters.push_back(solidify_node(param, typenode_map));
-    }
-
-    if (func.return_type)
-    {
-        result.return_type = solidify_node(func.return_type, typenode_map);
-    }
-    else
-    {
-        result.return_type = nullptr;
-    }
-
-    result.block = solidify_node(func.block, typenode_map);
-
-    return make_statement(result);
-}
-
-Statement_ptr Solidifier::solidify_node(
-    const MethodDefinition& method,
-    const std::map<std::string, TypeNode_ptr>& typenode_map
-)
-{
-    MethodDefinition result;
-    result.name = method.name;
-    result.is_pure = method.is_pure;
-    result.is_shared = method.is_shared;
-    result.symbol = method.symbol;
-
-    for (const auto& param : method.parameters)
-    {
-        result.parameters.push_back(solidify_node(param, typenode_map));
-    }
-    result.return_type = solidify_node(method.return_type, typenode_map);
-    result.block = solidify_node(method.block, typenode_map);
-
-    return make_statement(result);
-}
-
-Statement_ptr Solidifier::solidify_node(
-    const ClassDefinition& cls,
-    const std::map<std::string, TypeNode_ptr>& typenode_map
-)
-{
-    ClassDefinition result;
-    result.name = cls.name;
-    result.generics = {};
-    result.symbol = cls.symbol;
-
-    for (const auto& field : cls.fields)
-    {
-        result.fields.push_back(solidify_node(field, typenode_map));
-    }
-
-    for (const auto& method : cls.methods)
-    {
-        auto solidified = solidify_node(method, typenode_map);
-        if (solidified && solidified->is<MethodDefinition>())
-        {
-            result.methods.push_back(solidified->as<MethodDefinition>());
-        }
-    }
-
-    for (const auto& trait : cls.traits)
-    {
-        result.traits.push_back(solidify_node(trait, typenode_map));
-    }
-
-    return make_statement(result);
-}
-
-Statement_ptr Solidifier::solidify_node(
-    const TraitDefinition& trait,
-    const std::map<std::string, TypeNode_ptr>& typenode_map
-)
-{
-    TraitDefinition result;
-    result.name = trait.name;
-    result.generics = {};
-    result.symbol = trait.symbol;
-
-    for (const auto& field : trait.fields)
-    {
-        result.fields.push_back(solidify_node(field, typenode_map));
-    }
-
-    for (const auto& method : trait.methods)
-    {
-        auto solidified = solidify_node(method, typenode_map);
-        if (solidified && solidified->is<MethodDefinition>())
-        {
-            result.methods.push_back(solidified->as<MethodDefinition>());
-        }
-    }
-
-    for (const auto& super : trait.traits)
-    {
-        result.traits.push_back(solidify_node(super, typenode_map));
-    }
-
-    return make_statement(result);
-}
-
-Statement_ptr Solidifier::solidify_node(
-    const RecordDefinition& record,
-    const std::map<std::string, TypeNode_ptr>& typenode_map
-)
-{
-    RecordDefinition result;
-    result.name = record.name;
-    result.symbol = record.symbol;
-
-    for (const auto& field : record.fields)
-    {
-        result.fields.push_back(solidify_node(field, typenode_map));
-    }
-
-    return make_statement(result);
-}
-
-Statement_ptr Solidifier::solidify_node(
-    const OperatorDefinition& op,
-    const std::map<std::string, TypeNode_ptr>& typenode_map
-)
-{
-    OperatorDefinition result;
-    result.name = op.name;
-    result.generics = {};
-    result.op_type = op.op_type;
-    result.fixity = op.fixity;
-    result.symbol = op.symbol;
-
-    for (const auto& operand : op.operands)
-    {
-        result.operands.push_back(solidify_node(operand, typenode_map));
-    }
-    result.return_type = solidify_node(op.return_type, typenode_map);
-    result.block = solidify_node(op.block, typenode_map);
-
-    return make_statement(result);
-}
-
-Statement_ptr Solidifier::solidify_node(
-    const Statement_ptr& stmt,
-    const std::map<std::string, TypeNode_ptr>& typenode_map
-)
-{
-    Doctor::semantics().fatal_if_nullptr(stmt, "Attempted to solidify a null Statement");
-
-    return std::visit(
-        overloaded{
-            [&](const FunctionDefinition& s) -> Statement_ptr
-            {
-                return solidify_node(s, typenode_map);
-            },
-            [&](const MethodDefinition& s) -> Statement_ptr
-            {
-                return solidify_node(s, typenode_map);
-            },
-            [&](const ClassDefinition& s) -> Statement_ptr
-            {
-                return solidify_node(s, typenode_map);
-            },
-            [&](const TraitDefinition& s) -> Statement_ptr
-            {
-                return solidify_node(s, typenode_map);
-            },
-            [&](const RecordDefinition& s) -> Statement_ptr
-            {
-                return solidify_node(s, typenode_map);
-            },
-            [&](const OperatorDefinition& s) -> Statement_ptr
-            {
-                return solidify_node(s, typenode_map);
-            },
-            [&](const Block& s) -> Statement_ptr
-            {
-                Block b = solidify_node(s, typenode_map);
-                return make_statement(b);
-            },
-            [&](const ExpressionStatement& s) -> Statement_ptr
-            {
-                ExpressionStatement es;
-                es.expression = solidify_node(s.expression, typenode_map);
-                return make_statement(es);
-            },
-            [&](const TypeAliasDefinition& s) -> Statement_ptr
-            {
-                TypeAliasDefinition tas;
-                tas.name = s.name;
-                tas.generics = {};
-                tas.ref_type = solidify_node(s.ref_type, typenode_map);
-                tas.symbol = s.symbol;
-                return make_statement(tas);
-            },
-            [&](const EnumDefinition& s) -> Statement_ptr
-            {
-                // Enums currently have no generics; just clone
-                return ASTCloner::get().clone(s);
-            },
-            [&](const PrimitiveDefinition& s) -> Statement_ptr
-            {
-                return ASTCloner::get().clone(s);
-            },
-            [&](const Branch& s) -> Statement_ptr
-            {
-                Branch b;
-                b.test = solidify_node(s.test, typenode_map);
-                b.block = solidify_node(s.block, typenode_map);
-                b.alternative = solidify_node(s.alternative, typenode_map);
-                return make_statement(b);
-            },
-            [&](const SimpleLoop& s) -> Statement_ptr
-            {
-                SimpleLoop sl;
-                sl.style = s.style;
-                sl.test = solidify_node(s.test, typenode_map);
-                sl.block = solidify_node(s.block, typenode_map);
-                return make_statement(sl);
-            },
-            [&](const ForInLoop& s) -> Statement_ptr
-            {
-                ForInLoop fil;
-                fil.lhs_is_mutable = s.lhs_is_mutable;
-                fil.lhs = solidify_node(s.lhs, typenode_map);
-                fil.iterable = solidify_node(s.iterable, typenode_map);
-                fil.block = solidify_node(s.block, typenode_map);
-                return make_statement(fil);
-            },
-            [&](const LoopControl& s) -> Statement_ptr
-            {
-                return ASTCloner::get().clone(s);
-            },
-            [&](const Return& s) -> Statement_ptr
-            {
-                Return r;
-                if (s.expression)
-                {
-                    r.expression = solidify_node(*s.expression, typenode_map);
-                }
-                return make_statement(r);
-            },
-            [&](const Pass&) -> Statement_ptr
-            {
-                return make_statement(Pass{});
-            },
-            [&](const Required&) -> Statement_ptr
-            {
-                return make_statement(Required{});
-            },
-            [&](const Native&) -> Statement_ptr
-            {
-                return make_statement(Native{});
-            },
-            [&](const Import& s) -> Statement_ptr
-            {
-                return ASTCloner::get().clone(s);
-            },
-            [&](const std::monostate&) -> Statement_ptr
-            {
-                Doctor::semantics().fatal("Attempted to solidify monostate");
-            }
-        },
-        stmt->data
-    );
-}
-
-StatementVector Solidifier::solidify_node(
-    const StatementVector& statements,
-    const std::map<std::string, TypeNode_ptr>& typenode_map
-)
-{
-    StatementVector result;
-    result.reserve(statements.size());
-    for (const auto& stmt : statements)
-    {
-        result.push_back(solidify_node(stmt, typenode_map));
-    }
-    return result;
-}
-
-Block Solidifier::solidify_node(const Block& block, const std::map<std::string, TypeNode_ptr>& typenode_map)
-{
-    Block b;
-    b.statements = solidify_node(block.statements, typenode_map);
-    return b;
-}
-
-Expression_ptr Solidifier::solidify_node(
-    const Expression_ptr& expr,
-    const std::map<std::string, TypeNode_ptr>& typenode_map
-)
-{
-    // Currently, expressions are cloned without substitution.
-    // If expressions can contain generic type references, they must be handled here.
-    return ASTCloner::get().clone(expr);
-}
-
-ExpressionVector Solidifier::solidify_node(
-    const ExpressionVector& expressions,
-    const std::map<std::string, TypeNode_ptr>& typenode_map
-)
-{
-    ExpressionVector result;
-    result.reserve(expressions.size());
-    for (const auto& expr : expressions)
-    {
-        result.push_back(solidify_node(expr, typenode_map));
-    }
-    return result;
-}
-
-TypeNode_ptr Solidifier::solidify_node(
-    const TypeNode_ptr& type_node,
-    const std::map<std::string, TypeNode_ptr>& typenode_map
-)
-{
-    Doctor::semantics().fatal_if_nullptr(type_node, "Attempted to solidify a null TypeNode");
-
-    return std::visit(
-        overloaded{
-            [&](const TypeIdentifierNode& ident) -> TypeNode_ptr
-            {
-                auto it = typenode_map.find(ident.name);
-                if (it != typenode_map.end())
-                {
-                    return ASTCloner::get().clone(it->second);
-                }
-                // Not a generic – keep as is
-                return ASTCloner::get().clone(type_node);
-            },
-            [&](const AngularTypeNode& angular) -> TypeNode_ptr
-            {
-                // Solidify type arguments and create a concrete type name
-                TypeNodeVector solidified_args;
-                for (const auto& arg : angular.type_arguments)
-                {
-                    solidified_args.push_back(solidify_node(arg, typenode_map));
-                }
-                // For now, produce a mangled identifier
-                std::string mangled_name = angular.name;
-                for (const auto& arg : solidified_args)
-                {
-                    if (arg->is<TypeIdentifierNode>())
-                    {
-                        mangled_name += "_" + arg->as<TypeIdentifierNode>().name;
-                    }
-                }
-                TypeIdentifierNode result;
-                result.name = mangled_name;
-                return make_type_node(result);
-            },
-            [&](const ListTypeNode& list) -> TypeNode_ptr
-            {
-                ListTypeNode result;
-                result.element_type = solidify_node(list.element_type, typenode_map);
-                return make_type_node(result);
-            },
-            [&](const TupleTypeNode& tuple) -> TypeNode_ptr
-            {
-                TupleTypeNode result;
-                for (const auto& elem : tuple.element_types)
-                {
-                    result.element_types.push_back(solidify_node(elem, typenode_map));
-                }
-                return make_type_node(result);
-            },
-            [&](const SetTypeNode& set) -> TypeNode_ptr
-            {
-                SetTypeNode result;
-                result.element_type = solidify_node(set.element_type, typenode_map);
-                return make_type_node(result);
-            },
-            [&](const MapTypeNode& map) -> TypeNode_ptr
-            {
-                MapTypeNode result;
-                result.key_type = solidify_node(map.key_type, typenode_map);
-                result.value_type = solidify_node(map.value_type, typenode_map);
-                return make_type_node(result);
-            },
-            [&](const VariantTypeNode& variant) -> TypeNode_ptr
-            {
-                VariantTypeNode result;
-                for (const auto& opt : variant.options)
-                {
-                    result.options.push_back(solidify_node(opt, typenode_map));
-                }
-                return make_type_node(result);
-            },
-            [&](const IntersectionTypeNode& inter) -> TypeNode_ptr
-            {
-                IntersectionTypeNode result;
-                for (const auto& t : inter.types)
-                {
-                    result.types.push_back(solidify_node(t, typenode_map));
-                }
-                return make_type_node(result);
-            },
-            [&](const FunctionTypeNode& func) -> TypeNode_ptr
-            {
-                FunctionTypeNode result;
-                for (const auto& param : func.parameter_types)
-                {
-                    result.parameter_types.push_back(solidify_node(param, typenode_map));
-                }
-                result.return_type = solidify_node(func.return_type, typenode_map);
-                return make_type_node(result);
-            },
-            [&](const auto&) -> TypeNode_ptr
-            {
-                // NoneTypeNode, LiteralTypeNode – no generics
-                return ASTCloner::get().clone(type_node);
-            }
-        },
-        type_node->data
-    );
-}
-
-TypeNodeVector Solidifier::solidify_node(
-    const TypeNodeVector& types,
-    const std::map<std::string, TypeNode_ptr>& typenode_map
-)
-{
-    TypeNodeVector result;
-    result.reserve(types.size());
-    for (const auto& type : types)
-    {
-        result.push_back(solidify_node(type, typenode_map));
-    }
-    return result;
-}
-
-Field Solidifier::solidify_node(const Field& field, const std::map<std::string, TypeNode_ptr>& typenode_map)
-{
-    Field result;
-    result.name = field.name;
-    result.type = solidify_node(field.type, typenode_map);
-    result.is_variadic = field.is_variadic;
-    result.symbol = field.symbol;
-    return result;
-}
-
-FieldVector Solidifier::solidify_node(
-    const FieldVector& fields,
-    const std::map<std::string, TypeNode_ptr>& typenode_map
-)
-{
-    FieldVector result;
-    result.reserve(fields.size());
-    for (const auto& field : fields)
-    {
-        result.push_back(solidify_node(field, typenode_map));
-    }
-    return result;
 }
 
 } // namespace Wasp

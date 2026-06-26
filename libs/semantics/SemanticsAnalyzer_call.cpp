@@ -1,4 +1,5 @@
 #include "AST.h"
+#include "ASTCloner.h"
 #include "Doctor.h"
 #include "Expression.h"
 #include "SemanticsAnalyzer.h"
@@ -82,7 +83,7 @@ Type_ptr SemanticsAnalyzer::visit(
 
     if (!function_type->template_type->empty())
     {
-        std::string mangled_name = symbol->name + "_" + type_system->mangle_name(solid_types);
+        std::string mangled_name = symbol->name + "_" + type_system->mangle(solid_types);
 
         auto [template_ast, definition_scope] = get_tree(function_symbol);
 
@@ -96,7 +97,12 @@ Type_ptr SemanticsAnalyzer::visit(
             "Expected a FunctionDefinition for the template function"
         );
 
-        auto x = Solidifier::get().solidify(template_ast, substitutions);
+        Statement_ptr template_ast_copy = ASTCloner::get().clone(template_ast);
+
+        Statement_ptr solid_ast = Solidifier::get().visit(template_ast_copy, substitutions);
+
+        // create new symbol for the solidified function
+        // add_tree(symbol, solid_ast, current_scope);
 
         return function_type->return_type;
     }
@@ -159,14 +165,13 @@ std::tuple<Symbol_ptr, int, std::map<std::string, Type_ptr>> SemanticsAnalyzer::
 
     std::map<std::string, Type_ptr> substitutions = {};
 
-    // Only one candidate. Return it.
     // Only one candidate.
     if (viable.size() == 1)
     {
-        const auto& candidate = viable[0];
+        const Candidate& candidate = viable[0];
 
         // If it's a template, we need to compute substitutions
-        if (candidate.function_type->template_type && !candidate.function_type->template_type->empty())
+        if (!candidate.function_type->template_type->empty())
         {
             // Check if this template is assignable with the given explicit types
             auto [ok, subs] = is_assignable_template_function(
@@ -175,12 +180,11 @@ std::tuple<Symbol_ptr, int, std::map<std::string, Type_ptr>> SemanticsAnalyzer::
                 argument_types
             );
 
-            Doctor::semantics().check(ok, "Template function not assignable");
+            Doctor::semantics().check(ok, "Ambiguous call to template function " + name);
 
             return {candidate.symbol, candidate.index, subs};
         }
 
-        // Non-template: return empty substitutions
         return {candidate.symbol, candidate.index, substitutions};
     }
 
@@ -240,18 +244,7 @@ std::pair<bool, std::map<std::string, Type_ptr>> SemanticsAnalyzer::is_assignabl
     const TypeVector& argument_types
 ) const
 {
-    // A template function is assignable if:
-    // 1. It has a template_type
-    // 2. The number of solid types matches the template parameters
-    // 3. After substituting, the arguments are assignable to parameters
-
-    // Build substitution map from solid types
     std::map<std::string, Type_ptr> substitutions;
-
-    if (!function_type->template_type)
-    {
-        return {false, substitutions};
-    }
 
     const StringVector& template_params = function_type->template_type->ordered_parameter_names;
 
@@ -271,7 +264,7 @@ std::pair<bool, std::map<std::string, Type_ptr>> SemanticsAnalyzer::is_assignabl
 
     for (const Type_ptr& param_type : function_type->parameter_types)
     {
-        substituted_params.push_back(substitute_type(param_type, substitutions));
+        substituted_params.push_back(Solidifier::get().substitute_type(param_type, substitutions));
     }
 
     // Check if arguments are assignable to substituted parameters
@@ -286,64 +279,6 @@ std::pair<bool, std::map<std::string, Type_ptr>> SemanticsAnalyzer::is_assignabl
     }
 
     return {true, substitutions};
-}
-
-Type_ptr SemanticsAnalyzer::substitute_type(
-    Type_ptr type,
-    const std::map<std::string, Type_ptr>& substitutions
-) const
-{
-    if (!type)
-    {
-        return nullptr;
-    }
-
-    if (type->is<GenericType_ptr>())
-    {
-        auto generic = type->as<GenericType_ptr>();
-        auto it = substitutions.find(generic->name);
-        if (it != substitutions.end())
-        {
-            return it->second;
-        }
-        return type;
-    }
-
-    // Handle composite types
-    if (type->is<ListType_ptr>())
-    {
-        auto list = type->as<ListType_ptr>();
-        auto new_element = substitute_type(list->element_type, substitutions);
-        return make_shared_type<ListType>(new_element);
-    }
-
-    if (type->is<SetType_ptr>())
-    {
-        auto set = type->as<SetType_ptr>();
-        auto new_element = substitute_type(set->element_type, substitutions);
-        return make_shared_type<SetType>(new_element);
-    }
-
-    if (type->is<MapType_ptr>())
-    {
-        auto map = type->as<MapType_ptr>();
-        auto new_key = substitute_type(map->key_type, substitutions);
-        auto new_value = substitute_type(map->value_type, substitutions);
-        return make_shared_type<MapType>(new_key, new_value);
-    }
-
-    if (type->is<TupleType_ptr>())
-    {
-        auto tuple = type->as<TupleType_ptr>();
-        TypeVector new_elements;
-        for (const auto& elem : tuple->element_types)
-        {
-            new_elements.push_back(substitute_type(elem, substitutions));
-        }
-        return make_shared_type<TupleType>(new_elements);
-    }
-
-    return type;
 }
 
 Type_ptr SemanticsAnalyzer::visit(Call& call, MemberAccess& access, const TypeVector& argument_types)

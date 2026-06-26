@@ -123,8 +123,8 @@ struct TypeSystem
 
     Type_ptr unpack_primitive(Type_ptr type) const;
 
-    std::string mangle_name(const Type_ptr& type) const;
-    std::string mangle_name(const TypeVector& generic_types) const;
+    static std::string mangle(const Type_ptr& type);
+    static std::string mangle(const TypeVector& generic_types);
 };
 
 using TypeSystem_ptr = std::shared_ptr<TypeSystem>;

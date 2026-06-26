@@ -128,8 +128,6 @@ private:
         const TypeVector& argument_types
     ) const;
 
-    Type_ptr substitute_type(Type_ptr type, const std::map<std::string, Type_ptr>& substitutions) const;
-
 private:
     // Variables
 
