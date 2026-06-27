@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include <string>
+#include <utility>
 #include <vector>
 
 template <class... Ts> struct overloaded : Ts...
@@ -54,7 +55,7 @@ void handle_generic_constructor(
             template_parameter_type->name
     );
 
-    for (const auto& class_type : classes_to_check)
+    for (const ClassType_ptr& class_type : classes_to_check)
     {
         Doctor::semantics().check(
             argument_types.size() == class_type->fields->ordered_keys.size(),
@@ -70,97 +71,98 @@ void handle_generic_constructor(
 Type_ptr SemanticsAnalyzer::visit(Constructor& expr)
 {
     // Resolve target type (e.g., Foo, T)
-    Type_ptr target_type = visit(expr.constructible);
-    target_type = target_type->unwrap_alias();
+    Type_ptr constructible_type = visit(expr.constructible);
+    constructible_type = constructible_type->unwrap_alias();
 
     TypeVector solid_types = visit(expr.angular_nodes);
     TypeVector argument_types = visit(expr.arguments);
 
-    if (target_type->is<ClassType_ptr>())
+    if (constructible_type->is<ClassType_ptr>())
     {
-        ClassType_ptr class_type = target_type->as<ClassType_ptr>();
+        ClassType_ptr class_type = constructible_type->as<ClassType_ptr>();
 
-        // If the class has template parameters and we have explicit arguments
-        if (class_type->template_type && !class_type->template_type->empty())
+        if (class_type->template_type->empty())
         {
-            Doctor::semantics().check(
-                !solid_types.empty(),
-                "Class template requires explicit template arguments"
-            );
-
-            const StringVector& param_names = class_type->template_type->ordered_parameter_names;
-
-            Doctor::semantics().check(
-                solid_types.size() == param_names.size(),
-                "Template argument count mismatch for class '" + class_type->name + "'. Expected " +
-                    std::to_string(param_names.size()) + ", got " + std::to_string(solid_types.size()) + "."
-            );
-
-            // Build substitution map: parameter name -> solid type
-            TypeSubstitutionMap substitutions;
-            for (size_t i = 0; i < param_names.size(); ++i)
-            {
-                substitutions[param_names[i]] = solid_types[i];
-            }
-
-            // Substitute the class type to produce a specialized version
-            Type_ptr specialized_type = Solidifier::get().substitute_type(target_type, substitutions);
-            specialized_type = specialized_type->unwrap_alias();
-
-            Doctor::semantics().check(
-                specialized_type->is<ClassType_ptr>(),
-                "Substitution must yield a class type"
-            );
-
-            // Now treat it as a concrete class
-            class_type = specialized_type->as<ClassType_ptr>();
-            target_type = specialized_type;
-
-            // Optionally, create a symbol for the specialized class if needed
-            // (similar to function template instantiation)
-            // but for constructors we may not need a new symbol if we just use the type.
-        }
-        else
-        {
-            // Non-template class must not have angular nodes
-            Doctor::semantics().check(
-                solid_types.empty(),
-                "Non-template class does not accept template arguments"
-            );
+            validate_solid_constructor(class_type, solid_types, argument_types);
+            return constructible_type;
         }
 
-        Doctor::semantics().check(
-            argument_types.size() == class_type->fields->ordered_keys.size(),
-            "Constructor Arguments Count Mismatch for class '" + class_type->name + "'. Expected " +
-                std::to_string(class_type->fields->ordered_keys.size()) + ", got " +
-                std::to_string(argument_types.size()) + "."
+        auto [solid_type, substitutions] = validate_constructor_template(
+            class_type,
+            solid_types,
+            argument_types
         );
 
-        for (size_t i = 0; i < argument_types.size(); ++i)
-        {
-            const std::string& field_name = class_type->fields->ordered_keys[i];
-            Type_ptr expected_type = class_type->fields->get_type(field_name);
-
-            bool is_assignable = type_system->assignable(current_scope, expected_type, argument_types[i]);
-
-            Doctor::semantics().check(
-                is_assignable,
-                "Type mismatch in constructor arguments for field '" + field_name + "'"
-            );
-        }
-
-        return target_type;
+        return solid_type;
     }
 
-    // Case 2: Target is a generic type parameter (e.g., T(val) in a generic context)
-    if (target_type->is<GenericType_ptr>())
+    if (constructible_type->is<GenericType_ptr>())
     {
-        GenericType_ptr generic = target_type->as<GenericType_ptr>();
-        handle_generic_constructor(generic, argument_types);
-        return target_type;
+        GenericType_ptr generic_type = constructible_type->as<GenericType_ptr>();
+        handle_generic_constructor(generic_type, argument_types);
+        return constructible_type;
     }
 
-    Doctor::semantics().fatal(target_type->to_string() + " is not a constructible type");
+    Doctor::semantics().fatal(constructible_type->to_string() + " is not a constructible type");
+}
+
+void SemanticsAnalyzer::validate_solid_constructor(
+    ClassType_ptr class_type,
+    TypeVector solid_types,
+    TypeVector argument_types
+)
+{
+    Doctor::semantics().check(solid_types.empty(), "Non-template class does not accept template arguments");
+
+    Doctor::semantics().check(
+        argument_types.size() == class_type->fields->ordered_keys.size(),
+        "Constructor Arguments Count Mismatch for class '" + class_type->name + "'. Expected " +
+            std::to_string(class_type->fields->ordered_keys.size()) + ", got " +
+            std::to_string(argument_types.size()) + "."
+    );
+
+    for (size_t i = 0; i < argument_types.size(); ++i)
+    {
+        const std::string& field_name = class_type->fields->ordered_keys[i];
+        const Type_ptr expected_type = class_type->fields->get_type(field_name);
+
+        bool is_assignable = type_system->assignable(current_scope, expected_type, argument_types[i]);
+
+        Doctor::semantics().check(
+            is_assignable,
+            "Type mismatch in constructor arguments for field '" + field_name + "'"
+        );
+    }
+}
+
+std::pair<Type_ptr, TypeSubstitutionMap> SemanticsAnalyzer::validate_constructor_template(
+    ClassType_ptr class_type,
+    TypeVector solid_types,
+    TypeVector argument_types
+)
+{
+    Doctor::semantics().check(!solid_types.empty(), "Class template requires explicit template arguments");
+
+    const StringVector& generic_names = class_type->template_type->ordered_parameter_names;
+
+    Doctor::semantics().check(
+        solid_types.size() == generic_names.size(),
+        "Template argument count mismatch for class '" + class_type->name + "'. Expected " +
+            std::to_string(generic_names.size()) + ", got " + std::to_string(solid_types.size()) + "."
+    );
+
+    // Build substitution map: generic name -> solid type
+    TypeSubstitutionMap substitutions;
+    for (size_t i = 0; i < generic_names.size(); ++i)
+    {
+        substitutions[generic_names[i]] = solid_types[i];
+    }
+
+    Type_ptr solid_type = Solidifier::get().substitute_type(class_type, substitutions);
+
+    validate_solid_constructor(solid_type->as<ClassType_ptr>(), solid_types, argument_types);
+
+    return {solid_type, substitutions};
 }
 
 } // namespace Wasp

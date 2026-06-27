@@ -21,7 +21,9 @@ public:
 
     Statement_ptr visit(Statement_ptr& stmt, const std::map<std::string, Type_ptr>& substitution_map);
     Statement_ptr visit(FunctionDefinition& func, const std::map<std::string, Type_ptr>& substitution_map);
+
     Type_ptr substitute_type(Type_ptr type, std::map<std::string, Type_ptr>& substitutions) const;
+    Type_ptr substitute_type(ClassType_ptr type, std::map<std::string, Type_ptr>& substitutions) const;
 
 private:
     Solidifier() = default;

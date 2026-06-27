@@ -231,6 +231,18 @@ void SymbolScope::define(Symbol_ptr symbol)
             overload_method(symbol);
             return;
         }
+
+        if (symbol_type->is<ClassType_ptr>())
+        {
+            overload_class(symbol);
+            return;
+        }
+
+        if (symbol_type->is<TraitType_ptr>())
+        {
+            overload_trait(symbol);
+            return;
+        }
     }
 
     Doctor::semantics().check(
@@ -264,7 +276,7 @@ void SymbolScope::define(TemplateType_ptr template_type)
 void SymbolScope::overload_function(Symbol_ptr new_symbol)
 {
     Doctor::semantics().fatal_if_nullptr(new_symbol, "Cannot define a null symbol");
-    Doctor::semantics().check(new_symbol->is<TypeSymbol>(), "Only callables can be overloaded");
+    Doctor::semantics().check(new_symbol->is<TypeSymbol>(), "Cannot be overloaded");
 
     Type_ptr new_symbol_type = new_symbol->get_type();
 
@@ -298,7 +310,7 @@ void SymbolScope::overload_function(Symbol_ptr new_symbol)
 void SymbolScope::overload_method(Symbol_ptr new_symbol)
 {
     Doctor::semantics().fatal_if_nullptr(new_symbol, "Cannot define a null symbol");
-    Doctor::semantics().check(new_symbol->is<TypeSymbol>(), "Only callables can be overloaded");
+    Doctor::semantics().check(new_symbol->is<TypeSymbol>(), "Cannot be overloaded");
 
     Type_ptr new_symbol_type = new_symbol->get_type();
 
@@ -325,6 +337,74 @@ void SymbolScope::overload_method(Symbol_ptr new_symbol)
     OverloadSymbol& os = overload_symbol->as<OverloadSymbol>();
     os.overloads.push_back(new_symbol);
     os.type->as<MethodTypeVector>().push_back(new_method_type);
+
+    symbols[new_symbol->name] = overload_symbol;
+}
+
+void SymbolScope::overload_class(Symbol_ptr new_symbol)
+{
+    Doctor::semantics().fatal_if_nullptr(new_symbol, "Cannot define a null symbol");
+    Doctor::semantics().check(new_symbol->is<TypeSymbol>(), "Cannot be overloaded");
+
+    Type_ptr new_symbol_type = new_symbol->get_type();
+
+    Doctor::semantics().check(
+        new_symbol_type->is<ClassType_ptr>(),
+        "Expected FunctionType for symbol: " + new_symbol->name
+    );
+
+    ClassType_ptr new_class_type = new_symbol_type->as<ClassType_ptr>();
+
+    Symbol_ptr overload_symbol = this->lookup_local(new_symbol->name);
+
+    if (!overload_symbol)
+    {
+        Type_ptr function_type = make_type(ClassTypeVector{});
+        overload_symbol = SymbolFactory::create_overloads(new_symbol->name, function_type);
+    }
+
+    Doctor::semantics().check(
+        overload_symbol->is<OverloadSymbol>(),
+        "Expected OverloadSymbol for symbol: " + overload_symbol->name
+    );
+
+    OverloadSymbol& os = overload_symbol->as<OverloadSymbol>();
+    os.overloads.push_back(new_symbol);
+    os.type->as<ClassTypeVector>().push_back(new_class_type);
+
+    symbols[new_symbol->name] = overload_symbol;
+}
+
+void SymbolScope::overload_trait(Symbol_ptr new_symbol)
+{
+    Doctor::semantics().fatal_if_nullptr(new_symbol, "Cannot define a null symbol");
+    Doctor::semantics().check(new_symbol->is<TypeSymbol>(), "Cannot be overloaded");
+
+    Type_ptr new_symbol_type = new_symbol->get_type();
+
+    Doctor::semantics().check(
+        new_symbol_type->is<TraitType_ptr>(),
+        "Expected FunctionType for symbol: " + new_symbol->name
+    );
+
+    TraitType_ptr new_trait_type = new_symbol_type->as<TraitType_ptr>();
+
+    Symbol_ptr overload_symbol = this->lookup_local(new_symbol->name);
+
+    if (!overload_symbol)
+    {
+        Type_ptr function_type = make_type(TraitTypeVector{});
+        overload_symbol = SymbolFactory::create_overloads(new_symbol->name, function_type);
+    }
+
+    Doctor::semantics().check(
+        overload_symbol->is<OverloadSymbol>(),
+        "Expected OverloadSymbol for symbol: " + overload_symbol->name
+    );
+
+    OverloadSymbol& os = overload_symbol->as<OverloadSymbol>();
+    os.overloads.push_back(new_symbol);
+    os.type->as<TraitTypeVector>().push_back(new_trait_type);
 
     symbols[new_symbol->name] = overload_symbol;
 }

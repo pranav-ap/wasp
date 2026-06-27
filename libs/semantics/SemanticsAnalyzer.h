@@ -112,6 +112,18 @@ private:
 
     Type_ptr visit(Constructor& expr);
 
+    void validate_solid_constructor(
+        ClassType_ptr class_type,
+        TypeVector solid_types,
+        TypeVector argument_types
+    );
+
+    std::pair<Type_ptr, TypeSubstitutionMap> validate_constructor_template(
+        ClassType_ptr class_type,
+        TypeVector solid_types,
+        TypeVector argument_types
+    );
+
 private:
     // Call
 

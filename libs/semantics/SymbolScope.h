@@ -80,6 +80,8 @@ private:
 
     void overload_function(Symbol_ptr);
     void overload_method(Symbol_ptr);
+    void overload_class(Symbol_ptr);
+    void overload_trait(Symbol_ptr);
 };
 
 } // namespace Wasp

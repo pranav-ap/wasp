@@ -433,6 +433,52 @@ TypeNode_ptr Solidifier::type_to_typenode(Type_ptr type)
     );
 }
 
+Type_ptr Solidifier::substitute_type(ClassType_ptr t, std::map<std::string, Type_ptr>& substitutions) const
+{
+    FieldMap_ptr new_fields = std::make_shared<FieldMap>();
+    if (t->fields)
+    {
+        for (auto& [name, field_type] : t->fields->types)
+        {
+            new_fields->types[name] = substitute_type(field_type, substitutions);
+            new_fields->ordered_keys.push_back(name);
+        }
+    }
+
+    MethodMap_ptr new_methods = std::make_shared<MethodMap>();
+    if (t->methods)
+    {
+        for (auto& [name, method_vec] : t->methods->method_overload_types)
+        {
+            MethodTypeVector new_vec;
+            for (auto& method : method_vec)
+            {
+                auto substituted = substitute_type(make_type(method), substitutions);
+                new_vec.push_back(substituted->as<MethodType_ptr>());
+            }
+            new_methods->method_overload_types[name] = new_vec;
+            new_methods->ordered_keys.push_back(name);
+        }
+    }
+
+    ClassType_ptr new_class = std::make_shared<ClassType>(t->name);
+    new_class->fields = new_fields;
+    new_class->methods = new_methods;
+    new_class->itables = t->itables;
+
+    // Substitute traits
+    TypeVector new_traits;
+    for (auto& trait : t->traits)
+    {
+        new_traits.push_back(substitute_type(trait, substitutions));
+    }
+    new_class->traits = new_traits;
+
+    new_class->template_type = t->template_type;
+
+    return make_type(new_class);
+}
+
 Type_ptr Solidifier::substitute_type(Type_ptr type, std::map<std::string, Type_ptr>& substitutions) const
 {
     Doctor::semantics().fatal_if_nullptr(type, "Attempted to substitute a null Type");
@@ -574,48 +620,7 @@ Type_ptr Solidifier::substitute_type(Type_ptr type, std::map<std::string, Type_p
             // ============================================================================
             [&](ClassType_ptr t) -> Type_ptr
             {
-                FieldMap_ptr new_fields = std::make_shared<FieldMap>();
-                if (t->fields)
-                {
-                    for (auto& [name, field_type] : t->fields->types)
-                    {
-                        new_fields->types[name] = substitute_type(field_type, substitutions);
-                        new_fields->ordered_keys.push_back(name);
-                    }
-                }
-
-                MethodMap_ptr new_methods = std::make_shared<MethodMap>();
-                if (t->methods)
-                {
-                    for (auto& [name, method_vec] : t->methods->method_overload_types)
-                    {
-                        MethodTypeVector new_vec;
-                        for (auto& method : method_vec)
-                        {
-                            auto substituted = substitute_type(make_type(method), substitutions);
-                            new_vec.push_back(substituted->as<MethodType_ptr>());
-                        }
-                        new_methods->method_overload_types[name] = new_vec;
-                        new_methods->ordered_keys.push_back(name);
-                    }
-                }
-
-                ClassType_ptr new_class = std::make_shared<ClassType>(t->name);
-                new_class->fields = new_fields;
-                new_class->methods = new_methods;
-                new_class->itables = t->itables;
-
-                // Substitute traits
-                TypeVector new_traits;
-                for (auto& trait : t->traits)
-                {
-                    new_traits.push_back(substitute_type(trait, substitutions));
-                }
-                new_class->traits = new_traits;
-
-                new_class->template_type = t->template_type;
-
-                return make_type(new_class);
+                return substitute_type(t, substitutions);
             },
             [&](TraitType_ptr t) -> Type_ptr
             {

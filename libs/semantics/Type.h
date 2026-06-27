@@ -362,6 +362,9 @@ using ClassType_ptr = std::shared_ptr<ClassType>;
 using TraitType_ptr = std::shared_ptr<TraitType>;
 using PrimitiveType_ptr = std::shared_ptr<PrimitiveType>;
 
+using ClassTypeVector = std::vector<ClassType_ptr>;
+using TraitTypeVector = std::vector<TraitType_ptr>;
+
 // ============================================================================
 // Alias
 // ============================================================================
