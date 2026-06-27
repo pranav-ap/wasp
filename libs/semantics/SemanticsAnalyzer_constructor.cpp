@@ -2,6 +2,7 @@
 #include "Doctor.h"
 #include "Expression.h"
 #include "SemanticsAnalyzer.h"
+#include "Solidifier.h"
 #include "Type.h"
 
 #include <cstddef>
@@ -68,12 +69,90 @@ void handle_generic_constructor(
 
 Type_ptr SemanticsAnalyzer::visit(Constructor& expr)
 {
+    // Resolve target type (e.g., Foo, T)
     Type_ptr target_type = visit(expr.constructible);
     target_type = target_type->unwrap_alias();
 
+    TypeVector solid_types = visit(expr.angular_nodes);
     TypeVector argument_types = visit(expr.arguments);
 
-    // T(val) - Generic parameter constructor
+    if (target_type->is<ClassType_ptr>())
+    {
+        ClassType_ptr class_type = target_type->as<ClassType_ptr>();
+
+        // If the class has template parameters and we have explicit arguments
+        if (class_type->template_type && !class_type->template_type->empty())
+        {
+            Doctor::semantics().check(
+                !solid_types.empty(),
+                "Class template requires explicit template arguments"
+            );
+
+            const StringVector& param_names = class_type->template_type->ordered_parameter_names;
+
+            Doctor::semantics().check(
+                solid_types.size() == param_names.size(),
+                "Template argument count mismatch for class '" + class_type->name + "'. Expected " +
+                    std::to_string(param_names.size()) + ", got " + std::to_string(solid_types.size()) + "."
+            );
+
+            // Build substitution map: parameter name -> solid type
+            TypeSubstitutionMap substitutions;
+            for (size_t i = 0; i < param_names.size(); ++i)
+            {
+                substitutions[param_names[i]] = solid_types[i];
+            }
+
+            // Substitute the class type to produce a specialized version
+            Type_ptr specialized_type = Solidifier::get().substitute_type(target_type, substitutions);
+            specialized_type = specialized_type->unwrap_alias();
+
+            Doctor::semantics().check(
+                specialized_type->is<ClassType_ptr>(),
+                "Substitution must yield a class type"
+            );
+
+            // Now treat it as a concrete class
+            class_type = specialized_type->as<ClassType_ptr>();
+            target_type = specialized_type;
+
+            // Optionally, create a symbol for the specialized class if needed
+            // (similar to function template instantiation)
+            // but for constructors we may not need a new symbol if we just use the type.
+        }
+        else
+        {
+            // Non-template class must not have angular nodes
+            Doctor::semantics().check(
+                solid_types.empty(),
+                "Non-template class does not accept template arguments"
+            );
+        }
+
+        Doctor::semantics().check(
+            argument_types.size() == class_type->fields->ordered_keys.size(),
+            "Constructor Arguments Count Mismatch for class '" + class_type->name + "'. Expected " +
+                std::to_string(class_type->fields->ordered_keys.size()) + ", got " +
+                std::to_string(argument_types.size()) + "."
+        );
+
+        for (size_t i = 0; i < argument_types.size(); ++i)
+        {
+            const std::string& field_name = class_type->fields->ordered_keys[i];
+            Type_ptr expected_type = class_type->fields->get_type(field_name);
+
+            bool is_assignable = type_system->assignable(current_scope, expected_type, argument_types[i]);
+
+            Doctor::semantics().check(
+                is_assignable,
+                "Type mismatch in constructor arguments for field '" + field_name + "'"
+            );
+        }
+
+        return target_type;
+    }
+
+    // Case 2: Target is a generic type parameter (e.g., T(val) in a generic context)
     if (target_type->is<GenericType_ptr>())
     {
         GenericType_ptr generic = target_type->as<GenericType_ptr>();
@@ -81,48 +160,7 @@ Type_ptr SemanticsAnalyzer::visit(Constructor& expr)
         return target_type;
     }
 
-    // Box(5) - Class constructor
-    if (target_type->is<ClassType_ptr>())
-    {
-        ClassType_ptr cls = target_type->as<ClassType_ptr>();
-
-        Doctor::semantics().check(
-            argument_types.size() == cls->fields->ordered_keys.size(),
-            "Constructor Arguments Count Mismatch for class '" + cls->name +
-                "'. Expected " + std::to_string(cls->fields->ordered_keys.size()) +
-                ", got " + std::to_string(argument_types.size()) + "."
-        );
-
-        for (size_t i = 0; i < argument_types.size(); ++i)
-        {
-            const std::string& field_name = cls->fields->ordered_keys[i];
-
-            Doctor::semantics().check(
-                cls->fields->contains(field_name),
-                "Field '" + field_name + "' not found in class '" + cls->name + "'."
-            );
-
-            Type_ptr expected_type = cls->fields->get_type(field_name);
-
-            bool is_assignable = type_system->assignable(
-                current_scope,
-                expected_type,
-                argument_types[i]
-            );
-
-            Doctor::semantics().check(
-                is_assignable,
-                "Type mismatch in constructor arguments"
-            );
-        }
-
-        return target_type;
-    }
-
-    Doctor::semantics().fatal(
-        "Invalid constructor target: '" + target_type->to_string() +
-        "' is not a constructible type."
-    );
+    Doctor::semantics().fatal(target_type->to_string() + " is not a constructible type");
 }
 
 } // namespace Wasp

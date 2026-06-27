@@ -46,6 +46,11 @@ std::pair<Statement_ptr, SymbolScope_ptr> SemanticsAnalyzer::get_tree(
     return {it->second.first, it->second.second};
 }
 
+bool SemanticsAnalyzer::contains_tree(Symbol_ptr symbol) const
+{
+    return forest.find(symbol) != forest.end();
+}
+
 void SemanticsAnalyzer::add_tree(
     Symbol_ptr symbol,
     Statement_ptr tree,

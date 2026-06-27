@@ -7,8 +7,10 @@
 #include "TypeSystem.h"
 #include "Workspace.h"
 
+#include <cstddef>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -16,6 +18,26 @@
 
 namespace Wasp
 {
+
+using TypeSubstitutionMap = std::map<std::string, Type_ptr>;
+
+struct FunctionCandidate
+{
+    Symbol_ptr symbol;
+    int index;
+    FunctionType_ptr function_type;
+};
+
+using FunctionCandidateVector = std::vector<FunctionCandidate>;
+
+struct MethodCandidate
+{
+    MethodType_ptr method_type;
+    int index;
+};
+
+using MethodCandidateVector = std::vector<MethodCandidate>;
+
 class SemanticsAnalyzer
 {
 public:
@@ -38,6 +60,7 @@ private:
 
     std::pair<Statement_ptr, SymbolScope_ptr> get_tree(Symbol_ptr symbol);
     void add_tree(Symbol_ptr symbol, Statement_ptr tree, SymbolScope_ptr scope);
+    bool contains_tree(Symbol_ptr symbol) const;
 
 private:
     // Types
@@ -110,19 +133,30 @@ private:
         const OopsType_ptr owner_type
     );
 
-    std::tuple<Symbol_ptr, int, std::map<std::string, Type_ptr>> resolve_function(
-        const std::string& name,
-        const SymbolVector& candidates,
-        const TypeVector& solid_types,
-        const TypeVector& argument_types
-    ) const;
-
     std::tuple<MethodType_ptr, int> resolve_method(
         const MethodTypeVector& method_types,
         const TypeVector& argument_types
     ) const;
 
-    std::pair<bool, std::map<std::string, Type_ptr>> is_assignable_template_function(
+    std::optional<std::pair<Symbol_ptr, int>> try_resolve_solid(
+        const std::string& name,
+        const std::vector<FunctionCandidate>& candidates,
+        const TypeVector& argument_types
+    ) const;
+
+    std::optional<std::tuple<Symbol_ptr, int, TypeSubstitutionMap>> try_resolve_template(
+        const std::string& name,
+        const std::vector<FunctionCandidate>& candidates,
+        const TypeVector& solid_types,
+        const TypeVector& argument_types
+    ) const;
+
+    FunctionCandidate get_best_candidate(
+        const std::vector<FunctionCandidate>& candidates,
+        const TypeVector& argument_types
+    ) const;
+
+    std::pair<bool, TypeSubstitutionMap> is_assignable_template_function(
         FunctionType_ptr function_type,
         const TypeVector& solid_types,
         const TypeVector& argument_types
