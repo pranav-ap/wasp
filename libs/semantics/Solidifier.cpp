@@ -10,7 +10,7 @@
 #include <map>
 #include <memory>
 #include <string>
-#include <type_traits>
+#include <utility>
 #include <variant>
 
 template <class... Ts> struct overloaded : Ts...
@@ -140,6 +140,112 @@ Statement_ptr Solidifier::visit(
     func.block = solidify(func.block, typenode_map);
 
     return make_statement(func);
+}
+
+Statement_ptr Solidifier::visit(
+    OperatorDefinition& func,
+    const std::map<std::string, TypeNode_ptr>& typenode_map
+)
+{
+    func.generics = {};
+    func.symbol = nullptr;
+
+    FieldVector solid_fields;
+
+    for (Field& param : func.operands)
+    {
+        solid_fields.push_back(visit(param, typenode_map));
+    }
+
+    func.operands = solid_fields;
+
+    if (func.return_type)
+    {
+        func.return_type = visit(func.return_type, typenode_map);
+    }
+
+    func.block = solidify(func.block, typenode_map);
+
+    return make_statement(func);
+}
+
+void Solidifier::solidify_type_definition(
+    TypeDefinition& def,
+    const std::map<std::string, TypeNode_ptr>& typenode_map
+)
+{
+    def.generics = {};
+    def.symbol = nullptr;
+
+    FieldVector solid_fields;
+    solid_fields.reserve(def.fields.size());
+
+    for (auto& field : def.fields)
+    {
+        solid_fields.push_back(visit(field, typenode_map));
+    }
+
+    def.fields = std::move(solid_fields);
+
+    MethodDefinitionVector solid_methods;
+    solid_methods.reserve(def.methods.size());
+
+    for (auto& method : def.methods)
+    {
+        FieldVector solid_params;
+        solid_params.reserve(method.parameters.size());
+
+        for (auto& param : method.parameters)
+        {
+            solid_params.push_back(visit(param, typenode_map));
+        }
+
+        method.parameters = std::move(solid_params);
+
+        if (method.return_type)
+        {
+            method.return_type = visit(method.return_type, typenode_map);
+        }
+
+        method.block = solidify(method.block, typenode_map);
+
+        method.symbol = nullptr;
+
+        solid_methods.push_back(std::move(method));
+    }
+
+    def.methods = std::move(solid_methods);
+
+    TypeNodeVector solid_traits;
+    solid_traits.reserve(def.traits.size());
+
+    for (auto& trait : def.traits)
+    {
+        solid_traits.push_back(visit(trait, typenode_map));
+    }
+
+    def.traits = std::move(solid_traits);
+}
+
+Statement_ptr Solidifier::visit(ClassDefinition& def, const std::map<std::string, TypeNode_ptr>& typenode_map)
+{
+    solidify_type_definition(def, typenode_map);
+    return make_statement(def);
+}
+
+Statement_ptr Solidifier::visit(TraitDefinition& def, const std::map<std::string, TypeNode_ptr>& typenode_map)
+{
+    solidify_type_definition(def, typenode_map);
+    return make_statement(def);
+}
+
+Statement_ptr Solidifier::visit(
+    PrimitiveDefinition& def,
+    const std::map<std::string, TypeNode_ptr>& typenode_map
+)
+{
+    solidify_type_definition(def, typenode_map);
+    return make_statement(def);
 }
 
 Block Solidifier::solidify(Block& block, const std::map<std::string, TypeNode_ptr>& typenode_map)

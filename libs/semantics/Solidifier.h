@@ -35,7 +35,17 @@ private:
         const std::map<std::string, TypeNode_ptr>& typenode_map
     );
 
+    void solidify_type_definition(
+        TypeDefinition& def,
+        const std::map<std::string, TypeNode_ptr>& typenode_map
+    );
+
     Statement_ptr visit(FunctionDefinition& func, const std::map<std::string, TypeNode_ptr>& typenode_map);
+    Statement_ptr visit(OperatorDefinition& func, const std::map<std::string, TypeNode_ptr>& typenode_map);
+
+    Statement_ptr visit(ClassDefinition& func, const std::map<std::string, TypeNode_ptr>& typenode_map);
+    Statement_ptr visit(TraitDefinition& func, const std::map<std::string, TypeNode_ptr>& typenode_map);
+    Statement_ptr visit(PrimitiveDefinition& func, const std::map<std::string, TypeNode_ptr>& typenode_map);
 
     Block solidify(Block& block, const std::map<std::string, TypeNode_ptr>& typenode_map);
 

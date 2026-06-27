@@ -4,6 +4,7 @@
 #include "Expression.h"
 #include "SemanticsAnalyzer.h"
 #include "Solidifier.h"
+#include "Statement.h"
 #include "Symbol.h"
 #include "SymbolFactory.h"
 #include "Type.h"
@@ -125,6 +126,9 @@ Type_ptr SemanticsAnalyzer::visit(
         identifier.symbol = class_symbol;
         identifier.must_be_captured = class_symbol->should_be_captured(current_scope->closure_depth);
 
+        std::string mangled_name = identifier.name + "_" + TypeSystem::mangle(argument_types);
+        class_symbol->mangled_name = mangled_name;
+
         return class_symbol->get_type();
     }
 
@@ -140,9 +144,10 @@ Type_ptr SemanticsAnalyzer::visit(
         auto [template_class_symbol, overload_index, substitutions] = template_result.value();
 
         std::string mangled_name = identifier.name + "_" + TypeSystem::mangle(solid_types);
+
         identifier.name = mangled_name;
 
-        Symbol_ptr solid_class_symbol = current_scope->lookup(mangled_name);
+        Symbol_ptr solid_oops_symbol = current_scope->lookup(mangled_name);
 
         Type_ptr template_class_symbol_type = template_class_symbol->get_type();
         ClassType_ptr template_class_type = template_class_symbol_type->as<ClassType_ptr>();
@@ -152,17 +157,19 @@ Type_ptr SemanticsAnalyzer::visit(
             substitutions
         );
 
-        if (!solid_class_symbol)
+        if (!solid_oops_symbol)
         {
-            solid_class_symbol = SymbolFactory::create_type(
+            solid_oops_symbol = SymbolFactory::create_type(
                 mangled_name,
                 solid_class_symbol_type,
                 current_scope->closure_depth,
                 current_scope->lexical_depth
             );
 
-            current_scope->define(solid_class_symbol);
+            current_scope->define(solid_oops_symbol);
         }
+
+        solid_oops_symbol->mangled_name = mangled_name;
 
         auto [template_class_definition_stmt, definition_scope] = get_tree(template_class_symbol);
 
@@ -172,10 +179,23 @@ Type_ptr SemanticsAnalyzer::visit(
 
         Statement_ptr solid_ast = Solidifier::get().visit(template_class_definition_stmt_copy, substitutions);
 
-        add_tree(solid_class_symbol, solid_ast, current_scope);
+        if (solid_ast->is<ClassDefinition>())
+        {
+            solid_ast->as<ClassDefinition>().symbol = solid_oops_symbol;
+        }
+        else if (solid_ast->is<TraitDefinition>())
+        {
+            solid_ast->as<TraitDefinition>().symbol = solid_oops_symbol;
+        }
+        else
+        {
+            Doctor::semantics().fatal("Expected a ClassDefinition or TraitDefinition");
+        }
 
-        identifier.symbol = solid_class_symbol;
-        identifier.must_be_captured = solid_class_symbol->should_be_captured(current_scope->closure_depth);
+        add_tree(solid_oops_symbol, solid_ast, current_scope);
+
+        identifier.symbol = solid_oops_symbol;
+        identifier.must_be_captured = solid_oops_symbol->should_be_captured(current_scope->closure_depth);
 
         return solid_class_symbol_type;
     }

@@ -1,12 +1,12 @@
 import core.io expose *
 import core.types expose *
 
-template
-    T: any
-fun foo(a: T)
-    return
+# template
+#     T: any
+# fun foo(a: T)
+#     return
 
-foo<int>(3)
+# foo<int>(3)
 
 
 template

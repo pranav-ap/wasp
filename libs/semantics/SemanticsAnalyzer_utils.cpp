@@ -63,6 +63,7 @@ void SemanticsAnalyzer::add_tree(
     );
 
     forest[symbol] = {tree, scope};
+    scope->solid_trees.push_back(tree);
 }
 
 } // namespace Wasp

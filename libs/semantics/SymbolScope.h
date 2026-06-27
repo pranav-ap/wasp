@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AST.h"
 #include "Symbol.h"
 #include "Type.h"
 
@@ -44,6 +45,8 @@ public:
 
     int closure_depth;
     int lexical_depth;
+
+    StatementVector solid_trees;
 
     explicit SymbolScope(
         ScopeType type,

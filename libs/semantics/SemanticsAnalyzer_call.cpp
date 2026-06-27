@@ -4,6 +4,7 @@
 #include "Expression.h"
 #include "SemanticsAnalyzer.h"
 #include "Solidifier.h"
+#include "Statement.h"
 #include "Symbol.h"
 #include "SymbolFactory.h"
 #include "SymbolScope.h"
@@ -130,6 +131,9 @@ Type_ptr SemanticsAnalyzer::visit(
         identifier.symbol = function_symbol;
         identifier.must_be_captured = function_symbol->should_be_captured(current_scope->closure_depth);
 
+        std::string mangled_name = identifier.name + "_" + TypeSystem::mangle(argument_types);
+        function_symbol->mangled_name = mangled_name;
+
         FunctionType_ptr function_type = function_symbol->get_type()->as<FunctionType_ptr>();
         return function_type->return_type;
     }
@@ -147,6 +151,7 @@ Type_ptr SemanticsAnalyzer::visit(
         call.overload_index = overload_index;
 
         std::string mangled_name = identifier.name + "_" + TypeSystem::mangle(solid_types);
+
         identifier.name = mangled_name;
 
         Symbol_ptr solid_function_symbol = current_scope->lookup(mangled_name);
@@ -171,6 +176,8 @@ Type_ptr SemanticsAnalyzer::visit(
             current_scope->define(solid_function_symbol);
         }
 
+        solid_function_symbol->mangled_name = mangled_name;
+
         auto [template_function_definition_stmt, definition_scope] = get_tree(template_function_symbol);
 
         Statement_ptr template_function_definition_stmt_copy = ASTCloner::get().clone(
@@ -181,6 +188,8 @@ Type_ptr SemanticsAnalyzer::visit(
             template_function_definition_stmt_copy,
             substitutions
         );
+
+        solid_ast->as<FunctionDefinition>().symbol = solid_function_symbol;
 
         add_tree(solid_function_symbol, solid_ast, current_scope);
 

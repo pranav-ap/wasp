@@ -22,6 +22,9 @@ void SemanticsAnalyzer::visit(Block& block)
     {
         visit(statement);
     }
+
+    block.statements
+        .insert(block.statements.end(), current_scope->solid_trees.begin(), current_scope->solid_trees.end());
 }
 
 void SemanticsAnalyzer::visit(Statement_ptr statement)

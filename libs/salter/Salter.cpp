@@ -133,6 +133,11 @@ Block Salter::salt(Block& block)
     {
         Statement_ptr new_stmt = visit(statement);
 
+        if (new_stmt == nullptr)
+        {
+            continue;
+        }
+
         if (new_stmt->is<Block>())
         {
             for (auto& stmt : new_stmt->as<Block>().statements)
@@ -163,12 +168,16 @@ Statement_ptr Salter::visit(ExpressionStatement& statement)
 
 Statement_ptr Salter::visit(FunctionDefinition& def)
 {
+    if (!def.generics.empty())
+    {
+        return nullptr;
+    }
+
     Block new_block = salt(def.block);
-    std::string mangled_name = def.name + "_" + std::to_string(def.symbol->id);
 
     return make_statement(
         FunctionDefinition{
-            mangled_name,
+            def.symbol->mangled_name,
             def.generics,
             def.parameters,
             def.return_type,
@@ -181,12 +190,16 @@ Statement_ptr Salter::visit(FunctionDefinition& def)
 
 Statement_ptr Salter::visit(OperatorDefinition& def)
 {
+    if (!def.generics.empty())
+    {
+        return nullptr;
+    }
+
     Block new_block = salt(def.block);
-    std::string mangled_name = def.name + "_" + std::to_string(def.symbol->id);
 
     return make_statement(
         FunctionDefinition{
-            mangled_name,
+            def.symbol->mangled_name,
             def.generics,
             def.operands,
             def.return_type,
@@ -199,6 +212,11 @@ Statement_ptr Salter::visit(OperatorDefinition& def)
 
 Statement_ptr Salter::visit(ClassDefinition& def)
 {
+    if (!def.generics.empty())
+    {
+        return nullptr;
+    }
+
     enter_scope(ScopeType::CLASS);
     Block new_block = salt(def);
     leave_scope();
@@ -208,6 +226,11 @@ Statement_ptr Salter::visit(ClassDefinition& def)
 
 Statement_ptr Salter::visit(TraitDefinition& def)
 {
+    if (!def.generics.empty())
+    {
+        return nullptr;
+    }
+
     enter_scope(ScopeType::TRAIT);
     Block new_block = salt(def);
     leave_scope();
@@ -217,6 +240,11 @@ Statement_ptr Salter::visit(TraitDefinition& def)
 
 Statement_ptr Salter::visit(PrimitiveDefinition& def)
 {
+    if (!def.generics.empty())
+    {
+        return nullptr;
+    }
+
     enter_scope(ScopeType::PRIMITIVE);
     Block new_block = salt(def);
     leave_scope();
@@ -226,7 +254,7 @@ Statement_ptr Salter::visit(PrimitiveDefinition& def)
 
 Block Salter::salt(TypeDefinition& def)
 {
-    RecordDefinition record{def.name + "_record", def.fields, def.symbol};
+    RecordDefinition record{def.symbol->mangled_name, def.fields, def.symbol};
 
     StatementVector results = {make_statement(record)};
 
@@ -235,7 +263,7 @@ Block Salter::salt(TypeDefinition& def)
         Block new_block = salt(method.block);
 
         FunctionDefinition func_def{
-            def.name + "_" + method.name,
+            method.symbol->mangled_name,
             {},
             method.parameters,
             method.return_type,
