@@ -177,11 +177,16 @@ private:
     Type_ptr visit(
         Call& call,
         Identifier& identifier,
-        const TypeVector& generic_types,
+        const TypeVector& solid_types,
         const TypeVector& argument_types
     );
 
-    Type_ptr visit(Call& call, MemberAccess& access, const TypeVector& argument_types);
+    Type_ptr visit(
+        Call& call,
+        MemberAccess& access,
+        const TypeVector& solid_types,
+        const TypeVector& argument_types
+    );
 
     std::optional<std::pair<Symbol_ptr, int>> try_resolve_solid(
         const std::string& name,
@@ -218,6 +223,14 @@ private:
         const TypeVector& solid_types,
         const TypeVector& argument_types
     ) const;
+
+    Type_ptr visit(
+        Call& call,
+        MemberAccess& access,
+        const TypeVector& solid_types,
+        const TypeVector& argument_types,
+        ModuleType_ptr module_type
+    );
 
 private:
     // Variables

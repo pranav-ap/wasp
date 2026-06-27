@@ -63,7 +63,7 @@ std::pair<FunctionCandidateVector, FunctionCandidateVector> separate_solid_and_t
 
     for (const auto& c : candidates)
     {
-        if (c.function_type->template_type && !c.function_type->template_type->empty())
+        if (!c.function_type->template_type->empty())
         {
             templated.push_back(c);
         }
@@ -92,7 +92,7 @@ Type_ptr SemanticsAnalyzer::visit(Call& call)
             [&](MemberAccess& ma)
             {
                 Doctor::semantics().check(solid_types.empty(), "Generics on method calls are not allowed.");
-                return visit(call, ma, argument_types);
+                return visit(call, ma, solid_types, argument_types);
             },
             [&](auto&) -> Type_ptr
             {
@@ -333,7 +333,12 @@ FunctionCandidate SemanticsAnalyzer::get_best_candidate(
     return scored[0].first;
 }
 
-Type_ptr SemanticsAnalyzer::visit(Call& call, MemberAccess& access, const TypeVector& argument_types)
+Type_ptr SemanticsAnalyzer::visit(
+    Call& call,
+    MemberAccess& access,
+    const TypeVector& solid_types,
+    const TypeVector& argument_types
+)
 {
     Type_ptr left_type = visit(access.owner);
     left_type = left_type->unwrap_alias();
@@ -362,6 +367,14 @@ Type_ptr SemanticsAnalyzer::visit(Call& call, MemberAccess& access, const TypeVe
                 call.owner_name = primitive_type->name;
 
                 return visit(call, access, argument_types, primitive_type);
+            },
+
+            [&](ModuleType_ptr module_type) -> Type_ptr
+            {
+                call.owner_kind = Call::OwnerKind::MODULE;
+                call.owner_name = module_type->name;
+
+                return visit(call, access, solid_types, argument_types, module_type);
             },
 
             [&](auto&) -> Type_ptr
@@ -397,7 +410,6 @@ std::tuple<MethodType_ptr, int> SemanticsAnalyzer::resolve_method(
     const TypeVector& argument_types
 ) const
 {
-
     MethodCandidateVector viable;
 
     for (size_t i = 0; i < method_types.size(); ++i)
@@ -487,6 +499,26 @@ std::pair<bool, TypeSubstitutionMap> SemanticsAnalyzer::is_assignable_template_f
     }
 
     return {true, substitutions};
+}
+
+Type_ptr SemanticsAnalyzer::visit(
+    Call& call,
+    MemberAccess& access,
+    const TypeVector& solid_types,
+    const TypeVector& argument_types,
+    ModuleType_ptr module_type
+)
+{
+    std::string function_name = access.member->as<Identifier>().name;
+
+    const Type_ptr& function_type = module_type->get_member(function_name);
+
+    Doctor::semantics().check(
+        function_type->is<FunctionType_ptr>(),
+        "Module member '" + function_name + "' is not a function"
+    );
+
+    return visit(call, access, solid_types, argument_types);
 }
 
 } // namespace Wasp

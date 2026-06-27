@@ -131,15 +131,9 @@ struct Call
 
         CLASS,
         TRAIT,
-        PRIMITIVE
+        PRIMITIVE,
+        MODULE
     } owner_kind = OwnerKind::NONE;
-
-    // enum class Kind
-    // {
-    //     FREE,
-    //     INSTANCE,
-    //     STATIC
-    // } kind = Kind::FREE;
 
     std::string owner_name = "";
 
