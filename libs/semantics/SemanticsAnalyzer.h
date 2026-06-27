@@ -7,7 +7,6 @@
 #include "TypeSystem.h"
 #include "Workspace.h"
 
-#include <cstddef>
 #include <map>
 #include <memory>
 #include <optional>
@@ -28,15 +27,30 @@ struct FunctionCandidate
     FunctionType_ptr function_type;
 };
 
-using FunctionCandidateVector = std::vector<FunctionCandidate>;
-
 struct MethodCandidate
 {
     MethodType_ptr method_type;
     int index;
 };
 
+struct ClassCandidate
+{
+    Symbol_ptr symbol;
+    ClassType_ptr class_type;
+    int index;
+};
+
+struct TraitCandidate
+{
+    Symbol_ptr symbol;
+    TraitType_ptr trait_type;
+    int index;
+};
+
+using FunctionCandidateVector = std::vector<FunctionCandidate>;
 using MethodCandidateVector = std::vector<MethodCandidate>;
+using ClassCandidateVector = std::vector<ClassCandidate>;
+using TraitCandidateVector = std::vector<TraitCandidate>;
 
 class SemanticsAnalyzer
 {
@@ -124,6 +138,37 @@ private:
         TypeVector argument_types
     );
 
+    Type_ptr visit(
+        Constructor& constructor,
+        Identifier& identifier,
+        const TypeVector& solid_types,
+        const TypeVector& argument_types
+    );
+
+    std::optional<std::pair<Symbol_ptr, int>> try_resolve_solid(
+        const std::string& name,
+        const std::vector<ClassCandidate>& candidates,
+        const TypeVector& argument_types
+    ) const;
+
+    std::optional<std::tuple<Symbol_ptr, int, TypeSubstitutionMap>> try_resolve_template(
+        const std::string& name,
+        const std::vector<ClassCandidate>& candidates,
+        const TypeVector& solid_types,
+        const TypeVector& argument_types
+    ) const;
+
+    ClassCandidate get_best_candidate(
+        const std::vector<ClassCandidate>& candidates,
+        const TypeVector& argument_types
+    ) const;
+
+    std::pair<bool, TypeSubstitutionMap> is_constructible_template_class(
+        ClassType_ptr class_type,
+        const TypeVector& solid_types,
+        const TypeVector& argument_types
+    ) const;
+
 private:
     // Call
 
@@ -138,18 +183,6 @@ private:
 
     Type_ptr visit(Call& call, MemberAccess& access, const TypeVector& argument_types);
 
-    Type_ptr visit(
-        Call& call,
-        MemberAccess& ma,
-        const TypeVector& argument_types,
-        const OopsType_ptr owner_type
-    );
-
-    std::tuple<MethodType_ptr, int> resolve_method(
-        const MethodTypeVector& method_types,
-        const TypeVector& argument_types
-    ) const;
-
     std::optional<std::pair<Symbol_ptr, int>> try_resolve_solid(
         const std::string& name,
         const std::vector<FunctionCandidate>& candidates,
@@ -160,6 +193,18 @@ private:
         const std::string& name,
         const std::vector<FunctionCandidate>& candidates,
         const TypeVector& solid_types,
+        const TypeVector& argument_types
+    ) const;
+
+    Type_ptr visit(
+        Call& call,
+        MemberAccess& ma,
+        const TypeVector& argument_types,
+        const OopsType_ptr owner_type
+    );
+
+    std::tuple<MethodType_ptr, int> resolve_method(
+        const MethodTypeVector& method_types,
         const TypeVector& argument_types
     ) const;
 

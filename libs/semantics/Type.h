@@ -297,7 +297,9 @@ struct FieldMap
 
     int get_index(const std::string& field_name) const;
     Type_ptr get_type(const std::string& field_name) const;
+    Type_ptr get_type(int index) const;
     bool contains(const std::string& field_name) const;
+    TypeVector get_ordered_types() const;
 };
 
 using FieldMap_ptr = std::shared_ptr<FieldMap>;
@@ -443,6 +445,9 @@ using TypeVariant = std::variant<
     ClassType_ptr,
     TraitType_ptr,
     PrimitiveType_ptr,
+
+    ClassTypeVector,
+    TraitTypeVector,
 
     TypeAlias_ptr>;
 

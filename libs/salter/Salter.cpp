@@ -367,8 +367,7 @@ Expression_ptr Salter::visit(Call& call)
         Expression_ptr owner = visit(access.owner);
         ExpressionVector new_args = {owner};
 
-        new_args
-            .insert(new_args.end(), call.arguments.begin(), call.arguments.end());
+        new_args.insert(new_args.end(), call.arguments.begin(), call.arguments.end());
 
         Doctor::semantics().check(
             access.member->is<Identifier>(),
@@ -378,9 +377,7 @@ Expression_ptr Salter::visit(Call& call)
         std::string member_name = access.member->as<Identifier>().name;
         std::string class_name = call.owner_name;
 
-        auto new_callee = make_expression(
-            Identifier{class_name + "_" + member_name}
-        );
+        auto new_callee = make_expression(Identifier{class_name + "_" + member_name});
 
         return make_expression(Call{new_callee, call.angular_nodes, new_args});
     }

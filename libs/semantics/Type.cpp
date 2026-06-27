@@ -48,9 +48,32 @@ Type_ptr FieldMap::get_type(const std::string& name) const
     return it->second;
 }
 
+Type_ptr FieldMap::get_type(int index) const
+{
+    Doctor::semantics().check(
+        index >= 0 && index < static_cast<int>(ordered_keys.size()),
+        "Invalid field index: " + std::to_string(index)
+    );
+
+    const auto& name = ordered_keys[index];
+    return types.at(name);
+}
+
 bool FieldMap::contains(const std::string& name) const
 {
     return types.find(name) != types.end();
+}
+
+TypeVector FieldMap::get_ordered_types() const
+{
+    TypeVector ordered_types;
+
+    for (const auto& name : ordered_keys)
+    {
+        ordered_types.push_back(types.at(name));
+    }
+
+    return ordered_types;
 }
 
 // ============================================================================

@@ -324,7 +324,7 @@ Type_ptr SemanticsAnalyzer::mutate_member(Expression_ptr lhs_expr, Expression_pt
 
 Type_ptr SemanticsAnalyzer::visit(Identifier& expr)
 {
-    auto symbol = current_scope->lookup_variable(expr.name);
+    auto symbol = current_scope->lookup_required_and_resolve(expr.name);
     expr.symbol = symbol;
     return symbol->get_type();
 }

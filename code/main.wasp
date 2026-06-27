@@ -1,11 +1,6 @@
 import core.io expose *
 import core.types expose *
 
-print(3)
-let x: [int] = [1, 2, 3]
-
-# "sam ".trim()
-
 template
     T: any
 fun foo(a: T)
@@ -13,3 +8,11 @@ fun foo(a: T)
 
 foo<int>(3)
 
+
+template
+    T: any
+class Monkey
+    a: T
+
+
+Monkey<int>(23)

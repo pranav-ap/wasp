@@ -232,17 +232,17 @@ void SymbolScope::define(Symbol_ptr symbol)
             return;
         }
 
-        if (symbol_type->is<ClassType_ptr>())
-        {
-            overload_class(symbol);
-            return;
-        }
+        // if (symbol_type->is<ClassType_ptr>())
+        // {
+        //     overload_class(symbol);
+        //     return;
+        // }
 
-        if (symbol_type->is<TraitType_ptr>())
-        {
-            overload_trait(symbol);
-            return;
-        }
+        // if (symbol_type->is<TraitType_ptr>())
+        // {
+        //     overload_trait(symbol);
+        //     return;
+        // }
     }
 
     Doctor::semantics().check(

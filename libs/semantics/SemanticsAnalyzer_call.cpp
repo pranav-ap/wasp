@@ -4,11 +4,11 @@
 #include "Expression.h"
 #include "SemanticsAnalyzer.h"
 #include "Solidifier.h"
-#include "Statement.h"
 #include "Symbol.h"
 #include "SymbolFactory.h"
 #include "SymbolScope.h"
 #include "Type.h"
+#include "TypeSystem.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -146,7 +146,8 @@ Type_ptr SemanticsAnalyzer::visit(
         auto [template_function_symbol, overload_index, substitutions] = template_result.value();
         call.overload_index = overload_index;
 
-        std::string mangled_name = symbol->name + "_" + type_system->mangle(solid_types);
+        std::string mangled_name = identifier.name + "_" + TypeSystem::mangle(solid_types);
+        identifier.name = mangled_name;
 
         Symbol_ptr solid_function_symbol = current_scope->lookup(mangled_name);
 
