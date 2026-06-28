@@ -103,6 +103,10 @@ Type_ptr SemanticsAnalyzer::visit(Call& call)
     );
 }
 
+// ==================================================================================
+// Identifier Call
+// ==================================================================================
+
 Type_ptr SemanticsAnalyzer::visit(
     Call& call,
     Identifier& identifier,
@@ -333,6 +337,53 @@ FunctionCandidate SemanticsAnalyzer::get_best_candidate(
     return scored[0].first;
 }
 
+std::pair<bool, TypeSubstitutionMap> SemanticsAnalyzer::is_assignable_template_function(
+    FunctionType_ptr function_type,
+    const TypeVector& solid_types,
+    const TypeVector& argument_types
+) const
+{
+    TypeSubstitutionMap substitutions;
+
+    const StringVector& template_params = function_type->template_type->ordered_parameter_names;
+
+    // Check if solid_types count matches template parameters
+    if (solid_types.size() != template_params.size())
+    {
+        return {false, substitutions};
+    }
+
+    for (size_t i = 0; i < solid_types.size(); ++i)
+    {
+        substitutions[template_params[i]] = solid_types[i];
+    }
+
+    // Substitute parameter types
+    TypeVector substituted_params;
+
+    for (const Type_ptr& param_type : function_type->parameter_types)
+    {
+        substituted_params.push_back(Solidifier::get().substitute_type(param_type, substitutions));
+    }
+
+    // Check if arguments are assignable to substituted parameters
+    for (size_t i = 0; i < argument_types.size(); ++i)
+    {
+        bool is_assignable = type_system->assignable(current_scope, substituted_params[i], argument_types[i]);
+
+        if (!is_assignable)
+        {
+            return {false, substitutions};
+        }
+    }
+
+    return {true, substitutions};
+}
+
+// ==================================================================================
+// Member Access Call
+// ==================================================================================
+
 Type_ptr SemanticsAnalyzer::visit(
     Call& call,
     MemberAccess& access,
@@ -458,49 +509,6 @@ std::tuple<MethodType_ptr, int> SemanticsAnalyzer::resolve_method(
     Doctor::semantics().fatal("Ambiguous method call");
 }
 
-std::pair<bool, TypeSubstitutionMap> SemanticsAnalyzer::is_assignable_template_function(
-    FunctionType_ptr function_type,
-    const TypeVector& solid_types,
-    const TypeVector& argument_types
-) const
-{
-    TypeSubstitutionMap substitutions;
-
-    const StringVector& template_params = function_type->template_type->ordered_parameter_names;
-
-    // Check if solid_types count matches template parameters
-    if (solid_types.size() != template_params.size())
-    {
-        return {false, substitutions};
-    }
-
-    for (size_t i = 0; i < solid_types.size(); ++i)
-    {
-        substitutions[template_params[i]] = solid_types[i];
-    }
-
-    // Substitute parameter types
-    TypeVector substituted_params;
-
-    for (const Type_ptr& param_type : function_type->parameter_types)
-    {
-        substituted_params.push_back(Solidifier::get().substitute_type(param_type, substitutions));
-    }
-
-    // Check if arguments are assignable to substituted parameters
-    for (size_t i = 0; i < argument_types.size(); ++i)
-    {
-        bool is_assignable = type_system->assignable(current_scope, substituted_params[i], argument_types[i]);
-
-        if (!is_assignable)
-        {
-            return {false, substitutions};
-        }
-    }
-
-    return {true, substitutions};
-}
-
 Type_ptr SemanticsAnalyzer::visit(
     Call& call,
     MemberAccess& access,
@@ -509,16 +517,98 @@ Type_ptr SemanticsAnalyzer::visit(
     ModuleType_ptr module_type
 )
 {
-    std::string function_name = access.member->as<Identifier>().name;
+    Module_ptr mod = workspace->get_module(module_type->absolute_filepath);
+    Doctor::semantics().fatal_if_nullptr(mod, "Module not found for module type");
 
-    const Type_ptr& function_type = module_type->get_member(function_name);
+    Doctor::semantics().check(access.member->is<Identifier>(), "Module member must be an identifier");
+    Identifier& member_id = access.member->as<Identifier>();
+    std::string member_name = member_id.name;
+
+    int member_index = module_type->get_member_index(member_name);
+    Symbol_ptr member_symbol = mod->exported_symbols[member_index];
+    Doctor::semantics().fatal_if_nullptr(member_symbol, "Member symbol is null");
+
+    access.member_index = member_index;
 
     Doctor::semantics().check(
-        function_type->is<FunctionType_ptr>(),
-        "Module member '" + function_name + "' is not a function"
+        member_symbol->is<OverloadSymbol>(),
+        "Module member '" + member_name + "' is not a function"
     );
 
-    return visit(call, access, solid_types, argument_types);
+    SymbolVector candidates = member_symbol->as<OverloadSymbol>().overloads;
+
+    FunctionCandidateVector by_arity = filter_by_arity(candidates, argument_types.size());
+    auto [solid_candidates, template_candidates] = separate_solid_and_template(by_arity);
+
+    std::optional<std::pair<Symbol_ptr, int>> solid_result = try_resolve_solid(
+        member_name,
+        solid_candidates,
+        argument_types
+    );
+
+    if (solid_result.has_value())
+    {
+        auto [func_symbol, overload_index] = solid_result.value();
+        call.overload_index = overload_index;
+
+        FunctionType_ptr func_type = func_symbol->get_type()->as<FunctionType_ptr>();
+        return func_type->return_type;
+    }
+
+    // ------------------------------------------------------------------------
+    // 2. Try template candidates (with solidification)
+    // ------------------------------------------------------------------------
+    std::optional<std::tuple<Symbol_ptr, int, TypeSubstitutionMap>>
+        template_result = try_resolve_template(member_name, template_candidates, solid_types, argument_types);
+
+    if (!template_result.has_value())
+    {
+        Doctor::semantics().fatal("No viable candidates for module member call: " + member_name);
+    }
+
+    auto [template_function_symbol, overload_index, substitutions] = template_result.value();
+    call.overload_index = overload_index;
+
+    std::string mangled_name = member_name + "_" + TypeSystem::mangle(solid_types);
+    Symbol_ptr existing_solid = current_scope->lookup(mangled_name);
+
+    if (existing_solid)
+    {
+        access.member->as<Identifier>().symbol = existing_solid;
+        FunctionType_ptr func_type = existing_solid->get_type()->as<FunctionType_ptr>();
+        return func_type->return_type;
+    }
+
+    // Solidify the template function
+
+    Type_ptr template_func_type = template_function_symbol->get_type();
+    Type_ptr solid_func_type = Solidifier::get().substitute_type(template_func_type, substitutions);
+
+    // Create a new symbol for the solidified function
+    Symbol_ptr solid_function_symbol = SymbolFactory::create_type(
+        mangled_name,
+        solid_func_type,
+        current_scope->closure_depth,
+        current_scope->lexical_depth
+    );
+
+    current_scope->define(solid_function_symbol);
+    solid_function_symbol->mangled_name = mangled_name;
+
+    // Clone and solidify the AST
+    auto [template_ast, definition_scope] = get_tree(template_function_symbol);
+    Doctor::semantics().fatal_if_nullptr(template_ast, "Template function AST not found");
+
+    Statement_ptr template_ast_copy = ASTCloner::get().clone(template_ast);
+    Statement_ptr solid_ast = Solidifier::get().visit(template_ast_copy, substitutions);
+    solid_ast->as<FunctionDefinition>().symbol = solid_function_symbol;
+
+    add_tree(solid_function_symbol, solid_ast, current_scope);
+
+    access.member->as<Identifier>().symbol = solid_function_symbol;
+
+    FunctionType_ptr solid_func = solid_func_type->as<FunctionType_ptr>();
+    return solid_func->return_type;
 }
 
 } // namespace Wasp

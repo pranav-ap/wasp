@@ -63,7 +63,8 @@ void SemanticsAnalyzer::init_module(Module_ptr current_module)
     );
 
     ModuleType_ptr mod_type = std::make_shared<ModuleType>(
-        current_module->get_name()
+        current_module->get_name(),
+        current_module->absolute_filepath
     );
 
     TypeStringMap exported_types;

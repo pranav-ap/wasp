@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AST.h"
+#include <filesystem>
 #include <map>
 #include <memory>
 #include <optional>
@@ -391,11 +392,13 @@ using TypeAlias_ptr = std::shared_ptr<TypeAlias>;
 struct ModuleType
 {
     std::string name;
+    std::filesystem::path absolute_filepath;
 
     TypeStringMap member_types;
     StringVector ordered_keys;
 
-    explicit ModuleType(std::string name) : name(std::move(name))
+    explicit ModuleType(std::string name, std::filesystem::path absolute_filepath)
+        : name(std::move(name)), absolute_filepath(std::move(absolute_filepath))
     {
     }
 

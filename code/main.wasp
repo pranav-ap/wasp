@@ -1,5 +1,6 @@
 import core.io expose *
 import core.types expose *
+import core.bank
 
 # template
 #     T: any
@@ -9,10 +10,12 @@ import core.types expose *
 # foo<int>(3)
 
 
-template
-    T: any
-class Monkey
-    a: T
+# template
+#     T: any
+# class Monkey
+#     a: T
 
 
-Monkey<int>(23)
+# Monkey<int>(23)
+
+bank.close()
