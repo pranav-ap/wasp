@@ -407,7 +407,17 @@ Expression_ptr Salter::visit(Call& call)
 
         auto new_callee = make_expression(Identifier{class_name + "_" + member_name});
 
-        return make_expression(Call{new_callee, call.angular_nodes, new_args});
+        return make_expression(
+            Call{
+                new_callee,
+                call.angular_nodes,
+                new_args,
+                call.owner_kind,
+                call.owner_name,
+                call.overload_index,
+                call.owner_type_id
+            }
+        );
     }
 
     for (auto& arg : call.arguments)

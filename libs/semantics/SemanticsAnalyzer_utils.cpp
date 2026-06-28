@@ -1,11 +1,17 @@
 #include "AST.h"
+#include "ASTCloner.h"
 #include "Doctor.h"
 #include "SemanticsAnalyzer.h"
+#include "Solidifier.h"
+#include "Statement.h"
 #include "Symbol.h"
+#include "SymbolFactory.h"
 #include "SymbolScope.h"
+#include "Type.h"
 #include "Workspace.h"
 
 #include <memory>
+#include <string>
 #include <utility>
 
 template <class... Ts> struct overloaded : Ts...
@@ -64,6 +70,64 @@ void SemanticsAnalyzer::add_tree(
 
     forest[symbol] = {tree, scope};
     scope->solid_trees.push_back(tree);
+}
+
+Symbol_ptr SemanticsAnalyzer::solidify_template(
+    Symbol_ptr template_symbol,
+    const std::string& mangled_name,
+    TypeSubstitutionMap& substitutions
+)
+{
+    Symbol_ptr existing = current_scope->lookup(mangled_name);
+
+    if (existing)
+    {
+        return existing;
+    }
+
+    Type_ptr template_type = template_symbol->get_type();
+    Type_ptr solid_type = Solidifier::get().substitute_type(template_type, substitutions);
+
+    Symbol_ptr solid_symbol = SymbolFactory::create_type(
+        mangled_name,
+        solid_type,
+        current_scope->closure_depth,
+        current_scope->lexical_depth
+    );
+
+    current_scope->define(solid_symbol);
+    solid_symbol->mangled_name = mangled_name;
+
+    auto [template_ast, definition_scope] = get_tree(template_symbol);
+    Doctor::semantics().fatal_if_nullptr(template_ast, "Template AST not found");
+
+    Statement_ptr template_ast_copy = ASTCloner::get().clone(template_ast);
+    Statement_ptr solid_ast = Solidifier::get().visit(template_ast_copy, substitutions);
+
+    if (solid_ast->is<FunctionDefinition>())
+    {
+        solid_ast->as<FunctionDefinition>().symbol = solid_symbol;
+    }
+    else if (solid_ast->is<ClassDefinition>())
+    {
+        solid_ast->as<ClassDefinition>().symbol = solid_symbol;
+    }
+    else if (solid_ast->is<TraitDefinition>())
+    {
+        solid_ast->as<TraitDefinition>().symbol = solid_symbol;
+    }
+    else if (solid_ast->is<PrimitiveDefinition>())
+    {
+        solid_ast->as<PrimitiveDefinition>().symbol = solid_symbol;
+    }
+    else
+    {
+        Doctor::semantics().fatal("Unsupported definition type for template solidification");
+    }
+
+    add_tree(solid_symbol, solid_ast, current_scope);
+
+    return solid_symbol;
 }
 
 } // namespace Wasp

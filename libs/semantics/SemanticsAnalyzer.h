@@ -126,18 +126,6 @@ private:
 
     Type_ptr visit(Constructor& expr);
 
-    void validate_solid_constructor(
-        ClassType_ptr class_type,
-        TypeVector solid_types,
-        TypeVector argument_types
-    );
-
-    std::pair<Type_ptr, TypeSubstitutionMap> validate_constructor_template(
-        ClassType_ptr class_type,
-        TypeVector solid_types,
-        TypeVector argument_types
-    );
-
     Type_ptr visit(
         Constructor& constructor,
         Identifier& identifier,
@@ -168,6 +156,12 @@ private:
         const TypeVector& solid_types,
         const TypeVector& argument_types
     ) const;
+
+    Type_ptr resolve_constructor_from_symbol(
+        Symbol_ptr symbol,
+        const TypeVector& solid_types,
+        const TypeVector& argument_types
+    );
 
 private:
     // Call
@@ -347,5 +341,12 @@ private:
 
     void enter_scope(ScopeType scope_type);
     void leave_scope();
+
+private:
+    Symbol_ptr solidify_template(
+        Symbol_ptr template_symbol,
+        const std::string& mangled_name,
+        TypeSubstitutionMap& substitutions
+    );
 };
 } // namespace Wasp

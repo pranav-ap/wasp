@@ -2,20 +2,20 @@ import core.io expose *
 import core.types expose *
 import core.bank
 
-# template
-#     T: any
-# fun foo(a: T)
-#     return
+template
+    T: any
+fun foo(a: T)
+    return
 
-# foo<int>(3)
-
-
-# template
-#     T: any
-# class Monkey
-#     a: T
+foo<int>(3)
 
 
-# Monkey<int>(23)
+template
+    T: any
+class Monkey
+    a: T
+
+
+Monkey<int>(23)
 
 bank.close()

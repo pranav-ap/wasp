@@ -35,17 +35,18 @@ ClassCandidateVector filter_by_arity(const SymbolVector& candidates, size_t arit
 {
     ClassCandidateVector result;
 
-    for (const auto& candidate : candidates)
+    for (size_t i = 0; i < candidates.size(); ++i)
     {
+        const auto& candidate = candidates[i];
         Type_ptr type = candidate->get_type();
 
-        Doctor::semantics().check(type->is<ClassType_ptr>(), "Expected a FunctionType for candidate");
+        Doctor::semantics().check(type->is<ClassType_ptr>(), "Expected a ClassType for candidate");
 
         ClassType_ptr class_type = candidate->get_type()->as<ClassType_ptr>();
 
         if (class_type->fields->ordered_keys.size() == arity)
         {
-            result.push_back({candidate, class_type, -1});
+            result.push_back({candidate, class_type, static_cast<int>(i)});
         }
     }
 
@@ -85,11 +86,36 @@ Type_ptr SemanticsAnalyzer::visit(Constructor& cons)
         overloaded{
             [&](Identifier& id) -> Type_ptr
             {
-                return visit(cons, id, solid_types, argument_types);
+                Symbol_ptr symbol = current_scope->lookup_required_and_resolve(id.name);
+                return resolve_constructor_from_symbol(symbol, solid_types, argument_types);
             },
             [&](MemberAccess& ma) -> Type_ptr
             {
-                Doctor::semantics().fatal("Nested constructor calls are not supported yet");
+                Type_ptr owner_type = visit(ma.owner);
+                owner_type = owner_type->unwrap_alias();
+
+                if (owner_type->is<ModuleType_ptr>())
+                {
+                    ModuleType_ptr mod_type = owner_type->as<ModuleType_ptr>();
+                    Module_ptr mod = workspace->get_module(mod_type->absolute_filepath);
+                    Doctor::semantics().fatal_if_nullptr(mod);
+
+                    Doctor::semantics().check(
+                        ma.member->is<Identifier>(),
+                        "Module member must be an identifier"
+                    );
+
+                    std::string member_name = ma.member->as<Identifier>().name;
+                    int member_index = mod_type->get_member_index(member_name);
+                    Symbol_ptr member_symbol = mod->exported_symbols[member_index];
+                    Doctor::semantics().fatal_if_nullptr(member_symbol);
+
+                    return resolve_constructor_from_symbol(member_symbol, solid_types, argument_types);
+                }
+                else
+                {
+                    Doctor::semantics().fatal("Nested constructor calls are not supported yet");
+                }
             },
             [&](auto&) -> Type_ptr
             {
@@ -98,6 +124,61 @@ Type_ptr SemanticsAnalyzer::visit(Constructor& cons)
         },
         cons.constructible->data
     );
+}
+
+Type_ptr SemanticsAnalyzer::resolve_constructor_from_symbol(
+    Symbol_ptr symbol,
+    const TypeVector& solid_types,
+    const TypeVector& argument_types
+)
+{
+    // symbol should be an OverloadSymbol or a single ClassType symbol
+    SymbolVector candidates;
+    if (symbol->is<OverloadSymbol>())
+    {
+        candidates = symbol->as<OverloadSymbol>().overloads;
+    }
+    else
+    {
+        candidates.push_back(symbol);
+    }
+
+    ClassCandidateVector by_arity = filter_by_arity(candidates, argument_types.size());
+    auto [solid_candidates, template_candidates] = separate_solid_and_template(by_arity);
+
+    // Try solid
+    std::optional<std::pair<Symbol_ptr, int>> solid_result = try_resolve_solid(
+        symbol->name,
+        solid_candidates,
+        argument_types
+    );
+
+    if (solid_result.has_value())
+    {
+        auto [class_symbol, overload_index] = solid_result.value();
+        // store overload_index if needed
+        return class_symbol->get_type();
+    }
+
+    std::optional<std::tuple<Symbol_ptr, int, TypeSubstitutionMap>> template_result = try_resolve_template(
+        symbol->name,
+        template_candidates,
+        solid_types,
+        argument_types
+    );
+
+    if (template_result.has_value())
+    {
+        auto [template_class_symbol, overload_index, substitutions] = template_result.value();
+
+        std::string mangled_name = symbol->name + "_" + TypeSystem::mangle(solid_types);
+
+        Symbol_ptr solid_symbol = solidify_template(template_class_symbol, mangled_name, substitutions);
+
+        return solid_symbol->get_type();
+    }
+
+    Doctor::semantics().fatal("No viable constructor for: " + symbol->name);
 }
 
 Type_ptr SemanticsAnalyzer::visit(
@@ -374,65 +455,6 @@ std::pair<bool, TypeSubstitutionMap> SemanticsAnalyzer::is_constructible_templat
     }
 
     return {true, substitutions};
-}
-
-void SemanticsAnalyzer::validate_solid_constructor(
-    ClassType_ptr class_type,
-    TypeVector solid_types,
-    TypeVector argument_types
-)
-{
-    Doctor::semantics().check(solid_types.empty(), "Non-template class does not accept template arguments");
-
-    Doctor::semantics().check(
-        argument_types.size() == class_type->fields->ordered_keys.size(),
-        "Constructor Arguments Count Mismatch for class '" + class_type->name + "'. Expected " +
-            std::to_string(class_type->fields->ordered_keys.size()) + ", got " +
-            std::to_string(argument_types.size()) + "."
-    );
-
-    for (size_t i = 0; i < argument_types.size(); ++i)
-    {
-        const std::string& field_name = class_type->fields->ordered_keys[i];
-        const Type_ptr expected_type = class_type->fields->get_type(field_name);
-
-        bool is_assignable = type_system->assignable(current_scope, expected_type, argument_types[i]);
-
-        Doctor::semantics().check(
-            is_assignable,
-            "Type mismatch in constructor arguments for field '" + field_name + "'"
-        );
-    }
-}
-
-std::pair<Type_ptr, TypeSubstitutionMap> SemanticsAnalyzer::validate_constructor_template(
-    ClassType_ptr class_type,
-    TypeVector solid_types,
-    TypeVector argument_types
-)
-{
-    Doctor::semantics().check(!solid_types.empty(), "Class template requires explicit template arguments");
-
-    const StringVector& generic_names = class_type->template_type->ordered_parameter_names;
-
-    Doctor::semantics().check(
-        solid_types.size() == generic_names.size(),
-        "Template argument count mismatch for class '" + class_type->name + "'. Expected " +
-            std::to_string(generic_names.size()) + ", got " + std::to_string(solid_types.size()) + "."
-    );
-
-    // Build substitution map: generic name -> solid type
-    TypeSubstitutionMap substitutions;
-    for (size_t i = 0; i < generic_names.size(); ++i)
-    {
-        substitutions[generic_names[i]] = solid_types[i];
-    }
-
-    Type_ptr solid_type = Solidifier::get().substitute_type(class_type, substitutions);
-
-    validate_solid_constructor(solid_type->as<ClassType_ptr>(), solid_types, argument_types);
-
-    return {solid_type, substitutions};
 }
 
 } // namespace Wasp

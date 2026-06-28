@@ -37,8 +37,9 @@ FunctionCandidateVector filter_by_arity(const SymbolVector& candidates, size_t a
 {
     FunctionCandidateVector result;
 
-    for (const auto& candidate : candidates)
+    for (size_t i = 0; i < candidates.size(); ++i)
     {
+        const auto& candidate = candidates[i];
         Type_ptr type = candidate->get_type();
 
         Doctor::semantics().check(type->is<FunctionType_ptr>(), "Expected a FunctionType for candidate");
@@ -47,7 +48,7 @@ FunctionCandidateVector filter_by_arity(const SymbolVector& candidates, size_t a
 
         if (func_type->parameter_types.size() == arity)
         {
-            result.push_back({candidate, -1, func_type});
+            result.push_back({candidate, static_cast<int>(i), func_type});
         }
     }
 
@@ -156,52 +157,14 @@ Type_ptr SemanticsAnalyzer::visit(
 
         std::string mangled_name = identifier.name + "_" + TypeSystem::mangle(solid_types);
 
+        Symbol_ptr solid_symbol = solidify_template(template_function_symbol, mangled_name, substitutions);
+        Type_ptr return_type = solid_symbol->get_type()->as<FunctionType_ptr>()->return_type;
+
+        identifier.symbol = solid_symbol;
+        identifier.must_be_captured = solid_symbol->should_be_captured(current_scope->closure_depth);
         identifier.name = mangled_name;
 
-        Symbol_ptr solid_function_symbol = current_scope->lookup(mangled_name);
-
-        Type_ptr template_function_symbol_type = template_function_symbol->get_type();
-        FunctionType_ptr template_function_type = template_function_symbol_type->as<FunctionType_ptr>();
-
-        Type_ptr solid_function_symbol_type = Solidifier::get().substitute_type(
-            template_function_symbol_type,
-            substitutions
-        );
-
-        if (!solid_function_symbol)
-        {
-            solid_function_symbol = SymbolFactory::create_type(
-                mangled_name,
-                solid_function_symbol_type,
-                current_scope->closure_depth,
-                current_scope->lexical_depth
-            );
-
-            current_scope->define(solid_function_symbol);
-        }
-
-        solid_function_symbol->mangled_name = mangled_name;
-
-        auto [template_function_definition_stmt, definition_scope] = get_tree(template_function_symbol);
-
-        Statement_ptr template_function_definition_stmt_copy = ASTCloner::get().clone(
-            template_function_definition_stmt
-        );
-
-        Statement_ptr solid_ast = Solidifier::get().visit(
-            template_function_definition_stmt_copy,
-            substitutions
-        );
-
-        solid_ast->as<FunctionDefinition>().symbol = solid_function_symbol;
-
-        add_tree(solid_function_symbol, solid_ast, current_scope);
-
-        identifier.symbol = solid_function_symbol;
-        identifier.must_be_captured = solid_function_symbol->should_be_captured(current_scope->closure_depth);
-
-        FunctionType_ptr solid_function_type = solid_function_symbol_type->as<FunctionType_ptr>();
-        return solid_function_type->return_type;
+        return return_type;
     }
 
     Doctor::semantics().fatal("No viable candidates for function: " + symbol->name);
@@ -400,6 +363,7 @@ Type_ptr SemanticsAnalyzer::visit(
             {
                 call.owner_kind = Call::OwnerKind::CLASS;
                 call.owner_name = class_type->name;
+                call.owner_type_id = class_type->type_id;
 
                 return visit(call, access, argument_types, class_type);
             },
@@ -408,6 +372,7 @@ Type_ptr SemanticsAnalyzer::visit(
             {
                 call.owner_kind = Call::OwnerKind::TRAIT;
                 call.owner_name = trait_type->name;
+                call.owner_type_id = trait_type->type_id;
 
                 return visit(call, access, argument_types, trait_type);
             },
@@ -416,6 +381,7 @@ Type_ptr SemanticsAnalyzer::visit(
             {
                 call.owner_kind = Call::OwnerKind::PRIMITIVE;
                 call.owner_name = primitive_type->name;
+                call.owner_type_id = primitive_type->type_id;
 
                 return visit(call, access, argument_types, primitive_type);
             },
@@ -424,6 +390,7 @@ Type_ptr SemanticsAnalyzer::visit(
             {
                 call.owner_kind = Call::OwnerKind::MODULE;
                 call.owner_name = module_type->name;
+                call.owner_type_id = module_type->type_id;
 
                 return visit(call, access, solid_types, argument_types, module_type);
             },
@@ -521,8 +488,8 @@ Type_ptr SemanticsAnalyzer::visit(
     Doctor::semantics().fatal_if_nullptr(mod, "Module not found for module type");
 
     Doctor::semantics().check(access.member->is<Identifier>(), "Module member must be an identifier");
-    Identifier& member_id = access.member->as<Identifier>();
-    std::string member_name = member_id.name;
+    Identifier& identifier = access.member->as<Identifier>();
+    std::string member_name = identifier.name;
 
     int member_index = module_type->get_member_index(member_name);
     Symbol_ptr member_symbol = mod->exported_symbols[member_index];
@@ -555,60 +522,27 @@ Type_ptr SemanticsAnalyzer::visit(
         return func_type->return_type;
     }
 
-    // ------------------------------------------------------------------------
-    // 2. Try template candidates (with solidification)
-    // ------------------------------------------------------------------------
     std::optional<std::tuple<Symbol_ptr, int, TypeSubstitutionMap>>
         template_result = try_resolve_template(member_name, template_candidates, solid_types, argument_types);
 
-    if (!template_result.has_value())
+    if (template_result.has_value())
     {
-        Doctor::semantics().fatal("No viable candidates for module member call: " + member_name);
+        auto [template_function_symbol, overload_index, substitutions] = template_result.value();
+        call.overload_index = overload_index;
+
+        std::string mangled_name = member_name + "_" + TypeSystem::mangle(solid_types);
+
+        Symbol_ptr solid_symbol = solidify_template(template_function_symbol, mangled_name, substitutions);
+        Type_ptr return_type = solid_symbol->get_type()->as<FunctionType_ptr>()->return_type;
+
+        identifier.symbol = solid_symbol;
+        identifier.must_be_captured = solid_symbol->should_be_captured(current_scope->closure_depth);
+        identifier.name = mangled_name;
+
+        return return_type;
     }
 
-    auto [template_function_symbol, overload_index, substitutions] = template_result.value();
-    call.overload_index = overload_index;
-
-    std::string mangled_name = member_name + "_" + TypeSystem::mangle(solid_types);
-    Symbol_ptr existing_solid = current_scope->lookup(mangled_name);
-
-    if (existing_solid)
-    {
-        access.member->as<Identifier>().symbol = existing_solid;
-        FunctionType_ptr func_type = existing_solid->get_type()->as<FunctionType_ptr>();
-        return func_type->return_type;
-    }
-
-    // Solidify the template function
-
-    Type_ptr template_func_type = template_function_symbol->get_type();
-    Type_ptr solid_func_type = Solidifier::get().substitute_type(template_func_type, substitutions);
-
-    // Create a new symbol for the solidified function
-    Symbol_ptr solid_function_symbol = SymbolFactory::create_type(
-        mangled_name,
-        solid_func_type,
-        current_scope->closure_depth,
-        current_scope->lexical_depth
-    );
-
-    current_scope->define(solid_function_symbol);
-    solid_function_symbol->mangled_name = mangled_name;
-
-    // Clone and solidify the AST
-    auto [template_ast, definition_scope] = get_tree(template_function_symbol);
-    Doctor::semantics().fatal_if_nullptr(template_ast, "Template function AST not found");
-
-    Statement_ptr template_ast_copy = ASTCloner::get().clone(template_ast);
-    Statement_ptr solid_ast = Solidifier::get().visit(template_ast_copy, substitutions);
-    solid_ast->as<FunctionDefinition>().symbol = solid_function_symbol;
-
-    add_tree(solid_function_symbol, solid_ast, current_scope);
-
-    access.member->as<Identifier>().symbol = solid_function_symbol;
-
-    FunctionType_ptr solid_func = solid_func_type->as<FunctionType_ptr>();
-    return solid_func->return_type;
+    Doctor::semantics().fatal("No viable candidates for module function: " + member_name);
 }
 
 } // namespace Wasp

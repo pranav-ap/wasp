@@ -391,6 +391,8 @@ using TypeAlias_ptr = std::shared_ptr<TypeAlias>;
 
 struct ModuleType
 {
+    int type_id;
+
     std::string name;
     std::filesystem::path absolute_filepath;
 
@@ -398,7 +400,7 @@ struct ModuleType
     StringVector ordered_keys;
 
     explicit ModuleType(std::string name, std::filesystem::path absolute_filepath)
-        : name(std::move(name)), absolute_filepath(std::move(absolute_filepath))
+        : type_id(get_next_type_id()), name(std::move(name)), absolute_filepath(std::move(absolute_filepath))
     {
     }
 
