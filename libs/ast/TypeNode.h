@@ -68,6 +68,8 @@ struct AngularTypeNode
 {
     std::string name;
     TypeNodeVector type_arguments;
+
+    Symbol_ptr symbol = nullptr;
 };
 
 using TypeNodeVariant = std::variant<

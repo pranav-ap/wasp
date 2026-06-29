@@ -97,6 +97,13 @@ private:
     Type_ptr visit(FunctionTypeNode& type_node);
     Type_ptr visit(AngularTypeNode& type_node);
 
+    Type_ptr specialize_oops_type(
+        OopsType_ptr oops_type,
+        Symbol_ptr base_symbol,
+        const TypeVector& type_arguments,
+        AngularTypeNode& node
+    );
+
 private:
     // Expressions
 
@@ -157,11 +164,16 @@ private:
         const TypeVector& argument_types
     ) const;
 
-    Type_ptr resolve_constructor_from_symbol(
+    std::pair<Type_ptr, Symbol_ptr> resolve_constructor_from_symbol(
         Symbol_ptr symbol,
         const TypeVector& solid_types,
         const TypeVector& argument_types
     );
+
+    std::optional<TypeSubstitutionMap> deduce_class_template_arguments(
+        ClassType_ptr class_type,
+        const TypeVector& argument_types
+    ) const;
 
 private:
     // Call

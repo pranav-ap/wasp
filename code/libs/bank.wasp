@@ -1,0 +1,15 @@
+import core.io expose *
+
+
+fun close()
+    print("close")
+
+
+class Account
+    id: int
+
+
+template
+    T: int | float
+class Shop
+    id: int

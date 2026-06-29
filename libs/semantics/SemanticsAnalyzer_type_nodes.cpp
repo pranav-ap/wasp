@@ -4,7 +4,9 @@
 #include "SemanticsAnalyzer.h"
 #include "Type.h"
 #include "TypeNode.h"
+#include "TypeSystem.h"
 
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <variant>
@@ -184,14 +186,73 @@ Type_ptr SemanticsAnalyzer::visit(FunctionTypeNode& type_node)
 
 Type_ptr SemanticsAnalyzer::visit(AngularTypeNode& type_node)
 {
-    TypeVector type_arguments = visit(type_node.type_arguments);
+    Symbol_ptr base_symbol = current_scope->lookup_required_and_resolve(type_node.name);
+    Doctor::semantics().fatal_if_nullptr(base_symbol, "Base symbol not found for type: " + type_node.name);
 
-    auto type = make_shared_type<AngularType>(
-        type_node.name,
-        type_arguments
+    TypeVector type_arguments = visit(type_node.type_arguments);
+    Type_ptr base_type = base_symbol->get_type();
+
+    return std::visit(
+        overloaded{
+            [&](ClassType_ptr t) -> Type_ptr
+            {
+                return specialize_oops_type(t, base_symbol, type_arguments, type_node);
+            },
+            [&](TraitType_ptr t) -> Type_ptr
+            {
+                return specialize_oops_type(t, base_symbol, type_arguments, type_node);
+            },
+            [&](PrimitiveType_ptr t) -> Type_ptr
+            {
+                return specialize_oops_type(t, base_symbol, type_arguments, type_node);
+            },
+            [&](AngularType_ptr t) -> Type_ptr
+            {
+                Doctor::semantics().fatal("Nested angular types are not supported: " + base_symbol->name);
+            },
+            [&](auto&) -> Type_ptr
+            {
+                Doctor::semantics().fatal("Angular type is not applicable to " + base_symbol->name);
+            }
+        },
+        base_type->data
     );
 
-    return type;
+    return base_type;
+}
+
+Type_ptr SemanticsAnalyzer::specialize_oops_type(
+    OopsType_ptr oops_type,
+    Symbol_ptr base_symbol,
+    const TypeVector& type_arguments,
+    AngularTypeNode& node
+)
+{
+    Doctor::semantics().check(
+        !oops_type->template_type->empty(),
+        "Type '" + oops_type->name + "' is not a template, but type arguments were provided."
+    );
+
+    const StringVector& param_names = oops_type->template_type->ordered_parameter_names;
+    Doctor::semantics().check(
+        param_names.size() == type_arguments.size(),
+        "Template argument count mismatch for type '" + oops_type->name + "'. Expected " +
+            std::to_string(param_names.size()) + ", got " + std::to_string(type_arguments.size()) + "."
+    );
+
+    TypeSubstitutionMap substitutions;
+
+    for (size_t i = 0; i < param_names.size(); ++i)
+    {
+        substitutions[param_names[i]] = type_arguments[i];
+    }
+
+    std::string mangled_name = oops_type->name + "_" + TypeSystem::mangle(type_arguments);
+
+    Symbol_ptr specialized_symbol = solidify_template(base_symbol, mangled_name, substitutions);
+    node.symbol = specialized_symbol;
+
+    return specialized_symbol->get_type();
 }
 
 } // namespace Wasp

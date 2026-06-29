@@ -1,6 +1,7 @@
 import core.io expose *
 import core.types expose *
-import core.bank
+import bank
+
 
 template
     T: any
@@ -19,3 +20,9 @@ class Monkey
 Monkey<int>(23)
 
 bank.close()
+
+let a = bank.Account(23)
+print(a.id)
+
+let s = bank.Shop<int>(11)
+print(s.id)

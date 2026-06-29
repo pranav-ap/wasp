@@ -13,6 +13,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <variant>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -104,26 +105,35 @@ Symbol_ptr SemanticsAnalyzer::solidify_template(
     Statement_ptr template_ast_copy = ASTCloner::get().clone(template_ast);
     Statement_ptr solid_ast = Solidifier::get().visit(template_ast_copy, substitutions);
 
-    if (solid_ast->is<FunctionDefinition>())
-    {
-        solid_ast->as<FunctionDefinition>().symbol = solid_symbol;
-    }
-    else if (solid_ast->is<ClassDefinition>())
-    {
-        solid_ast->as<ClassDefinition>().symbol = solid_symbol;
-    }
-    else if (solid_ast->is<TraitDefinition>())
-    {
-        solid_ast->as<TraitDefinition>().symbol = solid_symbol;
-    }
-    else if (solid_ast->is<PrimitiveDefinition>())
-    {
-        solid_ast->as<PrimitiveDefinition>().symbol = solid_symbol;
-    }
-    else
-    {
-        Doctor::semantics().fatal("Unsupported definition type for template solidification");
-    }
+    std::visit(
+        overloaded{
+            [&](FunctionDefinition& func) -> void
+            {
+                func.symbol = solid_symbol;
+                func.name = mangled_name;
+            },
+            [&](ClassDefinition& cls) -> void
+            {
+                cls.symbol = solid_symbol;
+                cls.name = mangled_name;
+            },
+            [&](TraitDefinition& trait) -> void
+            {
+                trait.symbol = solid_symbol;
+                trait.name = mangled_name;
+            },
+            [&](PrimitiveDefinition& prim) -> void
+            {
+                prim.symbol = solid_symbol;
+                prim.name = mangled_name;
+            },
+            [&](auto&) -> void
+            {
+                Doctor::semantics().fatal("Unsupported definition type for template solidification");
+            }
+        },
+        solid_ast->data
+    );
 
     add_tree(solid_symbol, solid_ast, current_scope);
 

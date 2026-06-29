@@ -13,6 +13,7 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
+
 void SemanticsAnalyzer::visit(Block& block)
 {
     hoist(block);

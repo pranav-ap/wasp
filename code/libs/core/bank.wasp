@@ -1,5 +1,0 @@
-import my.io expose *
-
-
-fun close()
-    print("close")
