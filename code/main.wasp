@@ -9,6 +9,7 @@ fun foo(a: T)
     return
 
 foo<int>(3)
+foo(12)
 
 
 template
@@ -26,3 +27,6 @@ print(a.id)
 
 let s = bank.Shop<int>(11)
 print(s.id)
+
+let q = bank.Shop(11)
+print(q.id)

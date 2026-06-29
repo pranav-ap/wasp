@@ -1,12 +1,9 @@
 #include "AST.h"
-#include "ASTCloner.h"
 #include "Doctor.h"
 #include "Expression.h"
 #include "SemanticsAnalyzer.h"
 #include "Solidifier.h"
-#include "Statement.h"
 #include "Symbol.h"
-#include "SymbolFactory.h"
 #include "SymbolScope.h"
 #include "Type.h"
 #include "TypeSystem.h"
@@ -234,12 +231,44 @@ std::optional<std::tuple<Symbol_ptr, int, TypeSubstitutionMap>> SemanticsAnalyze
 
     for (const auto& c : candidates)
     {
-        auto [ok, subs] = is_assignable_template_function(c.function_type, solid_types, argument_types);
-
-        if (ok)
+        if (!solid_types.empty())
         {
-            viable.push_back(c);
-            latest_substitutions = subs;
+            // Explicit template arguments
+            auto [ok, subs] = is_assignable_template_function(c.function_type, solid_types, argument_types);
+            if (ok)
+            {
+                viable.push_back(c);
+                latest_substitutions = subs;
+            }
+        }
+        else
+        {
+            // Implicit deduction
+            auto deduced = deduce_function_template_arguments(c.function_type, argument_types);
+            if (deduced.has_value())
+            {
+                // Substitute and check assignability
+                TypeVector substituted_params;
+                for (const auto& p : c.function_type->parameter_types)
+                {
+                    substituted_params.push_back(Solidifier::get().substitute_type(p, *deduced));
+                }
+
+                bool all_assignable = true;
+                for (size_t i = 0; i < argument_types.size(); ++i)
+                {
+                    if (!type_system->assignable(current_scope, substituted_params[i], argument_types[i]))
+                    {
+                        all_assignable = false;
+                        break;
+                    }
+                }
+                if (all_assignable)
+                {
+                    viable.push_back(c);
+                    latest_substitutions = *deduced;
+                }
+            }
         }
     }
 
@@ -253,7 +282,7 @@ std::optional<std::tuple<Symbol_ptr, int, TypeSubstitutionMap>> SemanticsAnalyze
         return std::make_tuple(viable[0].symbol, viable[0].index, latest_substitutions);
     }
 
-    // Multiple template candidates - check for ambiguity
+    // Multiple template candidates – ambiguity
     Doctor::semantics().fatal("Ambiguous template function call: " + name);
 }
 
@@ -310,7 +339,6 @@ std::pair<bool, TypeSubstitutionMap> SemanticsAnalyzer::is_assignable_template_f
 
     const StringVector& template_params = function_type->template_type->ordered_parameter_names;
 
-    // Check if solid_types count matches template parameters
     if (solid_types.size() != template_params.size())
     {
         return {false, substitutions};
@@ -321,7 +349,6 @@ std::pair<bool, TypeSubstitutionMap> SemanticsAnalyzer::is_assignable_template_f
         substitutions[template_params[i]] = solid_types[i];
     }
 
-    // Substitute parameter types
     TypeVector substituted_params;
 
     for (const Type_ptr& param_type : function_type->parameter_types)
@@ -543,6 +570,75 @@ Type_ptr SemanticsAnalyzer::visit(
     }
 
     Doctor::semantics().fatal("No viable candidates for module function: " + member_name);
+}
+
+std::optional<TypeSubstitutionMap> SemanticsAnalyzer::deduce_function_template_arguments(
+    FunctionType_ptr function_type,
+    const TypeVector& argument_types
+) const
+{
+    if (function_type->template_type->empty())
+    {
+        return std::nullopt;
+    }
+
+    const auto& param_names = function_type->template_type->ordered_parameter_names;
+    const auto& param_types = function_type->parameter_types;
+
+    if (argument_types.size() != param_types.size())
+    {
+        return std::nullopt;
+    }
+
+    TypeSubstitutionMap substitutions;
+    for (size_t i = 0; i < param_types.size(); ++i)
+    {
+        const Type_ptr& param_type = param_types[i];
+
+        if (param_type->is<GenericType_ptr>())
+        {
+            GenericType_ptr generic = param_type->as<GenericType_ptr>();
+            const auto& param_name = generic->name;
+            const Type_ptr& arg_type = argument_types[i];
+
+            if (generic->constraint_type &&
+                !type_system->assignable(current_scope, generic->constraint_type, arg_type))
+            {
+                return std::nullopt;
+            }
+
+            auto it = substitutions.find(param_name);
+            if (it != substitutions.end())
+            {
+                if (!type_system->equal(current_scope, it->second, arg_type))
+                {
+                    return std::nullopt;
+                }
+            }
+            else
+            {
+                substitutions[param_name] = arg_type;
+            }
+        }
+        else
+        {
+            // Non‑generic parameter: must be assignable.
+            if (!type_system->assignable(current_scope, param_type, argument_types[i]))
+            {
+                return std::nullopt;
+            }
+        }
+    }
+
+    for (const auto& name : param_names)
+    {
+        if (substitutions.find(name) == substitutions.end())
+        {
+            return std::nullopt;
+        }
+    }
+
+    return substitutions;
 }
 
 } // namespace Wasp

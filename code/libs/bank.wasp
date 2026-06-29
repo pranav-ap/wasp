@@ -12,4 +12,4 @@ class Account
 template
     T: int | float
 class Shop
-    id: int
+    id: T

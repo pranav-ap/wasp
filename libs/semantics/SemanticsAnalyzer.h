@@ -238,6 +238,11 @@ private:
         ModuleType_ptr module_type
     );
 
+    std::optional<TypeSubstitutionMap> deduce_function_template_arguments(
+        FunctionType_ptr function_type,
+        const TypeVector& argument_types
+    ) const;
+
 private:
     // Variables
 
