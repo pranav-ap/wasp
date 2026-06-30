@@ -18,8 +18,6 @@
 namespace Wasp
 {
 
-using TypeSubstitutionMap = std::map<std::string, Type_ptr>;
-
 struct FunctionCandidate
 {
     Symbol_ptr symbol;
@@ -33,24 +31,8 @@ struct MethodCandidate
     int index;
 };
 
-struct ClassCandidate
-{
-    Symbol_ptr symbol;
-    ClassType_ptr class_type;
-    int index;
-};
-
-struct TraitCandidate
-{
-    Symbol_ptr symbol;
-    TraitType_ptr trait_type;
-    int index;
-};
-
 using FunctionCandidateVector = std::vector<FunctionCandidate>;
 using MethodCandidateVector = std::vector<MethodCandidate>;
-using ClassCandidateVector = std::vector<ClassCandidate>;
-using TraitCandidateVector = std::vector<TraitCandidate>;
 
 class SemanticsAnalyzer
 {
@@ -129,68 +111,6 @@ private:
     Type_ptr visit(Infix& expr);
 
 private:
-    // Constructor
-
-    Type_ptr visit(Constructor& expr);
-
-    Type_ptr visit(
-        Constructor& constructor,
-        Identifier& identifier,
-        const TypeVector& solid_types,
-        const TypeVector& argument_types
-    );
-
-    std::optional<std::pair<Symbol_ptr, int>> try_resolve_solid(
-        const std::string& name,
-        const std::vector<ClassCandidate>& candidates,
-        const TypeVector& argument_types
-    ) const;
-
-    std::optional<std::tuple<Symbol_ptr, int, TypeSubstitutionMap>> try_resolve_template(
-        const std::string& name,
-        const std::vector<ClassCandidate>& candidates,
-        const TypeVector& solid_types,
-        const TypeVector& argument_types
-    ) const;
-
-    ClassCandidate get_best_candidate(
-        const std::vector<ClassCandidate>& candidates,
-        const TypeVector& argument_types
-    ) const;
-
-    std::pair<bool, TypeSubstitutionMap> is_constructible_template_class(
-        ClassType_ptr class_type,
-        const TypeVector& solid_types,
-        const TypeVector& argument_types
-    ) const;
-
-    std::pair<Type_ptr, Symbol_ptr> resolve_constructor_from_symbol(
-        Symbol_ptr symbol,
-        const TypeVector& solid_types,
-        const TypeVector& argument_types
-    );
-
-    std::optional<TypeSubstitutionMap> deduce_class_template_arguments(
-        ClassType_ptr class_type,
-        const TypeVector& argument_types
-    ) const;
-
-    void validate_solid_constructor(const TypeVector& argument_types, ClassType_ptr type);
-
-    std::pair<Type_ptr, Symbol_ptr> resolve_explicit_class_construction(
-        Symbol_ptr template_symbol,
-        const TypeVector& solid_types,
-        const TypeVector& argument_types,
-        ClassType_ptr cls
-    );
-
-    std::pair<Type_ptr, Symbol_ptr> resolve_implicit_class_construction(
-        Symbol_ptr template_symbol,
-        const TypeVector& argument_types,
-        ClassType_ptr cls
-    );
-
-private:
     // Call
 
     Type_ptr visit(Call& expr);
@@ -209,6 +129,8 @@ private:
         const TypeVector& argument_types
     );
 
+    // Identifier Call
+
     std::optional<std::pair<Symbol_ptr, int>> try_resolve_solid(
         const std::string& name,
         const std::vector<FunctionCandidate>& candidates,
@@ -222,6 +144,14 @@ private:
         const TypeVector& argument_types
     ) const;
 
+    OptionalTypeSubstitutionMap is_assignable_template_function(
+        FunctionType_ptr function_type,
+        const TypeVector& solid_types,
+        const TypeVector& argument_types
+    ) const;
+
+    // Oops Member Access Call
+
     Type_ptr visit(
         Call& call,
         MemberAccess& ma,
@@ -234,16 +164,7 @@ private:
         const TypeVector& argument_types
     ) const;
 
-    FunctionCandidate get_best_candidate(
-        const std::vector<FunctionCandidate>& candidates,
-        const TypeVector& argument_types
-    ) const;
-
-    std::pair<bool, TypeSubstitutionMap> is_assignable_template_function(
-        FunctionType_ptr function_type,
-        const TypeVector& solid_types,
-        const TypeVector& argument_types
-    ) const;
+    // Module Member Access Call
 
     Type_ptr visit(
         Call& call,
@@ -253,17 +174,38 @@ private:
         ModuleType_ptr module_type
     );
 
-    std::optional<TypeSubstitutionMap> deduce_function_template_arguments(
-        FunctionType_ptr function_type,
-        const TypeVector& argument_types
-    ) const;
+private:
+    // Constructor
 
-    void deduce_from_type(
-        Type_ptr type,
-        const Type_ptr& arg_type,
-        TypeSubstitutionMap& substitutions,
-        bool& ok
-    ) const;
+    Type_ptr visit(Constructor& expr);
+
+    Type_ptr visit(
+        Constructor& constructor,
+        Identifier& identifier,
+        const TypeVector& solid_types,
+        const TypeVector& argument_types
+    );
+
+    std::pair<Type_ptr, Symbol_ptr> resolve_constructor(
+        Symbol_ptr symbol,
+        const TypeVector& solid_types,
+        const TypeVector& argument_types
+    );
+
+    void validate_solid_constructor(const TypeVector& argument_types, ClassType_ptr type);
+
+    std::pair<Type_ptr, Symbol_ptr> resolve_explicit_class_construction(
+        Symbol_ptr template_symbol,
+        const TypeVector& solid_types,
+        const TypeVector& argument_types,
+        ClassType_ptr cls
+    );
+
+    std::pair<Type_ptr, Symbol_ptr> resolve_implicit_class_construction(
+        Symbol_ptr template_symbol,
+        const TypeVector& argument_types,
+        ClassType_ptr cls
+    );
 
 private:
     // Variables

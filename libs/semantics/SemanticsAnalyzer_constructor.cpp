@@ -33,7 +33,7 @@ Type_ptr SemanticsAnalyzer::visit(Constructor& cons)
             {
                 Symbol_ptr symbol = current_scope->lookup_required_and_resolve(id.name);
 
-                auto [result_type, resolved_symbol] = resolve_constructor_from_symbol(
+                auto [result_type, resolved_symbol] = resolve_constructor(
                     symbol,
                     solid_types,
                     argument_types
@@ -65,7 +65,7 @@ Type_ptr SemanticsAnalyzer::visit(Constructor& cons)
                 Symbol_ptr member_symbol = mod->exported_symbols[member_index];
                 Doctor::semantics().fatal_if_nullptr(member_symbol);
 
-                auto [result_type, resolved_symbol] = resolve_constructor_from_symbol(
+                auto [result_type, resolved_symbol] = resolve_constructor(
                     member_symbol,
                     solid_types,
                     argument_types
@@ -82,7 +82,7 @@ Type_ptr SemanticsAnalyzer::visit(Constructor& cons)
     );
 }
 
-std::pair<Type_ptr, Symbol_ptr> SemanticsAnalyzer::resolve_constructor_from_symbol(
+std::pair<Type_ptr, Symbol_ptr> SemanticsAnalyzer::resolve_constructor(
     Symbol_ptr symbol,
     const TypeVector& solid_types,
     const TypeVector& argument_types
@@ -163,62 +163,29 @@ std::pair<Type_ptr, Symbol_ptr> SemanticsAnalyzer::resolve_implicit_class_constr
     ClassType_ptr cls
 )
 {
-    std::optional<TypeSubstitutionMap> deduced = deduce_class_template_arguments(cls, argument_types);
+    std::optional<TypeSubstitutionMap> solid_types_map = TypeSystem::infer_solid_types(
+        current_scope,
+        cls->fields->get_ordered_types(),
+        cls->template_type->ordered_parameter_names,
+        argument_types
+    );
 
-    Doctor::semantics().check(deduced.has_value(), "Cannot deduce template arguments for class " + cls->name);
+    Doctor::semantics().check(
+        solid_types_map.has_value(),
+        "Cannot deduce template arguments for class " + cls->name
+    );
 
-    TypeVector deduced_types;
+    TypeVector solid_types;
 
-    for (const auto& name : cls->template_type->ordered_parameter_names)
+    for (const std::string& name : cls->template_type->ordered_parameter_names)
     {
-        deduced_types.push_back(deduced->at(name));
+        solid_types.push_back(solid_types_map->at(name));
     }
 
-    std::string mangled_name = cls->name + "_" + TypeSystem::mangle(deduced_types);
-    Symbol_ptr solid_symbol = solidify_template(template_symbol, mangled_name, *deduced);
+    std::string mangled_name = cls->name + "_" + TypeSystem::mangle(solid_types);
+    Symbol_ptr solid_symbol = solidify_template(template_symbol, mangled_name, *solid_types_map);
 
     return {solid_symbol->get_type(), solid_symbol};
-}
-
-std::optional<TypeSubstitutionMap> SemanticsAnalyzer::deduce_class_template_arguments(
-    ClassType_ptr class_type,
-    const TypeVector& argument_types
-) const
-{
-    if (class_type->template_type->empty())
-    {
-        return std::nullopt;
-    }
-
-    const TypeVector& field_types = class_type->fields->get_ordered_types();
-
-    if (argument_types.size() != field_types.size())
-    {
-        return std::nullopt;
-    }
-
-    TypeSubstitutionMap substitutions;
-    bool ok = true;
-
-    for (size_t i = 0; i < field_types.size(); ++i)
-    {
-        deduce_from_type(field_types[i], argument_types[i], substitutions, ok);
-
-        if (!ok)
-        {
-            return std::nullopt;
-        }
-    }
-
-    for (const std::string& name : class_type->template_type->ordered_parameter_names)
-    {
-        if (substitutions.find(name) == substitutions.end())
-        {
-            return std::nullopt;
-        }
-    }
-
-    return substitutions;
 }
 
 } // namespace Wasp

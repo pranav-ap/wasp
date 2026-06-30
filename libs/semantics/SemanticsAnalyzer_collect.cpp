@@ -102,7 +102,10 @@ void SemanticsAnalyzer::collect(EnumDefinition& def)
 
     leave_scope();
 
-    add_tree(def.symbol, ASTCloner::get().clone(def), current_scope);
+    if (!template_type->empty())
+    {
+        add_tree(def.symbol, ASTCloner::get().clone(def), current_scope);
+    }
 }
 
 void SemanticsAnalyzer::collect(TypeAliasDefinition& def)
@@ -117,7 +120,10 @@ void SemanticsAnalyzer::collect(TypeAliasDefinition& def)
     auto alias_type = visit(def.ref_type);
     def.symbol->set_type(alias_type);
 
-    add_tree(def.symbol, ASTCloner::get().clone(def), current_scope);
+    if (!template_type->empty())
+    {
+        add_tree(def.symbol, ASTCloner::get().clone(def), current_scope);
+    }
 
     leave_scope();
 }
@@ -176,7 +182,10 @@ void SemanticsAnalyzer::collect(FunctionDefinition& def)
 
     leave_scope();
 
-    add_tree(def.symbol, ASTCloner::get().clone(def), current_scope);
+    if (!template_type->empty())
+    {
+        add_tree(def.symbol, ASTCloner::get().clone(def), current_scope);
+    }
 }
 
 void SemanticsAnalyzer::collect(OperatorDefinition& def)
@@ -230,7 +239,10 @@ void SemanticsAnalyzer::collect(OperatorDefinition& def)
 
     leave_scope();
 
-    add_tree(def.symbol, ASTCloner::get().clone(def), current_scope);
+    if (!template_type->empty())
+    {
+        add_tree(def.symbol, ASTCloner::get().clone(def), current_scope);
+    }
 }
 
 void SemanticsAnalyzer::collect(ClassDefinition& def)
@@ -258,7 +270,10 @@ void SemanticsAnalyzer::collect(ClassDefinition& def)
 
     leave_scope();
 
-    add_tree(def.symbol, ASTCloner::get().clone(def), current_scope);
+    if (!template_type->empty())
+    {
+        add_tree(def.symbol, ASTCloner::get().clone(def), current_scope);
+    }
 }
 
 void SemanticsAnalyzer::collect(TraitDefinition& def)
@@ -314,7 +329,10 @@ void SemanticsAnalyzer::collect(PrimitiveDefinition& def)
 
     leave_scope();
 
-    add_tree(def.symbol, ASTCloner::get().clone(def), current_scope);
+    if (!template_type->empty())
+    {
+        add_tree(def.symbol, ASTCloner::get().clone(def), current_scope);
+    }
 }
 
 FieldMap_ptr SemanticsAnalyzer::collect(FieldVector& fields)

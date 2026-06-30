@@ -180,11 +180,11 @@ std::string TypeSystem::mangle(const Type_ptr& type)
     );
 }
 
-std::string TypeSystem::mangle(const TypeVector& generic_types)
+std::string TypeSystem::mangle(const TypeVector& types)
 {
     std::string result = "";
 
-    for (const auto& type : generic_types)
+    for (const auto& type : types)
     {
         result += mangle(type);
     }

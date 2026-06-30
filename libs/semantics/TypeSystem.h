@@ -64,6 +64,20 @@ struct TypeSystem
 
     static TypeVector remove_duplicates(SymbolScope_ptr scope, const TypeVector& types);
 
+    static bool infer_substitutions(
+        SymbolScope_ptr scope,
+        Type_ptr type,
+        const Type_ptr& arg_type,
+        TypeSubstitutionMap& substitutions
+    );
+
+    static OptionalTypeSubstitutionMap infer_solid_types(
+        SymbolScope_ptr scope,
+        const TypeVector& param_types,
+        const StringVector& template_param_names,
+        const TypeVector& argument_types
+    );
+
     // =========================================================================
     // Function Call Resolution
     // =========================================================================
@@ -96,9 +110,9 @@ struct TypeSystem
     // Utils
     // =======================================================================
 
-    static Type_ptr unpack_primitive(Type_ptr type);
-    static std::string mangle(const Type_ptr& type);
-    static std::string mangle(const TypeVector& generic_types);
+    static Type_ptr unpack_primitive(Type_ptr);
+    static std::string mangle(const Type_ptr&);
+    static std::string mangle(const TypeVector&);
 };
 
 using TypeSystem_ptr = std::shared_ptr<TypeSystem>;

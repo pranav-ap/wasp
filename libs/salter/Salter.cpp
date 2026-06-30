@@ -177,7 +177,7 @@ Statement_ptr Salter::visit(FunctionDefinition& def)
 
     return make_statement(
         FunctionDefinition{
-            def.symbol->mangled_name,
+            def.symbol->get_mangled_name(),
             def.generics,
             def.parameters,
             def.return_type,
@@ -199,7 +199,7 @@ Statement_ptr Salter::visit(OperatorDefinition& def)
 
     return make_statement(
         FunctionDefinition{
-            def.symbol->mangled_name,
+            def.symbol->get_mangled_name(),
             def.generics,
             def.operands,
             def.return_type,
@@ -254,7 +254,7 @@ Statement_ptr Salter::visit(PrimitiveDefinition& def)
 
 Block Salter::salt(TypeDefinition& def)
 {
-    RecordDefinition record{def.symbol->mangled_name, def.fields, def.symbol};
+    RecordDefinition record{def.symbol->get_mangled_name(), def.fields, def.symbol};
 
     StatementVector results = {make_statement(record)};
 
@@ -263,7 +263,7 @@ Block Salter::salt(TypeDefinition& def)
         Block new_block = salt(method.block);
 
         FunctionDefinition func_def{
-            method.symbol->mangled_name,
+            method.symbol->get_mangled_name(),
             {},
             method.parameters,
             method.return_type,

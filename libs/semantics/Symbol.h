@@ -78,8 +78,9 @@ using SymbolVariant = std::variant<
 struct Symbol : public std::enable_shared_from_this<Symbol>
 {
     std::string name;
+    std::string mangled_name;
+
     std::string module_path = "";
-    std::string mangled_name = "";
 
     int id = -1;
     int closure_depth = 0;
@@ -116,6 +117,8 @@ struct Symbol : public std::enable_shared_from_this<Symbol>
     {
         return (is<Ts>() || ...);
     }
+
+    std::string get_mangled_name() const;
 
     Type_ptr get_type() const;
     void set_type(Type_ptr new_type);

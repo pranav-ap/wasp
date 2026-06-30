@@ -15,14 +15,8 @@ namespace Wasp
 // Constructor
 // ============================================================================
 
-Symbol::Symbol(
-    int id,
-    std::string name,
-    int closure_depth,
-    int lexical_depth,
-    SymbolVariant payload
-)
-    : name(std::move(name)), id(id), closure_depth(closure_depth),
+Symbol::Symbol(int id, std::string name, int closure_depth, int lexical_depth, SymbolVariant payload)
+    : name(std::move(name)), mangled_name(name), id(id), closure_depth(closure_depth),
       lexical_depth(lexical_depth), payload(std::move(payload))
 {
 }
@@ -30,6 +24,16 @@ Symbol::Symbol(
 // ============================================================================
 // Methods
 // ============================================================================
+
+std::string Symbol::get_mangled_name() const
+{
+    if (mangled_name.empty())
+    {
+        return name;
+    }
+
+    return mangled_name;
+}
 
 Type_ptr Symbol::get_type() const
 {

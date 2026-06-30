@@ -23,6 +23,9 @@ using OptionalType = std::optional<Type_ptr>;
 using IntVector = std::vector<int>;
 using StringVector = std::vector<std::string>;
 
+using TypeSubstitutionMap = std::map<std::string, Type_ptr>;
+using OptionalTypeSubstitutionMap = std::optional<TypeSubstitutionMap>;
+
 // ============================================================================
 // Utils
 // ============================================================================

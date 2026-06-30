@@ -330,10 +330,7 @@ nlohmann::json ASTPrinter::print(const FieldVector& fields)
         node["name"] = field.name;
         node["type"] = print(field.type);
         node["is_variadic"] = field.is_variadic;
-        // if (field.symbol)
-        // {
-        //     node["symbol_id"] = field.symbol->id;
-        // }
+
         result.push_back(node);
     }
     return result;
@@ -636,10 +633,7 @@ nlohmann::json ASTPrinter::print(const Range& expr)
 nlohmann::json ASTPrinter::print(const Identifier& expr)
 {
     nlohmann::json node = make_node("Identifier", {{"name", expr.name}});
-    // if (expr.symbol)
-    // {
-    //     node["symbol_id"] = expr.symbol->id;
-    // }
+
     node["must_be_captured"] = expr.must_be_captured;
     return node;
 }
@@ -826,10 +820,7 @@ nlohmann::json ASTPrinter::print(const AngularTypeNode& type)
         "AngularType",
         {{"name", type.name}, {"type_arguments", print(type.type_arguments)}}
     );
-    // if (type.symbol)
-    // {
-    //     node["symbol_id"] = type.symbol->id;
-    // }
+
     return node;
 }
 

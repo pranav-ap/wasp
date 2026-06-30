@@ -8,7 +8,6 @@
 #include "Type.h"
 #include "TypeSystem.h"
 
-#include <algorithm>
 #include <cstddef>
 #include <map>
 #include <optional>
@@ -16,7 +15,6 @@
 #include <tuple>
 #include <utility>
 #include <variant>
-#include <vector>
 
 template <class... Ts> struct overloaded : Ts...
 {
@@ -101,10 +99,6 @@ Type_ptr SemanticsAnalyzer::visit(Call& call)
     );
 }
 
-// ==================================================================================
-// Identifier Call
-// ==================================================================================
-
 Type_ptr SemanticsAnalyzer::visit(
     Call& call,
     Identifier& identifier,
@@ -155,225 +149,17 @@ Type_ptr SemanticsAnalyzer::visit(
         std::string mangled_name = identifier.name + "_" + TypeSystem::mangle(solid_types);
 
         Symbol_ptr solid_symbol = solidify_template(template_function_symbol, mangled_name, substitutions);
-        Type_ptr return_type = solid_symbol->get_type()->as<FunctionType_ptr>()->return_type;
 
         identifier.symbol = solid_symbol;
         identifier.must_be_captured = solid_symbol->should_be_captured(current_scope->closure_depth);
         identifier.name = mangled_name;
 
+        Type_ptr return_type = solid_symbol->get_type()->as<FunctionType_ptr>()->return_type;
         return return_type;
     }
 
     Doctor::semantics().fatal("No viable candidates for function: " + symbol->name);
 }
-
-std::optional<std::pair<Symbol_ptr, int>> SemanticsAnalyzer::try_resolve_solid(
-    const std::string& name,
-    const FunctionCandidateVector& candidates,
-    const TypeVector& argument_types
-) const
-{
-    FunctionCandidateVector viable;
-
-    for (const auto& c : candidates)
-    {
-        bool candidate_is_viable = true;
-
-        for (size_t i = 0; i < argument_types.size(); ++i)
-        {
-            bool arg_is_assignable = TypeSystem::assignable(
-                current_scope,
-                c.function_type->parameter_types[i],
-                argument_types[i]
-            );
-
-            if (!arg_is_assignable)
-            {
-                candidate_is_viable = false;
-                break;
-            }
-        }
-
-        if (candidate_is_viable)
-        {
-            viable.push_back(c);
-        }
-    }
-
-    if (viable.empty())
-    {
-        return std::nullopt;
-    }
-
-    if (viable.size() == 1)
-    {
-        return std::make_pair(viable[0].symbol, viable[0].index);
-    }
-
-    auto best = get_best_candidate(viable, argument_types);
-    return std::make_pair(best.symbol, best.index);
-}
-
-std::optional<std::tuple<Symbol_ptr, int, TypeSubstitutionMap>> SemanticsAnalyzer::try_resolve_template(
-    const std::string& name,
-    const FunctionCandidateVector& candidates,
-    const TypeVector& solid_types,
-    const TypeVector& argument_types
-) const
-{
-    if (candidates.empty())
-    {
-        return std::nullopt;
-    }
-
-    FunctionCandidateVector viable;
-    TypeSubstitutionMap latest_substitutions;
-
-    for (const auto& c : candidates)
-    {
-        if (!solid_types.empty())
-        {
-            // Explicit template arguments – use the existing `is_assignable_template_function`
-            auto [ok, subs] = is_assignable_template_function(c.function_type, solid_types, argument_types);
-            if (ok)
-            {
-                viable.push_back(c);
-                latest_substitutions = subs;
-            }
-        }
-        else
-        {
-            // Implicit deduction
-            auto deduced = deduce_function_template_arguments(c.function_type, argument_types);
-            if (deduced.has_value())
-            {
-                // Substitute parameter types with deduced types
-                TypeVector substituted_params;
-                for (const auto& p : c.function_type->parameter_types)
-                {
-                    substituted_params.push_back(Solidifier::get().substitute_type(p, *deduced));
-                }
-
-                // Check assignability with original argument types
-                bool all_assignable = true;
-                for (size_t i = 0; i < argument_types.size(); ++i)
-                {
-                    if (!TypeSystem::assignable(current_scope, substituted_params[i], argument_types[i]))
-                    {
-                        all_assignable = false;
-                        break;
-                    }
-                }
-                if (all_assignable)
-                {
-                    viable.push_back(c);
-                    latest_substitutions = *deduced;
-                }
-            }
-        }
-    }
-
-    if (viable.empty())
-    {
-        return std::nullopt;
-    }
-
-    if (viable.size() == 1)
-    {
-        return std::make_tuple(viable[0].symbol, viable[0].index, latest_substitutions);
-    }
-
-    // Multiple viable template instantiations – ambiguous
-    Doctor::semantics().fatal("Ambiguous template function call: " + name);
-}
-
-FunctionCandidate SemanticsAnalyzer::get_best_candidate(
-    const FunctionCandidateVector& candidates,
-    const TypeVector& argument_types
-) const
-{
-    // Score candidates: prefer more specific matches
-    std::vector<std::pair<FunctionCandidate, int>> scored;
-
-    for (const auto& c : candidates)
-    {
-        int score = 0;
-
-        // Exact matches score higher
-        for (size_t i = 0; i < argument_types.size(); ++i)
-        {
-            if (TypeSystem::equal(current_scope, c.function_type->parameter_types[i], argument_types[i]))
-            {
-                score += 10;
-            }
-        }
-
-        scored.push_back({c, score});
-    }
-
-    // Sort by score descending
-    std::sort(
-        scored.begin(),
-        scored.end(),
-        [](const auto& a, const auto& b)
-        {
-            return a.second > b.second;
-        }
-    );
-
-    // Check for tie
-    if (scored.size() > 1 && scored[0].second == scored[1].second)
-    {
-        Doctor::semantics().fatal("Ambiguous function call");
-    }
-
-    return scored[0].first;
-}
-
-std::pair<bool, TypeSubstitutionMap> SemanticsAnalyzer::is_assignable_template_function(
-    FunctionType_ptr function_type,
-    const TypeVector& solid_types,
-    const TypeVector& argument_types
-) const
-{
-    TypeSubstitutionMap substitutions;
-
-    const StringVector& template_params = function_type->template_type->ordered_parameter_names;
-
-    if (solid_types.size() != template_params.size())
-    {
-        return {false, substitutions};
-    }
-
-    for (size_t i = 0; i < solid_types.size(); ++i)
-    {
-        substitutions[template_params[i]] = solid_types[i];
-    }
-
-    TypeVector substituted_params;
-
-    for (const Type_ptr& param_type : function_type->parameter_types)
-    {
-        substituted_params.push_back(Solidifier::get().substitute_type(param_type, substitutions));
-    }
-
-    // Check if arguments are assignable to substituted parameters
-    for (size_t i = 0; i < argument_types.size(); ++i)
-    {
-        bool is_assignable = TypeSystem::assignable(current_scope, substituted_params[i], argument_types[i]);
-
-        if (!is_assignable)
-        {
-            return {false, substitutions};
-        }
-    }
-
-    return {true, substitutions};
-}
-
-// ==================================================================================
-// Member Access Call
-// ==================================================================================
 
 Type_ptr SemanticsAnalyzer::visit(
     Call& call,
@@ -431,6 +217,179 @@ Type_ptr SemanticsAnalyzer::visit(
         left_type->data
     );
 }
+
+// ==================================================================================
+// Identifier Call
+// ==================================================================================
+
+std::optional<std::pair<Symbol_ptr, int>> SemanticsAnalyzer::try_resolve_solid(
+    const std::string& name,
+    const FunctionCandidateVector& candidates,
+    const TypeVector& argument_types
+) const
+{
+    FunctionCandidateVector viable;
+
+    for (const FunctionCandidate& c : candidates)
+    {
+        bool candidate_is_viable = true;
+
+        for (size_t i = 0; i < argument_types.size(); ++i)
+        {
+            bool arg_is_assignable = TypeSystem::assignable(
+                current_scope,
+                c.function_type->parameter_types[i],
+                argument_types[i]
+            );
+
+            if (!arg_is_assignable)
+            {
+                candidate_is_viable = false;
+                break;
+            }
+        }
+
+        if (candidate_is_viable)
+        {
+            viable.push_back(c);
+        }
+    }
+
+    if (viable.empty())
+    {
+        return std::nullopt;
+    }
+
+    if (viable.size() == 1)
+    {
+        return std::make_pair(viable[0].symbol, viable[0].index);
+    }
+
+    Doctor::semantics().fatal("Ambiguous function call: " + name);
+}
+
+std::optional<std::tuple<Symbol_ptr, int, TypeSubstitutionMap>> SemanticsAnalyzer::try_resolve_template(
+    const std::string& name,
+    const FunctionCandidateVector& candidates,
+    const TypeVector& solid_types,
+    const TypeVector& argument_types
+) const
+{
+    if (candidates.empty())
+    {
+        return std::nullopt;
+    }
+
+    FunctionCandidateVector viable;
+    TypeSubstitutionMap latest_substitutions;
+
+    for (const FunctionCandidate& c : candidates)
+    {
+        // Explicit Solid Types
+        if (!solid_types.empty())
+        {
+            OptionalTypeSubstitutionMap subs = is_assignable_template_function(
+                c.function_type,
+                solid_types,
+                argument_types
+            );
+
+            if (subs.has_value())
+            {
+                viable.push_back(c);
+                latest_substitutions = subs.value();
+            }
+        }
+        // Maybe Implicit Solid Types
+        else
+        {
+            OptionalTypeSubstitutionMap deduced = TypeSystem::infer_solid_types(
+                current_scope,
+                c.function_type->parameter_types,
+                c.function_type->template_type->ordered_parameter_names,
+                argument_types
+            );
+
+            if (deduced.has_value())
+            {
+                TypeVector substituted_params;
+                for (const auto& p : c.function_type->parameter_types)
+                {
+                    substituted_params.push_back(Solidifier::get().substitute_type(p, *deduced));
+                }
+
+                bool all_assignable = true;
+
+                for (size_t i = 0; i < argument_types.size(); ++i)
+                {
+                    if (!TypeSystem::assignable(current_scope, substituted_params[i], argument_types[i]))
+                    {
+                        all_assignable = false;
+                        break;
+                    }
+                }
+
+                if (all_assignable)
+                {
+                    viable.push_back(c);
+                    latest_substitutions = *deduced;
+                }
+            }
+        }
+    }
+
+    if (viable.empty())
+    {
+        return std::nullopt;
+    }
+
+    if (viable.size() == 1)
+    {
+        return std::make_tuple(viable[0].symbol, viable[0].index, latest_substitutions);
+    }
+
+    Doctor::semantics().fatal("Ambiguous function call: " + name);
+}
+
+OptionalTypeSubstitutionMap SemanticsAnalyzer::is_assignable_template_function(
+    FunctionType_ptr function_type,
+    const TypeVector& solid_types,
+    const TypeVector& argument_types
+) const
+{
+    const StringVector& template_params = function_type->template_type->ordered_parameter_names;
+
+    if (solid_types.size() != template_params.size())
+    {
+        return std::nullopt;
+    }
+
+    TypeSubstitutionMap substitutions;
+    for (size_t i = 0; i < solid_types.size(); ++i)
+    {
+        substitutions[template_params[i]] = solid_types[i];
+    }
+
+    TypeVector substituted_params;
+    for (const Type_ptr& param_type : function_type->parameter_types)
+    {
+        substituted_params.push_back(Solidifier::get().substitute_type(param_type, substitutions));
+    }
+
+    for (size_t i = 0; i < argument_types.size(); ++i)
+    {
+        if (!TypeSystem::assignable(current_scope, substituted_params[i], argument_types[i]))
+        {
+            return std::nullopt;
+        }
+    }
+
+    return substitutions;
+}
+
+// ==================================================================================
+// Oops Member Access Call
+// ==================================================================================
 
 Type_ptr SemanticsAnalyzer::visit(
     Call& call,
@@ -504,6 +463,10 @@ std::tuple<MethodType_ptr, int> SemanticsAnalyzer::resolve_method(
     Doctor::semantics().fatal("Ambiguous method call");
 }
 
+// ==================================================================================
+// Module Member Access Call
+// ==================================================================================
+
 Type_ptr SemanticsAnalyzer::visit(
     Call& call,
     MemberAccess& access,
@@ -571,46 +534,6 @@ Type_ptr SemanticsAnalyzer::visit(
     }
 
     Doctor::semantics().fatal("No viable candidates for module function: " + member_name);
-}
-
-std::optional<TypeSubstitutionMap> SemanticsAnalyzer::deduce_function_template_arguments(
-    FunctionType_ptr function_type,
-    const TypeVector& argument_types
-) const
-{
-    if (function_type->template_type->empty())
-    {
-        return std::nullopt;
-    }
-
-    const auto& param_types = function_type->parameter_types;
-    if (argument_types.size() != param_types.size())
-    {
-        return std::nullopt;
-    }
-
-    TypeSubstitutionMap substitutions;
-    bool ok = true;
-
-    for (size_t i = 0; i < param_types.size(); ++i)
-    {
-        deduce_from_type(param_types[i], argument_types[i], substitutions, ok);
-        if (!ok)
-        {
-            return std::nullopt;
-        }
-    }
-
-    // All template parameters must be deduced.
-    for (const auto& name : function_type->template_type->ordered_parameter_names)
-    {
-        if (substitutions.find(name) == substitutions.end())
-        {
-            return std::nullopt;
-        }
-    }
-
-    return substitutions;
 }
 
 } // namespace Wasp
