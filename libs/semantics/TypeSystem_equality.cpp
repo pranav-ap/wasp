@@ -20,7 +20,7 @@ bool TypeSystem::equal(
     SymbolScope_ptr scope,
     const TypeVector& type_vector_1,
     const TypeVector& type_vector_2
-) const
+)
 {
     if (type_vector_1.size() != type_vector_2.size())
     {
@@ -42,7 +42,7 @@ bool TypeSystem::equal_unordered(
     SymbolScope_ptr scope,
     const TypeVector& left_vector,
     const TypeVector& right_vector
-) const
+)
 {
     if (left_vector.size() != right_vector.size())
     {
@@ -66,11 +66,7 @@ bool TypeSystem::equal_unordered(
     );
 }
 
-bool TypeSystem::equal(
-    SymbolScope_ptr scope,
-    const Type_ptr type_1,
-    const Type_ptr type_2
-) const
+bool TypeSystem::equal(SymbolScope_ptr scope, const Type_ptr type_1, const Type_ptr type_2)
 {
     if (!type_1 || !type_2)
     {
@@ -170,11 +166,7 @@ bool TypeSystem::equal(
     );
 }
 
-bool TypeSystem::signatures_match(
-    SymbolScope_ptr scope,
-    const FunctionType_ptr a,
-    const FunctionType_ptr b
-) const
+bool TypeSystem::signatures_match(SymbolScope_ptr scope, const FunctionType_ptr a, const FunctionType_ptr b)
 {
     if (a->parameter_types.size() != b->parameter_types.size())
     {
@@ -194,11 +186,7 @@ bool TypeSystem::signatures_match(
     return true;
 }
 
-bool TypeSystem::signatures_match(
-    SymbolScope_ptr scope,
-    const MethodType_ptr a,
-    const MethodType_ptr b
-) const
+bool TypeSystem::signatures_match(SymbolScope_ptr scope, const MethodType_ptr a, const MethodType_ptr b)
 {
     if (a->parameter_types.size() != b->parameter_types.size())
     {

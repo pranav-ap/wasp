@@ -30,3 +30,5 @@ print(s.id)
 
 let q = bank.Shop(11)
 print(q.id)
+
+# let z = Shop([1, 2, 3])   # deduces T = int

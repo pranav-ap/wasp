@@ -20,13 +20,9 @@ Type_ptr SemanticsAnalyzer::visit(Prefix& expr)
 {
     auto operand_type = visit(expr.operand);
 
-    if (type_system->is_primitive_type(operand_type))
+    if (TypeSystem::is_primitive_type(operand_type))
     {
-        return type_system->infer(
-            current_scope,
-            expr.op.type,
-            type_system->unpack_primitive(operand_type)
-        );
+        return TypeSystem::infer(current_scope, expr.op.type, TypeSystem::unpack_primitive(operand_type));
     }
 
     std::string function_name = get_operator_name(
@@ -55,14 +51,13 @@ Type_ptr SemanticsAnalyzer::visit(Infix& expr)
     Type_ptr left_value = visit(expr.left);
     Type_ptr right_value = visit(expr.right);
 
-    if (type_system->is_primitive_type(left_value) &&
-        type_system->is_primitive_type(right_value))
+    if (TypeSystem::is_primitive_type(left_value) && TypeSystem::is_primitive_type(right_value))
     {
-        return type_system->infer(
+        return TypeSystem::infer(
             current_scope,
-            type_system->unpack_primitive(left_value),
+            TypeSystem::unpack_primitive(left_value),
             expr.op.type,
-            type_system->unpack_primitive(right_value)
+            TypeSystem::unpack_primitive(right_value)
         );
     }
 

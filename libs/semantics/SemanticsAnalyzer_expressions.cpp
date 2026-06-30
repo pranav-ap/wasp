@@ -61,7 +61,7 @@ Type_ptr SemanticsAnalyzer::visit(TernaryExpression& expr)
     else
     {
         Doctor::semantics().check(
-            type_system->is_boolean_type(test_type),
+            TypeSystem::is_boolean_type(test_type),
             "Test expression must be of boolean type, got: " + test_type->to_string()
         );
     }
@@ -69,10 +69,7 @@ Type_ptr SemanticsAnalyzer::visit(TernaryExpression& expr)
     Type_ptr then_type = visit(expr.then_expr);
     Type_ptr else_type = visit(expr.else_expr);
 
-    Type_ptr result = type_system->unify(
-        current_scope,
-        {then_type, else_type}
-    );
+    Type_ptr result = TypeSystem::unify(current_scope, {then_type, else_type});
 
     return result;
 }
@@ -109,9 +106,8 @@ Type_ptr SemanticsAnalyzer::visit(InterpolatedString& expr)
         Type_ptr part_type = visit(part);
 
         Doctor::semantics().check(
-            type_system->implements_trait(part_type, "Printable"),
-            "Interpolated string parts must be Printable. Got : " +
-                part_type->to_string()
+            TypeSystem::implements_trait(part_type, "Printable"),
+            "Interpolated string parts must be Printable. Got : " + part_type->to_string()
         );
     }
 
@@ -122,10 +118,7 @@ Type_ptr SemanticsAnalyzer::visit(ListLiteral& expr)
 {
     TypeVector element_types = visit(expr.expressions);
 
-    Type_ptr unified_element_type = type_system->unify(
-        current_scope,
-        element_types
-    );
+    Type_ptr unified_element_type = TypeSystem::unify(current_scope, element_types);
 
     return make_shared_type<ListType>(unified_element_type);
 }
@@ -143,15 +136,12 @@ Type_ptr SemanticsAnalyzer::visit(SetLiteral& expr)
     for (auto& type : element_types)
     {
         Doctor::semantics().check(
-            type_system->is_key_type(type),
+            TypeSystem::is_key_type(type),
             "Invalid set element type: " + type->to_string()
         );
     }
 
-    Type_ptr unified_element_type = type_system->unify(
-        current_scope,
-        element_types
-    );
+    Type_ptr unified_element_type = TypeSystem::unify(current_scope, element_types);
 
     return make_shared_type<SetType>(unified_element_type);
 }
@@ -166,7 +156,7 @@ Type_ptr SemanticsAnalyzer::visit(MapLiteral& expr)
         Type_ptr v_type = visit(v_expr);
 
         Doctor::semantics().check(
-            type_system->is_key_type(k_type),
+            TypeSystem::is_key_type(k_type),
             "Invalid map key type: " + k_type->to_string()
         );
 
@@ -174,14 +164,8 @@ Type_ptr SemanticsAnalyzer::visit(MapLiteral& expr)
         val_types.push_back(v_type);
     }
 
-    Type_ptr unified_key_type = type_system->unify(
-        current_scope,
-        key_types
-    );
-    Type_ptr unified_val_type = type_system->unify(
-        current_scope,
-        val_types
-    );
+    Type_ptr unified_key_type = TypeSystem::unify(current_scope, key_types);
+    Type_ptr unified_val_type = TypeSystem::unify(current_scope, val_types);
 
     return make_shared_type<MapType>(unified_key_type, unified_val_type);
 }

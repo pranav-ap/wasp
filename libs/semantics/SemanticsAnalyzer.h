@@ -175,6 +175,21 @@ private:
         const TypeVector& argument_types
     ) const;
 
+    void validate_solid_constructor(const TypeVector& argument_types, ClassType_ptr type);
+
+    std::pair<Type_ptr, Symbol_ptr> resolve_explicit_class_construction(
+        Symbol_ptr template_symbol,
+        const TypeVector& solid_types,
+        const TypeVector& argument_types,
+        ClassType_ptr cls
+    );
+
+    std::pair<Type_ptr, Symbol_ptr> resolve_implicit_class_construction(
+        Symbol_ptr template_symbol,
+        const TypeVector& argument_types,
+        ClassType_ptr cls
+    );
+
 private:
     // Call
 
@@ -241,6 +256,13 @@ private:
     std::optional<TypeSubstitutionMap> deduce_function_template_arguments(
         FunctionType_ptr function_type,
         const TypeVector& argument_types
+    ) const;
+
+    void deduce_from_type(
+        Type_ptr type,
+        const Type_ptr& arg_type,
+        TypeSubstitutionMap& substitutions,
+        bool& ok
     ) const;
 
 private:

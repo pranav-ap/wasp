@@ -8,8 +8,10 @@
 #include "SymbolFactory.h"
 #include "SymbolScope.h"
 #include "Type.h"
+#include "TypeSystem.h"
 #include "Workspace.h"
 
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <utility>
@@ -138,6 +140,143 @@ Symbol_ptr SemanticsAnalyzer::solidify_template(
     add_tree(solid_symbol, solid_ast, current_scope);
 
     return solid_symbol;
+}
+
+void SemanticsAnalyzer::deduce_from_type(
+    Type_ptr type,
+    const Type_ptr& arg_type,
+    TypeSubstitutionMap& substitutions,
+    bool& ok
+) const
+{
+    if (!ok || !type || !arg_type)
+    {
+        return;
+    }
+
+    if (type->is<GenericType_ptr>())
+    {
+        auto generic = type->as<GenericType_ptr>();
+        const auto& name = generic->name;
+
+        if (generic->constraint_type &&
+            !TypeSystem::assignable(current_scope, generic->constraint_type, arg_type))
+        {
+            ok = false;
+            return;
+        }
+
+        auto it = substitutions.find(name);
+        if (it != substitutions.end())
+        {
+            if (!TypeSystem::equal(current_scope, it->second, arg_type))
+            {
+                ok = false;
+            }
+        }
+        else
+        {
+            substitutions[name] = arg_type;
+        }
+        return;
+    }
+
+    // Composite types
+    if (type->is<ListType_ptr>() && arg_type->is<ListType_ptr>())
+    {
+        deduce_from_type(
+            type->as<ListType_ptr>()->element_type,
+            arg_type->as<ListType_ptr>()->element_type,
+            substitutions,
+            ok
+        );
+        return;
+    }
+
+    if (type->is<SetType_ptr>() && arg_type->is<SetType_ptr>())
+    {
+        deduce_from_type(
+            type->as<SetType_ptr>()->element_type,
+            arg_type->as<SetType_ptr>()->element_type,
+            substitutions,
+            ok
+        );
+
+        return;
+    }
+
+    if (type->is<MapType_ptr>() && arg_type->is<MapType_ptr>())
+    {
+        auto t = type->as<MapType_ptr>();
+        auto a = arg_type->as<MapType_ptr>();
+
+        deduce_from_type(t->key_type, a->key_type, substitutions, ok);
+
+        if (ok)
+        {
+            deduce_from_type(t->value_type, a->value_type, substitutions, ok);
+        }
+
+        return;
+    }
+
+    if (type->is<TupleType_ptr>() && arg_type->is<TupleType_ptr>())
+    {
+        auto t = type->as<TupleType_ptr>();
+        auto a = arg_type->as<TupleType_ptr>();
+        if (t->element_types.size() != a->element_types.size())
+        {
+            ok = false;
+            return;
+        }
+        for (size_t i = 0; i < t->element_types.size() && ok; ++i)
+        {
+            deduce_from_type(t->element_types[i], a->element_types[i], substitutions, ok);
+        }
+        return;
+    }
+
+    if (type->is<VariantType_ptr>() && arg_type->is<VariantType_ptr>())
+    {
+        auto t = type->as<VariantType_ptr>();
+        auto a = arg_type->as<VariantType_ptr>();
+        if (t->types.size() != a->types.size())
+        {
+            ok = false;
+            return;
+        }
+
+        for (size_t i = 0; i < t->types.size() && ok; ++i)
+        {
+            deduce_from_type(t->types[i], a->types[i], substitutions, ok);
+        }
+
+        return;
+    }
+
+    if (type->is<IntersectionType_ptr>() && arg_type->is<IntersectionType_ptr>())
+    {
+        auto t = type->as<IntersectionType_ptr>();
+        auto a = arg_type->as<IntersectionType_ptr>();
+
+        if (t->types.size() != a->types.size())
+        {
+            ok = false;
+            return;
+        }
+
+        for (size_t i = 0; i < t->types.size() && ok; ++i)
+        {
+            deduce_from_type(t->types[i], a->types[i], substitutions, ok);
+        }
+
+        return;
+    }
+
+    if (!TypeSystem::assignable(current_scope, type, arg_type))
+    {
+        ok = false;
+    }
 }
 
 } // namespace Wasp

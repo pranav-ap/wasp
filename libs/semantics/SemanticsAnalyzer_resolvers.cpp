@@ -189,10 +189,7 @@ Type_ptr resolve_member_access(
                     ));
                 }
 
-                auto resolved_type = type_system->unify(
-                    scope,
-                    result_types
-                );
+                auto resolved_type = TypeSystem::unify(scope, result_types);
 
                 return resolved_type;
             },
@@ -245,7 +242,7 @@ Type_ptr SemanticsAnalyzer::visit(Binding& binding)
     id.symbol->set_type(declared_type);
 
     Doctor::semantics().check(
-        type_system->equal(current_scope, declared_type, inferred_type),
+        TypeSystem::equal(current_scope, declared_type, inferred_type),
         "Declared type and inferred type do not match"
     );
 
@@ -295,7 +292,7 @@ Type_ptr SemanticsAnalyzer::mutate_variable(
     Type_ptr expected_type = identifier.symbol->get_type();
 
     Doctor::semantics().check(
-        type_system->equal(current_scope, expected_type, assigned_type),
+        TypeSystem::equal(current_scope, expected_type, assigned_type),
         "Type mismatch in assignment to '" + symbol_name + "'"
     );
 
@@ -310,9 +307,8 @@ Type_ptr SemanticsAnalyzer::mutate_member(Expression_ptr lhs_expr, Expression_pt
     Type_ptr actual_type = visit(rhs_expr);
 
     Doctor::semantics().check(
-        type_system->equal(current_scope, expected_type, actual_type),
-        "Type mismatch in member assignment to '" +
-            access.member->as<Identifier>().name + "'"
+        TypeSystem::equal(current_scope, expected_type, actual_type),
+        "Type mismatch in member assignment to '" + access.member->as<Identifier>().name + "'"
     );
 
     return expected_type;

@@ -22,10 +22,7 @@ Type_ptr TypeSystem::unify(SymbolScope_ptr scope, const TypeVector& types)
     return make_type(std::make_shared<VariantType>(unique_types));
 }
 
-TypeVector TypeSystem::remove_duplicates(
-    SymbolScope_ptr scope,
-    const TypeVector& types
-) const
+TypeVector TypeSystem::remove_duplicates(SymbolScope_ptr scope, const TypeVector& types)
 {
     TypeVector unique_types;
     unique_types.reserve(types.size());

@@ -483,7 +483,7 @@ TemplateType_ptr SemanticsAnalyzer::create_template_type(FieldVector& generics)
             for (auto& inner_type : types)
             {
                 Doctor::semantics().check(
-                    type_system->is_primitive_type(inner_type),
+                    TypeSystem::is_primitive_type(inner_type),
                     "Only an union of primitives is supported"
                 );
             }
@@ -565,7 +565,7 @@ void SemanticsAnalyzer::validate_new_function_type_friends(
 
         FunctionType_ptr friend_function_type = friend_type->as<FunctionType_ptr>();
 
-        bool signatures_match = type_system->signatures_match(
+        bool signatures_match = TypeSystem::signatures_match(
             current_scope,
             friend_function_type,
             candidate_function_type
@@ -597,7 +597,7 @@ void SemanticsAnalyzer::shadow_new_function_type_parents(
 
         FunctionType_ptr parent_function_type = parent_type->as<FunctionType_ptr>();
 
-        bool signatures_match = type_system->signatures_match(
+        bool signatures_match = TypeSystem::signatures_match(
             current_scope,
             parent_function_type,
             candidate_function_type
@@ -693,7 +693,7 @@ void SemanticsAnalyzer::validate_required_methods(
                 MethodType_ptr candidate_method_type = method.symbol->get_type()
                                                            ->as<MethodType_ptr>();
 
-                found_the_required_method = type_system->signatures_match(
+                found_the_required_method = TypeSystem::signatures_match(
                     current_scope,
                     required_method_type,
                     candidate_method_type
@@ -761,7 +761,7 @@ void SemanticsAnalyzer::merge_trait_methods(
             MethodType_ptr target_method_type = target_method.symbol->get_type()
                                                     ->as<MethodType_ptr>();
 
-            already_exists = type_system->signatures_match(
+            already_exists = TypeSystem::signatures_match(
                 current_scope,
                 trait_method_type,
                 target_method_type

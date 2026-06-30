@@ -20,7 +20,7 @@ bool TypeSystem::assignable(
     SymbolScope_ptr scope,
     const TypeVector& type_vector_1,
     const TypeVector& type_vector_2
-) const
+)
 {
     if (type_vector_1.size() != type_vector_2.size())
     {
@@ -38,11 +38,7 @@ bool TypeSystem::assignable(
     );
 }
 
-bool TypeSystem::assignable(
-    SymbolScope_ptr scope,
-    const Type_ptr lhs_type,
-    const Type_ptr rhs_type
-) const
+bool TypeSystem::assignable(SymbolScope_ptr scope, const Type_ptr lhs_type, const Type_ptr rhs_type)
 {
     if (!lhs_type || !rhs_type)
     {

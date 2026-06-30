@@ -7,7 +7,7 @@
 namespace Wasp
 {
 
-bool TypeSystem::is_int_type(Type_ptr obj) const
+bool TypeSystem::is_int_type(Type_ptr obj)
 {
     Doctor::semantics().fatal_if_nullptr(obj);
 
@@ -25,7 +25,7 @@ bool TypeSystem::is_int_type(Type_ptr obj) const
     return false;
 }
 
-bool TypeSystem::is_float_type(Type_ptr obj) const
+bool TypeSystem::is_float_type(Type_ptr obj)
 {
     Doctor::semantics().fatal_if_nullptr(obj);
 
@@ -43,12 +43,12 @@ bool TypeSystem::is_float_type(Type_ptr obj) const
     return false;
 }
 
-bool TypeSystem::is_number_type(Type_ptr obj) const
+bool TypeSystem::is_number_type(Type_ptr obj)
 {
     return is_int_type(obj) || is_float_type(obj);
 }
 
-bool TypeSystem::is_string_type(Type_ptr obj) const
+bool TypeSystem::is_string_type(Type_ptr obj)
 {
     Doctor::semantics().fatal_if_nullptr(obj);
 
@@ -66,7 +66,7 @@ bool TypeSystem::is_string_type(Type_ptr obj) const
     return false;
 }
 
-bool TypeSystem::is_boolean_type(Type_ptr obj) const
+bool TypeSystem::is_boolean_type(Type_ptr obj)
 {
     Doctor::semantics().fatal_if_nullptr(obj);
 
@@ -84,13 +84,13 @@ bool TypeSystem::is_boolean_type(Type_ptr obj) const
     return false;
 }
 
-bool TypeSystem::is_none_type(const Type_ptr type) const
+bool TypeSystem::is_none_type(const Type_ptr type)
 {
     Doctor::semantics().fatal_if_nullptr(type);
     return type->is<NoneType_ptr>();
 }
 
-bool TypeSystem::is_primitive_type(const Type_ptr type) const
+bool TypeSystem::is_primitive_type(const Type_ptr type)
 {
     Doctor::semantics().fatal_if_nullptr(type);
 
@@ -103,7 +103,7 @@ bool TypeSystem::is_primitive_type(const Type_ptr type) const
            type->is<IntersectionType_ptr>() || type->is<PrimitiveType_ptr>();
 }
 
-bool TypeSystem::is_key_type(const Type_ptr type) const
+bool TypeSystem::is_key_type(const Type_ptr type)
 {
     return is_int_type(type) || is_string_type(type) ||
            is_boolean_type(type);

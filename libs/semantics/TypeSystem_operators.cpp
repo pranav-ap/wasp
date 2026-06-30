@@ -18,7 +18,7 @@ Type_ptr TypeSystem::infer(
     const Type_ptr left,
     const TokenType op,
     const Type_ptr right
-) const
+)
 {
     Type_ptr left_type = left->unwrap_alias();
     Type_ptr right_type = right->unwrap_alias();
@@ -208,11 +208,7 @@ Type_ptr TypeSystem::infer(
     return make_shared_type<NoneType>();
 }
 
-Type_ptr TypeSystem::infer(
-    SymbolScope_ptr scope,
-    const TokenType op,
-    const Type_ptr operand
-) const
+Type_ptr TypeSystem::infer(SymbolScope_ptr scope, const TokenType op, const Type_ptr operand)
 {
     Type_ptr operand_type = operand->unwrap_alias();
 

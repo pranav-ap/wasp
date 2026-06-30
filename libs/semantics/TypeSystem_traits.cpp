@@ -11,10 +11,7 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace Wasp
 {
-bool TypeSystem::implements_trait(
-    Type_ptr patient,
-    const std::string& trait_name
-) const
+bool TypeSystem::implements_trait(Type_ptr patient, const std::string& trait_name)
 {
     if (patient->is<GenericType_ptr>())
     {
@@ -76,10 +73,7 @@ bool TypeSystem::implements_trait(
     return false;
 }
 
-bool TypeSystem::implements_trait(
-    OopsType_ptr patient,
-    const std::string& trait_name
-) const
+bool TypeSystem::implements_trait(OopsType_ptr patient, const std::string& trait_name)
 {
     for (const auto& trait_obj : patient->traits)
     {

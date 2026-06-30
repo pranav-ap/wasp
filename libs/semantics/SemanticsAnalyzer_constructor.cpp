@@ -82,6 +82,104 @@ Type_ptr SemanticsAnalyzer::visit(Constructor& cons)
     );
 }
 
+std::pair<Type_ptr, Symbol_ptr> SemanticsAnalyzer::resolve_constructor_from_symbol(
+    Symbol_ptr symbol,
+    const TypeVector& solid_types,
+    const TypeVector& argument_types
+)
+{
+    Doctor::semantics().check(symbol->is<TypeSymbol>(), "Expected a TypeSymbol for constructor resolution");
+
+    Type_ptr type = symbol->get_type();
+    Doctor::semantics().check(type->is<ClassType_ptr>(), "Expected a ClassType for constructor");
+
+    ClassType_ptr cls = type->as<ClassType_ptr>();
+
+    if (cls->template_type->empty())
+    {
+        validate_solid_constructor(argument_types, cls);
+        return {type, symbol};
+    }
+
+    if (!solid_types.empty())
+    {
+        return resolve_explicit_class_construction(symbol, solid_types, argument_types, cls);
+    }
+
+    return resolve_implicit_class_construction(symbol, argument_types, cls);
+}
+
+void SemanticsAnalyzer::validate_solid_constructor(const TypeVector& argument_types, ClassType_ptr cls)
+{
+    Doctor::semantics().check(
+        cls->fields->ordered_keys.size() == argument_types.size(),
+        "Constructor argument count mismatch for class " + cls->name
+    );
+
+    bool all_assignable = true;
+
+    for (size_t i = 0; i < argument_types.size(); ++i)
+    {
+        if (!TypeSystem::assignable(current_scope, cls->fields->get_type(i), argument_types[i]))
+        {
+            all_assignable = false;
+            break;
+        }
+    }
+
+    Doctor::semantics().check(all_assignable, "Constructor argument type mismatch for class " + cls->name);
+}
+
+std::pair<Type_ptr, Symbol_ptr> SemanticsAnalyzer::resolve_explicit_class_construction(
+    Symbol_ptr template_symbol,
+    const TypeVector& solid_types,
+    const TypeVector& argument_types,
+    ClassType_ptr cls
+)
+{
+    const auto& param_names = cls->template_type->ordered_parameter_names;
+
+    Doctor::semantics().check(
+        solid_types.size() == param_names.size(),
+        "Template argument count mismatch for class " + cls->name
+    );
+
+    TypeSubstitutionMap substitutions;
+
+    for (size_t i = 0; i < solid_types.size(); ++i)
+    {
+        substitutions[param_names[i]] = solid_types[i];
+    }
+
+    std::string mangled_name = cls->name + "_" + TypeSystem::mangle(solid_types);
+    Symbol_ptr solid_symbol = solidify_template(template_symbol, mangled_name, substitutions);
+
+    return {solid_symbol->get_type(), solid_symbol};
+}
+
+std::pair<Type_ptr, Symbol_ptr> SemanticsAnalyzer::resolve_implicit_class_construction(
+    Symbol_ptr template_symbol,
+    const TypeVector& argument_types,
+    ClassType_ptr cls
+)
+{
+    std::optional<TypeSubstitutionMap> deduced = deduce_class_template_arguments(cls, argument_types);
+
+    Doctor::semantics().check(deduced.has_value(), "Cannot deduce template arguments for class " + cls->name);
+
+    TypeVector deduced_types;
+
+    for (const auto& name : cls->template_type->ordered_parameter_names)
+    {
+        deduced_types.push_back(deduced->at(name));
+    }
+
+    std::string mangled_name = cls->name + "_" + TypeSystem::mangle(deduced_types);
+    Symbol_ptr solid_symbol = solidify_template(template_symbol, mangled_name, *deduced);
+
+    return {solid_symbol->get_type(), solid_symbol};
+}
+
 std::optional<TypeSubstitutionMap> SemanticsAnalyzer::deduce_class_template_arguments(
     ClassType_ptr class_type,
     const TypeVector& argument_types
@@ -92,7 +190,6 @@ std::optional<TypeSubstitutionMap> SemanticsAnalyzer::deduce_class_template_argu
         return std::nullopt;
     }
 
-    const StringVector& param_names = class_type->template_type->ordered_parameter_names;
     const TypeVector& field_types = class_type->fields->get_ordered_types();
 
     if (argument_types.size() != field_types.size())
@@ -101,44 +198,19 @@ std::optional<TypeSubstitutionMap> SemanticsAnalyzer::deduce_class_template_argu
     }
 
     TypeSubstitutionMap substitutions;
+    bool ok = true;
+
     for (size_t i = 0; i < field_types.size(); ++i)
     {
-        const Type_ptr& field_type = field_types[i];
-        if (field_type->is<GenericType_ptr>())
-        {
-            auto generic = field_type->as<GenericType_ptr>();
-            const std::string& param_name = generic->name;
-            const Type_ptr& arg_type = argument_types[i];
+        deduce_from_type(field_types[i], argument_types[i], substitutions, ok);
 
-            if (generic->constraint_type &&
-                !type_system->assignable(current_scope, generic->constraint_type, arg_type))
-            {
-                return std::nullopt;
-            }
-
-            auto it = substitutions.find(param_name);
-            if (it != substitutions.end())
-            {
-                if (!type_system->equal(current_scope, it->second, arg_type))
-                {
-                    return std::nullopt;
-                }
-            }
-            else
-            {
-                substitutions[param_name] = arg_type;
-            }
-        }
-        else
+        if (!ok)
         {
-            if (!type_system->assignable(current_scope, field_type, argument_types[i]))
-            {
-                return std::nullopt;
-            }
+            return std::nullopt;
         }
     }
 
-    for (const std::string& name : param_names)
+    for (const std::string& name : class_type->template_type->ordered_parameter_names)
     {
         if (substitutions.find(name) == substitutions.end())
         {
@@ -147,120 +219,6 @@ std::optional<TypeSubstitutionMap> SemanticsAnalyzer::deduce_class_template_argu
     }
 
     return substitutions;
-}
-
-std::pair<Type_ptr, Symbol_ptr> SemanticsAnalyzer::resolve_constructor_from_symbol(
-    Symbol_ptr symbol,
-    const TypeVector& solid_types,
-    const TypeVector& argument_types
-)
-{
-    SymbolVector candidates;
-
-    if (symbol->is<OverloadSymbol>())
-    {
-        candidates = symbol->as<OverloadSymbol>().overloads;
-    }
-    else
-    {
-        candidates.push_back(symbol);
-    }
-
-    for (const Symbol_ptr& cand : candidates)
-    {
-        Type_ptr type = cand->get_type();
-
-        if (!type->is<ClassType_ptr>())
-        {
-            continue;
-        }
-
-        auto cls = type->as<ClassType_ptr>();
-
-        if (cls->template_type && !cls->template_type->empty())
-        {
-            continue;
-        }
-
-        if (cls->fields->ordered_keys.size() != argument_types.size())
-        {
-            continue;
-        }
-
-        bool all_assignable = true;
-
-        for (size_t i = 0; i < argument_types.size(); ++i)
-        {
-            if (!type_system->assignable(current_scope, cls->fields->get_type(i), argument_types[i]))
-            {
-                all_assignable = false;
-                break;
-            }
-        }
-        if (all_assignable)
-        {
-            return {type, cand};
-        }
-    }
-
-    for (const auto& cand : candidates)
-    {
-        Type_ptr type = cand->get_type();
-
-        if (!type->is<ClassType_ptr>())
-        {
-            continue;
-        }
-
-        auto cls = type->as<ClassType_ptr>();
-
-        if (!cls->template_type || cls->template_type->empty())
-        {
-            continue;
-        }
-
-        if (!solid_types.empty())
-        {
-            const auto& param_names = cls->template_type->ordered_parameter_names;
-
-            if (solid_types.size() != param_names.size())
-            {
-                continue;
-            }
-
-            TypeSubstitutionMap substitutions;
-
-            for (size_t i = 0; i < solid_types.size(); ++i)
-            {
-                substitutions[param_names[i]] = solid_types[i];
-            }
-
-            std::string mangled_name = cls->name + "_" + TypeSystem::mangle(solid_types);
-            Symbol_ptr solid_symbol = solidify_template(cand, mangled_name, substitutions);
-            return {solid_symbol->get_type(), solid_symbol};
-        }
-        else
-        {
-            auto deduced = deduce_class_template_arguments(cls, argument_types);
-
-            if (deduced.has_value())
-            {
-                TypeVector deduced_types;
-
-                for (const auto& name : cls->template_type->ordered_parameter_names)
-                {
-                    deduced_types.push_back(deduced->at(name));
-                }
-
-                std::string mangled_name = cls->name + "_" + TypeSystem::mangle(deduced_types);
-                Symbol_ptr solid_symbol = solidify_template(cand, mangled_name, *deduced);
-
-                return {solid_symbol->get_type(), solid_symbol};
-            }
-        }
-    }
-
-    Doctor::semantics().fatal("No viable constructor for: " + symbol->name);
 }
 
 } // namespace Wasp

@@ -13,3 +13,11 @@ template
     T: int | float
 class Shop
     id: T
+
+
+# template
+#     T: any
+# class Zoo
+#     id: list<T>
+
+

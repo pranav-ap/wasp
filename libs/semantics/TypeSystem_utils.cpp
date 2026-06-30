@@ -14,7 +14,7 @@ template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace Wasp
 {
 
-Type_ptr TypeSystem::unpack_primitive(const Type_ptr type) const
+Type_ptr TypeSystem::unpack_primitive(const Type_ptr type)
 {
     Doctor::semantics().fatal_if_nullptr(type);
 

@@ -181,7 +181,7 @@ std::optional<std::pair<Symbol_ptr, int>> SemanticsAnalyzer::try_resolve_solid(
 
         for (size_t i = 0; i < argument_types.size(); ++i)
         {
-            bool arg_is_assignable = type_system->assignable(
+            bool arg_is_assignable = TypeSystem::assignable(
                 current_scope,
                 c.function_type->parameter_types[i],
                 argument_types[i]
@@ -233,7 +233,7 @@ std::optional<std::tuple<Symbol_ptr, int, TypeSubstitutionMap>> SemanticsAnalyze
     {
         if (!solid_types.empty())
         {
-            // Explicit template arguments
+            // Explicit template arguments – use the existing `is_assignable_template_function`
             auto [ok, subs] = is_assignable_template_function(c.function_type, solid_types, argument_types);
             if (ok)
             {
@@ -247,17 +247,18 @@ std::optional<std::tuple<Symbol_ptr, int, TypeSubstitutionMap>> SemanticsAnalyze
             auto deduced = deduce_function_template_arguments(c.function_type, argument_types);
             if (deduced.has_value())
             {
-                // Substitute and check assignability
+                // Substitute parameter types with deduced types
                 TypeVector substituted_params;
                 for (const auto& p : c.function_type->parameter_types)
                 {
                     substituted_params.push_back(Solidifier::get().substitute_type(p, *deduced));
                 }
 
+                // Check assignability with original argument types
                 bool all_assignable = true;
                 for (size_t i = 0; i < argument_types.size(); ++i)
                 {
-                    if (!type_system->assignable(current_scope, substituted_params[i], argument_types[i]))
+                    if (!TypeSystem::assignable(current_scope, substituted_params[i], argument_types[i]))
                     {
                         all_assignable = false;
                         break;
@@ -282,7 +283,7 @@ std::optional<std::tuple<Symbol_ptr, int, TypeSubstitutionMap>> SemanticsAnalyze
         return std::make_tuple(viable[0].symbol, viable[0].index, latest_substitutions);
     }
 
-    // Multiple template candidates – ambiguity
+    // Multiple viable template instantiations – ambiguous
     Doctor::semantics().fatal("Ambiguous template function call: " + name);
 }
 
@@ -301,7 +302,7 @@ FunctionCandidate SemanticsAnalyzer::get_best_candidate(
         // Exact matches score higher
         for (size_t i = 0; i < argument_types.size(); ++i)
         {
-            if (type_system->equal(current_scope, c.function_type->parameter_types[i], argument_types[i]))
+            if (TypeSystem::equal(current_scope, c.function_type->parameter_types[i], argument_types[i]))
             {
                 score += 10;
             }
@@ -359,7 +360,7 @@ std::pair<bool, TypeSubstitutionMap> SemanticsAnalyzer::is_assignable_template_f
     // Check if arguments are assignable to substituted parameters
     for (size_t i = 0; i < argument_types.size(); ++i)
     {
-        bool is_assignable = type_system->assignable(current_scope, substituted_params[i], argument_types[i]);
+        bool is_assignable = TypeSystem::assignable(current_scope, substituted_params[i], argument_types[i]);
 
         if (!is_assignable)
         {
@@ -472,7 +473,7 @@ std::tuple<MethodType_ptr, int> SemanticsAnalyzer::resolve_method(
 
         for (size_t j = 0; j < argument_types.size(); ++j)
         {
-            bool is_assignable = type_system->assignable(
+            bool is_assignable = TypeSystem::assignable(
                 current_scope,
                 method_type->parameter_types[j],
                 argument_types[j]
@@ -582,55 +583,26 @@ std::optional<TypeSubstitutionMap> SemanticsAnalyzer::deduce_function_template_a
         return std::nullopt;
     }
 
-    const auto& param_names = function_type->template_type->ordered_parameter_names;
     const auto& param_types = function_type->parameter_types;
-
     if (argument_types.size() != param_types.size())
     {
         return std::nullopt;
     }
 
     TypeSubstitutionMap substitutions;
+    bool ok = true;
+
     for (size_t i = 0; i < param_types.size(); ++i)
     {
-        const Type_ptr& param_type = param_types[i];
-
-        if (param_type->is<GenericType_ptr>())
+        deduce_from_type(param_types[i], argument_types[i], substitutions, ok);
+        if (!ok)
         {
-            GenericType_ptr generic = param_type->as<GenericType_ptr>();
-            const auto& param_name = generic->name;
-            const Type_ptr& arg_type = argument_types[i];
-
-            if (generic->constraint_type &&
-                !type_system->assignable(current_scope, generic->constraint_type, arg_type))
-            {
-                return std::nullopt;
-            }
-
-            auto it = substitutions.find(param_name);
-            if (it != substitutions.end())
-            {
-                if (!type_system->equal(current_scope, it->second, arg_type))
-                {
-                    return std::nullopt;
-                }
-            }
-            else
-            {
-                substitutions[param_name] = arg_type;
-            }
-        }
-        else
-        {
-            // Non‑generic parameter: must be assignable.
-            if (!type_system->assignable(current_scope, param_type, argument_types[i]))
-            {
-                return std::nullopt;
-            }
+            return std::nullopt;
         }
     }
 
-    for (const auto& name : param_names)
+    // All template parameters must be deduced.
+    for (const auto& name : function_type->template_type->ordered_parameter_names)
     {
         if (substitutions.find(name) == substitutions.end())
         {
