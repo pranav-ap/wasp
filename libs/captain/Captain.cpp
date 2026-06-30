@@ -45,24 +45,17 @@ std::string read_file(const std::filesystem::path& file_path)
 
 } // namespace
 
-Captain::Captain(const std::filesystem::path& target_path)
+Captain::Captain(const std::filesystem::path& wasp_file_path)
 {
-    std::filesystem::path clean_target = std::filesystem::absolute(target_path).lexically_normal();
+    Doctor::captain().check(
+        std::filesystem::is_regular_file(wasp_file_path),
+        "Wasp file does not exist: " + wasp_file_path.string()
+    );
 
-    std::filesystem::path workspace_root = std::filesystem::is_directory(clean_target)
-                                               ? clean_target
-                                               : clean_target.parent_path();
+    entry_wasp_file_path = std::filesystem::absolute(wasp_file_path).lexically_normal();
 
-    if (workspace_root.empty())
-    {
-        workspace_root = std::filesystem::current_path().lexically_normal();
-    }
-
+    std::filesystem::path workspace_root = entry_wasp_file_path.parent_path();
     workspace = std::make_shared<Workspace>(workspace_root);
-
-    entry_file = std::filesystem::is_regular_file(clean_target)
-                     ? clean_target
-                     : (workspace_root / "main.wasp").lexically_normal();
 }
 
 void Captain::parse_modules()
@@ -117,7 +110,7 @@ void Captain::build()
     parse_modules();
 
     DependencyCrawler crawler(workspace);
-    std::vector<Module_ptr> build_order = crawler.calculate_build_order(entry_file);
+    std::vector<Module_ptr> build_order = crawler.calculate_build_order(entry_wasp_file_path);
 
     SemanticsAnalyzer semantics_analyzer(workspace);
     semantics_analyzer.run(build_order);
@@ -128,7 +121,7 @@ void Captain::build()
 
 void Captain::execute()
 {
-    auto main_module = workspace->get_module(entry_file);
+    auto main_module = workspace->get_module(entry_wasp_file_path);
 }
 
 } // namespace Wasp

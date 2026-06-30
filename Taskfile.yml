@@ -36,3 +36,8 @@ tasks:
       - clear
       - wasp run ./code/main.wasp
 
+  play:
+    cmds:
+      - clear
+      - gcc -o ./play/hello ./play/hello.c && ./play/hello
+

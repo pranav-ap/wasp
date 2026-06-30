@@ -318,6 +318,12 @@ nlohmann::json ASTPrinter::print(const Block& block)
     {
         result.push_back(print(stmt));
     }
+
+    if (result.is_null())
+    {
+        return nlohmann::json::array();
+    }
+
     return result;
 }
 
@@ -333,6 +339,11 @@ nlohmann::json ASTPrinter::print(const FieldVector& fields)
 
         result.push_back(node);
     }
+    if (result.is_null())
+    {
+        return nlohmann::json::array();
+    }
+
     return result;
 }
 
@@ -343,6 +354,12 @@ nlohmann::json ASTPrinter::print(const FunctionDefinitionVector& funcs)
     {
         result.push_back(print(func));
     }
+
+    if (result.is_null())
+    {
+        return nlohmann::json::array();
+    }
+
     return result;
 }
 
@@ -353,6 +370,12 @@ nlohmann::json ASTPrinter::print(const MethodDefinitionVector& methods)
     {
         result.push_back(print(method));
     }
+
+    if (result.is_null())
+    {
+        return nlohmann::json::array();
+    }
+
     return result;
 }
 
@@ -363,6 +386,12 @@ nlohmann::json ASTPrinter::print(const ExpressionVector& expressions)
     {
         result.push_back(print(expr));
     }
+
+    if (result.is_null())
+    {
+        return nlohmann::json::array();
+    }
+
     return result;
 }
 
@@ -373,6 +402,12 @@ nlohmann::json ASTPrinter::print(const TypeNodeVector& types)
     {
         result.push_back(print(type));
     }
+
+    if (result.is_null())
+    {
+        return nlohmann::json::array();
+    }
+
     return result;
 }
 

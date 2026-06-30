@@ -8,10 +8,8 @@
 #include "SymbolFactory.h"
 #include "SymbolScope.h"
 #include "Type.h"
-#include "TypeSystem.h"
 #include "Workspace.h"
 
-#include <cstddef>
 #include <memory>
 #include <string>
 #include <utility>
