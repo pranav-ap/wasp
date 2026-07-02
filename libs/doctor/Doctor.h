@@ -9,7 +9,8 @@
 #include <source_location>
 #include <string>
 
-namespace Wasp {
+namespace Wasp
+{
 
 enum class WaspStage
 {
@@ -23,7 +24,8 @@ enum class WaspStage
 
 std::string to_string(WaspStage stage);
 
-struct WaspError {
+struct WaspError
+{
     WaspStage stage;
     std::string message;
 
@@ -49,7 +51,8 @@ public:
     Doctor(Doctor&&) = delete;
     Doctor& operator=(Doctor&&) = delete;
 
-    static Doctor& get() {
+    static Doctor& get()
+    {
         static Doctor instance;
         return instance;
     }
@@ -92,8 +95,7 @@ public:
 
     [[noreturn]] void fatal(
         const std::string& message = "",
-        const std::source_location location =
-            std::source_location::current()
+        const std::source_location location = std::source_location::current()
     ) const;
 
     void check(
@@ -106,11 +108,11 @@ public:
     void fatal_if_nullptr(
         T ptr,
         const std::string& message = "",
-        const std::source_location location =
-            std::source_location::current()
+        const std::source_location location = std::source_location::current()
     ) const
     {
-        if (ptr == nullptr) {
+        if (ptr == nullptr)
+        {
             std::string final_msg = message.empty() ? "Oh shit! A nullptr" : message;
             fatal(final_msg, location);
         }
@@ -120,11 +122,11 @@ public:
     void fatal_if_nullopt(
         const std::optional<T>& opt,
         const std::string& message = "",
-        const std::source_location location =
-            std::source_location::current()
+        const std::source_location location = std::source_location::current()
     ) const
     {
-        if (!opt.has_value()) {
+        if (!opt.has_value())
+        {
             std::string final_msg = message.empty() ? "Oh shit! A nullopt" : message;
             fatal(final_msg, location);
         }
@@ -138,8 +140,7 @@ public:
     {
         if (text.empty())
         {
-            std::string final_msg = message.empty() ? "Didn't expect an empty string"
-                                                    : message;
+            std::string final_msg = message.empty() ? "Didn't expect an empty string" : message;
 
             fatal(final_msg, location);
         }
@@ -147,16 +148,17 @@ public:
 
     template <typename T> bool is_nullptr(T ptr, WaspStage) const
     {
-        if (ptr == nullptr) {
+        if (ptr == nullptr)
+        {
             return true;
         }
         return false;
     }
 
-    template <typename T>
-    bool is_nullopt(const std::optional<T>& opt, WaspStage) const
+    template <typename T> bool is_nullopt(const std::optional<T>& opt, WaspStage) const
     {
-        if (!opt.has_value()) {
+        if (!opt.has_value())
+        {
             return true;
         }
 
@@ -178,9 +180,7 @@ public:
     {
         auto end = std::chrono::steady_clock::now();
 
-        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
-            end - timer_start
-        );
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - timer_start);
 
         double elapsed_ms = duration.count() / 1000.0;
         double elapsed_s = duration.count() / 1000000.0;
@@ -189,10 +189,7 @@ public:
             stdout,
             "{} finished in {} ms ({:.3f} s).\n\n",
             fmt::styled(to_string(current_stage), fmt::fg(fmt::color::cyan)),
-            fmt::styled(
-                fmt::format("{:.2f}", elapsed_ms),
-                fmt::fg(fmt::color::yellow)
-            ),
+            fmt::styled(fmt::format("{:.2f}", elapsed_ms), fmt::fg(fmt::color::yellow)),
             elapsed_s
         );
     }

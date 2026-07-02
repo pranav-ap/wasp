@@ -105,8 +105,7 @@ struct TemplateType
     StringVector ordered_parameter_names;
 
     bool empty() const;
-    std::vector<std::pair<std::string, Type_ptr>>
-    get_ordered_generics() const;
+    std::vector<std::pair<std::string, Type_ptr>> get_ordered_generics() const;
 
     Type_ptr get_generic_type(int index) const;
     Type_ptr get_generic_type(const std::string& name) const;
@@ -180,8 +179,7 @@ struct EnumType
     std::string name;
     StringVector members;
 
-    explicit EnumType(std::string name)
-        : type_id(get_next_type_id()), name(std::move(name))
+    explicit EnumType(std::string name) : type_id(get_next_type_id()), name(std::move(name))
     {
     }
 
@@ -334,8 +332,7 @@ struct OopsType
 
     TemplateType_ptr template_type;
 
-    explicit OopsType(std::string name)
-        : type_id(get_next_type_id()), name(std::move(name))
+    explicit OopsType(std::string name) : type_id(get_next_type_id()), name(std::move(name))
     {
     }
 
@@ -500,8 +497,7 @@ template <typename T> inline Type_ptr make_type(T&& val)
     return std::make_shared<Type>(std::forward<T>(val));
 }
 
-template <typename T, typename... Args>
-Type_ptr make_shared_type(Args&&... args)
+template <typename T, typename... Args> Type_ptr make_shared_type(Args&&... args)
 {
     return make_type(std::make_shared<T>(std::forward<Args>(args)...));
 }

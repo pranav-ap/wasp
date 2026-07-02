@@ -200,9 +200,8 @@ struct TypeDefinition
         MethodDefinitionVector methods,
         TypeNodeVector traits
     )
-        : name(std::move(name)), generics(std::move(generics)),
-          fields(std::move(fields)), methods(std::move(methods)),
-          traits(std::move(traits))
+        : name(std::move(name)), generics(std::move(generics)), fields(std::move(fields)),
+          methods(std::move(methods)), traits(std::move(traits))
     {
     }
 };

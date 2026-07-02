@@ -10,7 +10,7 @@ struct SourceCodePointer
     int line_num;
     int column_num;
 
-    SourceCodePointer() : index(0), line_num(1), column_num(1) {};
+    SourceCodePointer() : index(0), line_num(1), column_num(1){};
 
     void advance()
     {
@@ -43,5 +43,4 @@ struct SourceCodePointer
     }
 };
 
-}
-
+} // namespace Wasp

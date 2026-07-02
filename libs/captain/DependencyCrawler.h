@@ -42,14 +42,11 @@ private:
     );
 
 public:
-    explicit DependencyCrawler(std::shared_ptr<Workspace> workspace)
-        : workspace(std::move(workspace))
+    explicit DependencyCrawler(std::shared_ptr<Workspace> workspace) : workspace(std::move(workspace))
     {
     }
 
-    std::vector<Module_ptr> calculate_build_order(
-        const std::filesystem::path& entry_file
-    );
+    std::vector<Module_ptr> calculate_build_order(const std::filesystem::path& entry_file);
 };
 
 } // namespace Wasp

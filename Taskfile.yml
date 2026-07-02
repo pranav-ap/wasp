@@ -59,13 +59,10 @@ tasks:
   fmt:
     desc: Format all C++ code with clang-format
     cmds:
-      - find libs -name "*.cpp" -o -name "*.h" | xargs clang-format -i
-      - find src -name "*.cpp" -o -name "*.h" | xargs clang-format -i
-      - find tests -name "*.cpp" -o -name "*.h" | xargs clang-format -i
+      - find libs src tests -name "*.cpp" -o -name "*.h" -exec clang-format -i {} \;
 
-  # lint:
-  #   desc: Run clang-tidy on all files
-  #   cmds:
-  #     - cmake -B build -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-  #     - run-clang-tidy -p build -checks='*,-modernize-use-trailing-return-type,-llvm-header-guard'
+  lint:
+    desc: Run clang-tidy on all files
+    cmds:
+      - run-clang-tidy -p build -checks='*,-modernize-use-trailing-return-type,-llvm-header-guard'
 

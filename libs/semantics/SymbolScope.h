@@ -48,10 +48,7 @@ public:
 
     StatementVector solid_trees;
 
-    explicit SymbolScope(
-        ScopeType type,
-        SymbolScope_ptr enclosing_scope = nullptr
-    );
+    explicit SymbolScope(ScopeType type, SymbolScope_ptr enclosing_scope = nullptr);
 
     // define
 

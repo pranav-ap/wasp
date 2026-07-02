@@ -4,9 +4,11 @@
 
 #include <filesystem>
 
-namespace Wasp {
+namespace Wasp
+{
 
-class Captain {
+class Captain
+{
 private:
     Workspace_ptr workspace;
     std::filesystem::path entry_wasp_file_path;

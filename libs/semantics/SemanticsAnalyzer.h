@@ -216,10 +216,7 @@ private:
     Type_ptr visit(Identifier& expr);
     Type_ptr visit(MemberAccess& expr);
 
-    Type_ptr mutate_variable(
-        Expression_ptr identifier_expr,
-        Expression_ptr assigned_expr
-    );
+    Type_ptr mutate_variable(Expression_ptr identifier_expr, Expression_ptr assigned_expr);
 
     Type_ptr mutate_member(Expression_ptr lhs_expr, Expression_ptr rhs_expr);
 

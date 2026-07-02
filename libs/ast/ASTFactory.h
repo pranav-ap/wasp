@@ -1,7 +1,0 @@
-namespace Wasp
-{
-    class ASTFactory
-    {
-
-    };
-}

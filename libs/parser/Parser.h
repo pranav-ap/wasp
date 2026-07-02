@@ -47,16 +47,9 @@ private:
 
     Expression_ptr parse_variable_definition(bool is_mutable);
 
-    Statement_ptr parse_function_definition(
-        int indent_level,
-        bool is_pure = false
-    );
+    Statement_ptr parse_function_definition(int indent_level, bool is_pure = false);
 
-    Statement_ptr parse_method_definition(
-        int indent_level,
-        bool is_shared = false,
-        bool is_pure = false
-    );
+    Statement_ptr parse_method_definition(int indent_level, bool is_shared = false, bool is_pure = false);
 
     Statement_ptr parse_type_alias_definition();
     Statement_ptr parse_operator_definition(TokenType fixity, int indent_level);
@@ -71,11 +64,7 @@ private:
     std::tuple<std::string, TypeNodeVector, MethodDefinitionVector, FieldVector>
     parse_membered_definition_base(int indent_level);
 
-    EnumDefinition parse_enum_body(
-        std::string name,
-        FieldVector generics,
-        int indent_level
-    );
+    EnumDefinition parse_enum_body(std::string name, FieldVector generics, int indent_level);
 
     Field parse_field();
     FieldVector parse_fields(int expected_indent);
@@ -83,10 +72,7 @@ private:
 
     // --- Control Flow & Branching ---
     Statement_ptr parse_branching(TokenType token_type, int if_indent_level);
-    Statement_ptr parse_simple_loop(
-        TokenType loop_style,
-        int loop_indent_level
-    );
+    Statement_ptr parse_simple_loop(TokenType loop_style, int loop_indent_level);
     Statement_ptr parse_for_in_loop(int loop_indent_level);
     Statement_ptr parse_loop_control_statement(TokenType control_type);
     Statement_ptr parse_return_statement();

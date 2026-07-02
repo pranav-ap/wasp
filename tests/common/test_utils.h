@@ -9,8 +9,8 @@
 
 Wasp::Block parse(const std::string& code);
 
-template<typename T>
-const T& check(const Wasp::Expression_ptr& ptr) {
+template <typename T> const T& check(const Wasp::Expression_ptr& ptr)
+{
 
     if (!ptr)
     {
@@ -30,8 +30,7 @@ const T& check(const Wasp::Expression_ptr& ptr) {
     return dummy;
 }
 
-template <typename T, typename PtrType>
-const T& check(const PtrType& ptr)
+template <typename T, typename PtrType> const T& check(const PtrType& ptr)
 {
     if (!ptr)
     {

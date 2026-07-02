@@ -96,10 +96,7 @@ public:
 private:
     ASTPrinter() = default;
 
-    nlohmann::json make_node(
-        const std::string& type,
-        const nlohmann::json& data = {}
-    );
+    nlohmann::json make_node(const std::string& type, const nlohmann::json& data = {});
 };
 
 } // namespace Wasp

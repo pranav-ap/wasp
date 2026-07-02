@@ -8,8 +8,6 @@ ColumnLimit: 110
 
 PointerAlignment: Left
 
-# --- Variable Assignment Fixes ---
-# High penalty prevents 'auto' from being orphaned on its own line
 PenaltyReturnTypeOnItsOwnLine: 1000000
 PenaltyBreakAssignment: 5000
 
@@ -30,14 +28,10 @@ AlwaysBreakAfterDefinitionReturnType: None
 AllowAllParametersOfDeclarationOnNextLine: false
 AllowAllArgumentsOnNextLine: false
 
-# --- The Magic for Lambdas & Allman Braces ---
-
 AllowShortBlocksOnASingleLine: false
 AllowShortFunctionsOnASingleLine: None
 AllowShortLambdasOnASingleLine: None
 
-# Forces braces for single-line if/else/for/while/do statements
-InsertBraces: true
 AllowShortIfStatementsOnASingleLine: false
 AllowShortLoopsOnASingleLine: false
 

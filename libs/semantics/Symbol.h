@@ -90,13 +90,7 @@ struct Symbol : public std::enable_shared_from_this<Symbol>
 
     Symbol() = default;
 
-    Symbol(
-        int id,
-        std::string name,
-        int closure_depth,
-        int lexical_depth,
-        SymbolVariant payload
-    );
+    Symbol(int id, std::string name, int closure_depth, int lexical_depth, SymbolVariant payload);
 
     template <typename T> bool is() const
     {

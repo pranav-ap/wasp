@@ -7,7 +7,8 @@
 #include <variant>
 #include <vector>
 
-namespace Wasp {
+namespace Wasp
+{
 
 // --------------------------------------------------------------
 // Forward declarations
@@ -41,8 +42,10 @@ template <typename VariantType> struct AstNode
     AstNode() = default;
 
     template <typename T>
-        requires std::is_constructible_v<VariantType, T&&>
-    AstNode(T&& val) : data(std::forward<T>(val)) {}
+
+    requires std::is_constructible_v<VariantType, T&&> AstNode(T&& val) : data(std::forward<T>(val))
+    {
+    }
 
     template <typename T> bool is() const
     {
