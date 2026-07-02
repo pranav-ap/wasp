@@ -55,10 +55,9 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(fmt)
 
-# nlohmann/json for JSON support
+# JSON support
 FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz)
 FetchContent_MakeAvailable(json)
-
 
 # ==========================================
 # Wasp Modules
@@ -175,3 +174,65 @@ if(PROJECT_IS_TOP_LEVEL)
 
 endif()
 
+# ==========================================
+# Sanitizer Support (Moved to VERY END)
+# ==========================================
+
+option(ENABLE_SANITIZERS "Enable all sanitizers (ASAN + UBSAN)" OFF)
+option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
+option(ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
+option(ENABLE_LSAN "Enable LeakSanitizer" OFF)
+
+if(ENABLE_SANITIZERS OR ENABLE_ASAN OR ENABLE_UBSAN OR ENABLE_LSAN)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        set(SANITIZER_FLAGS "")
+        set(SANITIZER_LINK_FLAGS "")
+        set(SANITIZER_NEEDS_GNU_FS OFF)
+
+        if(ENABLE_SANITIZERS OR ENABLE_ASAN)
+            set(SANITIZER_FLAGS "${SANITIZER_FLAGS} -fsanitize=address")
+            set(SANITIZER_LINK_FLAGS "${SANITIZER_LINK_FLAGS} -fsanitize=address")
+            message(STATUS "✅ AddressSanitizer (ASAN) enabled")
+        endif()
+
+        if(ENABLE_SANITIZERS OR ENABLE_UBSAN)
+            set(SANITIZER_FLAGS "${SANITIZER_FLAGS} -fsanitize=undefined")
+            set(SANITIZER_LINK_FLAGS "${SANITIZER_LINK_FLAGS} -fsanitize=undefined")
+            message(STATUS "✅ UndefinedBehaviorSanitizer (UBSAN) enabled")
+        endif()
+
+        if(ENABLE_SANITIZERS OR ENABLE_LSAN)
+            set(SANITIZER_FLAGS "${SANITIZER_FLAGS} -fsanitize=leak")
+            set(SANITIZER_LINK_FLAGS "${SANITIZER_LINK_FLAGS} -fsanitize=leak")
+            message(STATUS "✅ LeakSanitizer (LSAN) enabled")
+        endif()
+
+        if(NOT SANITIZER_FLAGS STREQUAL "")
+            # Common flags for all sanitizers
+            set(SANITIZER_FLAGS "${SANITIZER_FLAGS} -fno-omit-frame-pointer -g -O1")
+            set(SANITIZER_LINK_FLAGS "${SANITIZER_LINK_FLAGS} -fno-omit-frame-pointer")
+
+            # Add compile and link flags globally
+            add_compile_options(${SANITIZER_FLAGS} -fno-optimize-sibling-calls)
+            add_link_options(${SANITIZER_LINK_FLAGS})
+
+            # For GCC, may need to link with -lstdc++fs
+            if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+                set(SANITIZER_NEEDS_GNU_FS ON)
+            endif()
+        endif()
+    else()
+        message(WARNING "⚠️ Sanitizers not supported with compiler: ${CMAKE_CXX_COMPILER_ID}")
+    endif()
+endif()
+
+# Target-specific link (wasp target now exists!)
+if(ENABLE_ASAN AND SANITIZER_NEEDS_GNU_FS)
+    target_link_libraries(wasp PRIVATE stdc++fs)
+endif()
+
+# Also link sanitizers to any test targets if needed
+if((ENABLE_SANITIZERS OR ENABLE_ASAN) AND PROJECT_IS_TOP_LEVEL)
+    # This ensures tests also get sanitizer flags
+    add_link_options(-fsanitize=address)
+endif()

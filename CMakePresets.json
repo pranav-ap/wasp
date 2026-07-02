@@ -1,0 +1,26 @@
+{
+    "version": 3,
+    "configurePresets": [
+      {
+        "name": "debug",
+        "displayName": "Debug",
+        "binaryDir": "${sourceDir}/build/debug",
+        "generator": "Ninja",
+        "cacheVariables": {
+          "CMAKE_BUILD_TYPE": "Debug",
+          "ENABLE_ASAN": "OFF"
+        }
+      },
+      {
+        "name": "debug-asan",
+        "displayName": "Debug with ASAN",
+        "binaryDir": "${sourceDir}/build/debug-asan",
+        "generator": "Ninja",
+        "cacheVariables": {
+          "CMAKE_BUILD_TYPE": "Debug",
+          "ENABLE_ASAN": "ON",
+          "ENABLE_UBSAN": "ON"
+        }
+      }
+    ]
+  }
