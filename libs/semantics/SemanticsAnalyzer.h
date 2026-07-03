@@ -89,6 +89,7 @@ private:
 private:
     // Expressions
 
+    void visit_expr_stmt(Expression_ptr expression);
     Type_ptr visit(Expression_ptr expression);
     TypeVector visit(ExpressionVector& expressions);
 

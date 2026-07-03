@@ -36,6 +36,8 @@ struct Module
     ModuleType_ptr type = nullptr;
     SymbolVector exported_symbols;
 
+    std::string cpp_code;
+
     Module() = default;
 
     Module(std::filesystem::path file_path, Block block);
@@ -45,6 +47,7 @@ struct Module
     std::string get_qualified_name() const;
 
     void save_ast(const std::string& tag);
+    void save_cpp_code(const std::string& tag);
 };
 
 // ============================================================================

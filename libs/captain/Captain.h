@@ -19,8 +19,7 @@ private:
 public:
     explicit Captain(const std::filesystem::path&);
 
-    void build();
-    void execute();
+    void run();
 };
 
 } // namespace Wasp

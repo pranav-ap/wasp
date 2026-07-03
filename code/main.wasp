@@ -1,38 +1,7 @@
 import core.io expose *
 import core.types expose *
-import bank
 
-
-template
-    T: any
-fun foo(a: T)
-    return
-
-foo<int>(3)
-foo(12)
-
-
-template
-    T: any
-class Monkey
-    a: T
-
-
-Monkey<int>(23)
-
-bank.close()
-
-let a = bank.Account(23)
-print(a.id)
-
-let s = bank.Shop<int>(11)
-print(s.id)
-
-let q = bank.Shop(11)
-print(q.id)
-
-# let z = Shop([1, 2, 3])   # deduces T = int
+let x : int = 25
 
 fun main() => int
-
     return 0

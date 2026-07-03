@@ -1,4 +1,5 @@
 #include "Captain.h"
+#include "Compiler.h"
 #include "DependencyCrawler.h"
 #include "Doctor.h"
 #include "Lexer.h"
@@ -8,6 +9,7 @@
 #include "Statement.h"
 #include "Token.h"
 #include "Workspace.h"
+
 
 #include <filesystem>
 #include <fstream>
@@ -105,7 +107,7 @@ void Captain::parse_module(const std::filesystem::path& file_path)
     workspace->add_module(abs_path, mod);
 }
 
-void Captain::build()
+void Captain::run()
 {
     parse_modules();
 
@@ -117,11 +119,9 @@ void Captain::build()
 
     Salter salter;
     salter.run(build_order);
-}
 
-void Captain::execute()
-{
-    auto main_module = workspace->get_module(entry_wasp_file_path);
+    Compiler compiler(workspace);
+    compiler.run(build_order);
 }
 
 } // namespace Wasp

@@ -3,6 +3,7 @@
 #include "Expression.h"
 #include "SemanticsAnalyzer.h"
 #include "Type.h"
+#include "TypeSystem.h"
 
 #include <variant>
 

@@ -1,4 +1,6 @@
 #include "AST.h"
+#include "Doctor.h"
+#include "Expression.h"
 #include "SemanticsAnalyzer.h"
 #include "Statement.h"
 #include "SymbolScope.h"
@@ -82,7 +84,31 @@ void SemanticsAnalyzer::visit(Return& stmt)
 
 void SemanticsAnalyzer::visit(ExpressionStatement& stmt)
 {
-    visit(stmt.expression);
+    visit_expr_stmt(stmt.expression);
 }
 
+void SemanticsAnalyzer::visit_expr_stmt(Expression_ptr expression)
+{
+    std::visit(
+        overloaded{
+            [&](Binding& e)
+            {
+                visit(e);
+            },
+            [&](Assignment& e)
+            {
+                visit(e);
+            },
+            [&](Call& e)
+            {
+                visit(e);
+            },
+            [&](auto&)
+            {
+                Doctor::semantics().fatal("Invalid expression statement");
+            }
+        },
+        expression->data
+    );
+}
 } // namespace Wasp

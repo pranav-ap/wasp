@@ -18,8 +18,7 @@ int main(int argc, char** argv)
     if (run_cmd->parsed())
     {
         Wasp::Captain captain(wasp_file_path);
-        captain.build();
-        captain.execute();
+        captain.run();
     }
 
     return 0;

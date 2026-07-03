@@ -113,6 +113,35 @@ void Module::save_ast(const std::string& tag)
     // std::cout << "AST saved to: " << output_path.string() << std::endl;
 }
 
+void Module::save_cpp_code(const std::string& tag)
+{
+    std::string wasp_file = this->absolute_filepath.string();
+
+    // TODO remove hardcoding
+    std::filesystem::path code_path = "/workspaces/wasp/code";
+    std::filesystem::path relative_path = std::filesystem::relative(wasp_file, code_path);
+
+    // Build output path
+    std::filesystem::path output_path = std::filesystem::path("/workspaces/wasp/code/build/ir") / tag /
+                                        relative_path;
+    output_path += ".cpp";
+
+    // Create directories
+    std::filesystem::create_directories(output_path.parent_path());
+
+    // Write to file
+    std::ofstream file(output_path.string());
+    if (!file.is_open())
+    {
+        throw std::runtime_error("Failed to open file: " + output_path.string());
+    }
+
+    file << this->cpp_code;
+    file.close();
+
+    // std::cout << "C++ code saved to: " << output_path.string() << std::endl;
+}
+
 // ============================================================================
 // Workspace
 // ============================================================================
