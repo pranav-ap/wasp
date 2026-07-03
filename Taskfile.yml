@@ -61,8 +61,3 @@ tasks:
     cmds:
       - find libs src tests -name "*.cpp" -o -name "*.h" -exec clang-format -i {} \;
 
-  lint:
-    desc: Run clang-tidy on all files
-    cmds:
-      - run-clang-tidy -p build -checks='*,-modernize-use-trailing-return-type,-llvm-header-guard'
-

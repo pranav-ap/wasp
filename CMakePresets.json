@@ -12,9 +12,9 @@
         }
       },
       {
-        "name": "debug-asan",
-        "displayName": "Debug with ASAN",
-        "binaryDir": "${sourceDir}/build/debug-asan",
+        "name": "debug-san",
+        "displayName": "Debug with Sanitizers",
+        "binaryDir": "${sourceDir}/build/debug-san",
         "generator": "Ninja",
         "cacheVariables": {
           "CMAKE_BUILD_TYPE": "Debug",
